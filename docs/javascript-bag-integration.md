@@ -36,3 +36,8 @@ See [the mixin boundary](javascript-bag-mixin.md) and
 [JSON/TYTX transport](bag-tytx-transport.md) for configuration and scope.
 Historical compatibility inventories describe earlier observations, not a
 second supported implementation or a guarantee of full application parity.
+
+## Page-local selection
+
+See [page-local Bag JavaScript selection](page-bag-javascript-selection.md) for
+instance defaults, page overrides and the standalone `bag_native` frontend.

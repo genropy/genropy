@@ -44,6 +44,33 @@ standalone contract; removing an adapter must not erase those regressions.
 Each further bridge needs a concrete framework consumer and a behavior test.
 Standalone contract defects belong in the library.
 
+## Pointer access expressions
+
+The mixin retains the legacy Bag access grammar used by Genro pointers. Both
+`get` and `getItem` accept value expressions such as `item?=#v+'px'`, boolean
+expressions such as `item?=!#v`, and attribute expressions such as
+`item?caption?=#v.toUpperCase()`. Expression dots remain part of the JavaScript
+expression and are not interpreted as Bag path separators.
+
+The legacy selectors are supported unchanged: `?` returns all attributes,
+`?name` returns one attribute, and `?#attr`, `?#keys`, `?#node`, and
+`?#digest:<spec>` retain their special results. The `~` selector reads a child
+from a statically stored Bag or falls back to an attribute; `|` applies an
+expression to the node value. Hierarchical traversal preserves the legacy
+terminal `{value, label}` result and waits for Dojo Deferred intermediate
+values before applying the selector or expression.
+
+Missing paths retain the original default normalization, including empty-string
+and numeric-zero defaults. Expression evaluation continues through the existing
+Dojo evaluation hook and its `genro.__evalAuxValue` binding, so framework
+callers keep the same execution context and return behavior.
+
+Differential tests also cover parent reads at three levels, child traversal
+overrides (including Deferred children), Deferred failures, falsy/default values,
+and nested autocreation. Autocreation retains `reason: 'autocreate'`, which
+framework source, tree and grid handlers use to suppress ordinary insert work.
+Recursive traversal dispatches through the child Bag's public `htraverse`.
+
 ### Removal verification
 
 After removing the reserve adapter, the active mixin/transport suite passes
@@ -167,3 +194,56 @@ The mixin defaults `getNodeByAttr(attr, value, caseInsensitive, deep_first)` to
 to false (current-level priority). Pass false explicitly as the fourth argument
 to select the standalone order. The bridge delegates the complete search and
 preserves the standalone presence-only lookup when value is omitted/undefined.
+
+
+## Legacy array constructor inputs
+
+The compatibility constructor and deprecated `fillFrom` share one array decoder.
+Arrays of objects become `r_0`, `r_1`, ... rows containing Bags, with `_autolist`
+metadata for recursive `asDict`. Arrays of tuples use label, value and optional
+attributes through `setItem`, retaining its replacement and node-factory rules.
+Empty arrays create empty Bags. Construction does not emit a fillFrom warning.
+This bridge does not extend the standalone Bag constructor's input contract.
+Coverage: `bag_array_constructor.test.js` and the split fillFrom/array audit.
+
+## Temporary node orphaning compatibility
+
+`GnrBagNode.orphaned()` is provided only by the JS compatibility mixin, pending
+an application usage audit. It is not added to the standalone JS BagNode API.
+It clears the node's parent reference and recursively disables backrefs in its
+static Bag value, without evaluating a resolver or removing the node from the
+original container. It returns the node. Use `popNode` for actual removal.
+Coverage: `node_orphaned_compat.test.js` compares the legacy operation and checks
+that the native prototype remains unchanged.
+
+## Constructor null-attribute policy
+
+The node mixin forwards the optional eighth `removeNullAttributes` argument to
+the native constructor. Direct construction retains the Python-aligned default
+of removing nulls, with an explicit false option to preserve them. The existing
+legacy `setItem` bridge already passes false for null removal; native container
+construction now honors that choice instead of discarding it. No extra
+compatibility override or duplicated attribute assignment is needed.
+
+## Resolver parent reference versus attachment (R02)
+
+The compatibility `resolver.setParentNode(node)` only assigns the parent
+reference. It neither invokes `onSetResolver` nor resets the cache, matching
+legacy. Attaching through `node.setResolver(resolver)` still uses native
+attachment and invokes the hook. This preserves `remote_relManyResolver`'s
+installation of `newBagRow`. The standalone resolver is unchanged.
+Differential tests: `resolver_parent_hook.test.js`.
+
+## Provisional callback parameter compatibility (R01)
+
+`GnrBagCbResolver` retains the original `parameters` reference rather than
+flattening it into constructor kwargs. On each `load`, it copies enumerable
+own and inherited default fields, then overlays call-time fields. The callback
+receives a fresh object with the resolver as `this`. `resolve` uses the same
+load path. Changes to or replacement of `parameters` remain visible, as in
+legacy. Inputs are not mutated.
+
+This is a temporary compatibility policy, not an extension to the native Bag
+library. Future review must assess inherited enumerable fields and mutable live
+defaults before defining a shared API. Track that review under R01 rather than
+reopening the completed legacy fix. Coverage: callback_parameter_compat.test.js.

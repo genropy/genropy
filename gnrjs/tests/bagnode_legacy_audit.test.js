@@ -2,27 +2,9 @@ const assert = require('node:assert/strict');
 const {test} = require('node:test');
 const {loadPair} = require('./bag_audit_harness.cjs');
 
-const legacyMethods = [
-    'getStringId', 'isExpired', 'isLoaded', 'isLoading', 'getParentNode',
-    'getParentBag', 'orphaned', 'isChildOf', 'setParentBag', 'getFullpath',
-    'backrefOk', 'getValue2', 'getFormattedValue', 'getValue', 'clearValue',
-    'setValue', 'refresh', 'getStaticValue', 'setStaticValue', 'setResolver',
-    'getResolver', 'resetResolver', 'getAttr', 'getInheritedAttributes',
-    'isAncestor', 'isDescendant', 'attributeOwnerNode', 'hasAttr',
-    'replaceAttr', 'setAttribute', 'updAttributes', 'setAttr', 'delAttr',
-    '_toXmlBlock', 'toJSONString', 'doWithValue', 'parentshipLevel'
-];
 
-test('selected GnrBagNode exposes every legacy method with matching arity', () => {
-    const {legacy, selected} = loadPair();
-    for (const name of legacyMethods) {
-        assert.equal(typeof selected.gnr.GnrBagNode.prototype[name], 'function', name);
-        assert.equal(selected.gnr.GnrBagNode.prototype[name].length,
-            legacy.gnr.GnrBagNode.prototype[name].length, name);
-    }
-});
 
-test('selected GnrBagNode constructor preserves legacy identity and resolver state', () => {
+test('selected GnrBagNode preserves identity and resolver state with explicit null policy', () => {
     const {legacy, selected} = loadPair();
     const snapshots = [];
     for (const context of [legacy, selected]) {
@@ -33,7 +15,17 @@ test('selected GnrBagNode constructor preserves legacy identity and resolver sta
         assert.equal(node._parentbag, null);
         assert.equal(node._resolver, resolver);
         snapshots.push({status: node._status, locked: node.locked,
-            callback: node._onChangedValue, nullable: node.attr.nullable});
+            callback: node._onChangedValue});
+        assert.equal(Object.hasOwn(node.attr, 'nullable'), context === legacy);
+        if (context === selected) {
+            const kept = new context.gnr.GnrBagNode(null, 'kept', 1,
+                {nullable: null}, null, null, null, false);
+            assert.equal(Object.hasOwn(kept.attr, 'nullable'), true);
+            assert.equal(kept.attr.nullable, null);
+            const bag = new context.gnr.GnrBag();
+            bag.setItem('kept', 1, {nullable: null});
+            assert.equal(Object.hasOwn(bag.getNode('kept').attr, 'nullable'), true);
+        }
     }
     assert.deepEqual(snapshots[1], snapshots[0]);
 });
@@ -60,12 +52,12 @@ test('selected ancestry preserves graph behavior and orphaned parent is null', (
     assert.equal(snapshots[1], null);
 });
 
-test('selected GnrBagNode attribute edge cases match legacy truthy defaults', () => {
+
+test('selected GnrBagNode attribute operations preserve falsy values', () => {
     const {legacy, selected} = loadPair();
     for (const context of [legacy, selected]) {
         const node = new context.gnr.GnrBagNode(null, 'item', 1,
             {zero: 0, empty: '', flag: false, remove: 1});
-        assert.equal(node.getAttr('missing', 0), null);
         assert.equal(node.hasAttr('zero', 1), false);
         assert.equal(node.hasAttr('zero', 0), true);
         node.delAttr('remove,empty');

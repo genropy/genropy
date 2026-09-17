@@ -9,7 +9,7 @@ test('collection methods are inherited from the standalone Bag', () => {
         assert.equal(selected.gnr.GnrBag.prototype[name], selected.GenroBagJS.Bag.prototype[name], name);
         const visible = [];
         for (const key in new selected.gnr.GnrBag()) visible.push(key);
-        assert.ok(visible.includes(name), `${name} must remain visible to framework mixins`);
+        assert.equal(visible.includes(name), false, `${name} must retain native non-enumerability`);
     }
 });
 
@@ -21,7 +21,7 @@ test('no-op resolver hooks and cache reset are inherited from standalone', () =>
             selected.GenroBagJS.BagResolver.prototype[name], name);
         const visible = [];
         for (const key in new selected.gnr.GnrBagResolver()) visible.push(key);
-        assert.ok(visible.includes(name), `${name} must remain visible to framework mixins`);
+        assert.equal(visible.includes(name), false, `${name} must retain native non-enumerability`);
     }
 });
 

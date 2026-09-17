@@ -1373,7 +1373,7 @@ class GnrWebPage(GnrBaseWebPage):
         if getattr(self,'_avoid_module_cache',None):
             kwargs['_avoid_module_cache'] = True
         from gnr.web.gnrbagtransport import transport_format
-        kwargs['bagTransport'] = transport_format(self.application)
+        kwargs['bagTransport'] = transport_format(self.application, page=self)
         safety_re = re.compile(r"(.*<.*.*?>.+?</.*>)")
         startArgs = dict([(k,self.catalog.asTypedText(v)) for k,v in list(kwargs.items())])
         for arg in list(startArgs.keys()):
@@ -1392,10 +1392,9 @@ class GnrWebPage(GnrBaseWebPage):
         elif _nodebug is False and (self.isDeveloper()):
             arg_dict['genroJsImport'] = [self.mtimeurl(self.gnrjsversion, 'js', '%s.js' % f) for f in gnrimports]
         else:
-            if not self.site.compressedJsPath or self.site.debug:
-                jsfiles = [gnr_static_handler.internal_path(self.gnrjsversion, 'js', '%s.js' % f) for f in gnrimports]
-                self.site.compressedJsPath = self.jstools.compress(jsfiles)
-            arg_dict['genroJsImport'] = [self.site.compressedJsPath]
+            from gnr.web.gnrjsassets import compressed_javascript_url
+            jsfiles = [gnr_static_handler.internal_path(self.gnrjsversion, 'js', '%s.js' % f) for f in gnrimports]
+            arg_dict['genroJsImport'] = [compressed_javascript_url(self, jsfiles)]
         arg_dict['css_genro'] = self.get_css_genro()
         arg_dict['js_requires'] = [x for x in [self.getResourceUri(r, 'js', add_mtime=True) for r in self.js_requires]
                                    if x]

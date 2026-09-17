@@ -63,6 +63,7 @@ function loadClasses(filenames = ['gnrlang.js', 'gnrbag.js', 'gnrdomsource.js'],
         }
     };
     vm.createContext(context);
+    context.genro.evaluate = expression => vm.runInContext('(' + expression + ')', context);
     vm.runInContext(readFileSync(path.join(__dirname,
         '../../dojo_libs/dojo_11/dojo_release/dojo/_base/Deferred.js'), 'utf8'), context,
     {filename: 'dojo/_base/Deferred.js'});
@@ -88,7 +89,7 @@ test('gnrbag creates the global namespace during a clean bootstrap', () => {
     assert.ok(new context.gnr.GnrBag() instanceof context.gnr.GnrBag);
 });
 
-test('Bag classes preserve identity, metadata, and enumerable prototype members', () => {
+test('Bag classes preserve identity and metadata with selected enumerability', () => {
     const context = loadClasses();
     const {gnr} = context;
     const bag = new gnr.GnrBag();
@@ -99,8 +100,10 @@ test('Bag classes preserve identity, metadata, and enumerable prototype members'
     assert.equal(node.constructor, gnr.GnrBagNode);
     assert.equal(node.declaredClass, 'gnr.GnrBagNode');
     assert.equal(bag.declaredClass, 'gnr.GnrBag');
-    assert.equal(Object.prototype.propertyIsEnumerable.call(gnr.GnrBag.prototype, '_nodeFactory'), true);
-    assert.equal(Object.prototype.propertyIsEnumerable.call(gnr.GnrBagNode.prototype, 'getValue'), true);
+    assert.equal(Object.prototype.propertyIsEnumerable.call(gnr.GnrBag.prototype, '_nodeFactory'),
+        process.env.GNR_JS_BAG !== 'genro-bag-js-mixin');
+    assert.equal(Object.prototype.propertyIsEnumerable.call(gnr.GnrBagNode.prototype, 'getValue'),
+        process.env.GNR_JS_BAG !== 'genro-bag-js-mixin');
     if (process.env.GNR_JS_BAG === 'genro-bag-js-mixin') {
         assert.ok(bag instanceof context.GenroBagJS.Bag);
         assert.ok(node instanceof context.GenroBagJS.BagNode);
@@ -407,7 +410,7 @@ test('selected resolver preserves static, cache, concurrency, node state and Doj
         const expiringNode = bag.setItem('expiring', expiring);
         assert.equal(expiringNode.getValue(), 'fresh');
         expiring.lastUpdate = new Date(Date.now() - 11000);
-        assert.equal(expiring.expired(), true);
+        assert.equal(expiring.expired, true);
 
         const failed = new dojo.Deferred();
         const failingNode = bag.setItem('failure',
@@ -452,13 +455,14 @@ test('selected FramePane-style #id insertion generates unique child labels',
         assert.notEqual(first.label, '#id');
         assert.notEqual(second.label, '#id');
         assert.notEqual(first.label, second.label);
-        assert.equal(firstKwargs._new_label, first.label);
-        assert.equal(firstKwargs._new_position, 0);
-        assert.equal(secondKwargs._new_label, second.label);
-        assert.equal(secondKwargs._new_position, 0);
+        // Accepted unused writeback removal; returned nodes expose their labels.
+        assert.equal(firstKwargs._new_label, undefined);
+        assert.equal(firstKwargs._new_position, undefined);
+        assert.equal(secondKwargs._new_label, undefined);
+        assert.equal(secondKwargs._new_position, undefined);
         assert.equal(sidepane.getNode('#0'), second);
         assert.equal(sidepane.getNode('#1'), first);
-        assert.equal(sidepane.setItem('#99', null), null);
+        assert.throws(() => sidepane.setItem('#99', null), /Cannot create new node with #n syntax/);
     });
 
 test('selected DomSource nodes support component attribute detachment',
@@ -673,16 +677,18 @@ test('selected slot wrapper adopts a source node without traversing its internal
         assert.equal(source.getNode('objTitle').getParentBag(), source);
     });
 
-test('selected node attributes replace by default and remove null only in star mode',
+test('selected node attributes follow approved Python update and null policy',
     {skip: process.env.GNR_JS_BAG !== 'genro-bag-js-mixin'}, () => {
         const {gnr} = loadClasses();
         const node = new gnr.GnrBag().setItem('item', 1, {old: true, keepNull: null});
         assert.equal(Object.hasOwn(node.attr, 'keepNull'), true);
 
         node.setAttr({next: true, nullable: null}, false);
+        assert.deepEqual({...node.attr}, {old: true, next: true});
+        node.setAttr({next: true, nullable: null}, false, false, false);
         assert.deepEqual({...node.attr}, {next: true, nullable: null});
-        node.setAttr({next: null}, false, '*');
-        assert.deepEqual({...node.attr}, {nullable: null});
+        node.setAttr({next: null}, false, true, true);
+        assert.deepEqual({...node.attr}, {});
     });
 
 test('selected getItem attribute suffix returns grid metadata instead of Bag rows',
@@ -744,10 +750,9 @@ test('selected getNode attribute paths preserve metadata during autocreate looku
         const data = new gnr.GnrBag();
         const queryMode = data.setItem('queryMode', 'S', {caption: 'Search'});
 
-        const result = data.getNode('queryMode?caption', true, true, null);
-
-        assert.equal(result.node, queryMode);
-        assert.equal(result.obj, data);
+        assert.throws(() => data.getNode('queryMode?caption', true, true, null), /asTuple/);
+        const result = data.getNode('queryMode?caption', false, true, null);
+        assert.equal(result, queryMode);
         assert.equal(queryMode.attr.caption, 'Search');
         assert.equal(data.getNode('queryMode?caption'), queryMode);
         assert.equal(data.getNode('missing?caption', false, true, null).label, 'missing');

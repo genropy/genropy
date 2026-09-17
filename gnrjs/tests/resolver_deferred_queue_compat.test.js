@@ -85,16 +85,20 @@ test('Deferred rejection retains legacy state and allows explicit waiter cancell
     }
 });
 
-test('direct Deferred resolution retains identity and finalizes only on completion', () => {
-    const {selected: c} = loadPair();
-    const deferred = new c.dojo.Deferred();
-    const resolver = new c.gnr.GnrBagResolver({}, false, -1, () => deferred);
-    assert.equal(resolver.resolve(), deferred);
-    assert.equal(resolver.lastUpdate, null);
-    deferred.callback(7);
-    assert.notEqual(resolver.lastUpdate, null);
-    assert.equal(resolver.resolve(), 7);
-    assert.equal(typeof c.GenroBagJS.BagResolver.prototype.meToo, 'undefined');
+test('direct Deferred resolution retains identity and reloads on every call like legacy', () => {
+    const pair = loadPair();
+    for (const c of Object.values(pair)) {
+        let calls = 0;
+        const deferred = new c.dojo.Deferred();
+        const resolver = new c.gnr.GnrBagResolver({}, false, -1, () => {calls++; return deferred;});
+        assert.equal(resolver.resolve(), deferred);
+        assert.equal(resolver.lastUpdate, null);
+        deferred.callback(7);
+        assert.notEqual(resolver.lastUpdate, null);
+        assert.equal(resolver.resolve(), deferred);
+        assert.equal(calls, 2);
+    }
+    assert.equal(typeof pair.selected.GenroBagJS.BagResolver.prototype.meToo, 'undefined');
 });
 
 test('standalone resolvers attached to bridged nodes retain their native policy', () => {

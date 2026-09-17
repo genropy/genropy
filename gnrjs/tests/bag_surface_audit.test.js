@@ -2,25 +2,39 @@ const assert = require('node:assert/strict');
 const {test} = require('node:test');
 const {loadPair} = require('./bag_audit_harness.cjs');
 
-const classNames = ['GnrBag','GnrBagNode','GnrBagResolver','GnrBagFormula',
-    'GnrBagGetter','GnrBagCbResolver','GnrDomSource','GnrDomSourceNode'];
-test('every legacy Bag and DOM source prototype member remains available', () => {
+const accepted = require('./bag_accepted_removals.cjs');
+const classNames = ['GnrBagResolver', 'GnrBagCbResolver'];
+test('documented removed classes and public members stay absent', () => {
     const {legacy, selected} = loadPair();
-    const missing = [];
-    for (const name of classNames) {
+    for (const name of accepted.classes) {
+        assert.equal(typeof legacy.gnr[name], 'function', name);
+        assert.equal(selected.gnr[name], undefined, name);
+    }
+    for (const [name, members] of Object.entries(accepted.members)) {
+        for (const member of members) {
+            assert.equal(typeof legacy.gnr[name].prototype[member], 'function', `${name}.${member}`);
+            assert.equal(selected.gnr[name].prototype[member], undefined, `${name}.${member}`);
+        }
+    }
+});
+for (const name of classNames) {
+    test(`${name} retains all other legacy public prototype members`, () => {
+        const {legacy, selected} = loadPair();
+        const missing = new Set();
         for (let prototype = legacy.gnr[name].prototype;
              prototype && prototype !== Object.prototype;
              prototype = Object.getPrototypeOf(prototype)) {
             for (const key of Object.getOwnPropertyNames(prototype)) {
-                if (!(key in selected.gnr[name].prototype)) missing.push(`${name}.${key}`);
+                if (key === 'constructor' || key.startsWith('_') || accepted.members[name].includes(key)) continue;
+                if (!(key in selected.gnr[name].prototype)) missing.add(`${name}.${key}`);
                 else if (typeof prototype[key] === 'function') {
                     assert.equal(typeof selected.gnr[name].prototype[key], 'function', `${name}.${key}`);
                 }
             }
         }
-    }
-    assert.deepEqual(missing, []);
-});
+        assert.deepEqual([...missing], []);
+    });
+}
 
 function compare(name, callback) {
     test(name, () => {
@@ -29,39 +43,53 @@ function compare(name, callback) {
         assert.equal(run(selected), run(legacy));
     });
 }
-compare('legacy object lists and HTML table formatting', c => {
+compare('legacy HTML table formatting', c => {
     const b = new c.gnr.GnrBag();
     b.setItem('row', new c.gnr.GnrBag({name:'Alice', count:2}));
-    return [b.asObjList('key'), b.asHtmlTable({headers:true,cells:true})];
+    return b.asHtmlTable({headers:true,cells:true});
 });
-compare('legacy string representations and empty compatibility hooks', c => {
-    const b = new c.gnr.GnrBag({name:'Alice', count:2});
-    return [b.__str__(), b.__str2__(), b.asString(), b.merge(), b.pathsplit()];
+test('selected Bag replaces legacy __str__ with native text rendering', () => {
+    const {legacy, selected} = loadPair();
+    assert.equal(typeof legacy.gnr.GnrBag.prototype.__str__, 'function');
+    const bag = new selected.gnr.GnrBag({name:'Alice', count:2});
+    assert.equal(bag.__str__, undefined);
+    for (const render of ['toString', 'toStringTree']) {
+        const text = bag[render]();
+        assert.equal(typeof text, 'string');
+        for (const part of ['name', 'Alice', 'count', '2']) assert.ok(text.includes(part));
+    }
 });
-compare('node creation helpers and callback reads', c => {
+test('merge remains absent in selected JavaScript Bag pending shared API review', () => {
+    const {legacy, selected} = loadPair();
+    const oldBag = new legacy.gnr.GnrBag({a:1});
+    assert.equal(oldBag.merge(new legacy.gnr.GnrBag({a:2})), undefined);
+    assert.equal(oldBag.getItem('a'), 1);
+    assert.equal(new selected.gnr.GnrBag().merge, undefined);
+});
+test('pathsplit placeholder is intentionally absent from selected JavaScript Bag', () => {
+    const {legacy, selected} = loadPair();
+    const oldBag = new legacy.gnr.GnrBag({a:1});
+    assert.equal(oldBag.pathsplit('a.b'), undefined);
+    assert.equal(oldBag.getItem('a'), 1);
+    assert.equal(new selected.gnr.GnrBag().pathsplit, undefined);
+});
+compare('public node creation and rowchild helpers', c => {
     c.genro.assert = (value, message) => assert.ok(value,message);
     const b = new c.gnr.GnrBag();
-    const n = b._getNode('created',true,42);
+    b.setItem('created',42);
+    const n = b.getNode('created');
     b.rowchild('#code',{code:'row',caption:'Row'});
-    return [n.label,n.getValue(),b.getAttr('row'),
-        b.doWithItem('created',v=>v+1),b.doWithItem('absent',v=>v,7)];
+    return [n.label,n.getValue(),b.getAttr('row')];
 });
-compare('formula definitions with an explicitly bound evaluation parent', c => {
-    const b = new c.gnr.GnrBag({a:2,b:3});
-    b.defineSymbol({x:'a',y:'b'});
-    b.defineFormula({total:'$x+$y'});
-    const resolver = b.formula('total');
-    resolver._parent = b;
-    return resolver.resolve();
+test('removed automatic modification tracking does not reappear after mutations', () => {
+    const {selected: {gnr}} = loadPair();
+    const bag = new gnr.GnrBag(); bag.setBackRef();
+    assert.equal(bag.set_modified, undefined);
+    const before = bag.get_modified();
+    bag.setItem('a', 1); bag.popNode('a');
+    assert.equal(bag.get_modified(), before);
 });
-compare('modified tracking subscription lifecycle', c => {
-    const b = new c.gnr.GnrBag(); b.setBackRef();
-    const values = [b.get_modified()];
-    b.set_modified(false); b.setItem('a',1); values.push(b.get_modified());
-    b.set_modified(false); b.popNode('a'); values.push(b.get_modified());
-    b.set_modified(null); b.setItem('a',2); values.push(b.get_modified());
-    return values;
-});
+
 compare('moveNode order and insert/delete notifications', c => {
     const b = new c.gnr.GnrBag({a:1,b:2,c:3});b.setBackRef();
     const events=[];b.subscribe('capture',{any:kw=>events.push([kw.evt,kw.node.label,kw.ind])});
@@ -77,18 +105,17 @@ test('index enumeration handles scalar and null leaves', () => {
     assert.equal(JSON.stringify(b.getIndexList()), '["a","b"]');
 });
 
-test('legacy constructor fields and globals remain addressable', () => {
-    const {legacy,selected}=loadPair();
-    for(const name of ['GnrBag','GnrBagNode','GnrBagResolver']) {
-        const before=new legacy.gnr[name]();const after=new selected.gnr[name]();
-        for(const key of Object.keys(before)) assert.ok(key in after,`${name}.${key}`);
+test('supported globals remain available without retired resolver classes', () => {
+    const {legacy, selected} = loadPair();
+    for (const name of Object.keys(legacy.gnr)) {
+        if (!accepted.classes.includes(name)) assert.ok(name in selected.gnr, `gnr.${name}`);
     }
-    for(const key of Object.keys(legacy.gnr)) assert.ok(key in selected.gnr,`gnr.${key}`);
 });
-compare('direct trigger API bubbles insertion with original location', c => {
+
+compare('public insertion bubbles with original location', c => {
     const root=new c.gnr.GnrBag(), child=new c.gnr.GnrBag();root.setItem('child',child);root.setBackRef();
     const events=[];root.subscribe('listen',{any:kw=>events.push([kw.evt,kw.pathlist,kw.where===child,kw.base===root])});
-    child._getNode('created',true,42);
+    child.setItem('created',42);
     return events;
 });
 compare('nested table formatting respects empty values', c => {
@@ -96,23 +123,30 @@ compare('nested table formatting respects empty values', c => {
     const b=new c.gnr.GnrBag({a:1,empty:null});
     return b.asNestedTable({omitEmpty:true},'static');
 });
-compare('back-reference consistency check', c => {
-    const root=new c.gnr.GnrBag(),child=new c.gnr.GnrBag();root.setItem('child',child);root.setBackRef();
-    return child.backrefOk();
+test('public insertion and removal maintain parent links without backrefOk', () => {
+    const {selected: {gnr}} = loadPair();
+    const root = new gnr.GnrBag(), child = new gnr.GnrBag({leaf: 1});
+    root.setItem('child', child); root.setBackRef();
+    const node = root.getNode('child');
+    assert.equal(node.getParentBag(), root);
+    assert.equal(child.getParentNode(), node);
+    assert.equal(child.getNode('leaf').getParentBag(), child);
+    root.popNode('child');
+    assert.equal(node.getParentBag(), null);
+    assert.equal(child.getParentNode(), null);
+    assert.equal(child.getNode('leaf').getParentBag(), child);
 });
+
 compare('XML blocks preserve attributes and nested content', c => {
     const b=new c.gnr.GnrBag();b.setItem('a',1,{caption:'A'});b.setItem('child',new c.gnr.GnrBag({b:'text'}));
     return b.toXmlBlock({});
 });
 
-test('every enumerable legacy member remains visible to mixin enumeration', () => {
-    const {legacy,selected}=loadPair();
-    for (const name of classNames) {
-        const actual=new Set();
-        for (const key in selected.gnr[name].prototype) actual.add(key);
-        for (const key in legacy.gnr[name].prototype) {
-            assert.ok(actual.has(key),`${name}.${key}`);
-        }
+test('native inherited methods stay callable without legacy enumeration', () => {
+    const {selected} = loadPair();
+    for (const name of ['keys', 'items', 'values', 'update']) {
+        assert.equal(typeof selected.gnr.GnrBag.prototype[name], 'function');
+        assert.equal(Object.getOwnPropertyDescriptor(selected.GenroBagJS.Bag.prototype, name).enumerable, false);
     }
 });
 

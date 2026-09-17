@@ -16,7 +16,7 @@ def test_transport_bootstrap_uses_instance_configuration(transport):
     if transport:
         config.setItem('experimental-features', None,
                        _attributes={'dojo-xhr-patch': transport})
-    static = SimpleNamespace(url=lambda *args: '/static/')
+    static = SimpleNamespace(url=lambda *args: '/static/', internal_path=lambda *args: '/static/' + '/'.join(args))
     page = SimpleNamespace(
         application=SimpleNamespace(config=config, experimentalValue=lambda *args: None),
         site=SimpleNamespace(
@@ -25,6 +25,7 @@ def test_transport_bootstrap_uses_instance_configuration(transport):
         frontend=SimpleNamespace(
             frontend_arg_dict=lambda args: None,
             gnrjs_frontend=lambda: []),
+        jstools=SimpleNamespace(compress=lambda files: '/client.js'),
         catalog=GnrClassCatalog(), gnrjsversion='gnr_d11',
         _htmlHeaders=[], charset='utf-8', pagename='test', page_id='test',
         wsk_enabled=False, debug_sql=False, debug_py=False, isMobile=False,

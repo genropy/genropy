@@ -198,3 +198,14 @@ def test_legacy_serialization_super_call_does_not_recurse_and_modern_override_wi
         def serialize(self):
             return {'modern': True}
     assert Modern().serialize() == {'modern': True}
+
+
+def test_page_asset_choice_controls_rpc_envelope_on_same_server():
+    app = Application(bag_transport='tytx', bag='genro-bag',
+                      bag_js='genro-bag-js-mixin')
+    assert transport_format(app, page=SimpleNamespace(application=app)) == 'tytx'
+    assert transport_format(app, page=SimpleNamespace(
+        application=app, bag_js_implementation='legacy')) == 'xml'
+    assert transport_format(app, page=SimpleNamespace(
+        application=app, page_frontend='bag_native')) == 'xml'
+    assert transport_format(app) == 'tytx'

@@ -78,7 +78,7 @@ class GnrWebRpc(GnrBaseProxy):
             dataChanges = self.page.collectClientDatachanges()
             if dataChanges:
                 envelope.setItem('dataChanges', dataChanges)
-        if transport_format(page.application) == 'tytx':
+        if transport_format(page.application, page=page) == 'tytx':
             page.response.content_type = CONTENT_TYPE
             return encode_envelope(envelope, page.localize)
         page.response.content_type = "text/xml"

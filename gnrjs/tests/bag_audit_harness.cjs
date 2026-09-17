@@ -38,7 +38,7 @@ function loadClasses(filenames = ['gnrlang.js', 'gnrbag.js', 'gnrdomsource.js'],
         _hasResource: {},
         version: {major: 1, minor: 1},
         require() {},
-        eval,
+        eval: null,
         hitch: (object, method) => method === undefined ? object :
             (typeof method === 'string' ? object[method] : method).bind(object),
         forEach: (items, callback) => Array.prototype.forEach.call(items || [], callback),
@@ -61,6 +61,7 @@ function loadClasses(filenames = ['gnrlang.js', 'gnrbag.js', 'gnrdomsource.js'],
         }
     };
     vm.createContext(context);
+    context.dojo.eval = expression => vm.runInContext(expression, context);
     vm.runInContext(readFileSync(path.join(__dirname,
         '../../dojo_libs/dojo_11/dojo_release/dojo/_base/Deferred.js'), 'utf8'), context,
     {filename: 'dojo/_base/Deferred.js'});

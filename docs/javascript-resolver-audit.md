@@ -1,5 +1,9 @@
 # Resolver compatibility audit
 
+> Historical adapter audit, not the current compatibility contract. Statements
+> about restored/enumerable methods describe an earlier implementation. Consult
+> [the decision register](bag-decision-register.md) before using this as a requirement.
+
 > Historical audit of the removed reserve adapter. This document does not describe the active mixin or a supported runtime path.
 
 Baseline: neutral legacy `gnrbag.js`, compared with the selected adapter and its full standalone prototype chain. Executable differential evidence: `gnrjs/tests/resolver_compatibility.test.js`. This covers all legacy members, including inherited members of Formula, Getter and callback resolvers; it is not a claim that every external application or remote transport has been exercised.

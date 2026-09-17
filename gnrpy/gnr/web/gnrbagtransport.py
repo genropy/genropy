@@ -5,10 +5,14 @@ PARAMETER_SUFFIX = '::BAGTYTX'
 CONTENT_TYPE = 'application/vnd.genro.bag+tytx'
 
 
-def transport_format(application):
+def transport_format(application, page=None):
     value = application.experimentalValue('bag_transport', 'format') or 'xml'
     if value not in ('xml', 'tytx'):
         raise ValueError(f'Unsupported Bag transport: {value}')
+    if page is not None:
+        from gnr.web.gnrjsassets import bag_javascript_implementation
+        if bag_javascript_implementation(page) != 'genro-bag-js-mixin':
+            return 'xml'
     if value == 'tytx':
         if (application.experimentalValue('bag', 'implementation') != 'genro-bag'
                 or application.experimentalValue('bag_js', 'implementation') != 'genro-bag-js-mixin'):

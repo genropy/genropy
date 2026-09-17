@@ -1,5 +1,9 @@
 # GnrBagNode legacy compatibility audit
 
+> Historical adapter audit, not the current compatibility contract. Statements
+> about restored/enumerable methods describe an earlier implementation. Consult
+> [the decision register](bag-decision-register.md) before using this as a requirement.
+
 > Historical audit of the removed reserve adapter. This document does not describe the active mixin or a supported runtime path.
 
 Baseline: `gnrjs/gnr_d11/js/gnrbag.js` on the integration branch. Selected

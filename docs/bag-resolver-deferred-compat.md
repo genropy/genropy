@@ -16,11 +16,15 @@ Getter resolvers bypass the queue and do not store their result in the node.
 legacy behavior: the node remains resolving and waiters remain pending until
 explicitly canceled. This is compatibility, not a new error-recovery design.
 
-Resolver calls made for a destination node retain the legacy destination path
-and getter/load argument conventions. Direct resolver calls retain the current
-standalone caching policy; the mixin additionally recognizes Dojo Deferreds so
-cache completion waits for their result. Standalone resolver instances attached
-to bridged nodes keep their native policy and do not acquire a Dojo queue.
+All bridged resolver calls retain the legacy contract, with or without a
+destination node. Direct calls reload each time; node reads own the cache check.
+Without a destination, `_destFullpath` is an empty string. Getter loads receive
+one argument and do not update lastUpdate. Other loads receive the destination
+as a second argument and update lastUpdate on completion. Dojo Deferreds retain
+their identity; ordinary Promise/thenable values are returned untouched, as in
+the legacy resolver. The mixin does not interpret `static` as a native option.
+Standalone resolver instances attached to bridged nodes keep their native
+policy and do not acquire a Dojo queue.
 
 The mixins provide the legacy `lastUpdate`/`isGetter` views and
 `meToo`, `runPendingDeferred`, `cancelMeToo`, and node `getValue2` helpers.
@@ -30,3 +34,22 @@ must be evaluated separately rather than inferred from Dojo compatibility.
 `gnrjs/tests/resolver_deferred_queue_compat.test.js` compares actual legacy and
 selected Bag classes for completion order, reentrant reads, cancellation,
 getters, notrigger and rejection, and checks native resolver isolation.
+
+## Accepted breaking change: constructor cache setter hook
+
+The legacy JavaScript resolver constructor called `this.setCacheTime(...)`,
+which also invoked subclass overrides. The selected resolver initializes
+`cacheTime` through the native property setter instead. The mixin intentionally
+does not restore the constructor hook. Explicit `setCacheTime(...)` calls
+remain supported and still dispatch to subclass overrides.
+
+No application calls or subclass overrides of `setCacheTime` were found in
+Sourcerer's indexed repositories or in the current framework/application
+checkout (reviewed 2026-09-17). Matches were limited to the legacy definition
+and internal constructor call, archived copies, and the mixin definition;
+the subclass override in the audit test is synthetic. This search does not
+cover unindexed external applications.
+
+Subclasses relying on the constructor hook must move their initialization
+into their own constructor after `super(...)`. The differential test records
+this accepted difference without restoring the retired resolver attributes API.

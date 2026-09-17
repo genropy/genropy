@@ -17,31 +17,29 @@ function differential(name, body) {
     });
 }
 
-differential('every legacy resolver subclass member exists and remains enumerable', ({gnr}) => {
-    return ['GnrBagResolver','GnrBagFormula','GnrBagGetter','GnrBagCbResolver'].map(name => {
-        const names = [];
-        for (const key in gnr[name].prototype) if (key !== 'setNode' && key !== 'expired') names.push(key);
-        return names.sort();
-    });
+test('resolver subclasses retain supported public members without enumerability requirements', () => {
+    const {legacy, selected} = loadPair();
+    const accepted = require('./bag_accepted_removals.cjs');
+    for (const name of ['GnrBagResolver', 'GnrBagCbResolver']) {
+        for (const key in legacy.gnr[name].prototype) {
+            if (key.startsWith('_') || accepted.members[name].includes(key)) continue;
+            assert.ok(key in selected.gnr[name].prototype, `${name}.${key}`);
+        }
+        for (const key of accepted.members[name]) assert.equal(selected.gnr[name].prototype[key], undefined);
+    }
 });
 
-differential('resolver constructor, cache, attributes, parent, default load and reset', ({gnr}) => {
+
+differential('resolver negative cache expiration and reset preserve legacy behavior', ({gnr}) => {
     const resolver = new gnr.GnrBagResolver();
-    const initial = [resolver.kwargs, resolver.isGetter, resolver.lastUpdate,
-        resolver.getParentNode(), resolver.load(), resolver.getCacheTime()];
-    resolver.setAttr({a:1}); resolver.setAttr({b:2});
-    const attrs = JSON.stringify(resolver.getAttr());
     resolver.setCacheTime(-1);
     const before = readExpired(resolver);
     resolver.lastUpdate = new Date();
     const after = readExpired(resolver);
     resolver.reset();
-    let hooks = 0;
-    resolver.onSetResolver = () => hooks++;
-    const node = {};
-    resolver.setParentNode(node);
-    return [initial, attrs, before, after, readExpired(resolver), resolver.getParentNode() === node, hooks];
+    return [before, after, readExpired(resolver)];
 });
+
 
 differential('resolve kwargs override destination/static and preserve caller objects', ({gnr}) => {
     const defaults = {a:1};
@@ -58,13 +56,13 @@ differential('getter resolution leaves timestamp unchanged and omits destination
     return [r.resolve(), r.lastUpdate];
 });
 
-differential('resolver forwards the entire legacy Bag interface', ({gnr}) => {
+differential('resolver forwards supported legacy Bag collection operations', ({gnr}) => {
     const bag = new gnr.GnrBag();
     bag.setItem('a', 2, {cost:4}); bag.setItem('b', 3, {cost:5});
     bag.contains = function() { return arguments.length; };
     const resolver = new gnr.GnrBagResolver({}, false, 0, () => bag);
     return JSON.stringify([resolver.keys(),resolver.items(),resolver.values(),resolver.digest('#k'),
-        resolver.sum('#v'),resolver.contains('a'),resolver.len(),resolver.resolverDescription(),
+        resolver.sum('#v'),resolver.contains('a'),resolver.len(),
         resolver.htraverse({pathlist:['a'],autocreate:false}).label]);
 });
 
@@ -91,41 +89,16 @@ differential('callback resolver merges parameters, kwargs and call-time override
     return [r.resolve({c:4}),r.cacheTime,readExpired(r)];
 });
 
-differential('formula resolves root and current Bag symbols including resolver references', ({gnr}) => {
-    const bag = new gnr.GnrBag(); bag.setItem('a',3);
-    const r = new gnr.GnrBagFormula(bag, '$x + root.getItem("a")', {}, {x:'a'});
-    r._parent = bag;
-    assert.throws(() => r.resolve(), /this.load is not a function/);
-    return [gnr.GnrBagFormula.prototype.load.call(r),r.root===bag,r.expr];
-});
-
-test('Getter intentionally repairs legacy undefined thisWhat for node/value/attr modes', () => {
-    run('legacy', ({gnr,genro}) => {
-        genro.getNode = () => ({});
-        assert.throws(()=>new gnr.GnrBagGetter(null,'a').load(),/thisWhat/);
-    });
-    run('genro-bag-js-mixin', ({gnr,genro}) => {
-        const bag = new gnr.GnrBag(); bag.setItem('a',3,{caption:'A'});
-        const node = bag.getNode('a'); genro.getNode = () => node;
-        assert.equal(new gnr.GnrBagGetter(null,'a').load(),node);
-        assert.equal(new gnr.GnrBagGetter(null,'a','value').load(),3);
-        assert.equal(new gnr.GnrBagGetter(null,'a','attr').load().caption,'A');
-    });
-});
-
-test('formula insertion records pre-existing failures without claiming a working formula flow', () => {
-    const {legacy, selected} = loadPair();
-    for (const [context, error] of [[legacy, /Maximum call stack/], [selected, /Maximum call stack/]]) {
-        const bag = new context.gnr.GnrBag();
-        bag.setItem('a',2); bag.defineSymbol({x:'a'}); bag.defineFormula({total:'$x+1'});
-        bag.setItem('total',bag.formula('total'));
-        assert.throws(()=>bag.getItem('total'), error);
-    }
-});
-
-differential('resolver description respects a custom value formatter', ({gnr}) => {
-    const r = new gnr.GnrBagResolver({},false,0,()=>({toString:()=> 'custom'}));
-    return r.resolverDescription();
+test('retired formula, getter and description APIs remain absent', () => {
+    const {selected: {gnr}} = loadPair();
+    assert.equal(gnr.GnrBagFormula, undefined);
+    assert.equal(gnr.GnrBagGetter, undefined);
+    const bag = new gnr.GnrBag();
+    for (const name of ['formula', 'defineFormula', 'defineSymbol']) assert.equal(bag[name], undefined);
+    let calls = 0;
+    const resolver = new gnr.GnrBagResolver({}, false, 0, () => ++calls);
+    assert.equal(resolver.resolverDescription, undefined);
+    assert.equal(calls, 0);
 });
 
 differential('resolver Promise is returned untouched as a non-Deferred legacy value', ({gnr}) => {
@@ -135,19 +108,45 @@ differential('resolver Promise is returned untouched as a non-Deferred legacy va
     return [r.resolve() === promiseLike,thenCalls,r.lastUpdate!==null];
 });
 
-differential('resolver and callback accept inherited enumerable kwargs and Bag attributes', ({gnr}) => {
+differential('base resolver accepts inherited enumerable kwargs', ({gnr}) => {
     const defaults = Object.create({inherited:3}); defaults.own = 2;
     const r = new gnr.GnrBagResolver(defaults,false,0,kw=>JSON.stringify(kw));
-    const attrs = new gnr.GnrBag(); attrs.setItem('caption','A'); r.setAttr(attrs);
-    const cb = new gnr.GnrBagCbResolver({method:kw=>JSON.stringify(kw),parameters:defaults});
-    return [r.resolve(),JSON.stringify(r.getAttr()),cb.load({own:4})];
+    return r.resolve();
 });
 
-differential('resolver constructor invokes subclass cache setter after creating attributes', ({gnr}) => {
-    let observed;
-    class Custom extends gnr.GnrBagResolver {
-        setCacheTime(value) { observed = [value, JSON.stringify(this._attributes)]; super.setCacheTime(value); }
+
+test('resolver constructor initializes cache without invoking the legacy method override', () => {
+    function observe({gnr}) {
+        const calls = [];
+        class Custom extends gnr.GnrBagResolver {
+            setCacheTime(value) { calls.push(value); super.setCacheTime(value); }
+        }
+        const resolver = new Custom({}, false, 12);
+        const initial = [calls.slice(), resolver.cacheTime];
+        resolver.setCacheTime(5);
+        return {initial, calls, cacheTime: resolver.cacheTime};
     }
-    const resolver = new Custom({},false,12);
-    return [observed,resolver.cacheTime];
+    assert.deepEqual(run('legacy', observe), {
+        initial: [[12], 12], calls: [12, 5], cacheTime: 5
+    });
+    assert.deepEqual(run('genro-bag-js-mixin', observe), {
+        initial: [[], 12], calls: [5], cacheTime: 5
+    });
+});
+
+test('approved resolver defaults remain normalized instead of legacy undefined (D20)', () => {
+    const {legacy, selected} = loadPair();
+    const before = new legacy.gnr.GnrBagResolver();
+    assert.equal(before.kwargs, undefined);
+    assert.equal(before.isGetter, undefined);
+    assert.equal(before.getParentNode(), undefined);
+    assert.equal(before.load(), undefined);
+
+    const current = new selected.gnr.GnrBagResolver();
+    assert.deepEqual({...current.kwargs}, {});
+    assert.equal(current.isGetter, false);
+    assert.equal(current.getParentNode(), null);
+    assert.equal(current.load(), null);
+    assert.equal(current.getCacheTime(), before.getCacheTime());
+    assert.equal(current.lastUpdate, before.lastUpdate);
 });

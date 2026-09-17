@@ -395,7 +395,7 @@ test('source attr assignment separates construction kwargs from live node attrib
     assert.equal(node.attr.caption,'Bar');
 });
 
-test('resolver cache treats sourceNode as context identity without serializing its tree', () => {
+test('direct legacy resolver calls reload without serializing sourceNode context', () => {
     const {gnr} = load();
     const source = new gnr.GnrDomSource();
     source.setBackRef();
@@ -404,10 +404,10 @@ test('resolver cache treats sourceNode as context identity without serializing i
     const resolver = new gnr.GnrBagCbResolver({method: kw => {received=kw._sourceNode; return ++calls;}}, false, -1);
     assert.equal(resolver.resolve({_sourceNode:node, value:1}),1);
     assert.equal(received,node);
-    assert.equal(resolver.resolve({_sourceNode:node, value:1}),1);
-    assert.equal(resolver.resolve({_sourceNode:node, value:2}),2);
+    assert.equal(resolver.resolve({_sourceNode:node, value:1}),2);
+    assert.equal(resolver.resolve({_sourceNode:node, value:2}),3);
     const other = source.setItem('other',null);
-    assert.equal(resolver.resolve({_sourceNode:other,value:2}),3);
+    assert.equal(resolver.resolve({_sourceNode:other,value:2}),4);
 });
 
 test('GenroJS expression reads operate on values and attributes without resolver kwargs', () => {
@@ -418,7 +418,7 @@ test('GenroJS expression reads operate on values and attributes without resolver
     bag.setItem('data',new gnr.GnrBag({a:1,b:2}),{caption:'Hello'});
     assert.equal(bag.getItem('data?=#v.len()'),2);
     assert.equal(bag.getItem('data?caption?=#v.toUpperCase()'),'HELLO');
-    assert.equal(bag.getItem('absent?=#v ? 1 : 0'),0);
+    assert.equal(bag.getItem('absent?=#v ? 1 : 0'),null);
 });
 
 test('real lazyBuildFinalize retains the Bag container and rebuilds child nodes', () => {

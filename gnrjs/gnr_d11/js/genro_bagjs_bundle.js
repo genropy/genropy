@@ -5475,6 +5475,9 @@ var GenroBagJS = (() => {
      * @param {BagNode} node - The node this resolver is attached to.
      */
     setNode(node) {
+      if (node !== this._node && !this.readOnly && this._lastUpdate !== null) {
+        this.reset();
+      }
       this._node = node;
       this.onSetResolver(node);
     }
@@ -5548,12 +5551,12 @@ var GenroBagJS = (() => {
       this._lastEffectiveFingerprint = null;
     }
     /**
-     * Get cached value from parent node or local storage.
+     * Readonly caches live in the resolver; writable caches use the attached node.
      *
      * @returns {*} The cached value.
      */
     get cachedValue() {
-      return this._node ? this._node._value : this._cachedValue;
+      return !this.readOnly && this._node ? this._node._value : this._cachedValue;
     }
     /**
      * Set cached value in parent node or local storage.
@@ -5561,7 +5564,7 @@ var GenroBagJS = (() => {
      * @param {*} value
      */
     set cachedValue(value) {
-      if (this._node) {
+      if (!this.readOnly && this._node) {
         this._node.setValue(value, false);
       } else {
         this._cachedValue = value;
@@ -5588,7 +5591,7 @@ var GenroBagJS = (() => {
     resolve(options = {}) {
       const { static: isStatic = false, ...callKwargs } = options;
       if (isStatic) {
-        return this.cachedValue;
+        return this._node ? this._node._value : this.cachedValue;
       }
       const kwargs = { ...this._kw };
       if (this._node && this._node.attr) {
@@ -5601,7 +5604,7 @@ var GenroBagJS = (() => {
       }
       Object.assign(kwargs, callKwargs);
       const currentFingerprint = this._computeEffectiveFingerprint(kwargs);
-      if (!this._readOnly && currentFingerprint === this._lastEffectiveFingerprint && !this.expired) {
+      if (currentFingerprint === this._lastEffectiveFingerprint && !this.expired) {
         return this.cachedValue;
       }
       this._lastEffectiveFingerprint = currentFingerprint;
@@ -5636,7 +5639,7 @@ var GenroBagJS = (() => {
         value = this._convertToBag(value);
       }
       this._lastUpdate = Date.now();
-      if (!this._readOnly) {
+      if (!this.readOnly || this.cacheTime !== 0) {
         this.cachedValue = value;
       }
       return value;
@@ -5762,8 +5765,9 @@ var GenroBagJS = (() => {
      * @param {BagResolver} [resolver=null] - Resolver for lazy value loading.
      * @param {string} [nodeTag=null] - Semantic type tag for the node.
      * @param {string} [xmlTag=null] - Original XML tag name (for serialization).
+     * @param {boolean} [removeNullAttributes=true] - Remove null attributes during construction.
      */
-    constructor(parentBag, label, value = null, attr = null, resolver = null, nodeTag = null, xmlTag = null) {
+    constructor(parentBag, label, value = null, attr = null, resolver = null, nodeTag = null, xmlTag = null, removeNullAttributes = true) {
       this.label = label;
       this._value = null;
       this._attr = {};
@@ -5776,7 +5780,7 @@ var GenroBagJS = (() => {
       this._compiled = null;
       this.parentBag = parentBag;
       if (attr) {
-        this.setAttr(attr, false);
+        this.setAttr(attr, false, true, removeNullAttributes);
       }
       if (value !== null) {
         this.setValue(value, false);
@@ -5982,9 +5986,10 @@ var GenroBagJS = (() => {
      * Reset the resolver and clear the node value.
      */
     resetResolver() {
-      if (this._resolver) {
-        this._resolver.reset();
+      if (!this._resolver) {
+        throw new Error("Cannot reset resolver: node has no resolver");
       }
+      this._resolver.reset();
       this.setValue(null);
     }
     // -------------------------------------------------------------------------
@@ -6533,7 +6538,9 @@ var GenroBagJS = (() => {
           queryString ? null : value,
           attr,
           resolver,
-          nodeTag
+          nodeTag,
+          null,
+          removeNullAttributes
         );
         const idx = this._parsePosition(nodePosition);
         this._dict[label] = node;

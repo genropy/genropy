@@ -28,12 +28,69 @@ if (typeof gnr === 'undefined') var gnr = {};
     let callbackItemWarningShown = false;
     const sourceNodeCacheIds = new WeakMap();
     let nextSourceNodeCacheId = 0;
-    const staticMode = mode => mode === true || mode === 'static';
+    // Keep the framework's pointer suffix separate from the hierarchical path.
+    // In particular, dots in expressions such as #v.toUpperCase() are not Bag
+    // separators. This is the grammar used by the original GenroJS Bag.
+    const legacyAccessPattern = /(.*?)([?|~])([^?|^=]*)(\??)(.*)/;
+
+    function legacyHtraverse(bag, pathlist, autocreate) {
+        let curr = bag;
+        if (typeof pathlist === 'string') {
+            if (pathlist.indexOf('.') < 0 && pathlist.indexOf('?') < 0 &&
+                    pathlist.indexOf('~') < 0 && pathlist.indexOf('/') < 0 &&
+                    pathlist !== '#parent') {
+                return {value: curr, label: pathlist};
+            }
+            const suffix = pathlist.match(/(.*?)([?|~])(.*)/);
+            if (suffix) {
+                pathlist = smartsplit(suffix[1].replace(/\.\.\//g, '#parent.'), '.');
+                pathlist[pathlist.length - 1] += suffix[2] + suffix[3];
+            } else {
+                pathlist = smartsplit(pathlist.replace(/\.\.\//g, '#parent.'), '.');
+            }
+            if (!pathlist) return {value: curr, label: ''};
+        }
+        let label = pathlist.shift();
+        while (label === '#parent' && pathlist) {
+            curr = curr.getParent();
+            label = pathlist.shift();
+        }
+        if (pathlist.length === 0) return {value: curr, label};
+        let index = curr.index(label);
+        if (index < 0) {
+            if (!autocreate) return {value: null, label: null};
+            if (label && label.charAt(0) === '#') label = label.replace('#', '_');
+            curr.setItem(label, new curr.constructor(), null, {doTrigger: 'autocreate'});
+            index = curr.index(label);
+        }
+        const finalize = newcurr => {
+            let isbag = newcurr instanceof api.Bag;
+            if (autocreate && !isbag) {
+                newcurr = new curr.constructor();
+                curr._nodes._list[index].setValue(newcurr, false);
+                isbag = true;
+            }
+            if (isbag) return newcurr.htraverse(pathlist, autocreate);
+            return {value: newcurr, label: pathlist.join('.')};
+        };
+        const newcurr = curr._nodes._list[index].getValue();
+        return newcurr instanceof dojo.Deferred ? newcurr.addCallback(finalize) : finalize(newcurr);
+    }
+
+    function loadLegacyArray(target, source) {
+        if (Array.isArray(source[0])) {
+            for (const row of source) target.setItem(row[0], row[1], row[2]);
+        } else if (source.length && typeof source[0] === 'object') {
+            source.forEach((row, i) => target.setItem('r_' + i,
+                new gnr.GnrBag(row), {_autolist: true}));
+        }
+    }
 
     gnr.GenropyNodeMixin = Base => class extends Base {
-        constructor(parent, label, value, attributes, resolver, nodeTag, xmlTag) {
+        constructor(parent, label, value, attributes, resolver, nodeTag, xmlTag,
+            removeNullAttributes = true) {
             super(parent, label === '#id' ? genro.time36Id() : label,
-                resolver ? null : value, attributes, resolver, nodeTag, xmlTag);
+                resolver ? null : value, attributes, resolver, nodeTag, xmlTag, removeNullAttributes);
             this._id = ++nextNodeId;
             this.locked = false;
             this._status = 'loaded';
@@ -44,7 +101,37 @@ if (typeof gnr === 'undefined') var gnr = {};
         set _parentbag(value) { this.parentBag = value; }
         getParentBag() { return this.parentBag; }
         getParentNode() { return this.parentNode; }
+        getInheritedAttributes(attrname) {
+            if (attrname) {
+                let node = this;
+                while (node && !node.attr[attrname]) node = node.getParentNode();
+                return node ? node.attr[attrname] : null;
+            }
+            const parent = this.getParentNode();
+            const inherited = parent
+                ? (parent.stopInherite ? objectUpdate({}, parent.attr) : parent.getInheritedAttributes())
+                : {};
+            return objectUpdate(inherited, this.attr);
+        }
+        attributeOwnerNode(attrname, attrvalue, caseInsensitive) {
+            const names = arguments.length === 1 ? attrname.split(',') : null;
+            let node = this;
+            while (node) {
+                if (names ? names.some(name => name in node.attr)
+                    : caseInsensitive
+                        ? (node.attr[attrname] || '').toLowerCase() === (attrvalue || '').toLowerCase()
+                        : node.attr[attrname] == attrvalue) return node;
+                node = node.getParentNode();
+            }
+            return null;
+        }
         setParentBag(value) { this.parentBag = value; }
+        orphaned() {
+            this.parentBag = null;
+            const value = this.staticValue;
+            if (value instanceof api.Bag) value.clearBackref();
+            return this;
+        }
         getStringId() { return 'n_' + this._id; }
         getStaticValue() { return this.staticValue; }
         setStaticValue(value) { this.staticValue = value; }
@@ -329,6 +416,12 @@ if (typeof gnr === 'undefined') var gnr = {};
     }    };
 
     gnr.GenropyBagMixin = Base => class extends Base {
+        constructor(source = null, ...args) {
+            const xml = typeof source === 'string' && source.trimStart().startsWith('<');
+            super(Array.isArray(source) || xml ? null : source, ...args);
+            if (Array.isArray(source)) loadLegacyArray(this, source);
+            else if (xml) this.fromXmlDoc(source, genro.clsdict);
+        }
         rowchild(tag, kw) {
             if (!Object.hasOwn(this.constructor, '_rowchildWarningShown')) {
                 console.warn('Bag.rowchild is deprecated; use setItem with explicit label and attributes.');
@@ -347,12 +440,7 @@ if (typeof gnr === 'undefined') var gnr = {};
             const prepared = this.createChildBag();
             if (source instanceof api.Bag) return this.replace(source);
             if (Array.isArray(source)) {
-                if (Array.isArray(source[0])) {
-                    for (const row of source) prepared.setItem(row[0], row[1], row[2]);
-                } else if (source.length && typeof source[0] === 'object') {
-                    source.forEach((row, i) => prepared.setItem('r_' + i,
-                        new gnr.GnrBag(row), {_autolist: true}));
-                }
+                loadLegacyArray(prepared, source);
             } else if (typeof source === 'string') {
                 prepared.fromXmlDoc(new DOMParser().parseFromString(source, 'text/xml'), genro.clsdict);
             } else {
@@ -534,6 +622,7 @@ if (typeof gnr === 'undefined') var gnr = {};
                     const inserted = target.addItem(node.label,
                         resolver && !(value instanceof api.Bag) ? resolver : value, attributes,
                         {nodeTag: node.nodeTag, xmlTag: node.xmlTag});
+                    if (resolver && !(value instanceof api.Bag)) inserted._status = 'unloaded';
                     if (resolver && value instanceof api.Bag) {
                         inserted.setResolver(resolver);
                         inserted._status = 'loaded';
@@ -568,15 +657,61 @@ if (typeof gnr === 'undefined') var gnr = {};
         getBackRef() { return this.backref; }
         attributes() { return this.parentNode ? this.parentNode.attr : undefined; }
         resolver() { return this.parentNode ? this.parentNode.resolver : undefined; }
-        getItem(path, fallback, mode, options) {
-            const expressionAt = typeof path === 'string' ? path.indexOf('?=') : -1;
-            if (expressionAt >= 0) {
-                const value = this.getItem(path.slice(0, expressionAt), fallback, mode, options);
-                const evaluate = funcCreate('return (' + path.slice(expressionAt + 2).replace(/#v/g, 'value') + ');', 'value');
-                return value && typeof value.then === 'function' ? value.then(evaluate) : evaluate(value);
+        get(label, fallback, mode, options) {
+            let match;
+            let node = null;
+            let value = null;
+            if (!label) {
+                node = this.parentNode;
+                value = this;
+            } else if (label === '#parent') {
+                node = this.getParent().getNode();
+            } else {
+                match = label.match(legacyAccessPattern);
+                if (match) label = match[1];
+                const index = this.index(label);
+                if (index < 0) return fallback;
+                node = this._nodes._list[index];
             }
-            const result = super.getItem(path, fallback, staticMode(mode), options);
-            return result;
+            if (node) value = node.getValue(mode, options);
+            if (!match) return value;
+            const finalize = current => {
+                const expression = match[5];
+                if (match[2] === '?') {
+                    const attrname = match[3];
+                    if (attrname) {
+                        if (attrname === '#attr') return node.attr;
+                        if (attrname === '#keys') return current.keys();
+                        if (attrname === '#node') return node;
+                        if (attrname.indexOf('#digest:') === 0) {
+                            return current.digest(attrname.split(':')[1]);
+                        }
+                        current = node.getAttr(attrname);
+                    } else if (!expression) {
+                        return node.attr;
+                    }
+                } else if (match[2] === '~') {
+                    current = node._value instanceof api.Bag
+                        ? node._value.getItem(match[3]) : node.getAttr(match[3]);
+                }
+                if (!expression) return current;
+                if (expression.indexOf('=') === 0) {
+                    genro.__evalAuxValue = current;
+                    return dojo.eval(expression.slice(1).replace(/#v/g, 'genro.__evalAuxValue'));
+                }
+            };
+            return value instanceof dojo.Deferred ? value.addCallback(finalize) : finalize(value);
+        }
+        htraverse(pathlist, autocreate) {
+            return legacyHtraverse(this, pathlist, autocreate);
+        }
+        getItem(path, fallback, mode, options) {
+            fallback = fallback == '' ? fallback : fallback || null;
+            if (!path) return this;
+            const finalize = result => result.value instanceof api.Bag
+                ? result.value.get(result.label, fallback, mode, options) : fallback;
+            const result = this.htraverse(path);
+            return result instanceof dojo.Deferred ? result.addCallback(finalize) : finalize(result);
         }
         getNode(path, reserved, autocreate, fallback) {
             if (reserved === true) {
@@ -770,7 +905,6 @@ if (typeof gnr === 'undefined') var gnr = {};
             return super._finalize(value);
         }
         resolve(options, destinationNode) {
-            if (destinationNode === undefined) return super.resolve(options);
             const parameters = objectUpdate({}, this.kwargs);
             parameters._destFullpath = destinationNode ? destinationNode.getFullpath(null, genro._data) : '';
             if (options) objectUpdate(parameters, options);
@@ -825,7 +959,8 @@ if (typeof gnr === 'undefined') var gnr = {};
             if (load) this.load = load;
         }
         getParentNode() { return this._node; }
-        setParentNode(node) { this.setNode(node); }
+        // Legacy reference assignment is not a resolver attachment operation.
+        setParentNode(node) { this._node = node; }
         get kwargs() { return this._kw; }
         set kwargs(value) { this._kw = value; }
         getCacheTime() { return this.cacheTime; }
@@ -837,10 +972,16 @@ if (typeof gnr === 'undefined') var gnr = {};
     gnr.GnrBagResolver = gnr.GenropyResolverMixin(api.BagResolver);
     gnr.GnrBagCbResolver = class extends gnr.GnrBagResolver {
         constructor(kwargs = {}, isGetter, cacheTime) {
-            super({...kwargs.parameters, ...kwargs}, isGetter, cacheTime);
+            super(kwargs, isGetter, cacheTime);
             this.method = kwargs.method;
+            this.parameters = kwargs.parameters;
         }
-        load(kwargs) { return this.method(kwargs); }
+        // Temporary legacy parameter merge; review scope is recorded as R01.
+        load(kwargs) {
+            const parameters = objectUpdate({}, this.parameters);
+            objectUpdate(parameters, kwargs);
+            return this.method.call(this, parameters);
+        }
     };
     for (const name of ['GnrBagNode', 'GnrBag', 'GnrBagResolver', 'GnrBagCbResolver']) {
         Object.defineProperty(gnr[name].prototype, 'declaredClass', {

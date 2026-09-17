@@ -16,10 +16,15 @@ parity('digest retains row shape, columns flag, static values and field access',
  const b=new gnr.GnrBag(); b.setItem('a', new gnr.GnrBag({x:2}), {q:3}); b.setItem('b', new gnr.GnrBag({x:4}), {q:5});
  return [b.digest('#k'), b.digest('#a.q',true), b.digest('x'), b.digest('#v.x'), b.columns('q',true)];
 `);
-parity('sum ignores strings and includes booleans; strict null handling', `
- const b=new gnr.GnrBag(); b.setItem('a',2); b.setItem('b',true); b.setItem('c','9'); b.setItem('d',null);
- return [b.sum(), b.sum('#v',true)];
-`);
+test('sum follows the shared strict contract instead of legacy coercion', () => {
+    const {selected: {gnr}} = loadPair();
+    const bag = new gnr.GnrBag({a: 2, b: true, c: '9', d: null});
+    assert.equal(bag.sum(), 3);
+    assert.throws(() => bag.sum('#v', true), {name: 'TypeError'});
+    assert.equal(bag.sum('#v', true, n => n.label !== 'c'), null);
+    assert.equal(bag.sum('#v', true, n => ['a', 'b'].includes(n.label)), 3);
+});
+
 for (const mode of ['a','a*','d','d*','asc','desc','>','<']) {
     parity('sort preserves legacy mode '+mode, `
  const b=new gnr.GnrBag(); b.setItem('b','z'); b.setItem('A','a'); b.setItem('c',null); b.setItem('B','B');
@@ -36,9 +41,14 @@ parity('asDict supports recursive, flat, null exclusion and executable text filt
 parity('asDict supports automatic lists', `
  const b=new gnr.GnrBag(); b.setItem('a',1,{_autolist:true}); b.setItem('b',2); return b.asDict(true);
 `);
-parity('addItem preserves duplicates and numeric zero insertion position', `
- const b=new gnr.GnrBag(); b.addItem('a',1); b.addItem('a',2); const kw={_position:0}; b.setItem('z',3,null,kw); return [b.keys(),b.values(),kw._new_position];
-`);
+test('addItem renames duplicate labels and retains both values', () => {
+    const {selected: {gnr}} = loadPair();
+    const bag = new gnr.GnrBag();
+    bag.addItem('a', 1); bag.addItem('a', 2);
+    assert.deepEqual(Array.from(bag.keys()), ['a', 'a__dup_1']);
+    assert.deepEqual(Array.from(bag.values()), [1, 2]);
+});
+
 parity('setItem empty path merges values and attribute paths retain value', `
  const b=new gnr.GnrBag(); b.setItem('a',1,{x:2}); b.setItem('',new gnr.GnrBag({b:3})); b.setItem('a?y',4); return [b.keys(),b.getItem('a'),b.getAttr('a')];
 `);
@@ -112,16 +122,27 @@ parity('walk and forEach pass kwargs and index and honor early return', `
  const result=b.walk((n,kw,i)=>{visited.push([n.label,kw.token,i]);return n.label==='a'?'__continue__':n.label==='b'?'stop':null;},'static',{token:5});
  let first=[]; b.forEach((n,kw,i)=>{first.push([n.label,kw.token,i]);return 'stop';},null,{token:6}); return [visited,result,first];
 `);
-parity('fillFrom merges into existing contents and creates array rows', `
- const b=new gnr.GnrBag(); b.setItem('old',1); b.fillFrom({fresh:2}); const list=new gnr.GnrBag([{x:1},{x:2}]); return [b.keys(),list.keys(),list.asDict(true)];
-`);
+test('fillFrom replaces contents while array construction retains legacy rows', () => {
+    for (const [name, context] of Object.entries(loadPair())) {
+        const result = JSON.parse(vm.runInContext(`JSON.stringify((()=>{
+            const b=new gnr.GnrBag(); b.setItem('old',1); b.fillFrom({fresh:2});
+            const list=new gnr.GnrBag([{x:1},{x:2}]);
+            return [b.keys(),list.keys(),list.asDict(true)];
+        })())`, context));
+        assert.deepEqual(result, [name === 'legacy' ? ['old', 'fresh'] : ['fresh'],
+            ['r_0', 'r_1'], [{x:1}, {x:2}]]);
+    }
+});
 parity('items retain named key/value entries', `const b=new gnr.GnrBag({a:1,b:2}); return b.items();`);
-parity('setAttr autocreates missing nodes and replaces existing attributes', `
- const b=new gnr.GnrBag(); b.setAttr('a',{x:1}); b.setAttr('a',{y:2}); return [b.keys(),b.getAttr('a'),b.getAttr('missing')];
-`);
-parity('isEqual compares identity rather than equal content', `
- const a=new gnr.GnrBag({x:1}), b=new gnr.GnrBag({x:1}); return [a.isEqual(b),a.isEqual(a),a.isEqual(null)];
-`);
+test('setAttr autocreates nodes and preserves existing attributes by default', () => {
+    const {selected: {gnr}} = loadPair();
+    const bag = new gnr.GnrBag();
+    bag.setAttr('a', {x: 1}); bag.setAttr('a', {y: 2});
+    assert.deepEqual(Array.from(bag.keys()), ['a']);
+    assert.deepEqual({...bag.getAttr('a')}, {x: 1, y: 2});
+    assert.equal(bag.getAttr('missing'), null);
+});
+
 test('getNode retains attribute lookup but removes tuple lookup in the mixin', () => {
     for (const [kind, context] of Object.entries(loadPair())) {
         const b = new context.gnr.GnrBag();
