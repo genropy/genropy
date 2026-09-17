@@ -33,10 +33,10 @@ DECLARE = {
 
 class TestRequiredPackagesDeclared(BaseGnrTest):
 
-    def _app(self, *packages):
+    def _app(self, *packages, **kwargs):
         with open(self.test_instance_config_path, 'w', encoding='utf-8') as fp:
             fp.write(CONFIG % '\n'.join(DECLARE[p] for p in packages))
-        return GnrApp(self.test_instance_name)
+        return GnrApp(self.test_instance_name, **kwargs)
 
     def test_undeclared_required_package_stops_the_boot(self):
         """biz requires adm: declaring biz alone must not start."""
@@ -62,3 +62,16 @@ class TestRequiredPackagesDeclared(BaseGnrTest):
         by pkgcode or by a bare label: both name the same package."""
         app = self._app('biz', 'adm', 'sys')
         assert app.declared_packages == set(['biz', 'adm', 'sys'])
+
+    def test_checkdep_stops_on_an_undeclared_required_package(self):
+        """`gnr app checkdep` returns before the loading loop, so the guard in
+        addPackage() cannot fire there: an image build would install what the
+        packages section lists and fail at runtime on the rest."""
+        with pytest.raises(GnrUndeclaredPackageException) as excinfo:
+            self._app('biz', checkdepcli=True)
+        assert 'gnrcore:adm' in str(excinfo.value)
+
+    def test_checkdep_passes_on_a_complete_declaration(self):
+        """Nothing is loaded in checkdep mode: the check is the whole work."""
+        app = self._app('biz', 'adm', 'sys', checkdepcli=True)
+        assert list(app.packages.keys()) == []
