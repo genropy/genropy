@@ -1752,16 +1752,18 @@ dojo.declare("gnr.GnrBag", null, {
                     label = splittedlabel[0];
                     var attr = splittedlabel[1];
                     var node = obj.getNode(label, false, true);
-                    if(kwargs.lazySet && isEqual(node.attr[attr],value)){  
-                        return;
-                    }
-                    var auxattr = {};
+                    var auxattr = objectUpdate({}, _attributes);
                     auxattr[attr] = value;
+                    var changedAttrs = changedAttrKeys(node.attr,auxattr,'*');
+                    if(kwargs.lazySet && !changedAttrs.length){
+                        return node;
+                    }
                     var _doTrigger = true;
                     if ('doTrigger' in kwargs) {
                         _doTrigger = kwargs.doTrigger;
                     }
-                    node.setAttr(auxattr, _doTrigger, '*', attr);
+                    node.setAttr(auxattr, _doTrigger, '*',
+                                 changedAttrs.length>1 ? null : (changedAttrs.length ? changedAttrs[0] : attr));
                     return node;
                 }
                 else {
@@ -1820,10 +1822,17 @@ dojo.declare("gnr.GnrBag", null, {
             if (resolver) {
                 node.setResolver(resolver);
             }
-            if(kwargs.lazySet){
-                if(isEqual(node._value,value)){
+            if(kwargs.lazySet && isEqual(node._value,value)){
+                var changedAttrs = changedAttrKeys(node.attr,_attributes,_updattr);
+                if(!changedAttrs.length){
                     return node;
                 }
+                //same value, changed attributes: only the attribute listeners have to be notified.
+                //changedAttr comes from here because setAttr cannot default it without changing the
+                //callers that read its absence as a whole-attribute change
+                node.setAttr(_attributes, _doTrigger, _updattr,
+                             changedAttrs.length==1?changedAttrs[0]:null);
+                return node;
             }
             node.setValue(value, _doTrigger, _attributes, _updattr,kwargs.fired);
             return node;

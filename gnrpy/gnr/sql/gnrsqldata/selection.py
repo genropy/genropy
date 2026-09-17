@@ -1227,6 +1227,24 @@ class SqlSelection(object):
             result.addItem(label,content , _pkey=pkey)
         return result
 
+    def typedAttributes(self, attributes):
+        """Add the ``::X`` suffix every ``X`` column needs to reach the client.
+
+        Node attributes travel to the client as plain strings: without the
+        suffix an ``X`` column arrives as its serialized text instead of
+        being rebuilt as a Bag.
+
+        Args:
+            attributes: The row ``dict`` to type, modified in place.
+
+        Returns:
+            dict: The same *attributes*.
+        """
+        for k, v in list(attributes.items()):
+            if v and self.colAttrs.get(k, {}).get('dataType') == 'X':
+                attributes[k] = '%s::X' % v
+        return attributes
+
     def out_selection(self, outsource, recordResolver=False, caption=False):
         """Return a Bag where each item represents a row, keyed by pkey.
 
@@ -1270,7 +1288,8 @@ class SqlSelection(object):
                     rowcaption = None
                 row['caption'] = self.dbtable.recordCaption(row, rowcaption=rowcaption)
             result.addItem('%s' % spkey, content,
-                           _pkey=pkey, _attributes=row, _removeNullAttributes=False)
+                           _pkey=pkey, _attributes=self.typedAttributes(row),
+                           _removeNullAttributes=False)
         return result
 
     def out_grid(self, outsource, recordResolver=True, **kwargs):

@@ -61,6 +61,7 @@ dojo.declare('gnr.GenroClient', null, {
         this.domRootName = kwargs.domRootName || 'mainWindow';
         this.page_id = kwargs.page_id;
         this.startArgs = kwargs.startArgs || {};
+        genropatches.dojoXhr(this.startArgs.dojoXhrPatch);
         this.debuglevel = kwargs.startArgs.debug || null;
         this.debug_sql = kwargs.startArgs.debug_sql;
         dojo.subscribe('gnrServerLog', this, 'serverLog');
@@ -106,6 +107,7 @@ dojo.declare('gnr.GenroClient', null, {
         this.lastPing = start_ts;
         this._debugPaths = {};
         this._aliasDatapaths = {};
+        this._pageLocals = {};
         this.sendAllEvents=false;
         this._lastMouseEvent = {};
         this._longClickDuration = 1500;
@@ -325,9 +327,37 @@ dojo.declare('gnr.GenroClient', null, {
     safeHtmlContent:function(str){
         if(typeof str !== 'string') return str;
         if(this._sanitize_js === undefined){
-            this._sanitize_js = !!this.getData('gnr.switches?sanitize_js');
+            var sw = this.getData('gnr.switches.sanitize_js');
+            this._sanitize_js = !(sw===false || sw===0 || sw==='f' || sw==='false' || sw==='F');
         }
-        return this._sanitize_js ? stripJsFromHtml(str) : str;
+        if(!this._sanitize_js){
+            return str;
+        }
+        var result = stripJsFromHtml(str);
+        if(result !== str){
+            this.sanitizeWarning(str);
+        }
+        return result;
+    },
+    sanitizeWarning:function(str){
+        this._sanitizedContents = this._sanitizedContents || {};
+        var key = str.slice(0,200);
+        if(key in this._sanitizedContents){
+            return;
+        }
+        if(Object.keys(this._sanitizedContents).length >= 100){
+            return;
+        }
+        this._sanitizedContents[key] = true;
+        console.warn('[sanitize_js] active JS removed from rendered HTML.',
+                     'Migrate this content to a sanitize-safe pattern (e.g. format_isbutton/format_onclick,',
+                     'a delegated onCellClick handler, or a whitelisted template/js cell),',
+                     'or set <switches sanitize_js="f"/> in instanceconfig as a temporary opt-out.',
+                     'Content:', str);
+        if(this.isDeveloper){
+            var escaped = key.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+            this.dev.addError('sanitize_js removed active JS from rendered HTML: <code>'+escaped+'</code>', 'CLIENT', true);
+        }
     },
     locale:function(){
         if(!this._locale){
@@ -1030,6 +1060,11 @@ dojo.declare('gnr.GenroClient', null, {
         if(sourceNode.grid){
             return;
         }
+        //dijit notifies the focus to every widget above the focused node, the field a
+        //popup (keypad, tooltipPane) was opened from included: when the focus is landing
+        //in that popup, pulling it back on the form's current field would close it
+        var active = document.activeElement;
+        var focusInPopup = !!(active && active.closest && active.closest('.dijitPopup'));
         var destform = sourceNode.form; 
         var changedForm = destform!=genro.activeForm;
         if(changedForm){
@@ -1041,7 +1076,7 @@ dojo.declare('gnr.GenroClient', null, {
         if(genro.activeForm){
             genro.activeForm.onFocusElement(wdg);
             if(changedForm){
-                destform.onFocusForm();
+                destform.onFocusForm(focusInPopup);
             }
         }
     },
@@ -1581,7 +1616,7 @@ dojo.declare('gnr.GenroClient', null, {
                     var inner=dpath.slice(registered_path.length);
                     if(!inner || inner[0]=='.'){
                         genro._serverstore_changes = genro._serverstore_changes || {};
-                        genro._serverstore_changes[genro._serverstore_paths[registered_path]+inner] = asTypedTxt(kw.value);
+                        genro._serverstore_changes[genro._serverstore_paths[registered_path]+inner] = asTypedTxt(kw.node._value);
                         break;
                     }
                 }

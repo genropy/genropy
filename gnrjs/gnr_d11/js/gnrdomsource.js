@@ -508,16 +508,31 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         }
         
     },
-    setAttributeInDatasource: function(attrname, value, doTrigger, attributes, forceChanges) {
+    setAttributeInDatasource: function(attrname, value, doTrigger, attributes) {
         doTrigger = (doTrigger == null) ? this:doTrigger;
         var path = this.attrDatapath(attrname);
-        var old_value = genro._data.getItem(path);
-        //if (forceChanges){
-        //    genro._data.setItem(path,v,null,{'doTrigger':false});
-        //}
-        if (!isEqual(value,old_value) || (forceChanges && value != null)) {
-            genro._data.setItem(path, value, attributes, {'doTrigger':doTrigger});
+        if (isBag(attributes)) {
+            attributes = attributes.asDict();
         }
+        if (path == null || (value == null && !objectNotEmpty(attributes) && !genro._data.getNode(path))) {
+            return; //nothing to publish: an attribute never set needs no datanode
+        }
+        if (objectNotEmpty(attributes)) {
+            // attributes can be a live store row: without a copy of its container values too
+            // the datastore node would alias them and no comparison could detect a change
+            var snapshot = {};
+            for (var k in attributes) {
+                var v = attributes[k];
+                if (isBag(v)) {
+                    v = v.deepCopy();
+                } else if (v != null && v.constructor === Object) {
+                    v = objectUpdate({}, v);
+                }
+                snapshot[k] = v;
+            }
+            attributes = snapshot;
+        }
+        genro._data.setItem(path, value, attributes, {'doTrigger':doTrigger,'lazySet':true});
     },
     defineForm: function(formId, formDatapath, controllerPath, pkeyPath,kw) {
         this.form = new gnr.GnrFrmHandler(this, formId, formDatapath, controllerPath, pkeyPath,kw);
