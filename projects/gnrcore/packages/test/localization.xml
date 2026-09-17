@@ -1,5 +1,7 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<GenRoBag><model><_packages><glbl><regione ext="py" path="model/_packages/glbl/regione.py"><en_prov_principali base="Prov principali" de="Prov Haupt" en="Prov principali" fr="Prov principale" it="Prov principali"></en_prov_principali>
+<GenRoBag><menu path="menu.py" ext="py"><en_html_document base="HTML document" de="HTML-Dokument" en="HTML document" fr="Document HTML" it="Documento HTML"></en_html_document>
+<en_html_document_missing_file base="HTML document (missing file)" de="HTML-Dokument (fehlende Datei)" en="HTML document (missing file)" fr="Document HTML (fichier manquant)" it="Documento HTML (file mancante)"></en_html_document_missing_file></menu>
+<model><_packages><glbl><regione ext="py" path="model/_packages/glbl/regione.py"><en_prov_principali base="Prov principali" de="Prov Haupt" en="Prov principali" fr="Prov principale" it="Prov principali"></en_prov_principali>
 <en_prov_principali_nuts_ base="Prov principali (nuts)" de="Prov principali (Nüsse)" en="Prov principali (nuts)" fr="Prov principali (noix)" it="Prov Principali (dadi)"></en_prov_principali_nuts_></regione></glbl></_packages>
 <animal ext="py" path="model/animal.py"><en_animal base="Animal" de="Tier" en="Animal" fr="Animal" it="Animale"></en_animal>
 <en_animals base="Animals" de="Animals" en="Animals" fr="Animaux" it="Animali"></en_animals>
@@ -16,7 +18,7 @@
 <en_centro base="Centro" de="Center" en="Centro" fr="Centre" it="Centro"></en_centro>
 <en_sud base="Sud" de="Süden" en="Sud" fr="Sud" it="Sud"></en_sud>
 <en_isole base="Isole" de="Islands" en="Isole" fr="Îles" it="Isole"></en_isole></th_provincia></provincia></glbl></_packages></tables></resources>
-<webpages><components><advanced_form ext="py" path="webpages/components/advanced_form.py"><en_terapia base="Terapia" de="Therapie" en="Terapia" fr="Thérapie" it="Terapia"></en_terapia></advanced_form>
+<webpages><components><advanced_form ext="py" path="webpages/components/advanced_form.py"><en_province base="Province" de="Provinzen" en="Provinces" fr="Provinces" it="Province"></en_province></advanced_form>
 <drop_uploader ext="py" path="webpages/components/drop_uploader.py"><en_description base="Description" en="Description" it="Descrizione"></en_description>
 <en_loaded_content base="loaded content" de="geladenen Inhalt" en="loaded content" fr="contenu chargé" it="contenuto caricato"></en_loaded_content>
 <en_xls_rows base="Xls Rows" de="Xls Rows" en="Xls Rows" fr="Rangées XLS" it="Righe xls"></en_xls_rows></drop_uploader>

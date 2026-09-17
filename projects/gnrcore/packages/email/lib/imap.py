@@ -4,6 +4,8 @@
 import re
 import imaplib
 
+from gnr.app import pkglog as logger
+
 detach_dir = '.'
 BASE_RE = re.compile('<base .*?>')
 wait = 600
@@ -53,17 +55,22 @@ class ImapReceiver(object):
         for email_id in items:
             if self.messages_table.checkDuplicate(account_id=self.account_id,uid=email_id):
                 continue
-            if self.db.application.site.debug:
+            # one transaction per message: newReceivedMessage inserts the attachments
+            # before the message exists and only the deferred FK holds them together,
+            # so an email failing halfway would poison the commit of every other one.
+            try:
                 msgrec = self.createMessageRecord(email_id, mailbox_id)
-            else:
-                try:
-                    msgrec = self.createMessageRecord(email_id, mailbox_id)
-                except Exception as e:
-                    msgrec = None
-                    print('Error in email',str(e))
-            if not msgrec:
-                continue
-            self.messages_table.insert(msgrec)
+                if msgrec:
+                    self.messages_table.insert(msgrec)
+                self.account_table.update(dict(id=self.account_id, last_uid=email_id))
+                self.db.commit()
+            except Exception:
+                self.db.rollbackAll()
+                logger.exception('Skipped email uid=%s on account %s', email_id, self.account_id)
+                if self.db.application.site.debug:
+                    raise
+                self.account_table.update(dict(id=self.account_id, last_uid=email_id))
+                self.db.commit()
 
         self.account_table.update(dict(id=self.account_id, last_uid=items[-1]))
         self.db.commit()

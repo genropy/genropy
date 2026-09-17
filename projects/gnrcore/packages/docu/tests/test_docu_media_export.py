@@ -16,85 +16,17 @@ import shutil
 import tempfile
 from datetime import date
 from types import SimpleNamespace
-from urllib.parse import urlsplit
 
 import pytest
 
 from gnr.core.gnrlang import gnrImport
-from gnr.lib.services.storage import BaseLocalService, StorageNode
 
 from core.common import BaseGnrAppTest
+from sitestub import (BUCKET_HOST, INSTANCE_HOST, MEDIA_HOST,
+                      PrivateBucketLocalService, SigningLocalService,
+                      StorageSiteStub)
 
-MEDIA_HOST = 'https://media.example.org'
-INSTANCE_HOST = 'https://instance.example.org'
-PUBLIC_HOST = 'https://cdn.example.org'
-BUCKET_HOST = 'https://s3.eu-south-1.amazonaws.com'
 IMAGEFINDER = re.compile(r"\.\. image:: ([\w./:-]+)")
-
-
-class SigningLocalService(BaseLocalService):
-    """Local service mimicking a signing storage with a public base of its own
-    (e.g. aws_s3 with public_base_url): url() is signed, expiring and served by
-    the instance, while public_url() is plain, permanent and served by the
-    public base, which declares the content readable by anyone."""
-
-    public_base_url = PUBLIC_HOST
-
-    def url(self, *args, **kwargs):
-        return '%s?Signature=deadbeef&Expires=123' % super().url(*args, **kwargs)
-
-    def public_url(self, *args, **kwargs):
-        return '/'.join([self.public_base_url, self.service_name] + list(args))
-
-
-class PrivateBucketLocalService(BaseLocalService):
-    """Local service mimicking a signing storage with no public base configured
-    (e.g. aws_s3 without public_base_url): public_url() still answers a url on
-    the bucket endpoint, outside the instance, but nothing says that bucket is
-    publicly readable, so linking it would publish 403s."""
-
-    def url(self, *args, **kwargs):
-        return '%s?Signature=deadbeef&Expires=123' % super().url(*args, **kwargs)
-
-    def public_url(self, *args, **kwargs):
-        return '/'.join([BUCKET_HOST, self.service_name] + list(args))
-
-
-class StorageSiteStub:
-    """Minimal site wiring exposing real local storage services to the model."""
-
-    def __init__(self, gnrapp, mainpackage, services_dirs):
-        self.gnrapp = gnrapp
-        self.mainpackage = mainpackage
-        self.external_host = MEDIA_HOST
-        self.currentPage = SimpleNamespace(isMobile=False, user=None)
-        self.services = {}
-        for name, base_path in services_dirs.items():
-            service = BaseLocalService(parent=self, base_path=base_path)
-            service.service_name = name
-            self.services[name] = service
-
-    def storageNode(self, fullpath, *parts):
-        if parts:
-            fullpath = '/'.join([fullpath] + list(parts))
-        service_name, path = fullpath.split(':', 1)
-        return StorageNode(parent=self, path=path, service=self.services[service_name])
-
-    def externalUrl(self, url, **kwargs):
-        return '%s%s' % (INSTANCE_HOST, url)
-
-    def pathListFromUrl(self, url):
-        return list(filter(None, urlsplit(url).path.split('/')))
-
-    def storageType(self, path_list):
-        if path_list[0].startswith('_storage'):
-            return 'storage'
-
-    def storageNodeFromPathList(self, path_list, storageType=None):
-        service_name, path = path_list[1], '/'.join(path_list[2:])
-        if service_name not in self.services:
-            return None
-        return self.storageNode('%s:%s' % (service_name, path))
 
 
 class TestDocuMediaExport(BaseGnrAppTest):
@@ -117,9 +49,7 @@ class TestDocuMediaExport(BaseGnrAppTest):
         for service_name, service_class, base_path in (
                 ('signedmedia', SigningLocalService, cls.signed_dir),
                 ('bucketmedia', PrivateBucketLocalService, cls.bucket_dir)):
-            service = service_class(parent=cls.app.site, base_path=base_path)
-            service.service_name = service_name
-            cls.app.site.services[service_name] = service
+            cls.app.site.addService(service_name, base_path, service_class=service_class)
         cls._makeFixture()
 
     @classmethod

@@ -1,3 +1,36 @@
+Release 26.09.07
+================
+
+Hotfix release: cherry-picked fixes for #1270 (PR #1271), where a
+non-existing dialect caused clevercsv to fail, and handling doubled
+line terminators parsing.
+
+Release 26.09.04
+================
+
+Hotfix release: fixed attachmentPane grid drop, where the uploads was
+successfull but the record wasn't created.
+
+Release 26.09.01
+================
+
+Hotfix release: disclosed security policy via SECURITY.md.
+
+Release 26.08.28
+================
+
+This is an hotfix release which solves:
+glbl - added the ISO 3166-1 missing codes assigned since the country list was compiled (#1199)
+migrate: keep column commands when the table also needs a pkey rebuild (#1198)
+
+
+Release 26.08.26
+================
+
+Hotfix release: adm.notification - align notification audience on both
+paths, with static/dynamic lists (#1179)
+
+
 Release 26.08.19.1
 ==================
 

@@ -6,22 +6,33 @@ unions the subscriptions of every registered page, so a per-page question would 
 the cross-page updates that broadcast exists for — a menu badge on page A watching a
 table that page B writes.
 
-``PageRegister`` is built directly: ``BaseRegister.__init__`` only wants a siteregister
-object, so no daemon and no Pyro are involved. The gate's memo is exercised on a real
-``GnrWsgiWebApp.subscribedTables`` with stubbed db/site.
+The page register is taken from a real ``SiteRegister``, built with a stand-in server:
+its constructor only needs ``server.daemon.register`` for the remote-bag handler, so no
+daemon and no Pyro are involved. A register maintains its parent's link set as items come
+and go, so it needs the sibling registers next to it -- a stub site would have to
+reimplement that. The gate's memo is exercised on a real ``GnrWsgiWebApp.subscribedTables``
+with stubbed db/site.
 """
 
-from gnr.web.daemon.siteregister import PageRegister
+import io
+
+from gnr.web.daemon.siteregister import SiteRegister
 from gnr.web.gnrwebapp import GnrWsgiWebApp
 
 
-class _FakeSiteRegister:
-    def refresh_ts(self, *args, **kwargs):
+class _FakeDaemon:
+    def register(self, obj, name):
         pass
 
 
+class _FakeServer:
+    daemon = _FakeDaemon()
+    gnr_daemon_uri = None
+    hmac_key = None
+
+
 def _register():
-    return PageRegister(_FakeSiteRegister())
+    return SiteRegister(_FakeServer(), sitename='testsite').page_register
 
 
 # ---------------------------------------------------------------------------
@@ -252,3 +263,63 @@ def test_a_dropped_page_leaves_no_dangling_key_in_the_index():
     reg.drop('page-1')
     assert reg.subscribed_table_page_keys('foo.bar') == ['page-2']
     assert reg.subscribed_table_pages('foo.bar') == [reg.registerItems['page-2']]
+
+
+# ---------------------------------------------------------------------------
+# drop is atomic with unindexing, whatever happened to the item before
+# ---------------------------------------------------------------------------
+
+
+def test_reregistering_a_page_unindexes_its_previous_life():
+    """The dangling-subscriber regression: create() replaces the item wholesale, so
+    the subscriptions of the previous life must leave the index with it — or they
+    outlive the item and every notifyDbEvents on those tables raises KeyError."""
+    reg = _register()
+    reg.create('page-1')
+    reg.subscribeTable('page-1', table='foo.bar', subscribe=True)
+    reg.subscribeTable('page-1', table='foo.baz', subscribe=True)
+    reg.create('page-1')
+    reg.drop('page-1')
+    assert reg.subscribed_tables() == []
+    assert reg.subscribed_table_pages('foo.bar') == []
+
+
+def test_reregistering_keeps_the_index_aligned_with_the_lists():
+    reg = _register()
+    reg.create('page-1', subscribed_tables='foo.bar')
+    reg.create('page-1', subscribed_tables='foo.baz')
+    assert dict(reg.tableSubscribers) == _index_from_pages(reg)
+    assert reg.subscribed_tables() == ['foo.baz']
+
+
+def test_drop_unindexes_even_a_list_the_item_no_longer_carries():
+    """dropSubscriptions is driven by the index, not by the item's own list."""
+    reg = _register()
+    item = reg.create('page-1', subscribed_tables='foo.bar')
+    item['subscribed_tables'] = []
+    reg.drop('page-1')
+    assert reg.subscribed_tables() == []
+
+
+def test_load_rebuilds_the_index_from_the_restored_items():
+    reg = _register()
+    reg.create('page-1', subscribed_tables='foo.bar')
+    reg.create('page-2', subscribed_tables='foo.bar,foo.baz')
+    storage = io.BytesIO()
+    reg.dump(storage)
+    storage.seek(0)
+    restored = _register()
+    restored.tableSubscribers['foo.stale'].add('ghost-page')
+    restored.load(storage)
+    assert dict(restored.tableSubscribers) == _index_from_pages(restored)
+    assert sorted(restored.subscribed_tables()) == ['foo.bar', 'foo.baz']
+
+
+def test_a_residual_dangling_key_is_pruned_instead_of_raising():
+    """Defense in depth: the index is a cache, so a key with no item must never
+    abort the notification for the live subscribers of the table."""
+    reg = _register()
+    reg.create('page-1', subscribed_tables='foo.bar')
+    reg.tableSubscribers['foo.bar'].add('ghost-page')
+    assert reg.subscribed_table_pages('foo.bar') == [reg.registerItems['page-1']]
+    assert reg.subscribed_table_page_keys('foo.bar') == ['page-1']

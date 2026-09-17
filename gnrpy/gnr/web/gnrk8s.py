@@ -100,7 +100,9 @@ class GnrK8SGenerator(object):
         self.env.append(dict(name='GNR_DAEMON_PORT', value=str(self.GNR_DAEMON_PORT)))
         # have gunicorn listen on all interfaces
         self.env.append(dict(name='GNR_GUNICORN_BIND', value='0.0.0.0'))
-        self.env.append(dict(name="GNR_EXTERNALHOST", value=f'https://{self.fqdns[0]}'))
+        # set GNR_EXTERNALHOST if at least 1 fqdn has been provided
+        if self.fqdns:
+            self.env.append(dict(name="GNR_EXTERNALHOST", value=f'https://{self.fqdns[0]}'))
 
     def _set_namespace(self, obj_definition):
         if self.namespace:
@@ -414,6 +416,8 @@ class GnrK8SGenerator(object):
         return [deployment], [service], self.get_ingress()
     
     def get_ingress(self):
+        if not self.fqdns:
+            return []
         ingress = {
             "apiVersion": "networking.k8s.io/v1",
             "kind": "Ingress",

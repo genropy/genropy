@@ -1,0 +1,8 @@
+from gnr.lib.services import GnrBaseService
+
+
+class DnsManager(GnrBaseService):
+    def __init__(self, *args, **kwargs):
+        pass
+
+    

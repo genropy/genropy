@@ -1,6 +1,5 @@
 from gnr.core.gnrdecorator import public_method
 from gnr.web.gnrbaseclasses import BaseComponent,page_proxy
-#from gnrpkg.test15.proxies.bbt import TvSeries,BigBangProxy
 
 @page_proxy
 class BigBangProxy(BaseComponent):
