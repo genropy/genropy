@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 """Python equivalent of ``standard.tpl`` for GenroPy rootPage.
 
-Activated via ``experimental.no_mako`` preference. The Mako file
+Activated via ``<experimental><page no_mako="True"/></experimental>`` in
+instanceconfig.xml. The Mako file
 ``gnrjs/gnr_d{11,20}/tpl/standard.tpl`` remains as fallback.
 """
 

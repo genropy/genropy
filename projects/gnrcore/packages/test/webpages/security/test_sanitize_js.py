@@ -12,7 +12,7 @@ class GnrCustomWebPage(object):
         return 'Test sanitize_js'
 
     def prepareForm(self, root):
-        root.data('gnr.switches', None, sanitize_js=True)
+        root.data('gnr.switches.sanitize_js', True)
 
     def test_1_stripJsFromHtml_regex(self, pane):
         """stripJsFromHtml: regex unit tests"""
@@ -228,3 +228,79 @@ class GnrCustomWebPage(object):
         center.dataFormula('.clean_tpl_result',
                            'dataTemplate("Name: $clean_link", data)',
                            data='=.', _onStart=True)
+
+    def test_4_switch_and_warning(self, pane):
+        """safeHtmlContent: switch handling, opt-out and one-shot warning"""
+        bc = pane.borderContainer(height='300px')
+        top = bc.contentPane(region='top', height='40px', padding='5px')
+        top.button('Run tests', action='FIRE .run_tests;')
+        top.div('^.test_result', margin_left='10px', display='inline-block',
+                font_size='14px', font_weight='bold')
+        center = bc.contentPane(region='center', padding='10px', overflow='auto')
+        center.div(nodeId='switch_test_results',
+                   style='font-family:monospace; font-size:13px; white-space:pre-wrap;')
+        pane.dataController("""
+            var passed = 0;
+            var failed = 0;
+            var log = [];
+
+            function check(label, condition) {
+                if (condition) {
+                    passed++;
+                    log.push('PASS: ' + label);
+                } else {
+                    failed++;
+                    log.push('FAIL: ' + label);
+                }
+            }
+
+            var savedSwitch = genro._sanitize_js;
+            var savedContents = genro._sanitizedContents;
+            var payload = '<div onclick="evil()">warned</div>';
+
+            genro._sanitize_js = undefined;
+            genro._sanitizedContents = {};
+            check('switch on (page sets gnr.switches.sanitize_js=true): strips',
+                genro.safeHtmlContent(payload) === '<div >warned</div>');
+            check('stripping registers one warning entry',
+                Object.keys(genro._sanitizedContents).length === 1);
+            genro.safeHtmlContent(payload);
+            check('same content warns only once',
+                Object.keys(genro._sanitizedContents).length === 1);
+            check('clean content does not warn',
+                genro.safeHtmlContent('<b>clean</b>') === '<b>clean</b>'
+                    && Object.keys(genro._sanitizedContents).length === 1);
+
+            genro._sanitize_js = false;
+            check('opt-out: content passes through untouched',
+                genro.safeHtmlContent(payload) === payload);
+
+            var falsy = [false, 0, 'f', 'false', 'F'];
+            var falsyOk = true;
+            for (var i = 0; i < falsy.length; i++) {
+                genro._sanitize_js = undefined;
+                genro.setData('gnr.switches.sanitize_js', falsy[i]);
+                if (genro.safeHtmlContent(payload) !== payload) {
+                    falsyOk = false;
+                }
+            }
+            check('every falsy switch value disables sanitization', falsyOk);
+
+            genro._sanitize_js = undefined;
+            genro.setData('gnr.switches.sanitize_js', null);
+            check('missing/unset switch defaults to sanitize ON',
+                genro.safeHtmlContent(payload) === '<div >warned</div>');
+
+            genro.setData('gnr.switches.sanitize_js', true);
+            genro._sanitize_js = savedSwitch;
+            genro._sanitizedContents = savedContents;
+
+            var summary = 'Passed: ' + passed + '/' + (passed + failed);
+            if (failed > 0) {
+                summary = 'FAILED ' + failed + ' test(s). ' + summary;
+            } else {
+                summary = 'ALL TESTS PASSED. ' + summary;
+            }
+            SET .test_result = summary;
+            genro.nodeById('switch_test_results').domNode.innerHTML = log.join('\\n');
+        """, _fired='^.run_tests')

@@ -7,6 +7,7 @@ import pytest
 
 from common import BaseGnrAppTest
 import gnr.app.gnrapp as ga
+from gnr.core.gnrbag import Bag
 
 class TestGnrApp(BaseGnrAppTest):
     """
@@ -184,3 +185,29 @@ class TestGnrApp(BaseGnrAppTest):
             assert p['sys.error']['extra_where_filter'] == None
             assert p['sys.task_execution']['extra_where_filter'] == None
        
+
+
+def _app_with_experimental(**attrs):
+    app = ga.GnrApp.__new__(ga.GnrApp)
+    app.config = Bag()
+    if attrs:
+        app.config.setItem('experimental.page', None, **attrs)
+    return app
+
+
+def test_experimental_flag_reads_the_page_tag():
+    app = _app_with_experimental(no_mako='True', page_class_cache='false')
+    assert app.experimentalFlag('page', 'no_mako') is True
+    assert app.experimentalFlag('page', 'page_class_cache') is False
+
+
+def test_experimental_flag_of_a_missing_tag_is_false():
+    app = _app_with_experimental()
+    assert app.experimentalFlag('page', 'no_mako') is False
+    assert app.experimentalFlag('other', 'no_mako') is False
+
+
+def test_experimental_value_keeps_the_raw_attribute():
+    app = _app_with_experimental(remoteForm='delayed')
+    assert app.experimentalValue('page', 'remoteForm') == 'delayed'
+    assert app.experimentalValue('page', 'missing') is None
