@@ -359,6 +359,11 @@
 	</model>
 
 	<resources>
+		<adm_notification path="resources/adm_notification.js" ext="js">
+			<en_warning base="Warning" de="Warnung" en="Warning" fr="Avertissement" it="Avvertimento"/>
+				<en_if_you_do_not_confirm_you_will_be_logged_out_of_the_application base="If you do not confirm you will be logged out of the application" en="If you do not confirm you will be logged out of the application" it="Se non confermi verrai disconnesso dall'applicativo"/>
+				<en_confirm fr="Confirmer" en="Confirm" de="Bestätigen" it="Conferma" base="Confirm" zh="确认"/>
+		</adm_notification>
 		<frameindex path="resources/frameindex.py" ext="py">
 			<en_invalid_access fr="Accès non valide" de="Ungültige Zugang" en="Invalid Access" it="Accesso non valido" base="Invalid Access"/>
 				<en_not_allowed_to_use_this_page base="Not allowed to use this page" it="Non abilitato in questa pagina" en="Not allowed to use this page"/>
@@ -387,11 +392,6 @@
 				<en_refresh_the_current_page fr="Rafraîchir la page actuelle" de="Aktualisiere die aktuelle Seite" en="Refresh the current page" it="Aggiorna la pagina corrente" base="Refresh the current page"/>
 				<en_close_the_current_page fr="Fermez la page en cours" de="Schließen Sie die aktuelle Seite" en="Close the current page" it="Chiudere la pagina corrente" base="Close the current page"/>
 				<en_new_window fr="Nouvelle fenêtre" de="Neues Fenster" en="New Window" it="Nuova finestra" base="New Window"/>
-		</frameindex>
-		<frameindex path="resources/frameindex.js" ext="js">
-			<en_warning base="Warning" de="Warnung" en="Warning" fr="Avertissement" it="Avvertimento"/>
-				<en_if_you_do_not_confirm_you_will_be_logged_out_of_the_application base="If you do not confirm you will be logged out of the application" en="If you do not confirm you will be logged out of the application" it="Se non confermi verrai disconnesso dall'applicativo"/>
-				<en_confirm fr="Confirmer" en="Confirm" de="Bestätigen" it="Conferma" base="Confirm" zh="确认"/>
 		</frameindex>
 		<frameplugin_menu>
 			<frameplugin_menu path="resources/frameplugin_menu/frameplugin_menu.py" ext="py">
