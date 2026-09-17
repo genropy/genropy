@@ -147,6 +147,35 @@ def test_valueMapFormat_label_keeps_the_raw_value():
     b.setItem('status', 'M', format='A:Approvato,*:Altro [%s]', dtype='T')
     assert gnrstring.templateReplace('$status', b) == 'Altro [M]'
 
+def test_valueMapFormat_mask_wraps_the_mapped_label():
+    """format and mask are two columns of the same row: the mask wraps whatever
+    the format produced, the mapped label included, as gnrformatter.asText does
+    on the client. A mask is a %s template, not a % format, so it may repeat the
+    token or carry a bare %, and so may a label."""
+    b = Bag()
+    b.setItem('status', 'A', format='A:Approvato,R:Respinto', mask='[%s]', dtype='T')
+    b.setItem('status_unmatched', 'Z', format='A:Approvato,R:Respinto', mask='[%s]', dtype='T')
+    b.setItem('status_wildcard', 'M', format='A:Approvato,*:Altro [%s]', mask='[%s]', dtype='T')
+    b.setItem('status_percent', 'A', format='A:Sconto 50%,R:Respinto', mask='[%s]', dtype='T')
+    b.setItem('status_twice', 'A', format='A:Approvato,R:Respinto', mask='%s (%s)', dtype='T')
+    b.setItem('status_suffix', 'A', format='A:Approvato,R:Respinto', mask='%s%', dtype='T')
+
+    assert gnrstring.templateReplace('$status', b) == '[Approvato]'
+    assert gnrstring.templateReplace('$status_unmatched', b) == '[Z]'
+    assert gnrstring.templateReplace('$status_wildcard', b) == '[Altro [M]]'
+    assert gnrstring.templateReplace('$status_percent', b) == '[Sconto 50%]'
+    assert gnrstring.templateReplace('$status_twice', b) == 'Approvato (Approvato)'
+    assert gnrstring.templateReplace('$status_suffix', b) == 'Approvato%'
+
+def test_valueMapFormat_caption_mask_still_names_the_field():
+    """A '#' in the mask is the caption placeholder of the server side alone:
+    a mapped label goes through it like any other value."""
+    b = Bag()
+    b.setItem('status', 'A', format='A:Approvato,R:Respinto', mask='#: %s',
+              dtype='T', name_long='Stato')
+
+    assert gnrstring.templateReplace('$status', b) == 'Stato: Approvato'
+
 def test_valueMapFormat_real_format_strings_fall_through():
     # these do parse as maps; they return None because no value matches a key
     # and no wildcard is declared (localize_img, a time mask)

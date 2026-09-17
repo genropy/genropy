@@ -74,6 +74,11 @@ def valueMapFormat(format_choice, value):
     parse as a map — ``'auto:.5'``, ``'HH:mm'`` — also returns ``None``, but
     only because no value equals one of its keys and it declares no wildcard.
 
+    :class:`LocalizedWrapper` maps any ``str`` value whatever its dtype, while
+    the client reaches the map only inside ``format_T``: the two sides agree
+    today for the same accidental reason, no ``P`` format of this shape ever
+    matching a value.
+
     A label may carry the ``%s`` token of the ``mask`` column to keep the raw
     value visible, which is what makes a ``*`` wildcard usable without losing
     the codes it collapses.
@@ -178,21 +183,24 @@ class LocalizedWrapper(object):
             caption = attrs.get('name_long','')
         format_choice = self.formats.get(as_name) or format_choice
         mask = self.masks.get(as_name) or mask
-        if isinstance(value, str):
-            mapped_value = valueMapFormat(format_choice, value)
-            if mapped_value is not None:
-                return mapped_value if not self.emptyMode else ''
+        mapped_value = valueMapFormat(format_choice, value) if isinstance(value, str) else None
         dtype = self.dtypes.get(as_name)
-        if dtype =='P' and value and not value.startswith('data:') and self.urlformatter:
-            value = self.urlformatter(value)
-        if (isinstance(value,str)) and dtype:
-            value = '%s::%s' %(value,dtype)
+        if mapped_value is None:
+            if dtype =='P' and value and not value.startswith('data:') and self.urlformatter:
+                value = self.urlformatter(value)
+            if (isinstance(value,str)) and dtype:
+                value = '%s::%s' %(value,dtype)
         if mask and '#' in mask:
             caption = self.localizer.translate(caption) if self.localizer else caption.replace('!!','')
             mask = mask.replace('#',caption)
         elif not format_choice and formattedValue:
             value = formattedValue
-        value = toText(value,locale=self.locale, format=format_choice,mask=mask)
+        if mapped_value is not None:
+            # the mask wraps the mapped label as gnrformatter.asText does on the client;
+            # .replace, not %, because a label or a mask can carry a bare %
+            value = mask.replace('%s', mapped_value) if mask else mapped_value
+        else:
+            value = toText(value,locale=self.locale, format=format_choice,mask=mask)
         return value if not self.emptyMode else ''
 
 
