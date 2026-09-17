@@ -103,3 +103,13 @@ The callback test was subsequently strengthened to cover own defaults and both
 load/resolve; its failure remains one test. Pointer tests unchanged and passing.
 R02 was subsequently fixed and R01 implemented provisionally in the JS mixin; the other entries retain their listed status.
 See javascript-bag-test-reconciliation.md for the test cleanup record.
+
+## Runtime regression: explicit source rebuild
+
+`GnrDomSourceNode.rebuild()` must request UI reconstruction even when its
+content Bag has not changed. Assigning the same value relied on legacy JS
+notifications and left frozen quick-dialog content unbuilt with native Bags.
+The source node now calls the source handler explicitly; native data-change
+semantics and compatibility mixins are unchanged. The handler still respects
+freeze/build guards. `source_rebuild.test.js` verifies legacy and selected
+modes, content identity, ancestry, `unfreeze(true)` and frozen rebuilds.

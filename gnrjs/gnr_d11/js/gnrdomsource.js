@@ -959,7 +959,12 @@ Object.assign(gnr.GnrDomSourceNode.prototype, {
         return attributes;
     },
     rebuild: function() {
-        this.setValue(this._value);
+        // Rebuilding is an explicit UI operation, not a data value change.
+        // Native Bags correctly suppress notifications for identical values.
+        if (this.getParentBag()) {
+            genro.src.nodeTrigger({evt:'upd', node:this, oldvalue:this._value,
+                value:this._value, updvalue:true, updattr:false, reason:true});
+        }
     },
     build: function(destination, ind) {
         genro.src.stripData(this);
