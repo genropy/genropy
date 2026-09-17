@@ -14,6 +14,15 @@ from gnr.core.gnrbag import Bag
 from gnr.web import gnrdummysite
 from gnr.web.gnrbaseclasses import BagToHtmlWeb
 from gnr.web.gnrdummysite import FakeRegister, FakeStore, GnrDummySite
+from gnr.web.gnrwebstruct import GnrDomSrc_dojo_11
+
+
+def struct_nodes(struct):
+    """Depth first walk of a built struct, yielding every node in it."""
+    for node in struct.nodes:
+        yield node
+        if isinstance(node.value, Bag):
+            yield from struct_nodes(node.value)
 
 
 class TestGnrDummySite(BaseGnrTest):
@@ -85,6 +94,27 @@ class TestGnrDummySite(BaseGnrTest):
 
     def test_no_subscribed_tables(self):
         assert self.site.getSubscribedTables(['adm.user']) == []
+
+    def test_a_table_handler_struct_builds(self):
+        """A table handler subscribes the table it shows, and there is no page
+        in this register to notify: the register has to drop the call rather
+        than not answer it, or no grid can be built here at all. Built for
+        real, because that is the only thing that tells whether it can be."""
+        page = self.site.dummyPage
+        page.mixinComponent('th/th:TableHandler')
+        root = GnrDomSrc_dojo_11.makeRoot(page)
+        page._root = root
+        previous_page = self.site.currentPage
+        # the grid struct reads the saved views of the user asking for it, and
+        # the site is shared with every other test in this class
+        self.site.currentPage = page
+        try:
+            root.child('div', childname='box').plainTableHandler(table='adm.user')
+        finally:
+            self.site.currentPage = previous_page
+        grids = [node.attr for node in struct_nodes(root)
+                 if node.attr.get('tag') == 'NewIncludedView']
+        assert [grid['table'] for grid in grids] == ['adm.user']
 
     def test_dummy_page_renders(self):
         rendered = self.site.dummyPage.rootPage()
