@@ -47,10 +47,11 @@ class Table(object):
     def trigger_onInserted(self, record):
         # The audience is photographed as soon as the notification is saved:
         # for a static list this snapshot *is* the list, and a dynamic one
-        # still has to reach the users matching right now. With `all_users`
-        # that means one adm.user_notification row per user, written inside
-        # the insert transaction: saving a notification costs one insert per
-        # user of the installation. That is the intended price of a snapshot.
+        # still has to reach the users matching right now. A first snapshot
+        # has nothing to compare itself against, so with `all_users` it does
+        # write one adm.user_notification row per user of the installation:
+        # that is the irreducible cost of materialising an audience, and it
+        # is paid once, not again at every later edit.
         self.updateUserNotificationsFromQuery(record)
 
     def trigger_onUpdating(self, record, old_record=None):
@@ -59,11 +60,11 @@ class Table(object):
 
     def trigger_onUpdated(self, record, old_record=None):
         # Only a change to the audience criteria re-photographs the list: the
-        # snapshot drops the pending rows and rebuilds membership from the
-        # current population, so firing it on `dynamic_list` or on the date
-        # window would silently re-photograph a static list -- extending the
-        # window of a static notification would enrol exactly the newcomers
-        # it is meant to exclude, and drop the users who no longer match.
+        # snapshot realigns the pending rows on the current population, so
+        # firing it on `dynamic_list` or on the date window would silently
+        # re-photograph a static list -- extending the window of a static
+        # notification would enrol exactly the newcomers it is meant to
+        # exclude, and drop the users who no longer match.
         if self.fieldsChanged('linked_query,tag_rule,all_users,group_code', record, old_record):
             self.updateUserNotificationsFromQuery(record)
 
@@ -137,14 +138,17 @@ class Table(object):
         tag_rule = self.audienceTagRule(notification_record)
         if not tag_rule:
             return user_tbl.query(where=where, **selection_kwargs).selection().output('pkeylist')
-        # $all_tags is the column adm authentication reads to build the avatar
-        # tags, so the rule is evaluated against the tags the user actually
-        # logs in with: their own plus the ones inherited from their group.
-        # Being a pyColumn it costs a query per candidate, paid only when a
-        # tag rule has to be evaluated -- and the snapshot that calls this is
-        # already one insert per user anyway.
-        rows = user_tbl.query(where=where, columns='*,$all_tags', **selection_kwargs).fetch()
-        return [r['id'] for r in rows if self.tagRuleMatches(tag_rule, r['all_tags'])]
+        # The rule is evaluated against the very tags the user logs in with,
+        # their own plus the ones inherited from their group: that is what
+        # `allTagsByUser` builds, in one query for the whole candidate set.
+        # Reading the same tags through the `$all_tags` pyColumn would cost
+        # one query per candidate, and the audience of a notification is the
+        # whole population until a criterion narrows it.
+        rows = user_tbl.query(where=where, columns='$id,$group_code,$avatar_secret_2fa',
+                              **selection_kwargs).fetch()
+        tags_by_user = user_tbl.allTagsByUser(rows)
+        return [r['id'] for r in rows
+                if self.tagRuleMatches(tag_rule, tags_by_user[r['id']])]
 
     def userMatchesAudience(self, notification_record, user_id):
         """Return True if the given user matches the notification audience.
@@ -161,15 +165,44 @@ class Table(object):
         return self.tagRuleMatches(self.audienceTagRule(notification_record), rows[0]['all_tags'])
 
     def updateUserNotificationsFromQuery(self, notification_record):
+        """Align adm.user_notification with the audience of this notification.
+
+        The alignment is differential: the two sets are compared in memory
+        and only the users who entered or left the audience are written.
+        Dropping every pending row and re-creating the whole audience one
+        record at a time -- with a duplicate check of its own per user --
+        cost several SQL round-trips per user of the installation, so
+        editing the restriction query froze the form and timed the save
+        request out on any sizeable population.
+
+        Confirmed rows are history and are never touched: a user who
+        already answered keeps their row even if they no longer match, and
+        is never enrolled a second time."""
         user_notification_tbl = self.db.table('adm.user_notification')
-        users = self.audienceUserIds(notification_record)
+        notification_id = notification_record['id']
+        audience = self.audienceUserIds(notification_record)
+        existing = user_notification_tbl.query(where='$notification_id=:notif_id',
+                                               columns='$user_id,$confirmed',
+                                               notif_id=notification_id).fetch()
+        confirmed = {r['user_id'] for r in existing if r['confirmed']}
+        pending = {r['user_id'] for r in existing if not r['confirmed']}
 
-        # Delete previous unconfirmed notifications for this notification_id
-        user_notification_tbl.deleteSelection(where='$notification_id=:notif_id AND $confirmed IS NOT TRUE',
-                                              notif_id=notification_record['id'])
-
-        for user_id in users:
-            if user_notification_tbl.checkDuplicate(user_id=user_id,notification_id=notification_record['id']):
+        leaving = pending.difference(audience)
+        if leaving:
+            user_notification_tbl.deleteSelection(
+                    where="""$notification_id=:notif_id AND $confirmed IS NOT TRUE
+                             AND $user_id IN :leaving""",
+                    notif_id=notification_id, leaving=list(leaving))
+        entering = set(audience).difference(pending).difference(confirmed)
+        for user_id in audience:
+            if user_id not in entering:
+                # Already enrolled, already confirmed, or a repeat of a user
+                # the audience query returned twice, which a restriction
+                # query joining a related table can do: taking the user out
+                # of `entering` is the duplicate check the per-user
+                # `checkDuplicate` used to pay a query for.
                 continue
-            new_notf = user_notification_tbl.newrecord(user_id=user_id,notification_id=notification_record['id'])
-            user_notification_tbl.insert(new_notf)
+            entering.remove(user_id)
+            user_notification_tbl.insert(
+                    user_notification_tbl.newrecord(user_id=user_id,
+                                                    notification_id=notification_id))
