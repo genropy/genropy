@@ -199,6 +199,10 @@
 				<en_title base="Title" de="Titel" en="Title" fr="Titre" it="Titolo"/>
 				<en_template fr="Modèle" de="Schablone" en="Template" it="Template" base="Template" es="plantilla"/>
 				<en_confirm_label fr="Confirmez étiquette" de="Label bestätigen" en="Confirm label" it="Etichetta di conferma" base="Confirm label"/>
+				<en_confirm_button_label base="Confirm button label" en="Confirm button label" it="Etichetta del bottone di conferma"/>
+				<en_confirm fr="Confirmer" en="Confirm" de="Bestätigen" it="Conferma" base="Confirm" zh="确认"/>
+				<en_cancel_button_label base="Cancel button label" en="Cancel button label" it="Etichetta del bottone di annullamento"/>
+				<en_cancel base="Cancel" de="Stornieren" en="Cancel" fr="Annuler" it="Annulla"/>
 				<en_tag_rule fr="règle de Tag" de="Tag-Regel" en="Tag rule" it="Regola Tag" base="Tag rule"/>
 				<en_group_code base="Group code"/>
 				<en_for_all_users fr="Pour tous les utilisateurs" de="Für alle Benutzer" en="For all users" it="Per tutti gli utenti" base="For all users"/>
@@ -206,6 +210,10 @@
 				<en_linked_query base="Linked query" it="Query collegata" en="Linked query" zh="关联查询"/>
 				<en_dynamic_list base="Dynamic list" en="Dynamic list" it="Lista dinamica"/>
 				<en_dynamic base="Dynamic" en="Dynamic" it="Dinamica"/>
+				<en_start_date fr="Date De Début" de="Anfangsdatum" en="Start date" it="Data Di Inizio" base="Start Date" zh="开始日期"/>
+				<en_start base="Start" en="Start" de="Anfang" fr="Début" it="Inizio"/>
+				<en_end_date fr="Date De Fin" de="End Date" en="End date" it="Data Di Fine" base="End Date" zh="结束日期"/>
+				<en_end base="End" en="End" de="Ende" fr="Fin" it="Fine"/>
 				<en_confirmed_users base="Confirmed users" en="Confirmed users" it="Utenti confermati"/>
 				<en_conf_users base="Conf.users" en="Conf.users" it="Utenti conf."/>
 				<en_pending_users base="Pending users" en="Pending users" it="Utenti da confermare"/>
@@ -315,6 +323,7 @@
 				<en_user base="User" de="Benutzer" en="User" fr="Utilisateur" it="Utente"/>
 				<en_notification fr="Notification" de="Benachrichtigung" en="Notification" it="Notifica" base="Notification"/>
 				<en_confirmed fr="Confirmé" de="Bestätigt" en="Confirmed" it="Confermato" base="Confirmed"/>
+				<en_conf_ base="Conf." en="Conf." it="Conf."/>
 		</user_notification>
 		<user_tag path="model/user_tag.py" ext="py">
 			<en_user_tag fr="tag de l'utilisateur" de="Benutzer Tag-" en="User tag" it="Tag utente" base="User tag"/>
@@ -378,6 +387,11 @@
 				<en_refresh_the_current_page fr="Rafraîchir la page actuelle" de="Aktualisiere die aktuelle Seite" en="Refresh the current page" it="Aggiorna la pagina corrente" base="Refresh the current page"/>
 				<en_close_the_current_page fr="Fermez la page en cours" de="Schließen Sie die aktuelle Seite" en="Close the current page" it="Chiudere la pagina corrente" base="Close the current page"/>
 				<en_new_window fr="Nouvelle fenêtre" de="Neues Fenster" en="New Window" it="Nuova finestra" base="New Window"/>
+		</frameindex>
+		<frameindex path="resources/frameindex.js" ext="js">
+			<en_warning base="Warning" de="Warnung" en="Warning" fr="Avertissement" it="Avvertimento"/>
+				<en_if_you_do_not_confirm_you_will_be_logged_out_of_the_application base="If you do not confirm you will be logged out of the application" en="If you do not confirm you will be logged out of the application" it="Se non confermi verrai disconnesso dall'applicativo"/>
+				<en_confirm fr="Confirmer" en="Confirm" de="Bestätigen" it="Conferma" base="Confirm" zh="确认"/>
 		</frameindex>
 		<frameplugin_menu>
 			<frameplugin_menu path="resources/frameplugin_menu/frameplugin_menu.py" ext="py">
@@ -574,7 +588,10 @@
 								<en_linked_query base="Linked query" it="Query collegata" en="Linked query" zh="关联查询"/>
 								<en_confirm fr="Confirmer" en="Confirm" de="Bestätigen" it="Conferma" base="Confirm" zh="确认"/>
 								<en_add_linked_query base="Add linked query"/>
-								<en_notification_parameters base="Notification parameters"/>
+								<en_confirmation_settings base="Confirmation settings" en="Confirmation settings" it="Impostazioni di conferma"/>
+								<en_general_settings base="General settings" en="General settings" it="Impostazioni generali"/>
+								<en_if_empty_no_confirmation_checkbox_is_shown base="If empty no confirmation checkbox is shown" en="If empty no confirmation checkbox is shown" it="Se vuoto non viene mostrata la casella di conferma"/>
+								<en_if_empty_the_cancel_button_is_hidden base="If empty the cancel button is hidden" en="If empty the cancel button is hidden" it="Se vuoto il bottone di annullamento non viene mostrato"/>
 				</th_notification>
 			</notification>
 				<served_page>
@@ -635,7 +652,6 @@
 				<user_notification>
 				<th_user_notification path="resources/tables/user_notification/th_user_notification.py" ext="py">
 					<en_username fr="Nom d'utilisateur" de="Benutzername" en="Username" it="Nome utente" base="Username"/>
-								<en_conf_ base="Conf." it="Conf."/>
 				</th_user_notification>
 			</user_notification>
 				<user_setting>
