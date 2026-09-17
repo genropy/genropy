@@ -40,6 +40,11 @@ class BaseGnrTest:
         fconf = os.path.join(cls.tmp_conf_dir, "gnr")
         os.mkdir(fconf)
         cls.conf_dir = fconf
+        # The ambient GENRO_GNRFOLDER is what every other test module in the
+        # same pytest process resolves its configuration through: remember it
+        # here so teardown puts it back instead of leaving the process without
+        # one, which turns every later module into `Missing genro configuration`.
+        cls._previous_gnrfolder = os.environ.get('GENRO_GNRFOLDER')
         os.environ['GENRO_GNRFOLDER'] = cls.conf_dir
         cls.daemon_port = random.randint(40000,45000)
         cls.test_genro_root = os.path.abspath(os.path.join(cls.local_dir, *[".."]*3))
@@ -131,7 +136,11 @@ class BaseGnrTest:
     def teardown_class(cls):
         """Teardown testing environment (idempotent: also called on setup failure)"""
         cls._reap_tmp_conf_dir()
-        os.environ.pop("GENRO_GNRFOLDER", None)
+        previous = getattr(cls, "_previous_gnrfolder", None)
+        if previous:
+            os.environ["GENRO_GNRFOLDER"] = previous
+        else:
+            os.environ.pop("GENRO_GNRFOLDER", None)
 
 class BaseGnrAppTest(BaseGnrTest):
     app_name = 'gnrdevelop'
