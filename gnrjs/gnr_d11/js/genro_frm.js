@@ -764,8 +764,7 @@ dojo.declare("gnr.GnrFrmHandler", null, {
         var r = this.store.deleteItem(kw.pkey,kw);
         if(r instanceof dojo.Deferred){
             r.addBoth(function(result){
-                that.deleteSettled(result,kw);
-                return result;
+                return that.deleteSettled(result,kw);
             });
         }
         if(kw.onDeleted){
@@ -910,18 +909,41 @@ dojo.declare("gnr.GnrFrmHandler", null, {
             return {error:'rpc_error'};
         }
         if(result instanceof Error || Object.prototype.toString.call(result)==='[object Error]'){
-            return {error:'rpc_error',message:result.message};
+            return result.rpcFailure || {error:'rpc_error',message:result.message};
         }
         if(result && result.error && !(result instanceof gnr.GnrBag) && !(result instanceof gnr.GnrBagNode)){
             return result;
         }
+        // null included: a rpcmethod returning no payload is a committed call, not a failure
         return null;
+    },
+    rpcFailure:function(result){
+        var failure = this.rpcError(result);
+        if(!failure){
+            return null;
+        }
+        if(result instanceof Error){
+            return result;
+        }
+        // dojo 1.1 moves the chain to the errback side only on an Error instance
+        var error = new Error(failure.message || failure.error);
+        error.rpcFailure = failure;
+        return error;
+    },
+    // codes the user is already told about elsewhere: genro.dev.handleRpcError for the
+    // envelope ones, genro.rpc.errorHandler for the transport one, gnrsilent by design
+    rpcReportedErrors:['gnrsilent','rpc_error','gnrexception','server_exception',
+                       'expired','clientError','serverError'],
+    rpcFailureReported:function(failure){
+        return this.rpcReportedErrors.indexOf(failure.error)>=0;
     },
     loadSettled:function(result,kw){
         var failure = this.rpcError(result);
-        if(failure){
-            this.loadFailed(failure,kw);
+        if(!failure){
+            return result;
         }
+        this.loadFailed(failure,kw);
+        return this.rpcFailure(result);
     },
     loadFailed:function(failure,kw){
         var that = this;
@@ -931,6 +953,9 @@ dojo.declare("gnr.GnrFrmHandler", null, {
         this.setOpStatus();
         this.publish('onLoadFailed',{error:failure,destPkey:kw.destPkey});
         if(failure.error=='gnrsilent'){
+            return;
+        }
+        if(this.rpcFailureReported(failure)){
             this.abort();
             return;
         }
@@ -940,9 +965,11 @@ dojo.declare("gnr.GnrFrmHandler", null, {
     },
     saveSettled:function(result,kw){
         var failure = this.rpcError(result);
-        if(failure){
-            this.saveFailed(failure,kw);
+        if(!failure){
+            return result;
         }
+        this.saveFailed(failure,kw);
+        return this.rpcFailure(result);
     },
     saveFailed:function(failure,kw){
         kw = kw || {};
@@ -950,20 +977,24 @@ dojo.declare("gnr.GnrFrmHandler", null, {
         this.lazySaving = false;
         this.setOpStatus();
         this.publish('onSaveFailed',{error:failure,destPkey:kw.destPkey});
-        if(failure.error!='gnrsilent'){
+        if(!this.rpcFailureReported(failure)){
             this.publish('message',{message:_T('Save failed, changes not saved'),sound:'$error',messageType:'error'});
         }
     },
     deleteSettled:function(result,kw){
         var failure = this.rpcError(result);
         if(!failure){
-            return;
+            return result;
         }
+        this.deleteFailed(failure,kw);
+        return this.rpcFailure(result);
+    },
+    deleteFailed:function(failure,kw){
         kw = kw || {};
         this.waitingStatus(false);
         this.setOpStatus();
         this.publish('onDeleteFailed',{error:failure,pkey:kw.pkey});
-        if(failure.error!='gnrsilent'){
+        if(!this.rpcFailureReported(failure)){
             this.publish('message',{message:_T('Delete failed'),sound:'$error',messageType:'error'});
         }
     },
@@ -1025,8 +1056,7 @@ dojo.declare("gnr.GnrFrmHandler", null, {
             if(deferredOrResult instanceof dojo.Deferred){
                 var that = this;
                 deferredOrResult.addBoth(function(result){
-                    that.loadSettled(result,kw);
-                    return result;
+                    return that.loadSettled(result,kw);
                 });
             }
             if(kw.onReload){
@@ -1450,6 +1480,7 @@ dojo.declare("gnr.GnrFrmHandler", null, {
                     if(that.rpcError(resultDict)){
                         return;
                     }
+                    resultDict = resultDict || {savedPkey:that.getCurrentPkey()};
                     destPkey = destPkey || resultDict.savedPkey;
                     if(resultDict.loadedRecordNode){
                         that.setCurrentPkey(destPkey);
@@ -1471,6 +1502,7 @@ dojo.declare("gnr.GnrFrmHandler", null, {
                     if(that.rpcError(result)){
                         return;
                     }
+                    result = result || {savedPkey:that.getCurrentPkey()};
                     that.reset();
                     if(onSaved in that){
                         that[onSaved](result);
@@ -1486,8 +1518,7 @@ dojo.declare("gnr.GnrFrmHandler", null, {
                     return result;
                 });
                 deferred.addBoth(function(result){
-                    that.saveSettled(result,kw);
-                    return result;
+                    return that.saveSettled(result,kw);
                 });
             }else{
                 this.reset();
@@ -2801,8 +2832,9 @@ dojo.declare("gnr.formstores.Base", null, {
         kw.table = this.table;
 
         const onResult = function(result){
-            if(form.rpcError(result)){
-                return result;
+            const failure = form.rpcFailure(result);
+            if(failure){
+                return failure;
             }
             that.loaded(form.getCurrentPkey(), result);
             return result;
@@ -2820,11 +2852,12 @@ dojo.declare("gnr.formstores.Base", null, {
         kw.table = this.table;
 
         const onResult = function(result, context){
-            if(form.rpcError(result)){
-                return result;
+            const failure = form.rpcFailure(result);
+            if(failure){
+                return failure;
             }
             const resultDict = {};
-            resultDict.savedPkey = result.pkey || form.getCurrentPkey();
+            resultDict.savedPkey = (result && result.pkey) || form.getCurrentPkey();
             that.form.setCurrentPkey(resultDict.savedPkey);
             that.saved(resultDict);
             let deferredReload;
@@ -2850,8 +2883,9 @@ dojo.declare("gnr.formstores.Base", null, {
         kw.table = this.table;
 
         const onResult = function(result){
-            if(form.rpcError(result)){
-                return result;
+            const failure = form.rpcFailure(result);
+            if(failure){
+                return failure;
             }
             that.loaded(form.getCurrentPkey(), result);
             return result;
@@ -2869,11 +2903,12 @@ dojo.declare("gnr.formstores.Base", null, {
         kw.table = this.table;
 
         const onResult = function(result, context){
-            if(form.rpcError(result)){
-                return result;
+            const failure = form.rpcFailure(result);
+            if(failure){
+                return failure;
             }
             const resultDict = {};
-            resultDict.savedPkey = result.pkey || form.getCurrentPkey();
+            resultDict.savedPkey = (result && result.pkey) || form.getCurrentPkey();
             that.form.setCurrentPkey(resultDict.savedPkey);
             that.saved(resultDict);
             let deferredReload;
@@ -2898,9 +2933,13 @@ dojo.declare("gnr.formstores.Base", null, {
         kw.path = form.getCurrentPkey();
 
         const onResult = function(result){
+            const failure = form.rpcFailure(result);
+            if(failure){
+                return failure;
+            }
             const path = form.getCurrentPkey();
-            const contentNode = result.popNode('content');
-            const content = contentNode.getValue();
+            const contentNode = result? result.popNode('content'):null;
+            const content = contentNode? contentNode.getValue():null;
             let rec;
             if (content instanceof gnr.GnrBag){
                 rec = contentNode;
@@ -2926,11 +2965,12 @@ dojo.declare("gnr.formstores.Base", null, {
         kw.path = path;
 
         const onResult = function(result, context){
-            if(form.rpcError(result)){
-                return result;
+            const failure = form.rpcFailure(result);
+            if(failure){
+                return failure;
             }
             const resultDict = {};
-            resultDict.savedPkey = result.path || form.getCurrentPkey();
+            resultDict.savedPkey = (result && result.path) || form.getCurrentPkey();
             that.form.setCurrentPkey(resultDict.savedPkey);
             that.saved(resultDict);
             let deferredReload;
@@ -2965,8 +3005,9 @@ dojo.declare("gnr.formstores.Base", null, {
 
                                                           });
         var cb = function(result){
-            if(that.form.rpcError(result)){
-                return result;
+            var failure = that.form.rpcFailure(result);
+            if(failure){
+                return failure;
             }
             that.deleted(result,callkw);
             return result;
@@ -3043,8 +3084,9 @@ dojo.declare("gnr.formstores.Base", null, {
         var currPkey = this.form.getCurrentPkey();
         var loader = this.handlers.load;
         var cb = function(result){
-            if(form.rpcError(result)){
-                return result;
+            var failure = form.rpcFailure(result);
+            if(failure){
+                return failure;
             }
             that.loaded(currPkey,result);
             return result;
@@ -3121,9 +3163,10 @@ dojo.declare("gnr.formstores.Base", null, {
         var autoreload =kw._autoreload;
         var data = form.getFormChanges(fullRecord);
         var cb = function(result){
-            if(form.rpcError(result)){
+            var failure = form.rpcFailure(result);
+            if(failure){
                 form.waitingStatus(false);
-                return result;
+                return failure;
             }
             var resultDict={};
             if (result){
@@ -3177,8 +3220,9 @@ dojo.declare("gnr.formstores.Base", null, {
                                                           null,function(){});
         var cb = function(result){
             that.form.waitingStatus(false);
-            if(that.form.rpcError(result)){
-                return result;
+            var failure = that.form.rpcFailure(result);
+            if(failure){
+                return failure;
             }
             that.deleted(result,callkw);
             return result;

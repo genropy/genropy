@@ -14,8 +14,9 @@ class GnrCustomWebPage(object):
 
     def test_1_switches(self, pane):
         """Route the next rpc of the chosen kind to an unreachable url (status 0), then load, edit or delete a row.
-        Expected: alert and dismiss on load, error message with the changes kept on save,
-        error message on delete. The monitor shows opStatus / changed / pkey of every form."""
+        A transport failure is reported by genro.rpc itself, so the form adds no message of its own:
+        expected is a dismiss on load, the changes kept on save, nothing deleted on delete, and no
+        callback of the operation running. The monitor shows opStatus / changed / pkey of every form."""
         bar = pane.div(margin_bottom='6px')
         for method in ('loadRecordCluster', 'saveRecordCluster', 'deleteDbRow'):
             bar.button('Fail next %s' % method, action="genro.rpc.failNext[method]=true;", method=method)
