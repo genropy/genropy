@@ -9289,7 +9289,7 @@ ${"  ".repeat(depth)}</${tag}>`;
 
   // src/browser.js
   setDecimalLibrary("number");
-  var version = "0.5.2";
+  var version = "0.6.0";
   return __toCommonJS(browser_exports);
 })();
 //# sourceMappingURL=genro-bag.browser.js.map

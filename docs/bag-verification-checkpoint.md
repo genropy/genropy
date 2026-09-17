@@ -109,3 +109,18 @@ Library checkpoints pushed before the integration commit:
 
 Version numbers and release tags have not changed. Browser acceptance and
 clean dependency-install verification remain release follow-ups.
+
+## Versioned distribution checkpoint
+
+Released library versions: genro-bag 0.24.0 (5702141) and genro-bag-js 0.6.0
+(00696e0). Genropy now requires genro-bag>=0.24.0,<0.25 in its optional extra
+and embeds the 0.6.0 JS bundle with its regenerated source map.
+
+The versioned distributions were rebuilt and validated: Python 921 tests,
+JavaScript 692 tests, integration JS 284 selected-mode tests and 16 TYTX
+transport tests passed. Clean wheel installation with declared dependencies
+and clean npm tarball installation both passed import/value smoke checks;
+the optional JS devtools import and htmlRepr were verified as well.
+
+Genropy remains on genro_integration: no Genropy package release tag was
+created. Real-server application/browser acceptance remains outstanding.
