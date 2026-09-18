@@ -887,17 +887,9 @@ if (typeof gnr === 'undefined') var gnr = {};
             if (typeof key === 'function') return super.sort(key);
             const translated = (key || '#k:a').split(',').map(level => {
                 const [criterion, rawMode = 'a'] = level.split(':');
-                let mode = rawMode.trim();
+                const mode = rawMode.trim().charAt(0);
                 if (/^[adAD]$/.test(mode)) return criterion.trim() + ':' + mode;
-                mode = mode.toLowerCase();
-                const insensitive = mode.endsWith('*');
-                if (insensitive) {
-                    console.warn('Bag.sort: * is deprecated; use a/d for case-insensitive sorting and A/D for case-sensitive sorting.');
-                    mode = mode.slice(0, -1);
-                }
-                const ascending = mode === 'a' || mode === 'asc' || mode === '>';
-                const direction = ascending ? 'a' : 'd';
-                return criterion.trim() + ':' + (insensitive ? direction : direction.toUpperCase());
+                return criterion.trim() + ':' + (mode === '>' ? 'A' : 'D');
             }).join(',');
             return super.sort(translated);
         }

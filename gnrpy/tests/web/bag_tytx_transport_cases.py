@@ -103,7 +103,10 @@ def test_shared_result_bag_builds_complete_tytx_envelope():
 def test_returned_opaque_rpc_reference_is_a_name_not_a_python_method(reference):
     from gnr.core.gnrclasses import GnrClassCatalog
     from gnr.web.gnrwsgisite import GnrWsgiSite
-    site = SimpleNamespace(gnrapp=SimpleNamespace(catalog=GnrClassCatalog()))
+    application = Application(bag_transport='tytx', bag='genro-bag',
+                              bag_js='genro-bag-js-mixin')
+    application.catalog = GnrClassCatalog()
+    site = SimpleNamespace(gnrapp=application)
     result = GnrWsgiSite.parse_kwargs(site, {'method': reference + '::RPC', 'count': '2::L'})
     assert result == {'method': reference, 'count': 2}
     assert not callable(result['method'])
@@ -211,3 +214,15 @@ def test_page_asset_choice_controls_rpc_envelope_on_same_server():
     assert transport_format(app, page=SimpleNamespace(
         application=app, page_frontend='bag_native')) == 'xml'
     assert transport_format(app) == 'tytx'
+
+
+def test_incoming_tytx_parameter_decodes_with_transport_enabled():
+    from gnr.core.gnrclasses import GnrClassCatalog
+    from gnr.web.gnrwsgisite import GnrWsgiSite
+    application = Application(bag_transport='tytx', bag='genro-bag',
+                              bag_js='genro-bag-js-mixin')
+    application.catalog = GnrClassCatalog()
+    payload = Bag({'answer': 42}).to_tytx(transport='json') + '::BAGTYTX'
+    result = GnrWsgiSite.parse_kwargs(SimpleNamespace(gnrapp=application), {'data': payload})
+    assert isinstance(result['data'], Bag)
+    assert result['data']['answer'] == 42

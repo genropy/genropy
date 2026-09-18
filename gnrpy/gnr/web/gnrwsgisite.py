@@ -37,7 +37,7 @@ from gnr.app.pathresolver import PathResolver
 from gnr.app.gnrapp import GnrPackage
 from gnr.web import logger
 from gnr.web.gnrwebapp import GnrWsgiWebApp
-from gnr.web.gnrbagtransport import decode_parameter
+from gnr.web.gnrbagtransport import decode_parameter, transport_format
 from gnr.web.gnrwebpage import GnrUnsupportedBrowserException
 from gnr.web.gnrwsgisite_proxy.gnrresourceloader import ResourceLoader
 from gnr.web.gnrwsgisite_proxy.gnrstoragehandler import LegacyStorageHandler
@@ -1978,15 +1978,16 @@ class GnrWsgiSite(object):
         :param kwargs: the kw arguments
         """
         catalog = self.gnrapp.catalog
+        use_tytx = transport_format(self.gnrapp) == 'tytx'
         result = dict()
         for k, v in list(kwargs.items()):
             k = k.strip()
             if isinstance(v, (bytes,str)):
                 try:
-                    if isinstance(v, str) and v.endswith('::RPC'):
+                    if use_tytx and isinstance(v, str) and v.endswith('::RPC'):
                         # Keep callable references as names; normal RPC dispatch authorizes them.
                         v = v[:-5]
-                    elif isinstance(v, str) and v.endswith('::BAGTYTX'):
+                    elif use_tytx and isinstance(v, str) and v.endswith('::BAGTYTX'):
                         v = decode_parameter(v, self.gnrapp)
                     else:
                         v = catalog.fromTypedText(v)

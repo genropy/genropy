@@ -143,9 +143,10 @@ The canonical modes are `a`/`d` (case-insensitive) and `A`/`D`
 (case-sensitive), with `a` as the default. Both the legacy JS Bag and the mixin
 accept these modes. The grid emits canonical modes directly.
 
-The mixin delegates canonical modes unchanged to the standalone algorithm.
-Legacy `a*`/`d*` still work but emit a deprecation warning: replace them with
-`a`/`d`. Older direction aliases remain accepted. Callable keys pass through
+Only the first direction character is interpreted, preserving its case.
+Suffixes including `*` are ignored without warnings: `a*` is `a`, `A*` is `A`,
+`asc` is `a`, and `DESC*` is `D`. The mixin delegates the resulting canonical
+mode to the standalone algorithm. The `>`/`<` aliases remain accepted. Callable keys pass through
 unchanged. Null placement and Bag field extraction belong to the standalone
 library, not to this syntax bridge.
 

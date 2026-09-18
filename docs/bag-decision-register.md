@@ -170,3 +170,70 @@ call-time updates remain persistent. No public preparation helper is added.
 This supersedes the D23 description of extras as only a compatibility API.
 The library migration and tests cover callbacks, concrete resolvers, retry,
 refresh, invalid hook returns and nested calls; see its resolver documentation.
+
+## D26 — JS sort direction uses its first character
+
+Both GenroJS legacy Bag and compatibility mixin interpret only the first
+trimmed direction character: a/d are case-insensitive, A/D are case-sensitive.
+All suffixes, including *, are ignored silently. No Aa/Dd modes are introduced.
+The changed meaning of lowercase a/d compared with historical legacy is an
+explicitly accepted switch-off difference. This supersedes the star deprecation
+warning and any rule letting star force case-insensitive sorting. The native
+algorithm still receives canonical modes from the mixin. Regression anchor:
+sort_direction_contract.test.js and the sort delegation tests in bag_mixin.test.js.
+
+## D27 — Implicit discovery must not block legacy imports
+
+Automatic instance discovery may select native Bags only from a readable,
+unambiguous configuration. Duplicate instance names across project roots do not
+block import when all candidates are legacy; normal application startup remains
+responsible for instance resolution. If any candidate opts into native Bags,
+ambiguity still requires an explicit GNR_INSTANCE_CONFIG. Implicit XML/read errors
+are deferred to normal configuration loading. An explicit GNR_INSTANCE_CONFIG
+continues to validate its path, XML and implementation switch strictly. Native
+selection still propagates the resolved configuration to child processes; legacy
+auto-discovery no longer writes that environment variable. Invalid switch values
+remain errors. Regression coverage: test_instance_bag_mode.py.
+
+## D28 — RPC parameter interception is transport-gated
+
+GnrWsgiSite.parse_kwargs handles opaque ::RPC names and ::BAGTYTX payloads
+specially only when TYTX transport is enabled and its prerequisite switches
+validate. With transport absent or xml, every textual parameter follows the
+original catalog.fromTypedText path, including custom parsers and standard
+catalog exceptions. Tests: test_rpc_legacy_parameter_catalog.py and native
+bag_tytx_transport_cases.py (opaque references and incoming Bag round-trip).
+
+## D29 — Legacy compressed JavaScript cache remains site-wide
+
+Pages selecting legacy JS continue to read and populate site.compressedJsPath,
+including application overrides and recompression in debug mode. Opt-in mixin
+and standalone native pages use a separate cache keyed by ordered asset paths;
+they never read or overwrite the legacy URL. Both cache paths can coexist on the
+same site regardless of which page loads first. Regression coverage:
+gnrbag_javascript_selection_test.py, including both initial request orders,
+custom legacy URLs, and debug refreshes.
+
+## D30 — Switch-off audit disposition
+
+The switch-off review explicitly accepts these observed differences; do not reopen
+these decisions from the historical audit alone:
+
+- ES class conversion: no external Dojo Bag subclasses found in the indexed
+  application code; framework subclasses are already migrated.
+- expired is a property: all 11 framework callsites migrated; no application
+  method callers found in local projects or Sourcerer symbols/references.
+- Sort case modes: accepted under D26.
+- RPC parse errors use bag_parse rather than xml_parse: accepted.
+- SlotBar copies nodes before removal to avoid skipped consecutive items: accepted.
+- StatsPane reverses a copy rather than mutating the Bag order: accepted.
+- setSelectedVal preserves unrelated node attributes: accepted.
+- changedAttr false versus undefined: leave unchanged for now.
+
+Source-node rebuild is different: legacy nodes must retain setValue(this._value)
+and its normal Bag subscriber notifications. Only native nodes keep the current
+direct UI trigger. A possible forceTrigger API is deferred; no native Bag contract
+change is introduced here. source_rebuild.test.js covers UI behavior in both
+modes and legacy subscriber delivery. D27-D29 cover bootstrap, RPC parameter
+parsing and compressed asset caches. These accepted exceptions mean this is not
+a claim of strict identity with every historical legacy behavior.

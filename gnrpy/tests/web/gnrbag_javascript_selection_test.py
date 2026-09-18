@@ -79,7 +79,8 @@ def test_compressed_cache_is_keyed_by_ordered_asset_paths():
         return f'/bundle-{len(calls)}.js'
 
     site = SimpleNamespace(debug=False, compressedJsPath='/old-global.js')
-    page = SimpleNamespace(site=site, jstools=SimpleNamespace(compress=compress))
+    page = SimpleNamespace(site=site, jstools=SimpleNamespace(compress=compress),
+                           application=FakeApplication('genro-bag-js-mixin'))
     native = ['bundle.js']
     mixed = ['bundle.js', 'mixin.js']
     assert compressed_javascript_url(page, native) == '/bundle-1.js'
@@ -89,3 +90,41 @@ def test_compressed_cache_is_keyed_by_ordered_asset_paths():
     site.debug = True
     assert compressed_javascript_url(page, native) == '/bundle-4.js'
     assert len(calls) == 4
+
+
+@pytest.mark.parametrize('native_first', [False, True])
+def test_legacy_cache_is_preserved_on_a_site_with_native_pages(native_first):
+    from types import SimpleNamespace
+    from gnr.web.gnrjsassets import compressed_javascript_url
+    calls = []
+
+    def compress(files):
+        calls.append(list(files))
+        return f'/bundle-{len(calls)}.js'
+
+    site = SimpleNamespace(debug=False, compressedJsPath=None)
+    application = FakeApplication()
+    legacy = SimpleNamespace(site=site, application=application,
+                             jstools=SimpleNamespace(compress=compress))
+    native = SimpleNamespace(site=site, application=application,
+                             page_frontend='bag_native', jstools=legacy.jstools)
+    for page, files in ([(native, ['native.js']), (legacy, ['legacy.js'])]
+                        if native_first else
+                        [(legacy, ['legacy.js']), (native, ['native.js'])]):
+        compressed_javascript_url(page, files)
+    legacy_url = compressed_javascript_url(legacy, ['legacy.js'])
+    native_url = compressed_javascript_url(native, ['native.js'])
+    assert legacy_url != native_url
+    assert site.compressedJsPath == legacy_url
+    assert len(calls) == 2
+
+    # Applications may replace the legacy URL; native pages must not use it.
+    site.compressedJsPath = '/custom.js'
+    assert compressed_javascript_url(legacy, ['legacy.js']) == '/custom.js'
+    assert compressed_javascript_url(native, ['native.js']) == native_url
+    assert len(calls) == 2
+    site.debug = True
+    assert compressed_javascript_url(legacy, ['legacy.js']) == '/bundle-3.js'
+    assert site.compressedJsPath == '/bundle-3.js'
+    assert compressed_javascript_url(native, ['native.js']) == '/bundle-4.js'
+    assert site.compressedJsPath == '/bundle-3.js'

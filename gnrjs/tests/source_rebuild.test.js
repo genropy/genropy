@@ -20,11 +20,18 @@ for (const mode of ['legacy', 'genro-bag-js-mixin']) {
         handler._trigger_upd = event => updates.push(event);
         const content = new gnr.GnrDomSource();
         const wrapper = handler._main.setItem('prompt', content, {tag: 'div'});
+        const bagUpdates = [];
+        handler._main.subscribe('rebuild-observer', {upd: event => bagUpdates.push(event)});
         wrapper.freeze();
         const dialog = content.setItem('dialog', new gnr.GnrDomSource(), {tag: 'dialog'});
         assert.equal(updates.length, 0);
         wrapper.unfreeze();
         assert.equal(updates.length, 1);
+        assert.equal(bagUpdates.length, mode === 'legacy' ? 1 : 0);
+        if (mode === 'legacy') {
+            assert.equal(bagUpdates[0].node, wrapper);
+            assert.equal(bagUpdates[0].oldvalue, content);
+        }
         assert.equal(updates[0].node, wrapper);
         assert.equal(updates[0].oldvalue, content);
         assert.equal(wrapper.getValue(), content);

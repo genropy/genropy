@@ -847,17 +847,9 @@ Object.assign(gnr.GnrBag.prototype, {
                 mode = 'a';
             }
             what = stringStrip(what);
-            mode = stringStrip(mode);
-            var canonicalInsensitive = mode === 'a' || mode === 'd';
-            mode = mode.toLowerCase();
-            if (stringEndsWith(mode, '*')) {
-                console.warn('Bag.sort: * is deprecated; use a/d for case-insensitive sorting and A/D for case-sensitive sorting.');
-                caseInsensitive = true;
-                mode = mode.slice(0, -1);
-            } else {
-                caseInsensitive = canonicalInsensitive;
-            }
-            reverse = ! ((mode == 'a') || (mode == 'asc') || (mode == '>'));
+            mode = stringStrip(mode).charAt(0);
+            caseInsensitive = mode === 'a' || mode === 'd';
+            reverse = ! (mode.toLowerCase() === 'a' || mode === '>');
 
             if (what == '#k') {
                 this._nodes.sort(function(a, b) {

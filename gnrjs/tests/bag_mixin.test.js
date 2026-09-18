@@ -885,7 +885,7 @@ test('sort translates legacy modes and delegates once to the standalone algorith
     GenroBagJS.Bag.prototype.sort = function(key) { calls.push(key); return this; };
     try {
         for (const [legacy, native] of [['a*','a'],['d*','d'],['a','a'],['d','d'],
-            ['asc','A'],['desc','D'],['>','A'],['<','D'],['ASC*','a'],['DESC*','d']]) {
+            ['asc','a'],['desc','d'],['>','A'],['<','D'],['ASC*','A'],['DESC*','D']]) {
             assert.equal(bag.sort('#a.name:' + legacy), bag);
             assert.equal(calls.at(-1), '#a.name:' + native);
         }
@@ -1027,7 +1027,7 @@ test('null ordering agrees with legacy in both directions', () => {
     }
 });
 
-test('canonical case modes and deprecated star work in both implementations', () => {
+test('canonical case modes ignore star in both implementations', () => {
     const {loadPair} = require('./bag_audit_harness.cjs');
     const pair = loadPair();
     const warnings = [], original = console.warn;
@@ -1041,10 +1041,10 @@ test('canonical case modes and deprecated star work in both implementations', ()
                 const before = warnings.length;
                 bag.sort('#v:' + mode);
                 assert.deepEqual(Array.from(bag.getNodes(), n => n.getValue()), expected);
-                assert.equal(warnings.length - before, mode.endsWith('*') ? 1 : 0);
+                assert.equal(warnings.length - before, 0);
             }
         }
-        assert.ok(warnings.every(message => message.includes('deprecated')));
+        assert.deepEqual(warnings, []);
     } finally { console.warn = original; }
 });
 

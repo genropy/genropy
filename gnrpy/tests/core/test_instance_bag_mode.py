@@ -398,3 +398,50 @@ assert isinstance(obj.make_99(), Bag)
 '''
     result = _run(config, code)
     assert result.returncode == 0, result.stderr
+
+
+@pytest.mark.parametrize("native", [False, True])
+def test_ambiguous_discovery_only_blocks_native_selection(tmp_path, monkeypatch, native):
+    monkeypatch.setenv("GENRO_GNRFOLDER", str(tmp_path / "settings"))
+    monkeypatch.delenv("GNR_CURRENT_SITE", raising=False)
+    configs = [tmp_path / f"projects/{project}/instances/pilot/instanceconfig.xml"
+               for project in ("one", "two")]
+    for config in configs:
+        config.parent.mkdir(parents=True)
+        config.write_text("<GenRoBag/>")
+    if native:
+        configs[1].write_text('<GenRoBag><experimental><bag implementation="genro-bag"/></experimental></GenRoBag>')
+    code = _READ_MODE + "\nimport os; assert 'GNR_INSTANCE_CONFIG' not in os.environ"
+    result = _run(configs[0], code, explicit=False, arguments=("pilot",))
+    if native:
+        assert result.returncode != 0
+        assert "Ambiguous instance" in result.stderr
+    else:
+        assert result.returncode == 0, result.stderr
+        assert json.loads(result.stdout)["mode"] == "legacy"
+        assert not json.loads(result.stdout)["native_imported"]
+
+
+@pytest.mark.parametrize("broken_file", ["environment", "instance"])
+def test_implicit_discovery_defers_xml_errors(tmp_path, monkeypatch, broken_file):
+    settings = tmp_path / "settings"
+    settings.mkdir()
+    monkeypatch.setenv("GENRO_GNRFOLDER", str(settings))
+    monkeypatch.delenv("GNR_CURRENT_SITE", raising=False)
+    config = tmp_path / "projects/demo/instances/pilot/instanceconfig.xml"
+    config.parent.mkdir(parents=True)
+    config.write_text("<broken" if broken_file == "instance" else "<GenRoBag/>")
+    if broken_file == "environment":
+        (settings / "environment.xml").write_text("<broken")
+    # Import alone must not become a legacy configuration validation step.
+    result = _run(config, "import gnr; assert gnr.BAG_MODE == 'legacy'",
+                  explicit=False, arguments=("pilot",))
+    assert result.returncode == 0, result.stderr
+
+
+def test_explicit_config_still_reports_xml_errors(tmp_path):
+    config = tmp_path / "instanceconfig.xml"
+    config.write_text("<broken")
+    result = _run(config, "import gnr")
+    assert result.returncode != 0
+    assert "ParseError" in result.stderr

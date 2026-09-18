@@ -23,7 +23,11 @@ def bag_javascript_files(page):
 
 
 def compressed_javascript_url(page, jsfiles):
-    """Never reuse another page's bundle when its ordered source list differs."""
+    """Preserve the legacy site cache; isolate opt-in bundles by asset list."""
+    if bag_javascript_implementation(page) == 'legacy':
+        if not page.site.compressedJsPath or page.site.debug:
+            page.site.compressedJsPath = page.jstools.compress(jsfiles)
+        return page.site.compressedJsPath
     cache = getattr(page.site, '_compressed_js_by_files', None)
     if cache is None:
         cache = page.site._compressed_js_by_files = {}

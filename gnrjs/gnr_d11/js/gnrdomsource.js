@@ -959,6 +959,10 @@ Object.assign(gnr.GnrDomSourceNode.prototype, {
         return attributes;
     },
     rebuild: function() {
+        if (typeof GenroBagJS === 'undefined' || !(this instanceof GenroBagJS.BagNode)) {
+            this.setValue(this._value);
+            return;
+        }
         // Rebuilding is an explicit UI operation, not a data value change.
         // Native Bags correctly suppress notifications for identical values.
         if (this.getParentBag()) {

@@ -44,7 +44,11 @@ def _config_path():
     folder = Path(os.environ.get("GENRO_GNRFOLDER", "~/.gnr")).expanduser()
     environment = folder / "environment.xml"
     if environment.is_file():
-        root = ET.parse(environment).getroot()
+        try:
+            root = ET.parse(environment).getroot()
+        except (ET.ParseError, OSError):
+            # Opportunistic discovery must not validate legacy configuration.
+            root = ET.Element("environment")
         for entry in root.findall("./projects/*"):
             path = entry.get("path")
             if path:
@@ -58,14 +62,17 @@ def _config_path():
         if not name or name.startswith("-") or "/" in name or "\\" in name:
             continue
         name = name.split(":", 1)[0]
-        for root in roots:
-            matches = sorted(root.glob(f"*/instances/{name}/instanceconfig.xml"))
-            if len(matches) > 1:
+        matches = sorted({path.resolve() for root in roots
+                          for path in root.glob(f"*/instances/{name}/instanceconfig.xml")})
+        if len(matches) > 1:
+            if any(_discovered_implementation(path) != "legacy" for path in matches):
                 raise RuntimeError(
                     f"Ambiguous instance {name!r}; set GNR_INSTANCE_CONFIG explicitly"
                 )
-            if matches:
-                return matches[0].resolve()
+            # No native opt-in: leave instance resolution to the normal startup.
+            return None
+        if matches:
+            return matches[0]
     return None
 
 
@@ -89,14 +96,23 @@ def bag_implementation(path):
     return value
 
 
+def _discovered_implementation(path):
+    """Defer unreadable implicit configuration to the regular startup loader."""
+    try:
+        return bag_implementation(path)
+    except (ET.ParseError, OSError):
+        return "legacy"
+
+
 def configure_bag_mode():
     """Activate only when the resolved instance explicitly opts in."""
     global _selected_implementation
     if _selected_implementation is not None:
         return _selected_implementation
     path = _config_path()
-    implementation = bag_implementation(path)
-    if path is not None:
+    implementation = (bag_implementation(path) if os.environ.get("GNR_INSTANCE_CONFIG")
+                      else _discovered_implementation(path))
+    if path is not None and implementation == "genro-bag":
         # Children and dedicated daemon workers resolve the same instance.
         os.environ["GNR_INSTANCE_CONFIG"] = str(path)
     _selected_implementation = implementation
