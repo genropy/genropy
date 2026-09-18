@@ -215,7 +215,7 @@
 }
 
 .multibutton:active:not(.multibutton_selected){
-    background: rgba(0, 0, 0, 0.12);
+    background: var(--multibutton-pressed-bg);
     box-shadow: none;
 }
 .multibutton_selected.multibutton:hover{
@@ -226,7 +226,7 @@
     cursor: not-allowed;
 }
 .multibutton:hover:not(.multibutton_selected){
-    background: rgba(0, 0, 0, 0.06);
+    background: var(--multibutton-hover-bg);
 }
 .multibutton_container .multibutton:active[disabled='true'],.multibutton_container .multibutton:active[disabled='disabled']{
     color: var(--text-color, #333);
