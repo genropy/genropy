@@ -588,7 +588,10 @@ dojo.declare("gnr.GnrStoreQuery", gnr.GnrStoreBag, {
 
     fetchItemByIdentity: function(/* object */ request) {
         genro.debug('fetchItemByIdentity: identity=' + request.identity);
-
+        // the identity this node is asking about now. Recorded before any branch,
+        // early returns included: those resolve an identity without issuing a query,
+        // and a marker they skipped would leave an older reply looking current
+        this._askedIdentity = request.identity;
         if (!request.identity) {
             genro.debug('fetchItemByIdentity: return null');
             var result = new gnr.GnrBagNode();
@@ -641,10 +644,15 @@ dojo.declare("gnr.GnrStoreQuery", gnr.GnrStoreBag, {
             }
             var finalize = dojo.hitch(this, function(r) {
                 var scope = request.scope ? request.scope : dojo.global;
-                if(r.attr.errors){
-                    this._parentSourceNode.widget._lastQueryError = r.attr.errors;
-                    
-                    this._parentSourceNode.setValidationError({error:r.attr.errors});
+                var sn = this._parentSourceNode;
+                // the reply answers the identity it asked about, and setValidationError is
+                // wholesale: a later ask has already superseded this one
+                var stale = this._askedIdentity != request.identity;
+                if(r.attr.errors && sn && sn.widget && !stale){
+                    sn.widget._lastQueryError = r.attr.errors;
+                    sn.setValidationError({error:r.attr.errors,
+                                           warnings:sn.getValidationWarnings(),
+                                           required:sn.isValidationRequired()});
                 }
                 var result = r.getValue();
                 if (result instanceof gnr.GnrBag) {
