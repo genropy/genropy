@@ -19,6 +19,7 @@ class Menu(object):
         system.webpage("Logging", tags="_DEV_", filepath="/sys/logging")
         system.webpage("Startup data manager", tags="_DEV_", filepath="/sys/startupdata_manager")
         system.webpage(u"Data retention", tags="_DEV_", filepath="/sys/dataretention")
+        system.webpage("Page Class Cache", tags="superadmin,_DEV_", filepath="/sys/page_class_cache")
         system.webpage("Package editor", tags="_DEV_", filepath="/sys/package_editor")
         system.webpage("Localization editor", tags="_DEV_,_TRD_,superadmin", filepath="/sys/localizationeditor")
         system.webpage("GnrIDE", tags="_DEV_", filepath="/sys/gnride")

@@ -1,6 +1,9 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
+import re
+from xml.etree import ElementTree
+
 import pytest
 
 from gnr.web.gnrwebstruct import (
@@ -23,12 +26,17 @@ class _AppStub(object):
 class _PageStub(object):
     filepath = '/tmp/fake_page.py'
     application = _AppStub()
+    maintable = None
+    pageOptions = {}
 
     def __init__(self):
         self._register_nodeId = {}
 
     def checkTablePermission(self, **kwargs):
         return True
+
+    def getPreference(self, *args, **kwargs):
+        return None
 
 
 def _make_root(page=None):
@@ -117,11 +125,11 @@ def test_genroNameSpace_total_count():
     """Freeze the cardinality of the public widget namespace.
 
     Sourced from `AllWidgets._widget_names`, which composes the four
-    dialect mixins. 282 entries today (HtmlWidgets now ports the full
+    dialect mixins. 283 entries today (HtmlWidgets now ports the full
     W3C HTML5 catalog of 112 tags). Drift in either direction must be
     intentional.
     """
-    assert len(GnrDomSrc_dojo_11.genroNameSpace) == 282
+    assert len(GnrDomSrc_dojo_11.genroNameSpace) == 283
 
 
 def test_genroNameSpace_samples_per_dialect():
@@ -272,3 +280,427 @@ def test_attached_subnode_wins_over_widget_namespace():
     resolved = root.form
     assert resolved is form_node
     assert not isinstance(resolved, GnrDomElem)
+
+
+# ---------------------------------------------------------------------------
+# formlet responsive modes (wrap / min_width)
+# ---------------------------------------------------------------------------
+
+def _formlet_attr(**kwargs):
+    """Build a formlet on a fresh root and return the gridbox node's
+    attributes. formlet() returns the gridbox *value* node; its attributes
+    live on the parent node. `table` is passed so the _PageStub (which has
+    no maintable) never has to resolve one."""
+    node = _make_root().formlet(table='dummy.tbl', **kwargs)
+    return node.parentNode.attr
+
+
+def test_formlet_plain_is_grid_without_wrap():
+    attrs = _formlet_attr()
+    assert 'formlet' in attrs.get('_class', '')
+    assert 'formlet_wrap' not in attrs.get('_class', '')
+    assert attrs.get('columns') is None
+
+
+def test_formlet_wrap_adds_wrap_class():
+    attrs = _formlet_attr(wrap=True)
+    assert 'formlet_wrap' in attrs.get('_class', '')
+    # wrap is the flex mode: it must not build a grid-columns template
+    assert attrs.get('columns') is None
+
+
+def test_formlet_col_min_width_builds_autofit_columns():
+    attrs = _formlet_attr(col_min_width='14em')
+    assert attrs.get('columns') == 'repeat(auto-fit, minmax(14em, 1fr))'
+    # col_min_width is the responsive-grid mode, NOT the flex wrap mode
+    assert 'formlet_wrap' not in attrs.get('_class', '')
+
+
+def test_formlet_col_min_width_drops_cols():
+    # col_min_width owns the columns template; a stray `cols` must not survive
+    # to fight it at the gridbox level
+    attrs = _formlet_attr(col_min_width='14em', cols=3)
+    assert attrs.get('columns') == 'repeat(auto-fit, minmax(14em, 1fr))'
+    assert 'cols' not in attrs
+
+
+# ---------------------------------------------------------------------------
+# wdgAttributesFromColumn: widget resolution from a model column
+# ---------------------------------------------------------------------------
+
+class _DbTableStub(object):
+    """Stands in for `column.table.dbtable`.
+
+    A `values` attribute is resolved through
+    `getattr(dbtable, values, lambda: values)()`, so a literal `values`
+    string only needs an object that does *not* carry that name, while a
+    method-backed one needs the method to exist here.
+    """
+
+    def statusValues(self):
+        return '1:[!!Draft],2:[!!Published]'
+
+
+class _TableStub(object):
+    def __init__(self, name='mytable'):
+        self.name = name
+        self.dbtable = _DbTableStub()
+
+
+class _ColumnStub(object):
+    """Minimal stand-in for a model column object.
+
+    Exposes only the surface `wdgAttributesFromColumn` actually reads, so
+    the resolver itself runs for real against a plain (non-DB) column.
+    """
+
+    def __init__(self, name, dtype='A', **attributes):
+        self.name = name
+        self.dtype = dtype
+        self.name_long = '!!%s' % name
+        self.fullname = 'test.mytable.%s' % name
+        self.attributes = attributes
+        self.table = _TableStub()
+
+    def relatedColumn(self):
+        return None
+
+
+def _wdgattr(dtype, **attributes):
+    root = _make_root()
+    column = _ColumnStub('feature_status', dtype=dtype, **attributes)
+    return root.wdgAttributesFromColumn(column, fld='feature_status')
+
+
+NUMERIC_VALUES = '1:[!!Not present],2:[!!In development],3:[!!Active]'
+
+
+@pytest.mark.parametrize('dtype', ['N', 'L', 'I'])
+def test_numeric_column_with_values_resolves_to_filteringselect(dtype):
+    """A numeric column declaring `values` renders as a select, and the
+    store is carried along so the call site need not repeat `values=`.
+    """
+    result = _wdgattr(dtype, values=NUMERIC_VALUES)
+    assert result['tag'] == 'filteringselect'
+    assert result['values'] == NUMERIC_VALUES
+    # the column keeps its own dtype: only the widget changes
+    assert result['dtype'] == dtype
+
+
+@pytest.mark.parametrize('dtype', ['A', 'T'])
+def test_text_column_with_values_resolves_to_filteringselect(dtype):
+    """Pre-existing behaviour for text dtypes is unchanged."""
+    result = _wdgattr(dtype, values='001:Draft,050:Work in progress,100:Final')
+    assert result['tag'] == 'filteringselect'
+    assert result['values'] == '001:Draft,050:Work in progress,100:Final'
+    assert result['dtype'] == dtype
+
+
+@pytest.mark.parametrize('dtype', ['A', 'T', 'N', 'L', 'I', 'R', 'D', 'H'])
+def test_values_without_colon_still_resolves_to_filteringselect(dtype):
+    """`values` declares a closed set of choices, so the widget does not
+    depend on whether key and caption happen to coincide.
+    """
+    result = _wdgattr(dtype, values='1,2,3')
+    assert result['tag'] == 'filteringselect'
+    assert result['values'] == '1,2,3'
+
+
+@pytest.mark.parametrize('dtype', ['A', 'T', 'N', 'L', 'I', 'R', 'D', 'H'])
+def test_every_other_dtype_with_values_resolves_to_filteringselect(dtype):
+    """It is the presence of `values` in the model that selects the widget,
+    not the dtype.
+    """
+    result = _wdgattr(dtype, values=NUMERIC_VALUES)
+    assert result['tag'] == 'filteringselect'
+    assert result['values'] == NUMERIC_VALUES
+    assert result['dtype'] == dtype
+
+
+def test_values_naming_a_table_method_is_resolved_through_the_dbtable():
+    """When `values` names a method on the table, the method's return
+    value becomes the store.
+    """
+    result = _wdgattr('N', values='statusValues')
+    assert result['tag'] == 'filteringselect'
+    assert result['values'] == '1:[!!Draft],2:[!!Published]'
+
+
+@pytest.mark.parametrize('dtype,expected', [
+    ('N', 'numberTextBox'),
+    ('L', 'numberTextBox'),
+    ('I', 'numberTextBox'),
+    ('R', 'numberTextBox'),
+])
+def test_numeric_column_without_values_keeps_its_dtype_widget(dtype, expected):
+    """Numeric columns that declare no `values` are untouched."""
+    result = _wdgattr(dtype)
+    assert result['tag'] == expected
+    assert 'values' not in result
+
+
+@pytest.mark.parametrize('dtype,expected', [
+    ('B', 'checkBox'),
+    ('X', 'tree'),
+])
+def test_widget_owning_dtypes_ignore_values(dtype, expected):
+    """A boolean is a checkBox and a Bag is a tree: neither is a list of
+    choices, so their own widget wins over a `values` store.
+    """
+    result = _wdgattr(dtype, values=NUMERIC_VALUES)
+    assert result['tag'] == expected
+    assert 'values' not in result
+
+
+def test_call_site_kwargs_override_the_resolved_tag():
+    """`result.update(kwargs)` runs last, so an explicit call-site tag
+    still wins over the dtype cascade.
+    """
+    root = _make_root()
+    column = _ColumnStub('feature_status', dtype='N', values=NUMERIC_VALUES)
+    result = root.wdgAttributesFromColumn(column, fld='feature_status',
+                                          tag='numberTextBox')
+    assert result['tag'] == 'numberTextBox'
+    # the store survives the override
+    assert result['values'] == NUMERIC_VALUES
+
+
+def test_call_site_can_ask_for_a_combobox_without_repeating_values():
+    """A developer who wants free text with suggestions says so at the call
+    site, and still gets the model's store for free.
+    """
+    root = _make_root()
+    column = _ColumnStub('feature_status', dtype='N', values=NUMERIC_VALUES)
+    result = root.wdgAttributesFromColumn(column, fld='feature_status',
+                                          tag='comboBox')
+    assert result['tag'] == 'comboBox'
+    assert result['values'] == NUMERIC_VALUES
+# formbuilder: `hidden` hides the label cell as well
+# ---------------------------------------------------------------------------
+
+_GETCHILD_RE = re.compile(r"tdNode\.getChild\('([^']+)'\)")
+
+
+def _fieldNode(root, value):
+    return root.getNodeByAttr('value', value)
+
+
+def _resolveChildPath(cellNode, path):
+    """Resolve a client-side `getChild` path against the built source, the same
+    way `gnr.GnrDomSource.getChild` walks it in the browser: every step moves
+    into the found node, and `parent` climbs to the bag holding the owner node.
+    """
+    bag = cellNode.value
+    node = None
+    for step in path.split('/'):
+        node = bag.parentNode.parentNode if step == 'parent' else bag.getNode(step)
+        assert node is not None, 'unresolved step %s of %s' % (step, path)
+        bag = node.value
+    return node
+
+
+def _hiddenFieldLabelCell(root, value):
+    """Label cell targeted by the `hidden` propagation of the given field."""
+    fieldNode = _fieldNode(root, value)
+    path = _GETCHILD_RE.search(fieldNode.attr['onCreated']).group(1)
+    return _resolveChildPath(fieldNode.parentNode, path)
+
+
+def _hiddenFormbuilder(lblpos=None):
+    """Two fields side by side, the first one `hidden`: mobileFormBuilder puts
+    the labels on top (lblpos='T'), plain formbuilder keeps them on the left.
+    """
+    root = _make_root()
+    pane = root.child('div', childname='pane')
+    fb = pane.mobileFormBuilder(cols=2) if lblpos is None else pane.formbuilder(cols=2, lblpos=lblpos)
+    fb.textbox(value='^.alfa', lbl='Alfa', hidden='^.hide_alfa')
+    fb.textbox(value='^.beta', lbl='Beta')
+    return root
+
+
+def test_hidden_propagates_to_label_with_labels_on_top():
+    root = _hiddenFormbuilder()
+    labelCell = _hiddenFieldLabelCell(root, '^.alfa')
+    # the label of the hidden field, not the one of the field next to it
+    assert labelCell.attr['innerHTML'] == 'Alfa'
+    assert labelCell.attr['tag'] == 'td'
+
+
+def test_hidden_propagates_to_label_with_labels_on_left():
+    root = _hiddenFormbuilder(lblpos='L')
+    labelCell = _hiddenFieldLabelCell(root, '^.alfa')
+    assert labelCell.attr['tag'] == 'td'
+    # with labels on the left the cell wraps the label in a div
+    assert labelCell.value.getNodes()[0].attr['innerHTML'] == 'Alfa'
+
+
+def test_hidden_field_keeps_its_own_cell_as_first_target():
+    root = _hiddenFormbuilder()
+    fieldNode = _fieldNode(root, '^.alfa')
+    assert 'this._hiddenTargets.push(tdNode.domNode)' in fieldNode.attr['onCreated']
+    # `hidden` is popped at creation time and replayed on the cells once built
+    assert "objectPop(arguments[0],'hidden')" in fieldNode.attr['onCreating']
+
+
+def test_explicit_lbl_hidden_wins_over_propagation():
+    root = _make_root()
+    fb = root.child('div', childname='pane').mobileFormBuilder(cols=2)
+    fb.textbox(value='^.alfa', lbl='Alfa', hidden='^.hide_alfa', lbl_hidden='^.hide_alfa')
+    fieldNode = _fieldNode(root, '^.alfa')
+    assert 'onCreated' not in fieldNode.attr
+    assert fieldNode.attr['hidden'] == '^.hide_alfa'
+
+
+def test_visible_field_gets_no_hidden_handler():
+    root = _hiddenFormbuilder()
+    assert 'onCreated' not in _fieldNode(root, '^.beta').attr
+
+
+def test_hidden_group_member_targets_its_own_label_cell():
+    root = _make_root()
+    fb = root.child('div', childname='pane').mobileFormBuilder(cols=2)
+    fb.textbox(value='^.alfa', lbl='Alfa', hidden='^.hide_alfa', hiddenGroup='alfa')
+    fb.textbox(value='^.beta', lbl='Beta')
+    fb.textbox(value='^.gamma', lbl='Gamma', hiddenGroup='alfa')
+    memberNode = _fieldNode(root, '^.gamma')
+    # the group member walks up to its own cell, like the hidden field does
+    assert "this.attributeOwnerNode('tag','td')" in memberNode.attr['onCreated']
+    labelCell = _hiddenFieldLabelCell(root, '^.gamma')
+    assert labelCell.attr['innerHTML'] == 'Gamma'
+
+
+# ---------------------------------------------------------------------------
+# nodeId register: unregisterNodeIds
+# ---------------------------------------------------------------------------
+
+def test_unregisterNodeIds_clears_a_nested_subtree():
+    """Every nodeId declared inside the subtree leaves the register, so the
+    same subtree can be built again."""
+    page = _PageStub()
+    root = _make_root(page=page)
+    box = root.child('div', childname='box', nodeId='box_id')
+    box.child('div', childname='inner').child('div', childname='leaf',
+                                              nodeId='leaf_id')
+    assert sorted(page._register_nodeId) == ['box_id', 'leaf_id']
+    root.unregisterNodeIds('box')
+    assert page._register_nodeId == {}
+    root.pop('box')
+    root.child('div', childname='box', nodeId='box_id')
+    assert list(page._register_nodeId) == ['box_id']
+
+
+def test_unregisterNodeIds_on_a_missing_child_is_a_noop():
+    page = _PageStub()
+    root = _make_root(page=page)
+    root.child('div', childname='box', nodeId='box_id')
+    root.unregisterNodeIds('nowhere')
+    assert list(page._register_nodeId) == ['box_id']
+
+
+# ---------------------------------------------------------------------------
+# slotBar: updateSlotsAttr rebuilds only the slots it addresses
+# ---------------------------------------------------------------------------
+
+def _slotbar(slots='withid,plain,*', **kwargs):
+    """Build a real slotBar with two slots: `withid`, whose handler assigns a
+    fixed nodeId (as the table handler query menu does), and `plain`."""
+
+    @struct_method('slotbar_withid')
+    def _withid_slot(struct, withid=None, frameCode=None, **slotkw):
+        struct.div(childname='content', nodeId='fixed_id', **slotkw)
+
+    @struct_method('slotbar_plain')
+    def _plain_slot(struct, plain=None, frameCode=None, **slotkw):
+        struct.div(childname='content', **slotkw)
+
+    page = _PageStub()
+    page._withid_slot = _withid_slot
+    page._plain_slot = _plain_slot
+    pane = _make_root(page=page).child('div', childname='frame') \
+                               .child('div', childname='pane')
+    return page, pane.slotBar(slots, **kwargs)
+
+
+def _slotContentAttr(bar, slot):
+    return bar.getNode(slot).value.getNode('content').attr
+
+
+def test_slotbar_builds_its_slots_with_their_parameters():
+    page, bar = _slotbar(withid_label='hello')
+    assert _slotContentAttr(bar, 'withid')['label'] == 'hello'
+    assert list(page._register_nodeId) == ['fixed_id']
+
+
+def test_updateslotsattr_does_not_duplicate_registered_nodeids():
+    """Rebuilding a sibling slot must not walk over the slot holding a
+    nodeId: that is the `... is duplicated` assertion of the issue."""
+    page, bar = _slotbar(withid_label='hello')
+    bar.updateSlotsAttr(plain_x='zz')
+    assert _slotContentAttr(bar, 'plain')['x'] == 'zz'
+    assert list(page._register_nodeId) == ['fixed_id']
+
+
+def test_updateslotsattr_keeps_the_parameters_of_untouched_slots():
+    page, bar = _slotbar(withid_label='hello')
+    withidSlot = bar.getNode('withid').value
+    bar.updateSlotsAttr(plain_x='zz')
+    assert _slotContentAttr(bar, 'withid')['label'] == 'hello'
+    # not addressed by the call, hence not rebuilt at all
+    assert bar.getNode('withid').value is withidSlot
+
+
+def test_updateslotsattr_rebuilds_the_addressed_slot_only():
+    page, bar = _slotbar(withid_label='hello')
+    plainSlot = bar.getNode('plain').value
+    bar.updateSlotsAttr(withid_label='world')
+    assert _slotContentAttr(bar, 'withid')['label'] == 'world'
+    assert bar.getNode('plain').value is plainSlot
+    # the register points at the rebuilt subtree, not at the discarded one
+    assert list(page._register_nodeId) == ['fixed_id']
+    assert page._register_nodeId['fixed_id'] is bar.getNode('withid').value
+
+
+def test_updateslotsattr_accumulates_over_repeated_calls():
+    page, bar = _slotbar(withid_label='hello')
+    bar.updateSlotsAttr(withid_label='world')
+    bar.updateSlotsAttr(withid_extra='x')
+    attr = _slotContentAttr(bar, 'withid')
+    assert attr['label'] == 'world'
+    assert attr['extra'] == 'x'
+    assert list(page._register_nodeId) == ['fixed_id']
+
+
+def test_updateslotsattr_still_updates_the_bar_attributes():
+    page, bar = _slotbar(withid_label='hello')
+    bar.updateSlotsAttr(_class='mybar')
+    assert bar.attributes['_class'] == 'mybar'
+
+
+def test_replaceslots_adds_the_new_slot_with_its_parameters():
+    page, bar = _slotbar(slots='withid,*')
+    bar.replaceSlots('*', 'plain,*', plain_x='zz')
+    assert bar.attributes['slots'] == 'withid,plain,*'
+    assert _slotContentAttr(bar, 'plain')['x'] == 'zz'
+    assert list(page._register_nodeId) == ['fixed_id']
+
+
+def test_updateslotsattr_keeps_the_parameters_added_by_replaceslots():
+    """`replaceSlots` parameters must survive a later `updateSlotsAttr` on the
+    same slot: `_addSlot` consumes them out of the bar attributes, so the
+    snapshot has to see them too."""
+    page, bar = _slotbar(slots='withid,*')
+    bar.replaceSlots('*', 'plain,*', plain_x='zz')
+    bar.updateSlotsAttr(plain_y='ww')
+    attr = _slotContentAttr(bar, 'plain')
+    assert attr['x'] == 'zz'
+    assert attr['y'] == 'ww'
+
+
+def test_prosemirror_editor_survives_registry_dispatch_and_xml():
+    root = _make_root()
+    root.proseMirrorEditor(childname='editor', value='^.body')
+    assert root.getNode('editor').attr['tag'] == 'proseMirrorEditor'
+    element = ElementTree.fromstring(root.toXml()).find('editor')
+    assert element is not None
+    assert element.attrib['tag'] == 'proseMirrorEditor'
+    assert element.attrib['value'] == '^.body'

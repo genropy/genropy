@@ -101,7 +101,7 @@ class Form(BaseComponent):
                     values='stack:Stack Demo/Source,stack_f:Stack Source/Demo,top:Top,left:Left,bottom:Bottom,right:Right')
 
         examples_themesSn = self.site.storageNode('rsrc:js_libs', 'codemirror', 'theme')
-        examples_themes = ','.join([s.cleanbasename for s in examples_themesSn.children() if s.basename.endswith('.css')])
+        examples_themes = ','.join([s.cleanbasename for s in (examples_themesSn.children() or []) if s.basename.endswith('.css')])
         #DP202108 In this way we build the list of available themes which will be shown in the filteringSelect
         example_pars_fb.filteringSelect(value='^.source_theme',values=examples_themes, width='8em',lbl='Source theme')
 

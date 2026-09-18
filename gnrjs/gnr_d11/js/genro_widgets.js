@@ -85,6 +85,11 @@ dojo.declare("gnr.widgets.baseHtml", null, {
         this._doChangeInData(domnode, domnode.sourceNode, domnode.value);
     },
     setValueInData:function(sourceNode,value,valueAttr){
+       if (sourceNode.isLostNode()){
+           //late change from a widget whose sourceNode was torn down by a
+           //remote content rebuild: it must not write into the datastore
+           return;
+       }
        if (sourceNode.attr_kw){
            var attr_kw = sourceNode.evaluateOnNode(sourceNode.attr_kw);
            for (var k in attr_kw){
@@ -157,7 +162,7 @@ dojo.declare("gnr.widgets.baseHtml", null, {
 
         objectExtract(attributes, 'onDrop,onDrag,dragTag,dropTag,dragTypes,dropTypes');
         objectExtract(attributes, 'onDrop_*');
-        objectUpdate(savedAttrs,objectExtract(attributes,'touchEvents,dropTarget,dropTargetCb,connectedMenu,onEnter,_watchOnVisible,autocomplete'))
+        objectUpdate(savedAttrs,objectExtract(attributes,'touchEvents,dropTarget,dropTargetCb,connectedMenu,onEnter,onEnter_shiftNewline,_watchOnVisible,autocomplete'))
         let extraDropTargets = objectExtract(attributes,'dropTargetCb_*');
         if(objectNotEmpty(extraDropTargets)){
             savedAttrs['dropTargetCb_extra'] = extraDropTargets;
@@ -371,11 +376,15 @@ dojo.declare("gnr.widgets.baseHtml", null, {
         }
         if (savedAttrs.onEnter) {
             var callback = savedAttrs.onEnter===true? null:dojo.hitch(sourceNode, funcCreate(savedAttrs.onEnter));
+            var shiftNewline = savedAttrs.onEnter_shiftNewline;
             var kbhandler = function(evt) {
                 if (evt.keyCode == genro.PATCHED_KEYS.ENTER) {
+                    if(shiftNewline && evt.shiftKey){
+                        return;
+                    }
                     evt.target.blur();
                     if(callback){
-                        setTimeout(callback, 100);
+                        setTimeout(function(){ callback(evt); }, 100);
                     }
                 }
             };
@@ -1358,7 +1367,18 @@ dojo.declare("gnr.widgets.video", gnr.widgets.baseHtml, {
         domNode.appendChild(track);
     },
     setSrc:function(domNode,src){
+        var that = this;
+        domNode.sourceNode.watch('isVisibile_src',
+                        function(){return genro.dom.isVisible(domNode);},
+                        function(){that.setSrc_do(domNode,src);});
+    },
+    setSrc_do:function(domNode,src){
         dojo.forEach(domNode.children,function(c){domNode.removeChild(c)});
+        if(isNullOrBlank(src)){
+            domNode.removeAttribute('src');
+            domNode.load();
+            return;
+        }
         domNode.setAttribute('src',src);
     },
 
@@ -1413,6 +1433,12 @@ dojo.declare("gnr.widgets.baseDojo", gnr.widgets.baseHtml, {
          }*/
         if (sourceNode._modifying) { // avoid recursive _doChangeInData when calling widget.setValue in validations
 
+            return;
+        }
+        if (sourceNode.isLostNode()) {
+            //late change from a widget whose sourceNode was torn down by a
+            //remote content rebuild: its relative path cannot resolve and
+            //getNode with autocreate would pollute the datastore
             return;
         }
         var path = sourceNode.attrDatapath('value');
@@ -1901,10 +1927,11 @@ dojo.declare("gnr.widgets.SimpleTextarea", gnr.widgets.baseDojo, {
     onBuilding:function(sourceNode){
         //{value:,height,width}
         var areaAttr = objectUpdate({},sourceNode.attr);
-        objectPop(areaAttr,'speech'); // consumed in created()
+        var speechEnabled = objectPop(areaAttr,'speech'); // consumed here and in created()
         var editor = objectPop(areaAttr,'editor');
         var tag = this._domtag;
         var notrigger = {'doTrigger':false};
+        var that = this;
         if (editor){
             var parentNode =sourceNode.getParentNode();
             var insideTable = parentNode && parentNode.attr.tag=='td';
@@ -1916,9 +1943,14 @@ dojo.declare("gnr.widgets.SimpleTextarea", gnr.widgets.baseDojo, {
                 _class+= ' textAreaIsEditor';
             }
             var currAttr = sourceNode.attr;
-            sourceNode.attr = {'tag':'div',_class:_class};
-            objectExtract(currAttr,'tag,width');
-            var tKw = objectUpdate({overflow:'hidden',_class:'textAreaWrapperArea'},currAttr);
+            // only the outer wrapper's own size and the speech_* settings belong on this node:
+            // everything else in currAttr is meant for the inner editable tag (via areaAttr) and
+            // must not leak onto the wrapper divs (it used to, doubling up height with config_height).
+            var wrapperAttrs = objectExtract(currAttr,'height,width,region');
+            objectPop(areaAttr,'region'); // placement belongs to the wrapper, not the inner tag
+            var speechAttrs = objectExtract(currAttr,'speech_*',false,true);
+            sourceNode.attr = objectUpdate(objectUpdate({'tag':'div',_class:_class},wrapperAttrs),speechAttrs);
+            var tKw = {overflow:'hidden',_class:'textAreaWrapperArea'};
             if(editor){
                 tKw['border'] = '1px solid silver';
                 tKw['rounded'] = 4;
@@ -1926,7 +1958,7 @@ dojo.declare("gnr.widgets.SimpleTextarea", gnr.widgets.baseDojo, {
             var top = sourceNode._('div',tKw,notrigger);
             var bottom = sourceNode._('div',{_class:'textAreaWrapperButtons',transition:'1s all'},notrigger)
             if(editor){
-                bottom._('div',{_class:'TAeditorPalette',connect_onclick:function(){
+                bottom._('div',{_class:'TAeditorPalette',title:'Open in a floating editor',connect_onclick:function(){
                     genro.dlg.floatingEditor(textarea,{});
                 }},{'doTrigger':false})
                 tag = 'ckeditor';
@@ -1939,6 +1971,11 @@ dojo.declare("gnr.widgets.SimpleTextarea", gnr.widgets.baseDojo, {
                 this._dojotag = null;
             }
             var textarea = top._(tag,areaAttr,notrigger).getParentNode();
+            if(speechEnabled){
+                setTimeout(function(){
+                    that._attachEditorSpeechButton(sourceNode, textarea);
+                },1);
+            }
         }
     },
     onSpeechEnd:function(sourceNode,v){
@@ -1959,23 +1996,38 @@ dojo.declare("gnr.widgets.SimpleTextarea", gnr.widgets.baseDojo, {
 
     _attachSpeechButton:function(newobj, sourceNode){
         if(!sourceNode.attr.speech){ return; }
-        if(!genro.speech || !genro.speech.isAvailable()){ return; }
         var that = this;
         var domNode = newobj.domNode;
         var parent = domNode.parentNode;
         if(!parent){ return; }
         var wrapper = document.createElement('div');
-        wrapper.style.position = 'relative';
-        wrapper.style.display = 'inline-block';
+        wrapper.className = 'gnr_speech_wrapper';
         parent.insertBefore(wrapper, domNode);
         wrapper.appendChild(domNode);
-        domNode.style.paddingRight = '26px';
+        // the size the field asked for becomes the wrapper's: a percent left on
+        // the field would resolve against the wrapper instead of the container.
+        // Cleared rather than set to 100%: as the only grid item in the cell the
+        // field stretches on its own. Everything else is in 22_gnr_speech.css.
+        if(domNode.style.width){
+            wrapper.style.width = domNode.style.width;
+            domNode.style.width = '';
+        }
+        if(domNode.style.height){
+            wrapper.style.height = domNode.style.height;
+            domNode.style.height = '';
+        }
         var btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'gnr_speech_button';
-        btn.title = 'Voice input';
         btn.setAttribute('tabindex','-1');
         wrapper.appendChild(btn);
+        if(!genro.speech || !genro.speech.isAvailable()){
+            btn.classList.add('gnr_speech_unavailable');
+            btn.title = 'Voice input not supported in this browser';
+            btn.disabled = true;
+            return;
+        }
+        btn.title = 'Voice input';
         var session = null;
         var stopListening = function(){
             if(session){
@@ -2027,6 +2079,69 @@ dojo.declare("gnr.widgets.SimpleTextarea", gnr.widgets.baseDojo, {
         sourceNode.subscribe('onDestroying', stopListening);
     },
 
+    _attachEditorSpeechButton:function(sourceNode, editorSourceNode){
+        var wrapperDomNode = sourceNode.getDomNode();
+        var container = wrapperDomNode ? wrapperDomNode.querySelector('.textAreaWrapperButtons') : null;
+        if(!container){ return; }
+        var that = this;
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'gnr_speech_button';
+        btn.setAttribute('tabindex','-1');
+        container.appendChild(btn);
+        if(!genro.speech || !genro.speech.isAvailable()){
+            btn.classList.add('gnr_speech_unavailable');
+            btn.title = 'Voice input not supported in this browser';
+            btn.disabled = true;
+            return;
+        }
+        btn.title = 'Voice input';
+        var session = null;
+        var stopListening = function(){
+            if(session){
+                session.stop();
+                session = null;
+            }
+            btn.classList.remove('gnr_speech_listening');
+        };
+        btn.addEventListener('click', function(e){
+            e.preventDefault();
+            e.stopPropagation();
+            if(session){
+                stopListening();
+                return;
+            }
+            btn.classList.add('gnr_speech_listening');
+            let silenceTimeout = sourceNode.getAttributeFromDatasource('speech_silenceTimeout');
+            if(silenceTimeout == null){ silenceTimeout = 2500; }
+            silenceTimeout = parseInt(silenceTimeout, 10) || 0;
+            const stopWordsAttr = sourceNode.getAttributeFromDatasource('speech_stopWords');
+            const stopWords = stopWordsAttr ? stopWordsAttr.split(',') : [];
+            let dictated = '';
+            session = genro.speech.start({
+                silenceTimeout: silenceTimeout,
+                stopWords: stopWords,
+                interimResults: false,
+                onResult: (finalText) => {
+                    dictated = (dictated ? dictated + ' ' : '') + finalText.trim();
+                },
+                onError: () => {
+                    stopListening();
+                },
+                onEnd: () => {
+                    if(dictated){
+                        genro.wdg.getHandler('ckeditor').onSpeechEnd(editorSourceNode, dictated);
+                    }
+                    stopListening();
+                }
+            });
+            if(!session){
+                btn.classList.remove('gnr_speech_listening');
+            }
+        });
+        editorSourceNode.subscribe('onDestroying', stopListening);
+    },
+
     connectFocus: function(widget, savedAttrs, sourceNode) {
         if (sourceNode.attr._autoselect && !genro.isMobile) {
             dojo.connect(widget, 'onFocus', widget, function(e) {
@@ -2074,17 +2189,26 @@ dojo.declare("gnr.widgets.SimpleTextarea", gnr.widgets.baseDojo, {
         if(!domNode){
             return;
         }
+        // when a speech button wraps the textarea, the wrapper (not the textarea itself)
+        // must be the one taken out of flow: fixing domNode alone leaves the relative
+        // wrapper at its collapsed in-flow size, detaching the button from the field.
+        var hasSpeechWrapper = domNode.parentElement && domNode.parentElement.classList.contains('gnr_speech_wrapper');
+        var target = hasSpeechWrapper ? domNode.parentElement : domNode;
         var h = parseInt(attr.height) || 100;
-        domNode.classList.add('cellEditFixed');
-        domNode.style.position = 'fixed';
-        domNode.style.height = h + 'px';
-        domNode.style.zIndex = '10';
-        domNode.style.margin = '0';
+        target.classList.add('cellEditFixed');
+        target.style.position = 'fixed';
+        target.style.height = h + 'px';
+        target.style.zIndex = '10';
+        target.style.margin = '0';
+        if(hasSpeechWrapper){
+            domNode.style.width = '100%';
+            domNode.style.height = '100%';
+        }
         var positionTextarea = function(){
             var rect = cellNode.getBoundingClientRect();
-            domNode.style.left = (rect.left + 1) + 'px';
-            domNode.style.top = (rect.top + 1) + 'px';
-            domNode.style.width = (rect.width - 2) + 'px';
+            target.style.left = (rect.left + 1) + 'px';
+            target.style.top = (rect.top + 1) + 'px';
+            target.style.width = (rect.width - 2) + 'px';
         };
         positionTextarea();
         var scrollNode = cellNode.closest('.dojoxGrid-scrollbox');
@@ -4233,6 +4357,9 @@ dojo.declare("gnr.widgets.NumberTextBox", gnr.widgets._BaseTextBox, {
         if ('ftype' in attributes) {
             attributes.constraints['type'] = objectPop(attributes['ftype']);
         }
+        objectPop(attributes, 'keypad');
+        objectPop(attributes, 'keypad_calculator');
+        objectPop(attributes, 'keypad_size');
     },
 
     created: function(widget, savedAttrs, sourceNode) {
@@ -4245,6 +4372,222 @@ dojo.declare("gnr.widgets.NumberTextBox", gnr.widgets._BaseTextBox, {
             });
         }
         widget.setValue(sourceNode.getRelativeData(sourceNode.attr.value)); //avoid set 0 as null value by dojo widget
+        this._attachKeypad(widget, sourceNode);
+    },
+
+    _supportsKeypad: true,
+
+    //'=' is entity-escaped: a bare '=' in an attribute is a genro datasource expression
+    _keypadOpLabels: {'*':'\u00d7', '/':'\u00f7', '-':'\u2212', '+':'+', '=':'&#61;'},
+
+    _keypadRows: [
+        [{k:'C', t:'clear'}, {k:'&#9003;', t:'back'}, {k:'&plusmn;', t:'sign'}, {k:'/', t:'op', calc:true}],
+        [{k:'7', t:'digit'}, {k:'8', t:'digit'}, {k:'9', t:'digit'}, {k:'*', t:'op', calc:true}],
+        [{k:'4', t:'digit'}, {k:'5', t:'digit'}, {k:'6', t:'digit'}, {k:'-', t:'op', calc:true}],
+        [{k:'1', t:'digit'}, {k:'2', t:'digit'}, {k:'3', t:'digit'}, {k:'+', t:'op', calc:true}],
+        [{k:'0', t:'digit', wide:true}, {k:'.', t:'dec'}, {k:'=', t:'eq', calc:true}]
+    ],
+
+    _attachKeypad: function(widget, sourceNode) {
+        var calculator = !!sourceNode.attr.keypad_calculator;
+        if (!this._supportsKeypad || !(sourceNode.attr.keypad || calculator)) {
+            return;
+        }
+        var that = this;
+        var openerId = 'gnr_keypad_' + genro.getCounter();
+        var state = {tokens:[], entry:'', error:false,
+                     padId:openerId + '_pad', displayId:openerId + '_display'};
+        genro.dom.addClass(widget.focusNode, 'comboArrowTextbox gnr_keypad_field');
+        sourceNode.freeze();
+        //the opener sits inside the field, at its start so the right-aligned value keeps
+        //its place. dijit _FormWidget defers a focus() of the input on any mousedown in
+        //there and, on a tap, that focus lands after the popup opened and closes it:
+        //stopping the mousedown keeps the field out of it
+        var box = sourceNode._('div', {_class:'gnr_keypad_opener', cursor:'pointer',
+                                tabindex:-1, position:'absolute', top:0, bottom:0, left:0,
+                                connect_onmousedown:function(evt) { dojo.stopEvent(evt); },
+                                connect_onclick:function(evt) {
+                                    genro.publish(openerId + '_open', {evt:evt, domNode:evt.currentTarget});
+                                }});
+        box._('div', {_class:'gnr_keypad_glyph' + (calculator? ' gnr_keypad_glyph_calc':''),
+                      position:'absolute', top:0, bottom:0, left:0, right:0, tabindex:-1});
+        //evt:'noevt' leaves the opening to the publish above: the subtree is built frozen,
+        //so the node tooltipPane would pick to connect on its own is not the opener
+        //anchored to the whole field, not to the opener: the pad opens right below the
+        //number it edits and never covers it
+        var pane = box._('tooltipPane', {openerId:openerId, evt:'noevt', _class:'gnr_keypad_pane',
+                                placingNode:widget.domNode,
+                                onOpening:function(){ that._keypadOpen(state, widget); },
+                                connect_onClose:function(){ that._keypadCommit(state, widget); }});
+        this._buildKeypad(pane, state, widget, calculator, openerId, sourceNode.attr.keypad_size);
+        sourceNode.unfreeze();
+    },
+
+    _buildKeypad: function(pane, state, widget, calculator, openerId, size) {
+        var that = this;
+        //the keys are plain divs: without this the mousedown blurs the dropdown and
+        //dijit closes the popup before the click on the key is delivered
+        var kp = pane._('div', {nodeId:state.padId,
+                                _class:'gnr_keypad' + (calculator? ' gnr_keypad_withops':'') + (size? ' gnr_keypad_' + size:''),
+                                connect_onmousedown:function(evt) { dojo.stopEvent(evt); }});
+        kp._('div', {nodeId:state.displayId, _class:'gnr_keypad_display'});
+        var grid = kp._('div', {_class:'gnr_keypad_grid'});
+        this._keypadRows.forEach(function(row) {
+            row.forEach(function(key) {
+                if (key.calc && !calculator) {
+                    return;
+                }
+                grid._('div', {_class:'gnr_keypad_key gnr_keypad_key_' + key.t + (key.wide? ' gnr_keypad_key_wide':''),
+                               innerHTML: that._keypadOpLabels[key.k] || key.k,
+                               connect_onclick:function(evt) {
+                                   that._keypadKey(state, widget, key, evt);
+                               }});
+            });
+        });
+        var foot = kp._('div', {_class:'gnr_keypad_foot'});
+        foot._('div', {_class:'gnr_keypad_key gnr_keypad_cancel', innerHTML:'&#10005;',
+                       connect_onclick:function(evt) {
+                           dojo.stopEvent(evt);
+                           state.discard = true;
+                           that._keypadClose(openerId, evt);
+                       }});
+        foot._('div', {_class:'gnr_keypad_key gnr_keypad_confirm', innerHTML:'&#10003;',
+                       connect_onclick:function(evt) {
+                           dojo.stopEvent(evt);
+                           that._keypadConfirm(state, widget, openerId, evt);
+                       }});
+    },
+
+    _keypadOpen: function(state, widget) {
+        //the pane lives outside the field in the popup layer, so the field font-size
+        //has to be carried over: every measure of the pad is an em against it
+        var pad = genro.domById(state.padId);
+        if (pad) {
+            pad.style.fontSize = dojo.getComputedStyle(widget.focusNode).fontSize;
+        }
+        var v = widget.getValue();
+        state.tokens = [];
+        state.error = false;
+        state.discard = false;
+        state.entry = (typeof(v)=='number' && isFinite(v))? String(v) : '';
+        this._keypadRender(state, widget);
+    },
+
+    _keypadRender: function(state, widget) {
+        var dom = genro.domById(state.displayId);
+        if (!dom) {
+            return;
+        }
+        var that = this;
+        var chunks = state.tokens.map(function(t) {
+            return (typeof(t)=='string')? (that._keypadOpLabels[t] || t) : String(t);
+        });
+        if (state.entry) {
+            chunks.push(state.entry);
+        }
+        var txt = chunks.join(' ') || '0';
+        dom.innerHTML = txt.split('.').join(dojo.number._parseInfo(widget.constraints).decimal);
+        dojo.toggleClass(dom, 'gnr_keypad_error', state.error);
+    },
+
+    _keypadKey: function(state, widget, key, evt) {
+        dojo.stopEvent(evt);
+        state.error = false;
+        if (key.t=='digit') {
+            state.entry = (state.entry=='0')? key.k : state.entry + key.k;
+        }else if (key.t=='dec') {
+            if (state.entry.indexOf('.')<0) {
+                state.entry = (state.entry || '0') + '.';
+            }
+        }else if (key.t=='back') {
+            state.entry = state.entry.slice(0, -1);
+        }else if (key.t=='clear') {
+            state.tokens = [];
+            state.entry = '';
+        }else if (key.t=='sign') {
+            state.entry = stringStartsWith(state.entry, '-')? state.entry.slice(1) : '-' + state.entry;
+        }else if (key.t=='op') {
+            this._keypadPushOp(state, key.k);
+        }else if (key.t=='eq') {
+            var r = this._keypadResult(state);
+            state.tokens = [];
+            state.error = (r===null);
+            state.entry = (r===null)? '' : String(r);
+        }
+        this._keypadRender(state, widget);
+    },
+
+    _keypadPushOp: function(state, op) {
+        var n = this._keypadEntryValue(state);
+        if (n===null) {
+            if (state.tokens.length) {
+                state.tokens[state.tokens.length - 1] = op;
+            }
+            return;
+        }
+        state.tokens.push(n, op);
+        state.entry = '';
+    },
+
+    _keypadEntryValue: function(state) {
+        var n = Number(state.entry);
+        return (state.entry && isFinite(n))? n : null;
+    },
+
+    /* tokens are [number, op, number, ...]; a dangling operator is dropped rather
+       than evaluated, so an incomplete expression yields the part already typed */
+    _keypadResult: function(state) {
+        var t = state.tokens.slice();
+        var last = this._keypadEntryValue(state);
+        if (last!==null) {
+            t.push(last);
+        }
+        if (t.length % 2 === 0) {
+            t.pop();
+        }
+        if (!t.length) {
+            return null;
+        }
+        for (var i=1; i<t.length-1; ) {
+            if (t[i]=='*' || t[i]=='/') {
+                if (t[i]=='/' && t[i+1]===0) {
+                    return null;
+                }
+                t.splice(i-1, 3, (t[i]=='*')? t[i-1]*t[i+1] : t[i-1]/t[i+1]);
+            }else{
+                i += 2;
+            }
+        }
+        var res = t[0];
+        for (var j=1; j<t.length-1; j+=2) {
+            res = (t[j]=='+')? res + t[j+1] : res - t[j+1];
+        }
+        return isFinite(res)? res : null;
+    },
+
+    _keypadConfirm: function(state, widget, openerId, evt) {
+        if (this._keypadResult(state)===null) {
+            state.error = true;
+            this._keypadRender(state, widget);
+            return;
+        }
+        this._keypadClose(openerId, evt);
+    },
+
+    //every way out of the pane but the cancel key writes the value: closing by
+    //clicking away is a confirm, and dijit routes that through the dropdown onClose
+    _keypadCommit: function(state, widget) {
+        var v = state.discard? null : this._keypadResult(state);
+        state.discard = false;
+        state.tokens = [];
+        state.entry = '';
+        if (v!==null) {
+            widget.setValue(v);
+        }
+    },
+
+    _keypadClose: function(openerId, evt) {
+        genro.publish({topic:'close', nodeId:openerId}, {evt:evt});
     },
 
     onSettingValueInData: function(sourceNode, value,valueAttr) {
@@ -4291,9 +4634,9 @@ dojo.declare("gnr.widgets.NumberSpinner", gnr.widgets.NumberTextBox, {
     constructor: function(application) {
         this._domtag = 'input';
         this._dojotag = 'NumberSpinner';
-    }
-    
-    
+    },
+    //the spinner arrows already occupy the right edge of the field
+    _supportsKeypad: false
 });
 
 dojo.declare("gnr.widgets.Slider", gnr.widgets.baseDojo, {
@@ -4329,12 +4672,12 @@ dojo.declare("gnr.widgets.BaseCombo", gnr.widgets.baseDojo, {
     creating: function(attributes, sourceNode) {
         objectExtract(attributes, 'maxLength,_type');
         var values = objectPop(attributes, 'values');
+        var savedAttrs = {};
         if (values) {
             var store = this.storeFromValues(values);
             attributes.searchAttr = 'caption';
         } else {
             var storeAttrs = objectExtract(attributes, 'storepath,storeid,storecaption');
-            var savedAttrs = {};
             var store = new gnr.GnrStoreBag({datapath: sourceNode.absDatapath(storeAttrs.storepath)});
             attributes.searchAttr = store.rootDataNode().attr['caption'] || storeAttrs['storecaption'] || 'caption';
             attributes.autoComplete = attributes.autoComplete || false;
@@ -4852,23 +5195,55 @@ dojo.declare("gnr.widgets.DynamicBaseCombo", gnr.widgets.BaseCombo, {
     },
     mixin_setCondition:function(value,kw){
         var vpath = this.sourceNode.attr.value;
-        var currvalue = this.sourceNode.getRelativeData(vpath);
+        var datavalue = this.sourceNode.getRelativeData(vpath);
+        var currvalue = datavalue;
+        var oneOptionItem = null;
         var reskwargs = this.store.rootDataNode().getResolver().kwargs;
         if(reskwargs.notnull){
             reskwargs = objectUpdate({},reskwargs);
             var reskwargs = objectUpdate(reskwargs,{limit:2,_querystring:'*',notnull:true});
             var singleOption = genro.serverCall(objectPop(reskwargs,'method'),reskwargs);
             if(singleOption._value.len()==1){
-                currvalue = singleOption._value.getAttr('#0')[this.store._identifier];
+                oneOptionItem = singleOption._value.getNode('#0');
+                currvalue = oneOptionItem.attr[this.store._identifier];
             }
         }
         if(!isNullOrBlank(currvalue)){
             this.clearCache();
-            this.setValue(null,true);
-            this.setValue(currvalue,true);
-        } 
-
-        //this.sourceNode.setRelativeData(vpath,currvalue);
+            if(oneOptionItem && currvalue !== datavalue){
+                // no identity fetch runs on this branch, so the resolver error
+                // of the previous condition would survive into a valid selection
+                // and keep validate_select returning query_error
+                delete this._lastQueryError;
+                this.item = oneOptionItem;
+                if(this._setValueFromItem){
+                    this._setValueFromItem(oneOptionItem,false);
+                }else{
+                    this.setValue(currvalue,false);
+                }
+                this.sourceNode.setRelativeData(vpath,currvalue);
+                this._updateSelect(oneOptionItem);
+            }else{
+                // Reset _lastValue so the identity fetch is not skipped.
+                var self = this;
+                this.setValue(null,false);
+                this.store.fetchItemByIdentity({identity:currvalue,onItem:function(){
+                    if(self.sourceNode.getRelativeData(vpath) != currvalue){
+                        // the stale reply may have flagged a value that is no longer
+                        // there. fetchItemByIdentity clears _lastQueryError before
+                        // the call, so a value here belongs to this reply: without
+                        // one there is nothing of ours to undo, and the node may
+                        // meanwhile hold the current value's own error or required
+                        if(self._lastQueryError){
+                            delete self._lastQueryError;
+                            self.sourceNode.resetValidationError();
+                        }
+                        return;
+                    }
+                    self.setValue(currvalue,false);
+                }});
+            }
+        }
     },
     
     mixin_onSetValueFromItem: function(item, priorityChange) {
@@ -5084,9 +5459,90 @@ dojo.declare("gnr.widgets.FilteringSelect", gnr.widgets.BaseCombo, {
 
 });
 dojo.declare("gnr.widgets.ComboBox", gnr.widgets.BaseCombo, {
+    // Opt into the Genro validation pipeline so validate_case / validate_regex
+    // / validate_call fire on this widget too. dijit.form.ComboBox does not
+    // extend ValidationTextBox, so without this flag setValidations() is never
+    // called and validators silently no-op.
+    _validatingWidget:true,
     constructor: function(application) {
         this._domtag = 'div';
         this._dojotag = 'ComboBox';
+    },
+    created: function(widget, savedAttrs, sourceNode) {
+        this.inherited(arguments);
+        this.connectAddMissingValue(widget, sourceNode);
+    },
+    connectAddMissingValue: function(widget, sourceNode) {
+        // When addMissingValue is set on a ComboBox backed by a local
+        // storepath, any value (typed by the user or arriving from the
+        // datapath, e.g. record load) that is not present in the store
+        // is added on the fly so it becomes a suggestable option.
+        // Limited to ComboBox: dbSelect/FilteringSelect/dbComboBox have
+        // their own validation rules and are out of scope.
+        if(!sourceNode.attr.addMissingValue || !sourceNode.attr.storepath){
+            return;
+        }
+        var self = this;
+        var checkAndAdd = function(){
+            // Read the normalized value from the widget instead of trusting
+            // the setValue argument: Dojo may call setValue with non-string
+            // payloads (item, undefined) on internal flows.
+            var v = widget.getValue();
+            if(typeof v === 'string' && !isNullOrBlank(v)){
+                self._autoAddToStore(sourceNode, v);
+            }
+        };
+        dojo.connect(widget, 'setValue', checkAndAdd);
+        // Deferred initial check: covers the case where the value is already
+        // present in the datapath at widget creation time (e.g. fb.data() seed)
+        // and no setValue call follows. Debounced per-widget via reason.
+        var reason = 'addMissingValue_' + (sourceNode.attr.nodeId || sourceNode.getStringId());
+        genro.callAfter(checkAndAdd, 1, null, reason);
+    },
+    _autoAddToStore: function(sourceNode, value){
+        // Honor the validation pipeline: a value rejected by validate_regex,
+        // validate_len, validate_email, etc. must NOT enrich the store.
+        // We are called from the setValue connect, which fires *before* the
+        // change-event flow runs validation and updates _validations.error,
+        // so the stored error from a previous turn would be stale. Run the
+        // validators here with validateOnly=true to get a fresh verdict.
+        if(sourceNode.hasValidations && sourceNode.hasValidations()){
+            var vres = genro.vld.validate(sourceNode, value, true, true);
+            if(vres && vres.error){
+                return;
+            }
+            // Some validators (validate_case, validate_call) return a
+            // modified value; honor it so the store gets the canonical form.
+            if(vres && vres.modified && typeof vres.value === 'string'){
+                value = vres.value;
+            }
+        }
+        var storepath = sourceNode.absDatapath(sourceNode.attr.storepath);
+        var storebag = genro.getData(storepath);
+        if(!storebag){
+            // No store bag at storepath: nothing to enrich. The dropdown
+            // would be empty anyway. Caller must declare the data path.
+            return;
+        }
+        var idAttr = sourceNode.attr.storeid || 'id';
+        var captionAttr = sourceNode.attr.storecaption || 'caption';
+        var nodes = storebag.getNodes();
+        for(var i = 0; i < nodes.length; i++){
+            if(nodes[i].attr[idAttr] === value){
+                return;
+            }
+        }
+        var label = 'r_' + nodes.length;
+        while(storebag.getNode(label)){
+            label = label + '_';
+        }
+        var newAttrs = {};
+        newAttrs[idAttr] = value;
+        newAttrs[captionAttr] = value;
+        // Marker so callers can distinguish auto-added entries from seeded
+        // ones and purge them selectively (see test_14).
+        newAttrs.__autoadded = true;
+        storebag.addItem(label, null, newAttrs);
     }
 });
 
@@ -5339,7 +5795,7 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
             crop = objectUpdate({text_align:'center',overflow:'hidden'},crop);
             var innerImage=objectExtract(attr,'src,src_back,placeholder,height,width,edit,upload_maxsize,upload_folder,upload_filename,upload_ext,zoomWindow,format,mask,border,takePicture,nodeId,capture');
             if (innerImage.placeholder===true){
-                innerImage.placeholder = getComputedStyle(document.documentElement).getPropertyValue('--icon-placeholder-img').trim().slice(4, -1).replace(/["']/g, '')
+                innerImage.placeholder = getComputedStyle(document.documentElement).getPropertyValue('--icon-placeholder-img').trim().slice(4, -1).replace(/^["']|["']$/g, '')
             }
             innerImage.cr_width=crop.width;
             innerImage.cr_height=crop.height;

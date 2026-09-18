@@ -248,8 +248,15 @@ def gnrImport(source, importAs=None, avoidDup=False, silent=True,avoid_module_ca
         if not silent:
             raise
         module = None
-    sys.modules[modkey] = module
-    return module
+    if avoid_module_cache:
+        # The caller explicitly asked for a fresh re-import: it must win over
+        # (and replace) any previously cached module.
+        sys.modules[modkey] = module
+        return module
+    # First-wins publication: two threads racing on the same not-yet-cached
+    # file may both exec it; converging on the first published module keeps a
+    # single class identity per module (isinstance checks depend on it).
+    return sys.modules.setdefault(modkey, module)
 
 class GnrException(Exception):
     """Standard Gnr Exception"""
@@ -419,6 +426,10 @@ def classMixin(target_class, source_class, methods=None, only_callables=True,
     if exclude:
         mlist = [item for item in mlist if item not in FilterList(exclude)]
     proxy_name = getattr(source_class, 'proxy_name', None)
+    if not proxy_name:
+        proxy_name = getattr(source_class, 'proxy', None)
+        if proxy_name is True:
+            proxy_name = source_class.__name__.lower()
     if proxy_name:
         keyproxy = '{proxy_name}_proxyclass'.format(proxy_name=proxy_name)
         proxy_class =  getattr(target_class, keyproxy, None)

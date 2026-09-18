@@ -37,7 +37,7 @@ class BaseResourceExport(BaseResourceBatch):
         self.batch_parameters = dict(export_mode=export_mode, filename=filename,localized_data=localized_data)
         self.batch_parameters.update(kwargs)
         self.prepareExportCols(data,struct=struct)
-        if not isinstance(data,Bag):
+        if data is not None and not isinstance(data,Bag):
             data = data.output('grid')
         self.data = self.rowFromValue(data) if datamode == 'bag' else self.rowFromAttr(data)
         self._pre_process()

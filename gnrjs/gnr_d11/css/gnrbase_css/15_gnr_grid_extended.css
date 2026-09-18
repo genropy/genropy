@@ -334,7 +334,7 @@ textarea.cellEditFixed {
     padding-bottom: 1px;
 }
 .gr_footer.gr_scrollbox{
-    overflow: auto;
+    overflow: hidden;        /* follower like the columnset header: no own scrollbar, follows the body via scrollLeft */
     border-top:1px solid var(--grid-border-color);
     background: var(--grid-row-bg);
 }
@@ -342,15 +342,10 @@ textarea.cellEditFixed {
     background: var(--grid-footer-item-bg);
 }
 
-._common_d11 .gr_wrap_footers .dojoxGrid-scrollbox{
-    overflow-x:auto !important;
-    -ms-overflow-style:none;
-    scrollbar-width:none;
-}
-._common_d11 .gr_wrap_footers .dojoxGrid-scrollbox::-webkit-scrollbar:horizontal{
-    height:0;
-    display:none;
-}
+/* Grids with columnsets/footers use the standard scrollbox: the body owns both scrollbars.
+   The columnset header and footer panes are overflow:hidden followers, synced to the body
+   scrollLeft (see genro_grid.js). No per-axis scrollbar hiding is attempted here: it is not
+   possible cross-browser and was what removed the vertical scrollbar (#955). */
 .gr_noFooter .gr_footer.gr_scrollbox .gr_itemcontainer{
     background: transparent;
     min-height: 16px;

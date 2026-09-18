@@ -13,10 +13,6 @@ import select
 import threading
 from concurrent.futures import ThreadPoolExecutor
 
-import psycopg2
-from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
-import psycopg
-
 from gnr.core.cli import GnrCliArgParse
 from gnr.core.gnrdecorator import listen
 from gnr.core.gnrstring import fromTypedJSON, toTypedJSON
@@ -215,9 +211,10 @@ class TestTableNotify:
     """tblobj.notify() sends NOTIFY with table and kwargs in payload."""
 
     def test_notify_sends_payload(self, db_pg):
-        dsn = db_pg.adapter.dbroot.connection.dsn
-        conn = psycopg2.connect(dsn)
-        conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
+        # Built through the adapter, never from ``connection.dsn``: psycopg
+        # strips the password out of the dsn, so a connection rebuilt from it
+        # cannot authenticate against a server that requires one.
+        conn = db_pg.adapter.connect(autoCommit=True)
         cur = conn.cursor()
         cur.execute('LISTEN fatturona;')
 
@@ -289,9 +286,11 @@ class TestTableNotifyPsycopg3:
     """tblobj.notify() via psycopg3 adapter."""
 
     def test_notify_sends_payload(self, db_pg3):
-        conninfo = db_pg3.adapter.dbroot.connection.info.dsn
-        conn = psycopg.connect(conninfo, autocommit=True)
-        conn.execute('LISTEN fatturona;')
+        conn = db_pg3.adapter.connect(autoCommit=True)
+        # cursor().execute() and not the conn.execute() shortcut: the adapter
+        # installs GnrDictCursor, whose execute() does not take psycopg3's
+        # ``prepare``/``binary`` keywords.
+        conn.cursor().execute('LISTEN fatturona;')
 
         tbl = db_pg3.table('invc.invoice')
         tbl.notify('fatturona', pkey='inv_big_1', total='99999')

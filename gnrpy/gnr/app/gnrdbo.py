@@ -1093,15 +1093,23 @@ class TableBase(object):
         querable = Bag()
         df_caption_field = caption_field or df_table.attributes.get('caption_field')
         fetch = df_table.dbtable.query(columns='$%s,$df_fields' %df_caption_field,**kwargs).fetch()
-        typeconverter = {'T':'text','P':'text', 'N': 'numeric','B': 'boolean',
-                         'D': 'date', 'H': 'time without time zone','L': 'bigint', 'R': 'real'}
+        # keep in sync with the dtype->SQL map in
+        # gnr.sql.gnrsqlmodel.helpers.bagItemFormula (issue #22):
+        # unknown dtypes fall back to text instead of raising KeyError
+        typeconverter = {'T': 'text', 'A': 'text', 'C': 'text', 'P': 'text',
+                         'X': 'text', 'Z': 'text',
+                         'N': 'numeric', 'B': 'boolean', 'D': 'date',
+                         'H': 'time without time zone', 'HZ': 'time with time zone',
+                         'DH': 'timestamp without time zone',
+                         'DHZ': 'timestamp with time zone',
+                         'I': 'integer', 'L': 'bigint', 'R': 'real', 'F': 'real'}
         for r in fetch:
             df_fields = Bag(r['df_fields'])
             for v in list(df_fields.values()):
                 if v['querable']:
-                    dtype = dtype=v['data_type']
+                    dtype = v['data_type']
                     sql_formula = """ (xpath('/GenRoBag/%s/text()', CAST($%s as XML) ) )[1] """ %(v['code'],field)
-                    sql_formula = """CAST ( ( %s ) AS %s) """ %(sql_formula,typeconverter[dtype])
+                    sql_formula = """CAST ( ( %s ) AS %s) """ %(sql_formula,typeconverter.get(dtype, 'text'))
                     c = slugify(r[df_caption_field]).replace('-','_')
                     if grouped:
                         fcode ='%s_%s_%s' %(field,c,v['code'])

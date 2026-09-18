@@ -1,14 +1,14 @@
 #!/usr/bin/env pythonw
 # -*- coding: utf-8 -*-
 
-
-
-from gnr.lib.services.storage import StorageService
-from gnr.web.gnrbaseclasses import BaseComponent
 import os
 import shutil
-from paste import fileapp
-from paste.httpheaders import ETAG
+
+from smart_open import smart_open
+        
+from gnr.lib.services.storage import StorageService, _SimpleFileApp
+from gnr.web.gnrbaseclasses import BaseComponent
+
 class Service(StorageService):
     def __init__(self, parent=None, base_path=None, **kwargs):
         self.parent = parent
@@ -26,7 +26,6 @@ class Service(StorageService):
         return os.unlink(self.internal_path(path))
 
     def open(self, path, mode='rb'):
-        from smart_open import smart_open
         return smart_open(self.internal_path(path), mode=mode)
 
     def renameNode(self, sourceNode=None, destNode=None):
@@ -61,7 +60,7 @@ class Service(StorageService):
             my_none_match = "%s-%s"%(str(mytime),str(size))
             if my_none_match == if_none_match:
                 headers = []
-                ETAG.update(headers, my_none_match)
+                headers.append(('ETag', '"%s"' % my_none_match))
                 start_response('304 Not Modified', headers)
                 return [''] # empty body
         file_args = dict()
@@ -69,7 +68,7 @@ class Service(StorageService):
             download_name = download_name or os.path.basename(fullpath)
             file_args['content_disposition'] = "attachment; filename=%s" % download_name
         file_args['content_encoding'] = 'gzip'
-        file_responder = fileapp.FileApp(fullpath, **file_args)
+        file_responder = _SimpleFileApp(fullpath, **file_args)
         if self.parent.cache_max_age:
             file_responder.cache_control(max_age=self.parent.cache_max_age)
         return file_responder(environ, start_response)

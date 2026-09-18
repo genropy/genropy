@@ -1,0 +1,394 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<GenRoBag>
+	<r_001>
+		<codice>01</codice>
+		<descr>Sopra la linea (ATL)</descr>
+		<accounts>
+			<r_001>
+				<codice>001</codice>
+				<descr>Diritti soggetto e sceneggiatura</descr>
+				<details>
+					<r_001>
+						<tipo>ACQ</tipo>
+						<descrizione>Diritti opera letteraria</descrizione>
+						<fase>Preparazione</fase>
+						<data_rif _T="D">2026-01-15</data_rif>
+						<n_ris _T="NN"></n_ris>
+						<qty _T="L">1</qty>
+						<p_u _T="L">25000</p_u>
+						<iva _T="L">22</iva>
+						<al_oneri _T="L">0</al_oneri>
+						<al_rit _T="L">0</al_rit>
+						<distrib>UNI</distrib>
+					</r_001>
+					<r_002>
+						<tipo>CMP</tipo>
+						<descrizione>Sceneggiatura — prima stesura</descrizione>
+						<fase>Preparazione</fase>
+						<data_rif _T="D">2026-02-10</data_rif>
+						<n_ris _T="NN"></n_ris>
+						<qty _T="L">1</qty>
+						<p_u _T="L">40000</p_u>
+						<iva _T="L">22</iva>
+						<al_oneri _T="L">30</al_oneri>
+						<al_rit _T="L">0</al_rit>
+						<distrib>UNI</distrib>
+					</r_002>
+					<r_003>
+						<tipo>CMP</tipo>
+						<descrizione>Sceneggiatura — revisioni</descrizione>
+						<fase>Preparazione</fase>
+						<data_rif _T="D">2026-03-01</data_rif>
+						<n_ris _T="NN"></n_ris>
+						<qty _T="L">2</qty>
+						<p_u _T="L">8000</p_u>
+						<iva _T="L">22</iva>
+						<al_oneri _T="L">30</al_oneri>
+						<al_rit _T="L">0</al_rit>
+						<distrib>UNI</distrib>
+					</r_003>
+				</details>
+			</r_001>
+			<r_002>
+				<codice>002</codice>
+				<descr>Cast principale</descr>
+				<details>
+					<r_001>
+						<tipo>CMP</tipo>
+						<descrizione>Protagonista maschile</descrizione>
+						<fase>Riprese</fase>
+						<data_rif _T="D">2026-05-01</data_rif>
+						<n_ris _T="L">1</n_ris>
+						<qty _T="L">20</qty>
+						<p_u _T="L">4500</p_u>
+						<iva _T="L">22</iva>
+						<al_oneri _T="L">33</al_oneri>
+						<al_rit _T="L">20</al_rit>
+						<distrib>UNI</distrib>
+					</r_001>
+					<r_002>
+						<tipo>CMP</tipo>
+						<descrizione>Protagonista femminile</descrizione>
+						<fase>Riprese</fase>
+						<data_rif _T="D">2026-05-01</data_rif>
+						<n_ris _T="L">1</n_ris>
+						<qty _T="L">20</qty>
+						<p_u _T="L">4200</p_u>
+						<iva _T="L">22</iva>
+						<al_oneri _T="L">33</al_oneri>
+						<al_rit _T="L">20</al_rit>
+						<distrib>UNI</distrib>
+					</r_002>
+					<r_003>
+						<tipo>CMP</tipo>
+						<descrizione>Caratteristi</descrizione>
+						<fase>Riprese</fase>
+						<data_rif _T="D">2026-05-05</data_rif>
+						<n_ris _T="L">4</n_ris>
+						<qty _T="L">10</qty>
+						<p_u _T="L">900</p_u>
+						<iva _T="L">22</iva>
+						<al_oneri _T="L">33</al_oneri>
+						<al_rit _T="L">0</al_rit>
+						<distrib>UNI</distrib>
+					</r_003>
+				</details>
+			</r_002>
+			<r_003>
+				<codice>003</codice>
+				<descr>Regista</descr>
+				<details>
+					<r_001>
+						<tipo>CMP</tipo>
+						<descrizione>Onorario regia</descrizione>
+						<fase>Riprese</fase>
+						<data_rif _T="D">2026-04-01</data_rif>
+						<n_ris _T="NN"></n_ris>
+						<qty _T="L">1</qty>
+						<p_u _T="L">80000</p_u>
+						<iva _T="L">22</iva>
+						<al_oneri _T="L">33</al_oneri>
+						<al_rit _T="L">20</al_rit>
+						<distrib>UNI</distrib>
+					</r_001>
+					<r_002>
+						<tipo>RIS</tipo>
+						<descrizione>Trasferte regista</descrizione>
+						<fase>Riprese</fase>
+						<data_rif _T="D">2026-05-10</data_rif>
+						<n_ris _T="NN"></n_ris>
+						<qty _T="L">12</qty>
+						<p_u _T="L">180</p_u>
+						<iva _T="L">10</iva>
+						<al_oneri _T="L">0</al_oneri>
+						<al_rit _T="L">0</al_rit>
+						<distrib>FL</distrib>
+					</r_002>
+				</details>
+			</r_003>
+		</accounts>
+	</r_001>
+	<r_002>
+		<codice>02</codice>
+		<descr>Cast tecnico (BTL)</descr>
+		<accounts>
+			<r_001>
+				<codice>001</codice>
+				<descr>Direzione fotografia</descr>
+				<details>
+					<r_001>
+						<tipo>CMP</tipo>
+						<descrizione>DOP</descrizione>
+						<fase>Riprese</fase>
+						<data_rif _T="D">2026-05-01</data_rif>
+						<n_ris _T="L">1</n_ris>
+						<qty _T="L">22</qty>
+						<p_u _T="L">900</p_u>
+						<iva _T="L">22</iva>
+						<al_oneri _T="L">33</al_oneri>
+						<al_rit _T="L">0</al_rit>
+						<distrib>UNI</distrib>
+					</r_001>
+					<r_002>
+						<tipo>CMP</tipo>
+						<descrizione>Operatore di macchina</descrizione>
+						<fase>Riprese</fase>
+						<data_rif _T="D">2026-05-01</data_rif>
+						<n_ris _T="L">1</n_ris>
+						<qty _T="L">22</qty>
+						<p_u _T="L">550</p_u>
+						<iva _T="L">22</iva>
+						<al_oneri _T="L">33</al_oneri>
+						<al_rit _T="L">0</al_rit>
+						<distrib>UNI</distrib>
+					</r_002>
+					<r_003>
+						<tipo>ACQ</tipo>
+						<descrizione>Pellicola / supporti</descrizione>
+						<fase>Riprese</fase>
+						<data_rif _T="D">2026-05-02</data_rif>
+						<n_ris _T="NN"></n_ris>
+						<qty _T="L">80</qty>
+						<p_u _T="L">45</p_u>
+						<iva _T="L">22</iva>
+						<al_oneri _T="L">0</al_oneri>
+						<al_rit _T="L">0</al_rit>
+						<distrib>UNI</distrib>
+					</r_003>
+				</details>
+			</r_001>
+			<r_002>
+				<codice>002</codice>
+				<descr>Costumi e trucco</descr>
+				<details>
+					<r_001>
+						<tipo>CMP</tipo>
+						<descrizione>Costumista</descrizione>
+						<fase>Preparazione</fase>
+						<data_rif _T="D">2026-04-10</data_rif>
+						<n_ris _T="L">1</n_ris>
+						<qty _T="L">8</qty>
+						<p_u _T="L">700</p_u>
+						<iva _T="L">22</iva>
+						<al_oneri _T="L">33</al_oneri>
+						<al_rit _T="L">0</al_rit>
+						<distrib>UNI</distrib>
+					</r_001>
+					<r_002>
+						<tipo>CMP</tipo>
+						<descrizione>Truccatore</descrizione>
+						<fase>Riprese</fase>
+						<data_rif _T="D">2026-05-01</data_rif>
+						<n_ris _T="L">1</n_ris>
+						<qty _T="L">22</qty>
+						<p_u _T="L">480</p_u>
+						<iva _T="L">22</iva>
+						<al_oneri _T="L">33</al_oneri>
+						<al_rit _T="L">0</al_rit>
+						<distrib>UNI</distrib>
+					</r_002>
+					<r_003>
+						<tipo>ACQ</tipo>
+						<descrizione>Materiali trucco</descrizione>
+						<fase>Riprese</fase>
+						<data_rif _T="D">2026-05-01</data_rif>
+						<n_ris _T="NN"></n_ris>
+						<qty _T="L">1</qty>
+						<p_u _T="L">2200</p_u>
+						<iva _T="L">22</iva>
+						<al_oneri _T="L">0</al_oneri>
+						<al_rit _T="L">0</al_rit>
+						<distrib>UNI</distrib>
+					</r_003>
+				</details>
+			</r_002>
+			<r_003>
+				<codice>003</codice>
+				<descr>Suono presa diretta</descr>
+				<details>
+					<r_001>
+						<tipo>CMP</tipo>
+						<descrizione>Fonico</descrizione>
+						<fase>Riprese</fase>
+						<data_rif _T="D">2026-05-01</data_rif>
+						<n_ris _T="L">1</n_ris>
+						<qty _T="L">22</qty>
+						<p_u _T="L">520</p_u>
+						<iva _T="L">22</iva>
+						<al_oneri _T="L">33</al_oneri>
+						<al_rit _T="L">0</al_rit>
+						<distrib>UNI</distrib>
+					</r_001>
+					<r_002>
+						<tipo>ACQ</tipo>
+						<descrizione>Noleggio attrezzatura</descrizione>
+						<fase>Riprese</fase>
+						<data_rif _T="D">2026-05-01</data_rif>
+						<n_ris _T="NN"></n_ris>
+						<qty _T="L">22</qty>
+						<p_u _T="L">110</p_u>
+						<iva _T="L">22</iva>
+						<al_oneri _T="L">0</al_oneri>
+						<al_rit _T="L">0</al_rit>
+						<distrib>UNI</distrib>
+					</r_002>
+				</details>
+			</r_003>
+			<r_004>
+				<codice>004</codice>
+				<descr>Scenografia</descr>
+				<details>
+					<r_001>
+						<tipo>CMP</tipo>
+						<descrizione>Scenografo</descrizione>
+						<fase>Preparazione</fase>
+						<data_rif _T="D">2026-04-01</data_rif>
+						<n_ris _T="L">1</n_ris>
+						<qty _T="L">15</qty>
+						<p_u _T="L">650</p_u>
+						<iva _T="L">22</iva>
+						<al_oneri _T="L">33</al_oneri>
+						<al_rit _T="L">0</al_rit>
+						<distrib>UNI</distrib>
+					</r_001>
+					<r_002>
+						<tipo>ACQ</tipo>
+						<descrizione>Materiali set</descrizione>
+						<fase>Preparazione</fase>
+						<data_rif _T="D">2026-04-15</data_rif>
+						<n_ris _T="NN"></n_ris>
+						<qty _T="L">1</qty>
+						<p_u _T="L">12000</p_u>
+						<iva _T="L">22</iva>
+						<al_oneri _T="L">0</al_oneri>
+						<al_rit _T="L">0</al_rit>
+						<distrib>UNI</distrib>
+					</r_002>
+				</details>
+			</r_004>
+		</accounts>
+	</r_002>
+	<r_003>
+		<codice>03</codice>
+		<descr>Mezzi tecnici</descr>
+		<accounts>
+			<r_001>
+				<codice>001</codice>
+				<descr>Noleggio camera</descr>
+				<details>
+					<r_001>
+						<tipo>ACQ</tipo>
+						<descrizione>Pacchetto camera 4K</descrizione>
+						<fase>Riprese</fase>
+						<data_rif _T="D">2026-05-01</data_rif>
+						<n_ris _T="NN"></n_ris>
+						<qty _T="L">22</qty>
+						<p_u _T="L">380</p_u>
+						<iva _T="L">22</iva>
+						<al_oneri _T="L">0</al_oneri>
+						<al_rit _T="L">0</al_rit>
+						<distrib>UNI</distrib>
+					</r_001>
+				</details>
+			</r_001>
+			<r_002>
+				<codice>002</codice>
+				<descr>Noleggio luci</descr>
+				<details _T="BAG"></details>
+			</r_002>
+			<r_003>
+				<codice>003</codice>
+				<descr>Mezzi trasporto</descr>
+				<details _T="BAG"></details>
+			</r_003>
+		</accounts>
+	</r_003>
+	<r_004>
+		<codice>04</codice>
+		<descr>Post-produzione</descr>
+		<accounts>
+			<r_001>
+				<codice>001</codice>
+				<descr>Montaggio</descr>
+				<details>
+					<r_001>
+						<tipo>CMP</tipo>
+						<descrizione>Montatore</descrizione>
+						<fase>Post</fase>
+						<data_rif _T="D">2026-07-01</data_rif>
+						<n_ris _T="L">1</n_ris>
+						<qty _T="L">30</qty>
+						<p_u _T="L">520</p_u>
+						<iva _T="L">22</iva>
+						<al_oneri _T="L">33</al_oneri>
+						<al_rit _T="L">0</al_rit>
+						<distrib>UNI</distrib>
+					</r_001>
+					<r_002>
+						<tipo>ACQ</tipo>
+						<descrizione>Sala di montaggio</descrizione>
+						<fase>Post</fase>
+						<data_rif _T="D">2026-07-01</data_rif>
+						<n_ris _T="NN"></n_ris>
+						<qty _T="L">30</qty>
+						<p_u _T="L">180</p_u>
+						<iva _T="L">22</iva>
+						<al_oneri _T="L">0</al_oneri>
+						<al_rit _T="L">0</al_rit>
+						<distrib>UNI</distrib>
+					</r_002>
+				</details>
+			</r_001>
+			<r_002>
+				<codice>002</codice>
+				<descr>Color &amp; VFX</descr>
+				<details>
+					<r_001>
+						<tipo>CMP</tipo>
+						<descrizione>Colorist</descrizione>
+						<fase>Post</fase>
+						<data_rif _T="D">2026-08-15</data_rif>
+						<n_ris _T="NN"></n_ris>
+						<qty _T="L">10</qty>
+						<p_u _T="L">900</p_u>
+						<iva _T="L">22</iva>
+						<al_oneri _T="L">33</al_oneri>
+						<al_rit _T="L">0</al_rit>
+						<distrib>UNI</distrib>
+					</r_001>
+				</details>
+			</r_002>
+		</accounts>
+	</r_004>
+	<r_005>
+		<codice>05</codice>
+		<descr>Spese generali</descr>
+		<accounts>
+			<r_001>
+				<codice>001</codice>
+				<descr>Amministrazione e segreteria</descr>
+				<details _T="BAG"></details>
+			</r_001>
+		</accounts>
+	</r_005>
+</GenRoBag>

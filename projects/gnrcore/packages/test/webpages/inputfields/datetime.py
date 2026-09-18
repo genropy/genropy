@@ -3,7 +3,7 @@
 "DateTextBox and TimeTextBox"
 
 class GnrCustomWebPage(object):
-    py_requires = "gnrcomponents/testhandler:TestHandlerBase"
+    py_requires = "gnrcomponents/testhandler:TestHandlerFull"
     
     def test_0_dateTextBox(self, pane):
         "DateTextBox without popup, press button to set current date and time"

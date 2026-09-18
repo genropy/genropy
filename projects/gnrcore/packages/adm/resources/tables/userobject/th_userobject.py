@@ -309,3 +309,29 @@ class Form_template(Form):
         return dict(default_objtype='template',
                     duplicate=True,
                     defaultPrompt=self.addUserObjectPrompt())
+
+
+class ViewMultidomain(BaseComponent):
+    """Minimal view used by /multidb/multidomain_dashboard for cross-store
+    exchange of userobjects. No filter sections, no extra actions — just
+    the columns relevant to spot a row to drag across stores.
+    """
+
+    def th_hiddencolumns(self):
+        return '$data,$pkg,$preview,$notes,$authtags,$flags,$required_pkg,$identifier'
+
+    def th_struct(self, struct):
+        r = struct.view().rows()
+        r.fieldcell('code', width='12em')
+        r.fieldcell('objtype', width='8em')
+        r.fieldcell('tbl', width='14em')
+        r.fieldcell('userid', width='8em')
+        r.fieldcell('description', width='20em')
+        r.fieldcell('private', width='3em', tick=True, name='!![en]Priv.')
+        r.fieldcell('__mod_ts', width='10em', name='!![en]Mod TS')
+
+    def th_order(self):
+        return 'code'
+
+    def th_options(self):
+        return dict(virtualStore=False, addrow=False, copy_paste=False)

@@ -9,7 +9,7 @@ from gnr.lib.services.pdf import PdfService
 from gnr.core.gnrdecorator import extract_kwargs
 
 try:
-    from PyPDF2 import PdfWriter, PdfReader
+    from PyPDF2 import PdfWriter
     HAS_PYPDF = True
 except ImportError:
     HAS_PYPDF = False
@@ -43,7 +43,6 @@ class Service(PdfService):
     
     def joinPdf_PYPDF(self,pdf_list, output_filepath):
         output_pdf = PdfWriter()
-        open_files = []
         out_sn = self.parent.storageNode(output_filepath)
         if len(pdf_list)==1:
             input_node = self.parent.storageNode(pdf_list[0])
@@ -52,15 +51,9 @@ class Service(PdfService):
         for input_path in pdf_list:
             input_node = self.parent.storageNode(input_path)
             with input_node.open() as input_file:
-                memory_file = BytesIO(input_file.read())
-                open_files.append(memory_file)
-            input_pdf = PdfReader(memory_file)
-            for page in input_pdf.pages:
-                output_pdf.add_page(page)
+                output_pdf.append(BytesIO(input_file.read()))
         with out_sn.open(mode='wb') as output_file:
             output_pdf.write(output_file)
-        for open_file in open_files:
-            open_file.close()
 
 
     def joinPdf_FITZ(self,pdf_list, output_filepath):

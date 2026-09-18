@@ -151,9 +151,9 @@ def test_dojox_widgets_count():
 
 
 def test_genro_widgets_count():
-    """98 native GenroPy widgets + 4 layout primitives moved from html
+    """99 native GenroPy widgets + 4 layout primitives moved from html
     (flexbox, gridbox, labledbox, htmliframe)."""
-    assert len(GenroWidgets._widget_names) == 102
+    assert len(GenroWidgets._widget_names) == 103
 
 
 def test_html_widgets_sample_entries():
@@ -194,10 +194,10 @@ def test_all_dialect_keys_are_lowercase():
 
 def test_all_widgets_total_count():
     """The composed catalog spans all four dialects after collision
-    merge: 112 html + 42 dijit + 31 dojox + 102 genro minus the 5
+    merge: 112 html + 42 dijit + 31 dojox + 103 genro minus the 5
     cross-dialect collisions (button, dialog, menu, textarea, script).
     """
-    assert len(AllWidgets._widget_names) == 282
+    assert len(AllWidgets._widget_names) == 283
 
 
 def test_all_widgets_includes_every_dialect():

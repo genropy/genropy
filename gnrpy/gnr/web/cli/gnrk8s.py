@@ -33,7 +33,7 @@ def main():
                         help="May be repeated. Ex: -l customer:myself -l price:10")
     parser.add_argument('-f', '--fqdn',
                         action="append",
-                        required=True,
+                        default=[],
                         dest="fqdns",
                         help="One (or more) FQDN of the deployed service")
     parser.add_argument('-n', '--name',
@@ -43,6 +43,10 @@ def main():
                         action="store_true",
                         dest='split',
                         help="Deploy application stack on multiple containers")
+    parser.add_argument('--no-tls',
+                        action="store_true",
+                        dest='no_tls',
+                        help="Discard TLS configuration for ingress")
     parser.add_argument('-e', '--env-file',
                         dest="env",
                         help="Env file to load")
@@ -65,6 +69,10 @@ def main():
                         dest="secret_name",
                         type=str,
                         help="The secret name for image retrieval")
+    parser.add_argument('--namespace',
+                        dest="namespace",
+                        type=str,
+                        help="The k8s destination namespace")
     
     parser.add_argument('instance_name')
     
@@ -79,6 +87,8 @@ def main():
                                 container_port=options.container_port,
                                 secret_name=options.secret_name,
                                 replicas=options.replicas,
+                                namespace=options.namespace,
+                                no_tls=options.no_tls,
                                 extra_labels=extra_labels)
 
     generator.generate_conf()

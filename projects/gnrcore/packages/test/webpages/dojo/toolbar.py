@@ -3,7 +3,7 @@
 """toolbar"""
 
 class GnrCustomWebPage(object):
-    py_requires = "gnrcomponents/testhandler:TestHandlerBase"
+    py_requires = "gnrcomponents/testhandler:TestHandlerFull"
     
     def test_1_toolbar(self, pane):
         "Basic toolbar with buttons and save alert"

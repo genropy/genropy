@@ -206,55 +206,68 @@ def main():
     else:
         stores = [storename]
     for storename in stores:
+        storelabel = storename or 'main'
         app.db.use_store(storename)
-        if options.upgrade_only:
-            logger.info(f'#### UPGRADE SCRIPTS IN STORE {storename} ####')
-            app.pkgBroadcast('onDbUpgrade,onDbUpgrade_*')
-            app.db.table('sys.upgrade').runUpgrades()
-            app.db.commit()
-            app.db.closeConnection()
-            continue
-        extensions = app.db.application.config['db?extensions']
-        migrator = SqlMigrator(app.db, extensions=extensions,
-                               ignore_constraint_name=True,
-                               excludeReadOnly=True,
-                               removeDisabled=True,
-                               force=options.force,
-                               backup=options.backup)
-        migrator.prepareMigrationCommands()
+        try:
+            if options.upgrade_only:
+                logger.info(f'#### UPGRADE SCRIPTS IN STORE {storename} ####')
+                app.dbUpgradeBroadcast()
+                upgrade_errors = app.db.table('sys.upgrade').runUpgrades()
+                app.db.commit()
+                errordb.extend((storelabel, f'{codekey}: {error}')
+                               for codekey, error in upgrade_errors)
+                continue
+            extensions = app.db.application.config['db?extensions']
+            migrator = SqlMigrator(app.db, extensions=extensions,
+                                   ignore_constraint_name=True,
+                                   excludeReadOnly=True,
+                                   removeDisabled=True,
+                                   force=options.force,
+                                   backup=options.backup)
+            migrator.prepareMigrationCommands()
 
-        if options.extensions:
-            # we only need the needed extensions
-            # as defined in the application.
-            needed_extensions = migrator.ormExtractor.get_json_struct().get('root', {}).get('extensions', {})
-            if options.extensions == 'json':
-                print(json.dumps(needed_extensions))
-            if options.extensions == 'sql':
-                print("\n".join([f"CREATE EXTENSION IF NOT EXISTS {x};" for x in needed_extensions]))
-            if options.extensions == 'txt':
-                print(",".join(needed_extensions))
-            sys.exit(1)
-            
-        if options.check:
-            check_db(migrator, options)
-        elif options.import_file:
-            import_db(options.import_file, options)
-        elif options.inspect:
-            inspect(migrator, options)
-        else:
-            changes = check_db(migrator, options)
-            if changes:
-                logger.info('APPLYING CHANGES TO DATABASE...')
-                migrator.applyChanges()
-                logger.info('CHANGES APPLIED TO DATABASE')
-        app.pkgBroadcast('onDbSetup,onDbSetup_*')
-        if options.upgrade:
-            app.pkgBroadcast('onDbUpgrade,onDbUpgrade_*')
-            app.db.table('sys.upgrade').runUpgrades()
-            app.db.commit()
-        app.db.closeConnection()
+            if options.extensions:
+                # we only need the needed extensions
+                # as defined in the application.
+                needed_extensions = migrator.ormExtractor.get_json_struct().get('root', {}).get('extensions', {})
+                if options.extensions == 'json':
+                    print(json.dumps(needed_extensions))
+                if options.extensions == 'sql':
+                    print("\n".join([f"CREATE EXTENSION IF NOT EXISTS {x};" for x in needed_extensions]))
+                if options.extensions == 'txt':
+                    print(",".join(needed_extensions))
+                sys.exit(1)
+                
+            if options.check:
+                check_db(migrator, options)
+            elif options.import_file:
+                import_db(options.import_file, options)
+            elif options.inspect:
+                inspect(migrator, options)
+            else:
+                changes = check_db(migrator, options)
+                if changes:
+                    logger.info('APPLYING CHANGES TO DATABASE...')
+                    migrator.applyChanges()
+                    logger.info('CHANGES APPLIED TO DATABASE')
+            app.pkgBroadcast('onDbSetup,onDbSetup_*')
+            if options.upgrade:
+                app.dbUpgradeBroadcast()
+                upgrade_errors = app.db.table('sys.upgrade').runUpgrades()
+                app.db.commit()
+                errordb.extend((storelabel, f'{codekey}: {error}')
+                               for codekey, error in upgrade_errors)
+        except Exception as e:
+            logger.error(f'store {storelabel}: {e}')
+            errordb.append((storelabel, str(e)))
+        finally:
+            app.db.closeConnection()
     if errordb:
-        logger.error(f'db: {errordb}')
+        failed_stores = sorted(set(storelabel for storelabel, _ in errordb))
+        logger.error(f"Migration completed with errors on {len(failed_stores)} store(s): {', '.join(failed_stores)}")
+        for storelabel, error in errordb:
+            logger.error(f' - {storelabel}: {error}')
+        sys.exit(1)
 
 
 if __name__ == '__main__':

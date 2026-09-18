@@ -6,29 +6,143 @@
 # Units are 1/1000 of the font size in points.
 # Example: at 10pt, 'A' in Helvetica = 667/1000 * 10 = 6.67 pt wide.
 #
-# Width data is stored in resources/common/fonts/afm_widths.json and loaded
-# at first use.
+# Width data is stored in the shared resources directory
+# (common/fonts/afm_widths.json) and loaded at first use.
 
 import json
 import os
 
+from gnr.core.gnrsys import expandpath
+from gnr.utils import logger
+
 _AFM_WIDTHS = None
+
+_AFM_RELATIVE_PATH = os.path.join('common', 'fonts', 'afm_widths.json')
 
 _DEFAULT_CHAR_WIDTH = 556  # fallback for unknown chars (avg lowercase Helvetica)
 
+_NARROW_FACTOR = 0.82  # Adobe Helvetica-Narrow is Helvetica condensed to 82%
+
+# common CSS font-family names -> AFM metrics key (matched case-insensitively)
+_FONT_ALIASES = {
+    'arial': 'Helvetica',
+    'liberation sans': 'Helvetica',
+    'sans-serif': 'Helvetica',
+    'arial narrow': 'Helvetica-Narrow',
+    'helvetica narrow': 'Helvetica-Narrow',
+    'liberation sans narrow': 'Helvetica-Narrow',
+    'times': 'Times-Roman',
+    'times new roman': 'Times-Roman',
+    'liberation serif': 'Times-Roman',
+    'serif': 'Times-Roman',
+    'courier new': 'Courier',
+    'liberation mono': 'Courier',
+    'monospace': 'Courier',
+}
+
+
+def _afm_widths_candidates():
+    """Yield candidate paths of the metrics file, most authoritative first.
+
+    1. the ``resources`` directories declared in environment.xml, so that a
+       deployment can override the metrics like any other shared resource
+       (the lookup ``resource_name_to_path`` uses)
+    2. ``resources`` inside the ``gnr`` package: a pip-installed genropy ships
+       the shared resources as the ``gnr.resources`` package, so the installed
+       layout resolves even with no resources declared
+    3. the checkout-relative path, for a repository used without installing
+    """
+    # deferred import: gnr.core.gnrconfig imports gnr.core.gnrstring,
+    # which imports this module at load time
+    from gnr.core.gnrconfig import getGnrConfig
+    try:
+        environment_xml = getGnrConfig()['gnr.environment_xml']
+    except Exception:  # getGnrConfig raises a bare Exception when unconfigured
+        environment_xml = None
+    if environment_xml and 'resources' in environment_xml:
+        for path in environment_xml.digest('resources:#a.path'):
+            yield expandpath(os.path.join(path, _AFM_RELATIVE_PATH))
+    package_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    yield os.path.join(package_path, 'resources', _AFM_RELATIVE_PATH)
+    yield os.path.normpath(os.path.join(package_path, '..', '..',
+                                        'resources', _AFM_RELATIVE_PATH))
+
 
 def _load_afm_widths():
+    """Return the AFM width maps, loading them from the first readable candidate.
+
+    A metrics problem must never take a print down: when no candidate is
+    usable the widths degrade to the approximate default char width.
+    """
     global _AFM_WIDTHS
     if _AFM_WIDTHS is not None:
         return _AFM_WIDTHS
-    json_path = os.path.join(
-        os.path.dirname(__file__),
-        '..', '..', '..', 'resources', 'common', 'fonts', 'afm_widths.json'
-    )
-    json_path = os.path.normpath(json_path)
-    with open(json_path, 'r', encoding='utf-8') as f:
-        _AFM_WIDTHS = json.load(f)
+    for json_path in _afm_widths_candidates():
+        if not os.path.isfile(json_path):
+            continue
+        try:
+            with open(json_path, 'r', encoding='utf-8') as f:
+                _AFM_WIDTHS = json.load(f)
+            return _AFM_WIDTHS
+        except (ValueError, OSError):
+            logger.warning('Invalid AFM metrics file %s, skipped', json_path)
+    logger.warning('AFM metrics file not found: string widths will be approximate')
+    _AFM_WIDTHS = {'Helvetica': {}}
     return _AFM_WIDTHS
+
+
+def _get_widths(font_name):
+    """Return the char-width map for *font_name*, or ``None`` if unavailable.
+
+    ``*-Narrow`` variants missing from the metrics file are derived from the
+    base font scaled by ``_NARROW_FACTOR`` (Adobe's Helvetica-Narrow is a
+    linearly condensed Helvetica) and cached for later lookups.
+    """
+    widths_map = _load_afm_widths()
+    widths = widths_map.get(font_name)
+    if widths is None and font_name and font_name.endswith('-Narrow'):
+        base = widths_map.get(font_name[:-len('-Narrow')])
+        if base is not None:
+            widths = {c: w * _NARROW_FACTOR for c, w in base.items()}
+            widths_map[font_name] = widths
+    return widths
+
+
+def resolve_font_name(font_family, default='Helvetica'):
+    """Resolve a CSS font-family stack to the name of a font with AFM metrics.
+
+    Walks the comma-separated stack and returns the first entry with known
+    metrics, either directly (e.g. ``'Courier-Bold'``) or through the alias
+    table (e.g. ``'Arial Narrow'`` -> ``'Helvetica-Narrow'``). Returns
+    *default* when nothing matches.
+    """
+    for name in str(font_family or '').split(','):
+        name = name.strip().strip('"\'').strip()
+        if not name:
+            continue
+        if _get_widths(name) is not None:
+            return name
+        alias = _FONT_ALIASES.get(name.lower())
+        if alias is not None and _get_widths(alias) is not None:
+            return alias
+    return default
+
+
+def font_size_pt(value, default=10):
+    """Return a CSS font-size value (``9``, ``'9pt'``, ``'12px'``) in points."""
+    if isinstance(value, (int, float)):
+        return float(value)
+    v = str(value or '').strip().lower()
+    factor = 1.0
+    if v.endswith('pt'):
+        v = v[:-2]
+    elif v.endswith('px'):
+        v = v[:-2]
+        factor = 0.75  # CSS reference pixel: 1px = 3/4pt
+    try:
+        return float(v) * factor
+    except ValueError:
+        return float(default)
 
 
 def string_width(text, font_name='Helvetica', font_size=10):
@@ -37,6 +151,7 @@ def string_width(text, font_name='Helvetica', font_size=10):
     Uses embedded AFM metrics — no font files or external dependencies needed.
     Falls back to Helvetica widths for unknown font names.
     """
-    widths_map = _load_afm_widths()
-    widths = widths_map.get(font_name) or widths_map['Helvetica']
+    widths = _get_widths(font_name)
+    if widths is None:
+        widths = _load_afm_widths()['Helvetica']
     return sum(widths.get(c, _DEFAULT_CHAR_WIDTH) for c in (text or '')) * font_size / 1000.0

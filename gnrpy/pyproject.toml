@@ -28,6 +28,8 @@ dependencies = [
 	     "boto3",
 	     "caldav",
 	     "chardet==5.2.0",
+	     "clevercsv",
+	     "cryptography",
 	     "dictdiffer", # for gnr.sql migration
 	     "docutils",
 	     "dulwich", # needed by gnrgit
@@ -38,9 +40,8 @@ dependencies = [
 	     "openpyxl",
 	     "packaging",
 	     "paramiko", # gnr.core.gnrssh
-	     "paste",
 	     "psutil",
-	     "pymupdf",
+	     "pymupdf>=1.24.3", # the pymupdf module name, fitz only before it
 	     "pypdftk",
 	     "PyPDF2",
 	     "pyro4",
@@ -51,12 +52,12 @@ dependencies = [
 	     "requests",
 	     "simpleeval",
 	     "six", # evaluate if needed
-	     "smart_open",
+	     "smart_open<8.0",
 	     "supervisor",
-	     "tzlocal",
+	     "tzlocal>=3",
 	     "unidecode",
 	     "vobject",
-	     "watchgod", # used in asyncio for autoreload
+	     "watchfiles", # used in asyncio for autoreload
 	     "weasyprint",
 	     "werkzeug>=2.3.8,!=3.1.4",
 	     "xlrd",
@@ -138,6 +139,7 @@ include-package-data = true
 packages = [
 	    'gnr',
 	    'gnr.app',
+	    'gnr.app.api_engine',
 	    'gnr.app.cli',
 	    'gnr.core',
 	    'gnr.core.cli',

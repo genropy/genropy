@@ -133,6 +133,9 @@ dojo.declare("gnr.FramedIndexManager", null, {
         if(kw.externalSite){
             iframeattr.externalSite = kw.externalSite;
         }
+        if(kw.nonGenroContent){
+            iframeattr.nonGenroContent = true;
+        }
         if(kw.subtab){
             iframePageName = rootPageName;
             pane_kw = {_lazyBuild:true,overflow:'hidden',title:kw.title,pageName:rootPageName};
@@ -143,7 +146,7 @@ dojo.declare("gnr.FramedIndexManager", null, {
             pane_kw = {_lazyBuild:true,overflow:'hidden',title:'^'+multipageIframePagePath+'.title',
                       pageName:iframePageName,closable:true,
                       stackbutton_tooltip:'^'+multipageIframePagePath+'.title?titleFullDesc'};
-            genro.setData(multipageIframePagePath+'.title',label+'...');
+            genro.setData(multipageIframePagePath+'.title',kw.nonGenroContent ? label : label+'...');
             objectUpdate(iframeattr,{'id':'iframe_'+rootPageName+'_'+iframePageName,treeMenuPath:kw.fullpath,
                             frameName:rootPageName+'_'+iframePageName,multipage_childpath:multipageIframePagePath});
         }
@@ -152,7 +155,11 @@ dojo.declare("gnr.FramedIndexManager", null, {
                 return true;
             }
             var iframeSourceNode = this.getValue().getNode('iframecontainer.iframenode');
-            return iframeSourceNode.domNode.contentWindow.genro.checkBeforeUnload();
+            if(iframeSourceNode.attr.externalSite || iframeSourceNode.attr.nonGenroContent){
+                return true;
+            }
+            var iframeGenro = iframeSourceNode.domNode.contentWindow.genro;
+            return !iframeGenro || iframeGenro.checkBeforeUnload();
         };
 
         var center = root._('ContentPane',iframePageName,pane_kw);
@@ -161,7 +168,7 @@ dojo.declare("gnr.FramedIndexManager", null, {
             for (let cb of onStartCallbacks) {
                 cb.call(this,this._genro);
             }
-            that.checkStartsArgs(rootPageName)
+            that.checkStartsArgs(rootPageName,this.domNode)
         };
 
         var iframe = center._('div','iframecontainer',{'height':'100%','width':'100%',overflow:'hidden'})._('iframe','iframenode',iframeattr);
@@ -189,15 +196,18 @@ dojo.declare("gnr.FramedIndexManager", null, {
         //div('<div class="multipage_add">&nbsp;</div>',connect_onclick="""FIRE gnr.multipage.new = genro.dom.getEventModifiers($1);""",_class='multibutton')
     },
 
-    checkStartsArgs:function(rootPageName){
-        var iframeDataNode = this.iframesbag.getNode(rootPageName);
-        let attr = iframeDataNode.attr
-        let openKw = attr.openKw || {};
-        var iframe = this.getCurrentIframe(rootPageName);
-        if(openKw){
-            openKw.topic = openKw.topic || 'changedStartArgs';
-            iframe.gnr.postMessage(iframe.sourceNode,openKw);
+    checkStartsArgs:function(rootPageName,iframe){
+        var iframeDataNode = this.iframesbag && this.iframesbag.getNode(rootPageName);
+        if(!iframeDataNode){
+            return;
         }
+        let openKw = iframeDataNode.attr.openKw;
+        iframe = iframe || this.getCurrentIframe(rootPageName);
+        if(!iframe || !iframe.gnr || !openKw){
+            return;
+        }
+        openKw.topic = openKw.topic || 'changedStartArgs';
+        iframe.gnr.postMessage(iframe.sourceNode,openKw);
     },
 
     selectIframePage:function(kw){
@@ -244,7 +254,7 @@ dojo.declare("gnr.FramedIndexManager", null, {
         var that = this;
         this.stackSourceNode.watch('pageReady',function(){
             var iframe = that.getCurrentIframe(rootPageName);
-            if(iframe && iframe.sourceNode.attr.externalSite){
+            if(iframe && (iframe.sourceNode.attr.externalSite || iframe.sourceNode.attr.nonGenroContent)){
                 return true;
             }
             if(iframe && iframe.contentWindow && iframe.contentWindow.genro && iframe.contentWindow.genro._pageStarted){
@@ -408,7 +418,7 @@ dojo.declare("gnr.FramedIndexManager", null, {
         }
         var iframes = dojo.query('iframe',this.stackSourceNode.getValue().getNode(frameName).getWidget().domNode);
         if(iframes.some(function(n) {
-            if(n.sourceNode.attr.externalSite) {
+            if(n.sourceNode.attr.externalSite || n.sourceNode.attr.nonGenroContent) {
 		return false;
 	    }
 	    if(n.contentWindow.genro) {
@@ -625,6 +635,9 @@ dojo.declare("gnr.FramedIndexManager", null, {
             return;
         }
         var iframePageId = iframesbag.getItem(rootPageName+'?selectedPage');
+        if(!iframePageId){
+            return;
+        }
         var iframeId = iframePageId;
         if(rootPageName!=iframePageId){
             iframeId = rootPageName+'_'+iframePageId;

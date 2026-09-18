@@ -34,7 +34,6 @@ from gnr.core.gnrdecorator import extract_kwargs,metadata
 from gnr.core.gnrcrypto import AuthTokenGenerator
 from gnr.lib.services import ServiceHandler
 from gnr.app.pathresolver import PathResolver
-from gnr.web.gnrwsgisite_proxy.gnrapidispatcher import ApiDispatcher
 from gnr.app.gnrapp import GnrPackage
 from gnr.web import logger
 from gnr.web.gnrwebapp import GnrWsgiWebApp
@@ -489,7 +488,6 @@ class GnrWsgiSite(object):
         self.find_gnrjs_and_dojo()
         self._remote_edit = options.remote_edit if options else None
         self._main_gnrapp = self.build_gnrapp(options=options)
-        self.api_dispatcher = ApiDispatcher(self)
         self.server_locale = self.gnrapp.locale
         self.wsgiapp = self.build_wsgiapp(options=options)
         self.debugpy = debugpy
@@ -511,7 +509,7 @@ class GnrWsgiSite(object):
         # and it initialze the register itself.
         self.register
         
-        self.datacollector = DataCollector(self.register.siteregister)
+        self.datacollector = DataCollector(self.register)
         
         self.onInited()
 
@@ -677,10 +675,27 @@ class GnrWsgiSite(object):
             return f'{self.default_uri}{self.currentDomain}/'
         return self.default_uri
 
+    @property
+    def rootDomainHomeUri(self):
+        """Returns the home URI of the rootDomain.
+
+        In multidomain mode _syspackage records live in the root store,
+        so they are reachable only through the rootDomain.
+        """
+        if self.multidomain:
+            return f'{self.default_uri}{self.rootDomain}/'
+        return self.default_uri
+
     def getSubscribedTables(self,tables):
         domain_proxy = self.domains[self.currentDomain]
         if domain_proxy and domain_proxy._register is not None:
             return self.register.filter_subscribed_tables(tables,register_name='page')
+
+    def allSubscribedTables(self):
+        """Every table observed by at least one live page, from the register index."""
+        domain_proxy = self.domains[self.currentDomain]
+        if domain_proxy and domain_proxy._register is not None:
+            return self.register.subscribed_tables(register_name='page')
 
     @property
     def connectionLogEnabled(self):
@@ -828,8 +843,7 @@ class GnrWsgiSite(object):
             else:
                 autocreate_args = args
             dest_dir = static_handler.path(*autocreate_args)
-            if not os.path.exists(dest_dir):
-                os.makedirs(dest_dir)
+            os.makedirs(dest_dir, exist_ok=True)
         dest_path = static_handler.path(*args)
         return dest_path
 
@@ -1164,7 +1178,13 @@ class GnrWsgiSite(object):
             return exc(environ, start_response)
         finally:
             self.cleanup()
-            self.currentDomain = self.rootDomain
+            # Do not re-set currentDomain here: cleanup() already reset it
+            # to None, which pops this thread's entry from the underlying
+            # ThreadedDict. Assigning rootDomain again would re-add a
+            # {tid: '_main_'} entry that is never removed, i.e. the same
+            # unbounded thread-local growth fixed for currentRequest/
+            # currentPage in #379. The currentDomain getter already falls
+            # back to rootDomain when unset, so no re-assignment is needed.
 
     def raiseIfDeveloper(self, exception=None):
         page = self.currentPage
@@ -1304,8 +1324,6 @@ class GnrWsgiSite(object):
             finally:
                 self.cleanup()
             return response(environ, start_response)
-        if first_segment == '_api':
-            return self.serve_api(path_list, environ, start_response, **request_kwargs)
 
         #static elements that doesn't have .py extension in self.root_static
         if self.root_static and not first_segment.startswith('_') and '.' in last_segment and not (':' in first_segment):
@@ -1411,7 +1429,19 @@ class GnrWsgiSite(object):
             response.data=result
         elif isinstance(result, Response):
             response = result
+        elif isinstance(result, Bag):
+            # A Bag is callable (Bag.__call__) but is regular page/rpc result
+            # data, not a WSGI app, so it must be serialised here rather than
+            # reaching the branch below: returned as a WSGI application it
+            # would later be invoked as response(environ, start_response) and
+            # raise a TypeError, since Bag.__call__ takes 0 or 1 argument.
+            # Same serialisation the method= entry point applies through
+            # GnrWebPageRpc.result_xml.
+            response.mimetype = kwargs.get('mimetype') or 'text/xml'
+            response.data = result.toXml(unresolved=True, omitUnknownTypes=True)
         elif callable(result):
+            # Objects that ARE the WSGI response: werkzeug HTTPException
+            # instances, GnrWsgiSite.forbidden_exception and friends.
             response = result
         return response
 
@@ -1431,6 +1461,7 @@ class GnrWsgiSite(object):
     def onClosedPage(self, page_id=None, **kwargs):
         "Drops page when closing"
         self.register.drop_page(page_id)
+        self.resource_loader.drop_page_class_cache(page_id)
 
     def cleanup(self):
         """clean up"""
@@ -1609,6 +1640,7 @@ class GnrWsgiSite(object):
 
     def checkPendingConnection(self):
         if self.connectionLogEnabled:
+            # FIXME: evaluate methods to remove this dependency from a package
             self.db.table('adm.connection').dropExpiredConnections()
 
     def pageLog(self, event, page_id=None):
@@ -1772,8 +1804,7 @@ class GnrWsgiSite(object):
         if not os.path.isdir(self.allConnectionsFolder):
             return
         try:
-            live_connections = {c['register_item_id']
-                                for c in self.register.connections()}
+            live_connections = self.register.connections()
         except Exception:
             logger.exception("Cleanup failed reading register")
             return
@@ -1906,8 +1937,12 @@ class GnrWsgiSite(object):
 
     def _get_resources_dirs(self):
         if not hasattr(self, '_resources_dirs'):
-            self._resources_dirs = list(self.resources.values())
-            self._resources_dirs.reverse()
+            # Build locally and publish complete: assigning the attribute first and
+            # reversing in place afterwards exposes a half-initialized list to
+            # concurrent readers (see issue #984).
+            dirs = list(self.resources.values())
+            dirs.reverse()
+            self._resources_dirs = dirs
         return self._resources_dirs
 
     resources_dirs = property(_get_resources_dirs)
@@ -1924,9 +1959,6 @@ class GnrWsgiSite(object):
         :param tool: TODO"""
         kwargs_string = '&'.join(['%s=%s' % (k, v) for k, v in list(kwargs.items())])
         return '%s%s_tools/%s?%s' % (self.external_host, self.home_uri, tool, kwargs_string)
-
-    def serve_api(self, path_list, environ, start_response, **kwargs):
-        return self.api_dispatcher.dispatch(path_list, environ, start_response, **kwargs)
 
     def serve_ping(self, response, environ, start_response, page_id=None, reason=None, **kwargs):
         response.content_type = "text/xml"

@@ -506,3 +506,207 @@ class GnrCustomWebPage(object):
         notes.div('• Formbuilder: Table-based, legacy, fixed layout')
         notes.div('• Formlet: Grid-based, modern, responsive, mobile-friendly')
         notes.div('• Use formlet for new projects and mobile applications')
+
+    def test_6_wrap(self, pane):
+        """Wrapping formlet: responsive single-strip mode (wrap=True)
+
+        This example demonstrates the wrap=True mode: the formlet lays out as a
+        wrapping flexbox instead of a fixed-columns grid. Items keep their
+        intrinsic width and flow onto new rows when the container narrows —
+        no horizontal scrollbar, no breakpoints to maintain.
+
+        Use it for toolbar-like "headline" strips: a single row of
+        heterogeneous controls that reads like a sentence. For classic
+        multi-row record forms keep the grid mode (columns/cols): wrap loses
+        the cross-row column alignment and ignores colspan/rowspan.
+
+        Tips:
+        - box_flex on a field lands on its labledBox wrapper: the notes field
+          absorbs the leftover width on the one-row layout and is the first
+          item to wrap when space runs out.
+        - inside a borderContainer, pair wrap=True with a top region WITHOUT
+          a fixed height: BorderContainer re-measures top panes at every
+          layout, so the region grows when the strip wraps.
+
+        Drag the splitter to resize the center pane and watch the strip reflow
+        to fit its width — no horizontal scroll.
+        """
+        pane.div('Wrapping Formlet (wrap=True)',
+                font_size='20px',
+                font_weight='bold',
+                margin='10px')
+
+        pane.div('Drag the splitter to resize the center pane: the strip reflows '
+                'onto new rows as the pane narrows — the notes field stretches on '
+                'wide layouts and is the first to wrap on narrow ones. The pane '
+                'resizes instead of growing a horizontal scrollbar.',
+                margin='10px',
+                margin_bottom='15px',
+                color='#666')
+
+        # a real resizable pane (drag the splitter) instead of a slider: the
+        # center contentPane holds the strip and reflows live as dijit resizes
+        # it — the same path the tmsh rule dialog exercises.
+        bc = pane.borderContainer(height='200px', margin='10px',
+                                 border='1px solid #ccc', border_radius='8px')
+        side = bc.contentPane(region='right', width='240px', splitter=True,
+                             background='#f7f7f7', padding='12px',
+                             border_left='1px solid #ddd')
+        side.div('◀ Drag the splitter', font_weight='bold', color='#555',
+                margin_bottom='6px')
+        side.div('The center pane shrinks/grows; the wrap=True strip reflows to '
+                'fit its width instead of scrolling.', color='#888',
+                font_size='12px')
+
+        center = bc.contentPane(region='center', padding='12px', overflow='auto')
+        fl = center.formlet(wrap=True,
+                            item_lbl_side='left',
+                            align_items='center')
+
+        # one flex item holding the whole weekday cluster (wraps as a unit,
+        # then internally on extreme widths)
+        days = fl.div(display='flex', gap='10px', align_items='center',
+                     flex_wrap='wrap')
+        for day in ('Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'):
+            days.checkbox(value='^.day_%s' % day.lower(), label=day)
+
+        fl.filteringSelect(value='^.freq', lbl='Freq', width='10em',
+                          values='w1:Every week,w2:Every 2 weeks,w3:Every 3 weeks')
+        fl.dateTextBox(value='^.valid_from', lbl='Valid from', width='7em')
+        fl.dateTextBox(value='^.valid_to', lbl='to', width='7em')
+
+        # box_flex lands on the labledBox wrapper: grow on wide, wrap first
+        fl.textbox(value='^.notes', lbl='Notes', width='100%',
+                  box_flex='1 0 12em')
+        fl.checkbox(value='^.deny', label='Deny rule', label_color='red')
+
+    def test_7_responsive_grid(self, pane):
+        """Responsive grid formlet: reduce columns below col_min_width
+
+        This example demonstrates the col_min_width mode: the formlet becomes a
+        responsive CSS grid whose columns reduce in count as the container
+        narrows — as many as fit down to 1 — each column never thinner than
+        col_min_width. This is the "min column width below which it reflows"
+        behaviour, and uses the same CSS auto-fit/minmax trick as the
+        groupletGrid min_width parameter (the formlet name is spelled out as
+        col_min_width so it never shadows the element's CSS min-width style).
+
+        Use it for uniform record forms that must stay usable on mobile:
+        unlike wrap=True (heterogeneous items flowing as a sentence), here
+        every field sits in an equal-width column, so the grid reads as a
+        clean table at every width.
+
+        Note: auto-fit never creates more columns than there are items. To
+        cap the column count on very wide screens, either use a fixed
+        columns=N grid instead, or put a max_width on the formlet.
+
+        Drag the splitter to resize the center pane and watch the column count
+        step down.
+        """
+        pane.div('Responsive Grid Formlet (col_min_width=)',
+                font_size='20px',
+                font_weight='bold',
+                margin='10px')
+
+        pane.div('Drag the splitter to resize the center pane: the column count '
+                'steps down (as many as fit → 1) as the pane narrows, each column '
+                'at least 14em wide. Every field keeps an equal-width column — a '
+                'clean table at any size.',
+                margin='10px',
+                margin_bottom='15px',
+                color='#666')
+
+        # same resizable-pane setup as the wrap demo: drag the splitter and the
+        # grid recomputes its column count purely in CSS (auto-fit/minmax)
+        bc = pane.borderContainer(height='340px', margin='10px',
+                                 border='1px solid #ccc', border_radius='8px')
+        side = bc.contentPane(region='right', width='240px', splitter=True,
+                             background='#f7f7f7', padding='12px',
+                             border_left='1px solid #ddd')
+        side.div('◀ Drag the splitter', font_weight='bold', color='#555',
+                margin_bottom='6px')
+        side.div('The grid reduces its column count as the center pane narrows, '
+                'each column at least 14em wide.', color='#888', font_size='12px')
+
+        center = bc.contentPane(region='center', padding='12px', overflow='auto')
+        fl = center.formlet(col_min_width='14em',
+                            item_lbl_side='top')
+
+        fl.textbox(value='^.g_firstname', lbl='First Name')
+        fl.textbox(value='^.g_lastname', lbl='Last Name')
+        fl.dateTextBox(value='^.g_birthdate', lbl='Birth Date')
+        fl.textbox(value='^.g_city', lbl='City')
+        fl.textbox(value='^.g_email', lbl='Email')
+        fl.textbox(value='^.g_phone', lbl='Phone')
+        fl.textbox(value='^.g_taxcode', lbl='Tax Code')
+        fl.textbox(value='^.g_zip', lbl='ZIP')
+
+    def test_8_button_alignment(self, pane):
+        """Buttons inside formlet: vertical alignment with labeled fields
+
+        A button (or any widget without lbl) placed next to labeled fields
+        does not get the labledBox wrapper, so it aligns to the top of its
+        grid cell while the field inputs sit below their label. This test
+        collects the relevant cases to verify the framework-level alignment.
+        """
+        pane.div('Button alignment inside formlet',
+                font_size='20px', font_weight='bold', margin='10px')
+
+        # Case A: top labels, plain style — button lands next to two textboxes
+        pane.div('A. item_lbl_side="top": button should align with the inputs, not float above',
+                margin='10px', color='#666')
+        fl = pane.formlet(cols=3, gap='10px', margin='10px',
+                          item_lbl_side='top', width='700px')
+        fl.textbox(value='^.a_code', lbl='Code')
+        fl.textbox(value='^.a_description', lbl='Description')
+        fl.button('Check', action='alert("checked")')
+
+        # Case B: top labels, card style (item_border) — same with styled items
+        pane.div('B. Same with card-styled items (item_border / item_padding)',
+                margin='10px', color='#666')
+        fl = pane.formlet(cols=3, gap='10px', margin='10px',
+                          item_lbl_side='top', width='700px',
+                          item_border='1px solid #ddd',
+                          item_rounded=6, item_padding='8px')
+        fl.textbox(value='^.b_code', lbl='Code')
+        fl.textbox(value='^.b_description', lbl='Description')
+        fl.button('Check', action='alert("checked")')
+
+        # Case C: left labels — button next to fields on the same row
+        pane.div('C. item_lbl_side="left": button on the same row as the fields',
+                margin='10px', color='#666')
+        fl = pane.formlet(cols=3, gap='10px', margin='10px',
+                          item_lbl_side='left', width='700px')
+        fl.textbox(value='^.c_code', lbl='Code')
+        fl.textbox(value='^.c_description', lbl='Description')
+        fl.button('Check', action='alert("checked")')
+
+        # Case D: checkbox with both lbl and label next to labeled fields
+        pane.div('D. checkbox with lbl and label next to labeled fields',
+                margin='10px', color='#666')
+        fl = pane.formlet(cols=3, gap='10px', margin='10px',
+                          item_lbl_side='top', width='700px')
+        fl.textbox(value='^.d_code', lbl='Code')
+        fl.checkbox(value='^.d_active', label='Active', lbl='Status')
+        fl.button('Check', action='alert("checked")')
+
+        # Case E: several unlabeled widgets — buttons only, must not gain
+        # spurious extra height
+        pane.div('E. Buttons only: no labeled siblings, no extra height expected',
+                margin='10px', color='#666')
+        fl = pane.formlet(cols=3, gap='10px', margin='10px',
+                          item_lbl_side='top', width='700px')
+        fl.button('One', action='alert(1)')
+        fl.button('Two', action='alert(2)')
+        fl.button('Three', action='alert(3)')
+
+        # Case F: checkbox variants — lbl only (text moved beside the box)
+        # and label only (button-like placeholder): both must align with the
+        # inputs; with both lbl and label see case D (label on top, box below)
+        pane.div('F. checkbox with lbl only / label only: aligned with the inputs',
+                margin='10px', color='#666')
+        fl = pane.formlet(cols=3, gap='10px', margin='10px',
+                          item_lbl_side='top', width='700px')
+        fl.textbox(value='^.f_code', lbl='Code')
+        fl.checkbox(value='^.f_privacy', lbl='Privacy')
+        fl.checkbox(value='^.f_active', label='Active')

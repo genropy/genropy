@@ -81,6 +81,8 @@ dojo.declare("gnr.GnrFrmHandler", null, {
             'filteringselect':null,
             'dbselect':null,
             'dbcombobox':null,
+            'remoteselect':null,
+            'callbackselect':null,
             'input':null,
             'textarea':null,
             'datetextbox':null,
@@ -1063,9 +1065,11 @@ dojo.declare("gnr.GnrFrmHandler", null, {
             }
         }
     },
-    onFocusForm:function(){
+    onFocusForm:function(keepFocus){
         genro.dom.addClass(this.sourceNode,'form_activeForm');
-        this.focusCurrentField();
+        if(!keepFocus){
+            this.focusCurrentField();
+        }
     },
     
     onBlurForm:function(){
@@ -1417,6 +1421,10 @@ dojo.declare("gnr.GnrFrmHandler", null, {
                 });
             }else{
                 this.reset();
+                //synchronous store: already saved and reloaded
+                if(onReload){
+                    funcApply(onReload,{},this);
+                }
             }
             return deferred;
         }
@@ -1512,7 +1520,14 @@ dojo.declare("gnr.GnrFrmHandler", null, {
     },
 
     externalChange:function(field,value,triggerChanges){
-        this.sourceNode.setRelativeData(this.formDatapath+'.'+field,value,triggerChanges?{}:{_loadedValue:value});
+        if(!triggerChanges){
+            this.resetChangesAtPath(field);
+        }
+        this.sourceNode.setRelativeData(this.formDatapath+'.'+field,value,{},null,
+                                       triggerChanges?null:'externalChange',null,{_updattr:true});
+        if(!triggerChanges){
+            this.updateStatus();
+        }
     },
 
     getFormData: function() {
@@ -1597,6 +1612,10 @@ dojo.declare("gnr.GnrFrmHandler", null, {
         var dm = this.draftMarker;
         var dmPos = (dm === true || dm === undefined) ? 'tr' : dm;
         genro.dom.setClass(this.sourceNode,'form_draft',isDraft);
+        var domNode = this.sourceNode.getDomNode();
+        if(domNode && this.draftLabel){
+            domNode.style.setProperty('--form-draft-label','"'+this.draftLabel.replace(/"/g,'\\"')+'"');
+        }
         ['tr','tl','br','bl'].forEach(function(pos){
             genro.dom.setClass(this.sourceNode,'draft_marker_' + pos, isDraft && dmPos === pos);
         }, this);
@@ -1767,6 +1786,9 @@ dojo.declare("gnr.GnrFrmHandler", null, {
             }
             return;
         }
+        if(kw.reason == 'externalChange'){
+            return;
+        }
         var allowed = !this.isDisabled();
         if(this.disabledStatus()=='unlocked_readOnly'){
             allowed = !this._protectedNode(kw.node);
@@ -1786,7 +1808,9 @@ dojo.declare("gnr.GnrFrmHandler", null, {
                         n.attr.to = newvalue;
                     }
                 }else{
-                    changes.setItem(changekey,null,{_valuelabel:kw.reason.getElementLabel?kw.reason.getElementLabel():cattr,from:oldvalue,to:newvalue,allowed:allowed});
+                    changes.setItem(changekey,null,{_valuelabel:kw.reason.getElementLabel?kw.reason.getElementLabel():cattr,
+                                                   _dataPath:kw.pathlist.join('.')+'?'+cattr,
+                                                   from:oldvalue,to:newvalue,allowed:allowed});
                 }
                 this.updateStatus();
             }
@@ -1811,6 +1835,7 @@ dojo.declare("gnr.GnrFrmHandler", null, {
                 }
                 if (changed!==false) {
                     changes.setItem(changekey, null,{_valuelabel:kw.reason.getElementLabel?kw.reason.getElementLabel():kw.node.label,
+                                                    _dataPath:kw.pathlist.join('.'),
                                                     from:kw.node.attr._loadedValue,to:kw.value,allowed:allowed});
                 } else {
                     changes.pop(changekey);
@@ -1831,7 +1856,7 @@ dojo.declare("gnr.GnrFrmHandler", null, {
             return;
         }
         ;
-        if (kw.reason == 'autocreate' || kw.reason == '_removedRow') { // || kw.reason==true){
+        if (kw.reason == 'autocreate' || kw.reason == '_removedRow' || kw.reason == 'externalChange') {
             return;
         }
         var changes = this.getChangesLogger();
@@ -1839,7 +1864,7 @@ dojo.declare("gnr.GnrFrmHandler", null, {
             kw.node.attr._loadedValue = null;
         }
         var changekey = this.getChangeKey(kw.node);
-        changes.setItem(changekey, null, {isNewNode: true});
+        changes.setItem(changekey, null, {isNewNode: true, _dataPath:kw.pathlist.join('.')});
         this.updateStatus();
         //this.updateInvalidField(kw.reason, changekey);
     },
@@ -1849,7 +1874,7 @@ dojo.declare("gnr.GnrFrmHandler", null, {
         if (changes.getAttr(changekey, 'isNewNode')) {
             changes.pop(changekey);
         } else {
-            changes.setItem(changekey, null);
+            changes.setItem(changekey, null, {_dataPath:kw.pathlist.join('.')});
         }
         dojo.forEach(changes.getNodes(),function(n){
             if((changekey!=n.label) && (n.label.indexOf(changekey)==0)){
@@ -2081,9 +2106,21 @@ dojo.declare("gnr.GnrFrmHandler", null, {
 
     dojoValidation:function(wdg,isValid){
         var sn = wdg.sourceNode;
+        if(sn.attr._inGridEditor){
+            //grid cell editors live outside the row datapath (their value is
+            //row-relative, unresolvable from here); their validity is tracked
+            //by the grid editor status channel, not by invalidDojo
+            return;
+        }
+        if(sn.isLostNode()){
+            //the widget outlived its sourceNode (torn down by a remote
+            //content rebuild): an async validate on a lost node has
+            //nothing to track and its relative value path cannot resolve
+            return;
+        }
         var node_identifier= sn.getStringId();
         var dojoValid=this.getInvalidDojo();
-        var changedNode = genro.getDataNode(wdg.sourceNode.absDatapath(wdg.sourceNode.attr.value));
+        var changedNode = genro.getDataNode(sn.absDatapath(sn.attr.value));
         if(!this.isNodeInFormData(changedNode)){
             return;
         }
@@ -2154,6 +2191,24 @@ dojo.declare("gnr.GnrFrmHandler", null, {
     resetChangesLogger:function(){
         this.getControllerData().setItem('changesLogger',new gnr.GnrBag());
         this.updateStatus();
+    },
+
+    resetChangesAtPath:function(path){
+        var node = this.getFormData().getNode(path);
+        if(node){
+            delete node.attr._loadedValue;
+            var value = node.getValue('static');
+            if(value instanceof gnr.GnrBag){
+                value.walk(function(n){delete n.attr._loadedValue;},'static');
+            }
+        }
+        var changes = this.getChangesLogger();
+        changes.getNodes().forEach(function(n){
+            var dataPath = n.attr._dataPath;
+            if(dataPath == path || (dataPath && dataPath.indexOf(path+'.') == 0)){
+                changes.popNode(n.label);
+            }
+        });
     },
 
     hasChangesAtPath:function(path) {
@@ -3183,7 +3238,7 @@ dojo.declare("gnr.formstores.Item", gnr.formstores.Base, {
             var dosave = funcApply(onSaving,{data:formData,sourceBag:sourceBag},this);
             if(dosave===false){
                 this.form.setOpStatus(null);
-                return;
+                return false;
             }
         }
         var oldsubbag,path;
@@ -3332,7 +3387,7 @@ dojo.declare("gnr.formstores.Collection", gnr.formstores.Base, {
             var dosave = funcApply(onSaving,{data:formData},this);
             if(dosave===false){
                 this.form.setOpStatus(null);
-                return;
+                return false;
             }
         }
         var currPkey = form.getCurrentPkey();

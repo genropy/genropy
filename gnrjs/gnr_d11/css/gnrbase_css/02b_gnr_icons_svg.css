@@ -258,14 +258,18 @@
 ._common_d11 .trash{
     background: url(/_rsrc/common/css_icons/svg/16/trash.svg) no-repeat center center;
 }
+/* Dropdown/combo arrow: one chevron glyph at one size for every trigger
+   (combobox, dropDownButton, fakeButton) so they never diverge — the old
+   filled-triangle PNG shipped at scale(0.8) for combos and scale(1) for
+   dropDownButtons. Painted as a mask over currentColor (same technique as the
+   tree chevrons) so it inherits each trigger's text color. */
 ._common_d11 .dijitComboBox .dijitArrowButton .dijitArrowButtonInner,
 ._common_d11 .dijitDropDownButton .dijitArrowButtonInner,
 ._common_d11 .fakeButton .dijitArrowButtonInner{
-    background: url(/_rsrc/common/css_icons/svg/16/popup.svg) no-repeat center center;
-    transform:rotate(0deg) scale(0.8);
-}
-._common_d11 .dijitDropDownButton .dijitArrowButtonInner{
-    transform:rotate(0deg) scale(1);
+    background: currentColor;
+    -webkit-mask: var(--icon-chevron-down) no-repeat center / 0.7em 0.7em;
+    mask: var(--icon-chevron-down) no-repeat center / 0.7em 0.7em;
+    transform: none;
 }
 ._common_d11 .todolist{
     background: url(/_rsrc/common/css_icons/svg/16/todolist.svg) no-repeat center center;

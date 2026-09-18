@@ -35,6 +35,8 @@ class GnrCustomWebPage(object):
     def onIniting(self, request_args, request_kwargs):
         if len(request_args) < 2:
             raise ValueError('Missing table arguments in URL: %s' % '/'.join(request_args))
+        if len(request_args) > 3:
+            raise ValueError('Too many table arguments in URL: %s' % '/'.join(request_args))
         pageResource = request_kwargs.get('th_pageResource')
         if len(request_args)==3:
             pkg,tbl,pkey = request_args

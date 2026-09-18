@@ -181,6 +181,29 @@ class GnrCustomWebPage(object):
             grid_columns=2,
             colspan=2, lbl='Budget & Timeline')
 
+    def test_6_chunk_record_mode(self, pane):
+        """groupletChunk RECORD MODE with a VARIABLE record_id: a standalone chunk (no
+        surrounding form) whose record_id is a reactive path fed by a dbselect. Pick a
+        comune and the chunk loads it; the pencil opens recordDataEditor and saves the
+        record directly on confirm. The loaded record lives in the chunk's own workspace,
+        never in the page datapath."""
+        pane.div('groupletChunk(record_id="^.selected_comune"): scegli un comune, il chunk '
+                 'lo carica; la matita apre recordDataEditor che salva sul DB.',
+                 margin='10px', color='#555', font_style='italic')
+        pane.dbselect(value='^.selected_comune', table='glbl.comune', lbl='Comune',
+                      hasDownArrow=True, margin='10px', width='320px')
+        box = pane.div(margin='10px', width='320px', height='60px')
+        box.groupletChunk(
+            name='edit_comune_record',
+            record_id='^.selected_comune',
+            table='glbl.comune',
+            resource='anagrafica',
+            title='Edit Comune (record mode)',
+            template="""
+            <div style="font-weight:bold;">$denominazione</div>
+            <div style="color:#555;">$sigla_provincia - $codice_comune</div>
+            """)
+
     @public_method
     def grp_territorio(self, pane, **kwargs):
         fb = pane.formlet(cols=2, border_spacing='3px',

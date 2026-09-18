@@ -36,9 +36,8 @@ class GnrWebJSTools(GnrBaseProxy):
             rebuild = False
         if rebuild:
             path = site.getStatic('site').path('_static', '_jslib')
-            if not os.path.exists(path):
-                os.makedirs(path)
-                
+            os.makedirs(path, exist_ok=True)
+
             outfile_handle, outfile_path = tempfile.mkstemp(prefix='gnrcompress',suffix='.js')
             with os.fdopen(outfile_handle, "w") as cpf:
                 cpf.write('// %s\n' % ts)

@@ -7,7 +7,7 @@
 "Test page description"
 
 class GnrCustomWebPage(object):
-    py_requires="gnrcomponents/testhandler:TestHandlerBase"
+    py_requires="gnrcomponents/testhandler:TestHandlerFull"
     
     def test_0_videotrack_dynamic(self,pane):
         "Widget video shows a video from its url. You can indicate video path dinamically"
@@ -47,4 +47,39 @@ class GnrCustomWebPage(object):
                    #           cue_path='.mainsub',hidden=True)
                    #])
                    #In this case I have no subtitles available
-        
+
+    def test_2_clear_video_source(self, pane):
+        "Clearing a bound source resets the video element"
+        sample_url = 'https://community.genropy.net/_storage/social/video/YGvmpOe7Nfea_L08ojbcoQ.mp4'
+        box = pane.div(datapath='.clear_video_source')
+        box.data('.sample_url', sample_url)
+        bar = box.div(margin_bottom='10px')
+        bar.button('Load video', action='SET .video_url = sample_url;',
+                   sample_url='=.sample_url')
+        bar.button('Clear source', action='SET .video_url = null;', margin_left='5px')
+        bar.button('Inspect', fire='.inspect', margin_left='5px')
+        video = box.video(src='^.video_url', height='360px', width='640px',
+                          controls=True, autoplay=True, muted=True, preload='auto')
+        box.dataController(r"""
+            const hasSrc = videoNode.hasAttribute('src');
+            const currentSrc = videoNode.currentSrc || '';
+            const readyState = videoNode.readyState;
+            const nullRequests = performance.getEntriesByType('resource').filter(function(entry){
+                return /\/null(?:$|[?#])/.test(entry.name);
+            }).length;
+            SET .has_src = hasSrc;
+            SET .src_attribute = videoNode.getAttribute('src') || '';
+            SET .current_src = currentSrc;
+            SET .ready_state = readyState;
+            SET .paused = videoNode.paused;
+            SET .null_requests = nullRequests;
+            SET .verdict = !hasSrc && readyState === 0 && videoNode.paused && nullRequests === 0 ? 'PASS' : 'FAIL';
+        """, videoNode=video.js_domNode, source='^.video_url', inspect='^.inspect', _delay=500)
+        result = box.formbuilder(cols=1, margin_top='10px')
+        result.div('^.verdict', lbl='Verdict', font_weight='bold')
+        result.div('^.has_src', lbl='Has src attribute')
+        result.div('^.src_attribute', lbl='Src attribute')
+        result.div('^.current_src', lbl='Current source')
+        result.div('^.ready_state', lbl='Ready state')
+        result.div('^.paused', lbl='Paused')
+        result.div('^.null_requests', lbl='Null requests')

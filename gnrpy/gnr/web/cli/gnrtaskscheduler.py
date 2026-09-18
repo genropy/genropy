@@ -4,7 +4,7 @@
 import sys
 import os.path
 import asyncio
-from watchgod import awatch
+from watchfiles import awatch
 from multiprocessing import Process
 import importlib
 

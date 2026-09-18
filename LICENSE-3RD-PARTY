@@ -2,3 +2,7 @@ This software package contains third party software, with the following licenses
 
 
 * resources/js_libs/xlsx.min.js - Distributed under Apache 2.0 license by Sheetjs (https://sheetjs.com/)
+
+* resources/js_libs/codemirror6/codemirror6.bundle.js - Distributed under MIT license. Bundled distribution of @codemirror/* packages and thememirror (https://codemirror.net/). Build configuration in tools/codemirror6-build/.
+
+* resources/js_libs/prosemirror/prosemirror.bundle.js - Distributed under MIT license. Bundled distribution of prosemirror-* packages including state, view, model, transform, commands, keymap, history, inputrules, schema-basic, schema-list, dropcursor, gapcursor, menu, example-setup, tables, trailing-node, collab, changeset (https://prosemirror.net/). Build configuration in tools/prosemirror-build/.

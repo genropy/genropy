@@ -129,7 +129,8 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         if(!pathToCheck){
             return;
         }
-        var eventpath = kw.pathlist.slice(1).join('.');
+        var eventpath = kw._eventpath !== undefined ? kw._eventpath :
+                        (kw._eventpath = kw.pathlist.slice(1).join('.'));
         var isValuePath = (pathToCheck.indexOf('?') < 0);
         if (pathToCheck.indexOf('#parent') > 0) {
             pathToCheck = gnr.bagRealPath(pathToCheck);
@@ -493,6 +494,9 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
                 var resolvedValue = this._resolvedValue;
                 var resolver = genro.rpc.remoteResolver(method, attributes, {'cacheTime':cacheTime,
                     'isGetter':isGetter});
+                // the resolver already took its own copy of the parameters: a GnrDomSourceNode
+                // left in node.attr breaks any serialization of that node (e.g. a record cluster).
+                objectExtract(attributes, '_*');
                 dataNode.setValue(resolver, true, attributes);
                 if(resolvedValue){
                     dataNode._status = 'loaded';
@@ -504,16 +508,31 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         }
         
     },
-    setAttributeInDatasource: function(attrname, value, doTrigger, attributes, forceChanges) {
+    setAttributeInDatasource: function(attrname, value, doTrigger, attributes) {
         doTrigger = (doTrigger == null) ? this:doTrigger;
         var path = this.attrDatapath(attrname);
-        var old_value = genro._data.getItem(path);
-        //if (forceChanges){
-        //    genro._data.setItem(path,v,null,{'doTrigger':false});
-        //}
-        if (!isEqual(value,old_value) || (forceChanges && value != null)) {
-            genro._data.setItem(path, value, attributes, {'doTrigger':doTrigger});
+        if (isBag(attributes)) {
+            attributes = attributes.asDict();
         }
+        if (path == null || (value == null && !objectNotEmpty(attributes) && !genro._data.getNode(path))) {
+            return; //nothing to publish: an attribute never set needs no datanode
+        }
+        if (objectNotEmpty(attributes)) {
+            // attributes can be a live store row: without a copy of its container values too
+            // the datastore node would alias them and no comparison could detect a change
+            var snapshot = {};
+            for (var k in attributes) {
+                var v = attributes[k];
+                if (isBag(v)) {
+                    v = v.deepCopy();
+                } else if (v != null && v.constructor === Object) {
+                    v = objectUpdate({}, v);
+                }
+                snapshot[k] = v;
+            }
+            attributes = snapshot;
+        }
+        genro._data.setItem(path, value, attributes, {'doTrigger':doTrigger,'lazySet':true});
     },
     defineForm: function(formId, formDatapath, controllerPath, pkeyPath,kw) {
         this.form = new gnr.GnrFrmHandler(this, formId, formDatapath, controllerPath, pkeyPath,kw);
@@ -616,6 +635,16 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         }
         return value;
     },
+    isLostNode: function() {
+        //true when this node no longer belongs to the live source tree:
+        //remote content rebuilds tear nodes down while their widgets may
+        //still fire async callbacks (validate, label fetch, late onChange)
+        var currbag = this._parentbag;
+        while (currbag && currbag._parentnode) {
+            currbag = currbag._parentnode._parentbag;
+        }
+        return currbag !== genro.src._main;
+    },
     attrDatapath: function(attrname,targetNode) {
         targetNode = targetNode || this;
         if (!attrname) {
@@ -685,7 +714,7 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         return path;
 
     },
-    absDatapath: function(path) { 
+    absDatapath: function(path) {
         path = path || '';
         if (this.isPointerPath(path)) {
             path = path.slice(1);
@@ -719,7 +748,9 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         }
         if (path.indexOf('.') == 0) {
             console.error('unresolved relativepath ' + path);
-            debugger
+            if (genro.isDeveloper) {
+                debugger;
+            }
         }
         path = path.replace('.?', '?');
         if (path.indexOf('#parent') > 0) {
@@ -985,6 +1016,10 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
                 formHandler.registerChild(this);
                 genro.src.formsToUpdate[this.form.formId]=this.form;
             }
+        }else if(typeof(this.attr.parentForm)!='string'){
+            //cache the negative result too: descendants stop at this node
+            //instead of walking the whole ancestor chain again
+            this.form = null;
         }
     },
     _registerNodeId: function(nodeId) {
@@ -1127,7 +1162,7 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         if (nodeSubscribers) {
             for (var attr in nodeSubscribers) {
                 dojo.forEach(nodeSubscribers[attr],function(n){
-                    dojo.unsubscribe(n);
+                    genro.src.unsubscribeHandle(n);
                 });
             }
             delete genro.src._subscribedNodes[stringId];
@@ -1155,7 +1190,7 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         if(reason in subDict){
             var l = objectPop(subDict,reason);
             if(l){
-                dojo.forEach(l,function(s){dojo.unsubscribe(s)});
+                dojo.forEach(l,function(s){genro.src.unsubscribeHandle(s)});
             }
         }
     },
@@ -1172,10 +1207,90 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         }
     },
     _subscriptionHandle:function(attr) {
-        var prop = attr;
-        return dojo.subscribe('_trigger_data', this, function(kw) {
-            this.trigger_data(prop, kw);
-        });
+        return genro.src.triggerIndex.add({node:this, attr:attr},
+                                          this._stableTriggerPath(attr));
+    },
+
+    _stableTriggerPath: function(attr) {
+        // absolute datapath to index this ^attr subscription under, or null
+        // when the resolution may change over time (the trie entry would go
+        // stale): those subscriptions stay in the floating set.
+        var attrvalue = this.attr[attr];
+        if (typeof(attrvalue) != 'string' || attrvalue.charAt(0) != '^') {
+            return null;
+        }
+        var path = attrvalue.slice(1);
+        if (path.indexOf('#parent') >= 0) {
+            return null;
+        }
+        var stable;
+        if (path.charAt(0) == '#') {
+            stable = this._stableSymbolicStart(path);
+        } else if (!path || path.charAt(0) == '.') {
+            stable = this._stableDatapathChain();
+        } else {
+            stable = true;
+        }
+        if (!stable) {
+            return null;
+        }
+        var abspath = this.attrDatapath(attr);
+        if (!abspath || abspath.indexOf('#') >= 0) {
+            return null;
+        }
+        return abspath;
+    },
+
+    _stableSymbolicStart: function(path, fromChain) {
+        // #FORM/#ANCHOR resolve on an ancestor node: when that ancestor
+        // rebuilds, this whole subtree re-registers, so the resolution is as
+        // stable as the ancestor datapath chain. Any other symbolic head
+        // (#ROW, #WORKSPACE, aliases, generic nodeId) can move independently.
+        var head = path.split('.')[0].slice(1);
+        if (head == 'DATA') {
+            return true;
+        }
+        var target;
+        if (head.indexOf('FORM') === 0) {
+            target = this.attributeOwnerNode('formId,_fakeform');
+        } else if (head.indexOf('ANCHOR') === 0) {
+            target = this.attributeOwnerNode('_anchor');
+        } else {
+            return false;
+        }
+        if (!target) {
+            return false;
+        }
+        if (fromChain && target === this) {
+            // symbolic datapath resolving onto its own node: resolving it would
+            // recurse forever, here and in absDatapath
+            console.error('self referencing symbolic datapath ' + path + ' on ' + this.getFullpath());
+            return false;
+        }
+        return target._stableDatapathChain();
+    },
+
+    _stableDatapathChain: function() {
+        var curr = this;
+        while (curr) {
+            var datapath = curr.attr.datapath;
+            if (datapath) {
+                if (typeof(datapath) != 'string' || this.isPointerPath(datapath)) {
+                    return false;
+                }
+                if (datapath.charAt(0) == '#') {
+                    if (datapath.indexOf('#parent') >= 0) {
+                        return false;
+                    }
+                    return curr._stableSymbolicStart(datapath, true);
+                }
+                if (datapath.charAt(0) != '.') {
+                    return true; //absolute datapath shields the upper chain
+                }
+            }
+            curr = curr.getParentNode();
+        }
+        return true;
     },
     setGnrId:function(gnrId, obj) {
         var idLst = gnrId.split('.');
@@ -1593,9 +1708,12 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         var targets = this._hiddenTargets || [this.domNode || this.widget.domNode];
         var statusChanged = false;
         targets.forEach(function(domNode){
-            let currenHidden = !genro.dom.isVisible(domNode);
-            statusChanged = currenHidden!=hidden;
-            dojo.style(domNode, 'display', (hidden ? 'none' : ''));
+            let wasHidden = domNode.style.display === 'none';
+            let prevHeight = domNode.offsetHeight;
+            domNode.style.display = hidden ? 'none' : '';
+            if(wasHidden !== hidden && domNode.offsetHeight !== prevHeight){
+                statusChanged = true;
+            }
         });
         if(statusChanged){
             genro.fakeResize()
@@ -1609,6 +1727,9 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
             return;
         }
         if(this._remotebuilding){
+          //a dyn attr changed while a remote fetch is in flight: remember
+          //it, the running call re-fetches on landing with fresh attrs
+          this._pendingRemoteUpdate = true;
           return;
         }
         
@@ -1682,6 +1803,10 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
                     });
                 }
                 delete that._remotebuilding;
+                if(that._pendingRemoteUpdate){
+                    delete that._pendingRemoteUpdate;
+                    that.updateRemoteContent(true,async);
+                }
                 return result;
             });
     },
@@ -1773,6 +1898,9 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
     },
     
     updateValidationStatus: function(kw) {
+        if (this.isLostNode()) {
+            return;
+        }
         if (this.widget) {
             if(this.widget.validate){
                 this.widget.validate();
@@ -1800,7 +1928,15 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
     buildLblWrapper:function(){
         let lbl = objectPop(this.attr,'lbl');
         if(!lbl){
-            return this;
+            // Unlabeled action widgets in a formlet grid get an invisible
+            // placeholder label (same height as the sibling labels) so they
+            // line up with the field inputs. lbl=false opts out.
+            if(lbl===false || !this._formletNeedsPlaceholderLbl()){
+                return this;
+            }
+            lbl = '&nbsp;';
+            this.attr.box__class = this.attr.box__class?
+                this.attr.box__class+' formlet_placeholder_label' : 'formlet_placeholder_label';
         }
         let inherited_attr = this.getInheritedAttributes();
         let label_attr = {};
@@ -1841,6 +1977,38 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
             }
         }
         return this._contentNode;
+    },
+
+    _formletNeedsPlaceholderLbl:function(){
+        // Placeholder only for button-like widgets that sit as direct children
+        // of a grid formlet (not formlet_wrap) with labels on top/bottom and
+        // at least one labeled sibling: a buttons-only formlet keeps its
+        // natural height, containers and custom tags are never wrapped.
+        const placeholderTags = ['button','togglebutton','dropdownbutton','lightbutton','checkbox'];
+        if(placeholderTags.indexOf((this.attr.tag||'').toLowerCase())<0){
+            return false;
+        }
+        let parentNode = this.getParentNode();
+        let parentClass = (parentNode && parentNode.attr && parentNode.attr._class) || '';
+        if(!/(^|\s)formlet(\s|$)/.test(parentClass) || /(^|\s)formlet_wrap(\s|$)/.test(parentClass)){
+            return false;
+        }
+        let side = this.getInheritedAttributes().lbl_side || 'top';
+        if(side!='top' && side!='bottom'){
+            return false;
+        }
+        let siblings = parentNode.getValue('static');
+        if(!(siblings instanceof gnr.GnrDomSource)){
+            return false;
+        }
+        for(let node of siblings.getNodes()){
+            // siblings already wrapped by buildLblWrapper have tag 'labledbox',
+            // the ones still to be processed keep their lbl attribute
+            if(node!==this && node.attr && (node.attr.lbl || node.attr.tag=='labledbox')){
+                return true;
+            }
+        }
+        return false;
     },
 
     getLabelWrapper:function(){
@@ -2119,45 +2287,46 @@ dojo.declare("gnr.GnrDomSource", gnr.GnrStructData, {
     getChild:function(childpath){
         childpath = childpath.split('/');
         var curr = this;
-        var node;
-        dojo.forEach(childpath,function(childname){
+        var node = null;
+        var childname, ownerNode;
+        for (var i=0;i<childpath.length;i++){
+            childname = childpath[i];
+            if(!(curr instanceof gnr.GnrBag)){
+                return null; //a step of the path is not a container: no child there
+            }
             if (childname=='parent'){
-                node=curr.getParentNode().getParentNode();
-                curr=node.getValue();
+                ownerNode = curr.getParentNode();
+                node = ownerNode?ownerNode.getParentNode():null;
             }else if(childname.indexOf('#')==0){
-                node=curr.getParentNode();
-                node=node.nodeById(childname.slice(1));
-                curr=node.getValue();
+                ownerNode = curr.getParentNode();
+                node = ownerNode?ownerNode.nodeById(childname.slice(1)):null;
             }
             else{
-
+                node = null;
                 curr.forEach(function(n){
                     if(n.attr._childname==childname){
                         node = n;
                     }
                 },'static');
-                
-                if(node){
-                    return 
-                }
-                node=curr.walk(function(n){
-                       if('_childname' in n.attr){
-                           return n.attr._childname==childname?n:true;
-                         }
-                      },'static');
-
-                if (node==true){
-                    return;
-                }else{
-                    curr=node.getValue();
-                    if(!(curr instanceof gnr.GnrBag)){
-                        return;
+                if(!node){
+                    node = curr.walk(function(n){
+                           if('_childname' in n.attr){
+                               return n.attr._childname==childname?n:true;
+                             }
+                          },'static');
+                    if(node===true){
+                        node = null;
                     }
                 }
             }
-            
-        });
-        return node===true?null:node;
+            if(!node){
+                return null;
+            }
+            //every step moves into the found node, so that paths deeper than
+            //one named level (e.g. 'parent/parent/r_0_l/c_0') are resolved
+            curr = node.getValue();
+        }
+        return node;
     }
 });
 

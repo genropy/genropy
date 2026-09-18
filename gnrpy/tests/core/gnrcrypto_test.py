@@ -25,6 +25,21 @@ class TestGnrCrypto():
         with pytest.raises(gc.AuthTokenError):
             self.failing_atg.verify(r)
 
+    def test_verify_tampered_signature(self):
+        r = self.atg.generate(self.payload)
+        tampered = r[:-1] + ('A' if r[-1] != 'A' else 'B')
+        with pytest.raises(gc.AuthTokenError):
+            self.atg.verify(tampered)
+
+    def test_verify_non_numeric_expiry_is_ignored(self):
+        # Documents current, unchanged behaviour: a non-numeric expire_ts
+        # fails the isnumeric() gate and expiry is silently skipped, so the
+        # token verifies as if it never carried an expiry at all.
+        forged = f"{self.payload}{self.atg.payload_sep}2020-01-01"
+        forged_signature = self.atg._sign(forged)
+        forged_token = f"{forged}{self.atg.payload_sep}{forged_signature}"
+        assert self.atg.verify(forged_token) == self.payload
+
     def test_generate_timed(self):
         r = self.atg.generate(self.payload, expire_ts=int(time.time()+1))
         assert self.atg.verify(r) == self.payload
@@ -72,4 +87,13 @@ class TestGnrCrypto():
         time.sleep(1)
         r2 = self.atg.verify_url(r)
         assert r2 == "expired"
-        
+
+    def test_verify_url_non_numeric_expiry(self):
+        # A malformed _vld value (not produced by generate_url, e.g. a
+        # hand-crafted or corrupted link) must be rejected through the
+        # function's own "not_valid" contract, not raise ValueError.
+        separator = "&" if "?" in self.url else "?"
+        url = f"{self.url}{separator}_vld=2020-01-01"
+        signature = self.atg._sign(url)
+        forged_url = f"{url}{self.atg.payload_sep}{signature}"
+        assert self.atg.verify_url(forged_url) == "not_valid"

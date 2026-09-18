@@ -98,7 +98,7 @@
             '<span class="gnr-tb-lineno">' + esc(lineno) + '</span>' +
             nameHtml + hashHtml + localsBadge +
             '</summary>' +
-            '<div class="gnr-tb-body">' +
+            '<div class="gnr-tb-body selectable">' +
             filenameHtml + codeHtml + localsHtml +
             '</div></details>';
     }
@@ -111,7 +111,7 @@
         var errors = data.errors;
         var parts = [];
         var titleHtml = options.title ?
-            '<span class="gnr-tb-toolbar-title">' + esc(options.title) + '</span>' : '';
+            '<span class="gnr-tb-toolbar-title selectable">' + esc(options.title) + '</span>' : '';
         parts.push('<div class="gnr-tb-toolbar">' +
             titleHtml +
             '<button class="gnr-tb-btn gnr-tb-btn-copy">Copy All</button>' +
@@ -124,7 +124,7 @@
             parts.push(renderFrame(frames[i], i, i === frames.length - 1));
         }
         for(var j = 0; j < errors.length; j++){
-            parts.push('<div class="gnr-tb-errmsg">' + esc(errors[j]) + '</div>');
+            parts.push('<div class="gnr-tb-errmsg selectable">' + esc(errors[j]) + '</div>');
         }
         parts.push('</div>');
         return parts.join('\n');

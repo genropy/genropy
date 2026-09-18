@@ -30,6 +30,27 @@ def setup_module(module):
 def teardown_module(module):
     BaseGnrTest.teardown_class()
 
+
+@pytest.fixture(scope='module', autouse=True)
+def gnr_test_config():
+    """Make sure every module in this package runs with a genro configuration.
+
+    The setup_module/teardown_module above are never called: pytest honours
+    xunit module hooks on test modules, not on a conftest.  Every module that
+    needs a configuration therefore repeats the call itself -- and
+    test_db_notify and test_gnrlistener do not, so on a machine without a
+    ~/.gnr of its own, CI included, their fixtures died with
+    'Missing genro configuration'.  Modules that already set one up keep it.
+    """
+    if os.environ.get('GENRO_GNRFOLDER'):
+        yield
+        return
+    BaseGnrTest.setup_class()
+    try:
+        yield
+    finally:
+        BaseGnrTest.teardown_class()
+
 def _csv_dir():
     """Return the path to the CSV export directory."""
     return os.path.join(
@@ -117,41 +138,58 @@ def db_sqlite(sqlite_temp_dir):
     return app.db
 
 
-@pytest.fixture(scope='module')
-def db_pg():
+def _pg_dbname(request, implementation):
+    """Database name unique to the requesting module and implementation.
+
+    get_pg_config() returns an already running server whenever the tests run
+    against a shared postgres (CI, or GNR_TEST_PG_*).  There every one of
+    these module-scoped fixtures would land on the same database and import
+    the CSV data on top of the previous module's rows, so the second module
+    onwards died on a duplicate key.
+    """
+    module = request.module.__name__.rsplit('.', 1)[-1]
+    return '%s_%s' % (module, implementation)
+
+
+def _db_pg(request, implementation):
+    """A module's postgres database, built fresh and dropped afterwards.
+
+    No skip on failure: postgres is a required part of this suite, and a run
+    that cannot reach it has to fail loudly instead of reporting green.
+    """
     pg_conf, pg_instance = get_pg_config()
-    dbname = pg_conf.pop('database', 'test_compiler')
+    pg_conf.pop('database', None)
+    dbname = _pg_dbname(request, implementation)
+    app = None
     try:
         app = GnrApp('test_invoice', db_attrs=dict(
-            implementation='postgres',
+            implementation=implementation,
             dbname=dbname,
             **pg_conf,
         ))
         app.db.model.check(applyChanges=True)
         _import_csv_data(app.db)
         yield app.db
-    except Exception:
-        pytest.skip('PostgreSQL not available')
     finally:
-        if pg_instance is not None:
-            pg_instance.stop()
+        try:
+            # Drop the database, as BaseGnrSqlTest.teardown_class does: an
+            # ephemeral server takes its databases away with it, but a shared
+            # postgres (CI, or GNR_TEST_PG_*) keeps them, and the next run
+            # would import the CSV data on top of the rows left behind and die
+            # on a duplicate key.
+            if app is not None:
+                app.db.closeConnection()
+                app.db.dropDb(dbname)
+        finally:
+            if pg_instance is not None:
+                pg_instance.stop()
 
 
 @pytest.fixture(scope='module')
-def db_pg3():
-    pg_conf, pg_instance = get_pg_config()
-    dbname = pg_conf.pop('database', 'test_compiler')
-    try:
-        app = GnrApp('test_invoice', db_attrs=dict(
-            implementation='postgres3',
-            dbname=dbname,
-            **pg_conf,
-        ))
-        app.db.model.check(applyChanges=True)
-        _import_csv_data(app.db)
-        yield app.db
-    except Exception:
-        pytest.skip('PostgreSQL (psycopg3) not available')
-    finally:
-        if pg_instance is not None:
-            pg_instance.stop()
+def db_pg(request):
+    yield from _db_pg(request, 'postgres')
+
+
+@pytest.fixture(scope='module')
+def db_pg3(request):
+    yield from _db_pg(request, 'postgres3')

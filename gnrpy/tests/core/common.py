@@ -1,6 +1,7 @@
 """
 Common objects for gnr.app testing, mostly custom Genropy environment
 """
+import atexit
 import os
 import os.path
 import tempfile
@@ -16,11 +17,26 @@ class BaseGnrTest:
     """
     @classmethod
     def setup_class(cls):
-        """ 
-        Setup the testing environment 
+        """
+        Setup the testing environment
         """
         cls.local_dir = os.path.dirname(__file__)
-        cls.tmp_conf_dir = tempfile.mkdtemp(prefix=f"{cls.local_dir}/")
+        cls.tmp_conf_dir = tempfile.mkdtemp(prefix=f"{cls.local_dir}/tmp_")
+        # teardown_class is skipped by pytest when any setup_class in the
+        # chain raises (pytest.skip included); this backstop reaps the dir
+        # at interpreter exit and is a no-op after a normal teardown
+        atexit.register(cls._reap_tmp_conf_dir)
+        try:
+            cls._build_test_env()
+        except BaseException:
+            # pytest skips teardown_class when setup_class raises (including
+            # pytest.skip, which is a BaseException): clean up here or the
+            # temp dir leaks into the source tree
+            cls.teardown_class()
+            raise
+
+    @classmethod
+    def _build_test_env(cls):
         fconf = os.path.join(cls.tmp_conf_dir, "gnr")
         os.mkdir(fconf)
         cls.conf_dir = fconf
@@ -104,34 +120,88 @@ class BaseGnrTest:
                     cls.test_instance_config_path)
         
     @classmethod
+    def _reap_tmp_conf_dir(cls):
+        """Idempotent removal of the temp conf dir (teardown and atexit backstop)"""
+        tmp_conf_dir = getattr(cls, "tmp_conf_dir", None)
+        if tmp_conf_dir and os.path.isdir(tmp_conf_dir):
+            shutil.rmtree(tmp_conf_dir, ignore_errors=True)
+        cls.tmp_conf_dir = None
+
+    @classmethod
     def teardown_class(cls):
-        """Teardown testing environment"""
-        shutil.rmtree(cls.tmp_conf_dir)
+        """Teardown testing environment (idempotent: also called on setup failure)"""
+        cls._reap_tmp_conf_dir()
         os.environ.pop("GENRO_GNRFOLDER", None)
 
 class BaseGnrAppTest(BaseGnrTest):
     app_name = 'gnrdevelop'
-    
+
     @classmethod
     def setup_class(cls):
         super().setup_class()
         cls._tempdir = tempfile.mkdtemp()
-        cls.app = ga.GnrApp(cls.app_name, db_attrs=dict(
-            implementation='sqlite',
-            dbname=os.path.join(cls._tempdir, 'testing'),
-        ))
+        try:
+            cls.app = ga.GnrApp(cls.app_name, db_attrs=dict(
+                implementation='sqlite',
+                dbname=os.path.join(cls._tempdir, 'testing'),
+            ))
+        except BaseException:
+            cls.teardown_class()
+            raise
 
     @classmethod
     def teardown_class(cls):
+        tempdir = getattr(cls, "_tempdir", None)
+        if tempdir and os.path.isdir(tempdir):
+            shutil.rmtree(tempdir, ignore_errors=True)
+        cls._tempdir = None
         super().teardown_class()
-        if cls._tempdir and os.path.exists(cls._tempdir):
-            shutil.rmtree(cls._tempdir)
 
 def checkInstance(instance_name):
     """Attempt to load a Genropy instance.
     Returns the GnrApp object or None if not available."""
-    from gnr.app.gnrapp import GnrApp
     try:
-        return GnrApp(instance_name)
+        return ga.GnrApp(instance_name)
     except:
         return None
+
+def build_missing_schema_dbs(instance_name):
+    """Create the sqlite schema files an instance needs but does not ship.
+
+    With sqlite every package schema lives in its own ``<sqlschema>.db`` file
+    beside the main database. Some of those files hold runtime data only and are
+    not versioned, so on a fresh checkout the schemas they carry do not exist at
+    all: the adapter creates the files empty on connect and the first query fails
+    with ``no such table``.
+
+    The database is built in a temporary folder and the schema files produced
+    there are copied over the empty ones. Building from scratch is the only path
+    sqlite supports, since the adapter cannot ALTER an existing column: schema
+    files that already hold data are left untouched.
+
+    Does nothing on non sqlite instances.
+
+    :param instance_name: name of the instance to provision
+    :return: the list of schemas that have been built"""
+    app = ga.GnrApp(instance_name)
+    if app.db.implementation != 'sqlite':
+        return []
+    datadir = os.path.dirname(app.db.dbname)
+    schema_files = {pkg.sqlschema: os.path.join(datadir, f"{pkg.sqlschema}.db")
+                    for pkg in app.db.packages.values()
+                    if pkg.sqlschema and pkg.sqlschema != app.db.main_schema}
+    missing = sorted(sqlschema for sqlschema, path in schema_files.items()
+                     if not os.path.exists(path) or os.path.getsize(path) == 0)
+    if not missing:
+        return []
+    tempdir = tempfile.mkdtemp()
+    try:
+        fresh = ga.GnrApp(instance_name, db_attrs=dict(
+            implementation='sqlite',
+            dbname=os.path.join(tempdir, os.path.basename(app.db.dbname))))
+        fresh.db.model.check(applyChanges=True)
+        for sqlschema in missing:
+            shutil.copy(os.path.join(tempdir, f"{sqlschema}.db"), schema_files[sqlschema])
+    finally:
+        shutil.rmtree(tempdir, ignore_errors=True)
+    return missing

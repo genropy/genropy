@@ -468,16 +468,12 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
                         password=source_dbpassword or 'postgres',
                         host = source_dbhost or 'localhost',
                         port = source_dbport or '5432')
-        ps = subprocess.Popen((
+        cmd_output = subprocess.run((
             'ssh','%s@%s' %(source_ssh_user,source_ssh_host),
             '-C', 'psql','-l','-t', "user=%(user)s password=%(password)s host=%(host)s port=%(port)s" %srcdb
-            ),stdout=subprocess.PIPE)
-        res = ps.stdout.read()
-        ps.wait()
+            ),capture_output=True, encoding='utf-8', errors='replace', check=True)
         result = []
-        if not res:
-            return []
-        for dbr in res.split('\n'):
+        for dbr in cmd_output.stdout.split('\n'):
             dbname = dbr.split('|')[0].strip()
             if dbname:
                 result.append(dbname)

@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>Dojo HTTP transport contract</title>
+<script>var djConfig = {isDebug: false, usePlainJson: true};</script>
+<script>
+var builds = {compact: 'dojo', source: 'dojo_src', release: 'dojo_release'};
+var build = builds[new URLSearchParams(location.search).get('build')] || 'dojo';
+document.write('<script src="/dojo_libs/dojo_11/' + build + '/dojo/dojo.js"><\/script>');
+</script>
+<script src="/gnrjs/gnr_d11/js/genro_patch.js"></script>
+<h1>Dojo HTTP transport contract</h1>
+<p>Real HTTP requests using the bundled Dojo runtime. Reload to repeat.</p>
+<pre id="results">Running...</pre>
+<script src="dojo_xhr_test.js"></script>
+</html>

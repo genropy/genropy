@@ -148,6 +148,10 @@
     margin: 0;
     line-height: 1.4;
     word-break: break-word;
+    /* Cap the message, not the card: .gnr-toast has overflow:hidden, so a cap
+       there would clip a long payload instead of letting it scroll. */
+    max-height: var(--toast-message-max-height);
+    overflow-y: auto;
 }
 
 /* --- Actions container (copyable mode) --- */

@@ -486,6 +486,11 @@ class UtilsMixin(SqlTableBaseMixin):
                 )
 
         def resultAppend(result, label, attributes, omit):
+            enc_mode = attributes.get('encrypted')
+            if enc_mode == 'X':
+                return
+            if enc_mode == 'R' and '*' in omit:
+                return
             if not self.db.application.allowedByPreference(**attributes):
                 return
             if 'one_relation' in attributes or 'many_relation' in attributes:
@@ -797,4 +802,5 @@ class UtilsMixin(SqlTableBaseMixin):
         """Return the DB implementation for the package's storename."""
         packageStorename = self.pkg.attributes.get('storename')
         if packageStorename:
-            return self.db.dbstores[packageStorename].get('implementation')
+            storeattr = self.db.get_store_parameters(packageStorename) or {}
+            return storeattr.get('implementation')

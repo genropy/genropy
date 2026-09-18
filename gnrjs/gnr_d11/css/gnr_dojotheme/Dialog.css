@@ -122,132 +122,20 @@
     font-size: 0.9em;
 }
 
-/* --- Tooltip dialog: connector='none' (no connector arrow) --- */
-.gnr_dojotheme .dijitTooltipDialog.dijitTooltipBelow[connector='none'] {
-    padding-top: 0;
-    margin-top: -1px;
-}
-
-.gnr_dojotheme .dijitTooltipDialog.dijitTooltipBelow[connector='none'] .dijitTooltipConnector {
+/* --- Tooltip connectors: intentionally removed ---
+   The beak (a CSS-triangle "connector") read as a detached nub against colored
+   themes and added nothing over the popup's own border + shadow, so it is hidden
+   for both pure tooltips and tooltip dialogs. Reclaim the space the beak used to
+   occupy and snug the popup up to its anchor with a -1px margin per direction
+   (the recipe the old connector='none' case used). display:none also suppresses
+   any PNG arrow tundra would otherwise draw. */
+.gnr_dojotheme .dijitTooltipConnector {
     display: none;
 }
-
-/* --- Tooltip connectors (CSS triangles, no PNG) --- */
-.gnr_dojotheme .dijitTooltipConnector {
-    border: 0;
-    z-index: 2;
-    background: none;
-    background-image: none;
-}
-
-.gnr_dojotheme .dijitTooltipABRight .dijitTooltipConnector {
-    left: auto;
-    right: 0.2em;
-}
-
-/* Override tundra's unscoped padding-top:13px / padding-bottom:13px */
-.gnr_dojotheme .dijitTooltipBelow {
-    padding-top: 0.5em;
-}
-.gnr_dojotheme .dijitTooltipAbove {
-    padding-bottom: 0.5em;
-}
-
-/* Arrow above (tooltip below element) */
-.gnr_dojotheme .dijitTooltipBelow .dijitTooltipConnector {
-    top: 0;
-    left: 0.2em;
-    width: 1em;
-    height: 0.8em;
-    background: none;
-    background-image: none;
-    overflow: hidden;
-}
-
-.gnr_dojotheme .dijitTooltipBelow .dijitTooltipConnector::after {
-    content: '';
-    position: absolute;
-    bottom: 0;
-    left: 50%;
-    transform: translateX(-50%);
-    border-style: solid;
-    border-width: 0 0.5em 0.5em 0.5em;
-    border-color: transparent transparent var(--border-color, #ddd) transparent;
-}
-
-/* Arrow below (tooltip above element) */
-.gnr_dojotheme .dijitTooltipAbove .dijitTooltipConnector {
-    bottom: 0;
-    left: 0.2em;
-    width: 1em;
-    height: 0.8em;
-    background: none;
-    background-image: none;
-    overflow: hidden;
-}
-
-.gnr_dojotheme .dijitTooltipAbove .dijitTooltipConnector::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 50%;
-    transform: translateX(-50%);
-    border-style: solid;
-    border-width: 0.5em 0.5em 0 0.5em;
-    border-color: var(--border-color, #ddd) transparent transparent transparent;
-}
-
-/* Arrow right (tooltip left of element) */
-.gnr_dojotheme .dijitTooltipLeft {
-    padding-right: 0.8em;
-}
-
-.gnr_dojotheme .dijitTooltipLeft .dijitTooltipConnector {
-    right: 0;
-    bottom: 0.4em;
-    width: 0.8em;
-    height: 1em;
-    background: none;
-    background-image: none;
-    overflow: hidden;
-}
-
-.gnr_dojotheme .dijitTooltipLeft .dijitTooltipConnector::after {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 50%;
-    transform: translateY(-50%);
-    border-style: solid;
-    border-width: 0.5em 0 0.5em 0.5em;
-    border-color: transparent transparent transparent var(--border-color, #ddd);
-}
-
-/* Arrow left (tooltip right of element) */
-.gnr_dojotheme .dijitTooltipRight {
-    padding-left: 0.8em;
-}
-
-.gnr_dojotheme .dijitTooltipRight .dijitTooltipConnector {
-    left: 0;
-    bottom: 0.4em;
-    width: 0.8em;
-    height: 1em;
-    background: none;
-    background-image: none;
-    overflow: hidden;
-}
-
-.gnr_dojotheme .dijitTooltipRight .dijitTooltipConnector::after {
-    content: '';
-    position: absolute;
-    right: 0;
-    top: 50%;
-    transform: translateY(-50%);
-    border-style: solid;
-    border-width: 0.5em 0.5em 0.5em 0;
-    border-color: transparent var(--border-color, #ddd) transparent transparent;
-}
+.gnr_dojotheme .dijitTooltipBelow { padding-top: 0; margin-top: -1px; }
+.gnr_dojotheme .dijitTooltipAbove { padding-bottom: 0; margin-bottom: -1px; }
+.gnr_dojotheme .dijitTooltipLeft { padding-right: 0; margin-right: -1px; }
+.gnr_dojotheme .dijitTooltipRight { padding-left: 0; margin-left: -1px; }
 
 /* --- Error validation tooltip (via dijit.showTooltip on invalid fields) --- */
 .gnr_dojotheme .dijitTooltipContainer .gnrErrorTooltip {

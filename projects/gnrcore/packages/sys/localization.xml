@@ -222,6 +222,13 @@
 						<en_confirm fr="Confirmer" en="Confirm" de="Bestätigen" it="Conferma" base="Confirm" zh="确认"/>
 			</thresource_editor>
 		</package_editor>
+		<services>
+			<storage>
+				<aws_s3 path="resources/services/storage/aws_s3.py" ext="py">
+					<en_public_base_url base="Public Base Url" en="Public Base Url" it="Url pubblico di base"/>
+				</aws_s3>
+			</storage>
+		</services>
 		<preference path="resources/preference.py" ext="py">
 			<en_styling base="Styling" en=""/>
 				<en_print base="Print" de="Druck" en="Print" fr="Imprimer" it="Stampa"/>

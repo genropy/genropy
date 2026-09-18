@@ -308,7 +308,7 @@ class GnrNamedList(list):
 
 _MOVED_TO_FLATFILES = frozenset({
     'XlsReader', 'XlsxReader', 'CsvReader', 'XmlReader',
-    'getReader', 'readTab', 'readCSV_new', 'readCSV', 'readXLS',
+    'getReader', 'getCsvDialect', 'readTab', 'readCSV_new', 'readCSV', 'readXLS',
 })
 
 

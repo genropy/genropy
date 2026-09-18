@@ -185,8 +185,7 @@ class GnrBaseWebPage(GnrObject):
         :param page_id: TODO"""
         page_id = page_id or self.page_id
         folder = os.path.join(self.connectionFolder, page_id)
-        if not os.path.isdir(folder):
-            os.makedirs(folder)
+        os.makedirs(folder, exist_ok=True)
         return os.path.join(folder, docname)
         
     def freezeSelection(self, selection, name,**kwargs):
@@ -811,8 +810,7 @@ class GnrBaseWebPage(GnrObject):
         if args:
             path = os.path.join(self.siteFolder, 'data', *args)
             dirname = os.path.dirname(path)
-            if not os.path.exists(dirname):
-                os.makedirs(dirname)
+            os.makedirs(dirname, exist_ok=True)
             outfile = open(path, 'w')
             return outfile
             
@@ -821,8 +819,7 @@ class GnrBaseWebPage(GnrObject):
         if args:
             path = os.path.join(self.siteFolder, 'pages', 'static', *args)
             dirname = os.path.dirname(path)
-            if not os.path.exists(dirname):
-                os.makedirs(dirname)
+            os.makedirs(dirname, exist_ok=True)
             outfile = open(path, 'w')
             return outfile
             
@@ -830,14 +827,12 @@ class GnrBaseWebPage(GnrObject):
         """TODO"""
         if args:
             path = os.path.join(self.siteFolder, 'data', *args)
-            if not os.path.exists(path):
-                os.makedirs(path)
+            os.makedirs(path, exist_ok=True)
             return path
             
     def createFolderInStatic(self, *args):
         """TODO"""
         if args:
             path = os.path.join(self.siteFolder, 'pages', 'static', *args)
-            if not os.path.exists(path):
-                os.makedirs(path)
+            os.makedirs(path, exist_ok=True)
             return path

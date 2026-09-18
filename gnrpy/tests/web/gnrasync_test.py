@@ -186,6 +186,51 @@ async def test_unix_sockets_created(tmp_path):
         await run_task
 
 
+def _fake_page(page_id, user, connection_id):
+    page = MagicMock()
+    page.page_id = page_id
+    page.user = user
+    page.userTags = 'admin'
+    page.connection_id = connection_id
+    page.page_item = {
+        'start_ts': 'ts', 'user_ip': '127.0.0.1', 'user_agent': 'pytest',
+        'pagename': 'p', 'relative_url': '/',
+    }
+    return page
+
+
+def test_dotted_username_does_not_clobber_bag_label(tmp_path):
+    """Bag labels split on '.', so a raw dotted username used as a label
+    collides with a plain-username sibling (e.g. 'amelia' vs
+    'amelia.martin'). SharedStatus must escape the label while keeping the
+    real username in the node's 'user' value."""
+    server, _ = _build_server(tmp_path, PORT_BASE + 5)
+    sharedStatus = server.sharedStatus
+
+    dotted_page = _fake_page('pg_dotted', 'amelia.martin', 'c_dotted')
+    plain_page = _fake_page('pg_plain', 'amelia', 'c_plain')
+    server.pages['pg_dotted'] = dotted_page
+    server.pages['pg_plain'] = plain_page
+
+    sharedStatus.registerPage(dotted_page)
+    assert list(sharedStatus.users.keys()) == ['amelia_martin']
+    assert sharedStatus.users['amelia_martin']['user'] == 'amelia.martin'
+
+    sharedStatus.registerPage(plain_page)
+    assert sorted(sharedStatus.users.keys()) == ['amelia', 'amelia_martin']
+    assert sharedStatus.users['amelia_martin']['user'] == 'amelia.martin'
+    assert sharedStatus.users['amelia']['user'] == 'amelia'
+
+    sharedStatus.onPing('pg_dotted', 0)
+    sharedStatus.onPing('pg_plain', 0)
+    assert sharedStatus.users['amelia_martin']['user'] == 'amelia.martin'
+    assert sharedStatus.users['amelia']['user'] == 'amelia'
+
+    sharedStatus.unregisterPage(dotted_page)
+    assert list(sharedStatus.users.keys()) == ['amelia']
+    assert sharedStatus.users['amelia']['user'] == 'amelia'
+
+
 @pytest.mark.asyncio
 async def test_no_tornado_import():
     """The migration deletes the tornado dependency entirely."""

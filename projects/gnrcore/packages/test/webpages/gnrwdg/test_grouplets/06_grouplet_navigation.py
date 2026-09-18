@@ -8,6 +8,7 @@ class GnrCustomWebPage(object):
     py_requires = """gnrcomponents/testhandler:TestHandlerFull,
                      gnrcomponents/formhandler:FormHandler,
                      gnrcomponents/grouplet/grouplet:GroupletHandler,
+                     gnrcomponents/grouplet/grouplet:GroupletGridHandler,
                      th/th:TableHandler"""
 
     # --- GroupletPanel ---
@@ -52,6 +53,22 @@ class GnrCustomWebPage(object):
             formResource='Form',
             view_store__onStart=True)
 
+
+    def test_5_wizard_no_summary(self, pane):
+        """No-summary wizard (wizard_grouplets root) on myticket.
+        Reopen a SAVED ticket, move to step 2, save from the toolbar:
+        the wizard must NOT reposition to step 1 on the reload that
+        follows the save. A NEW record must still open on step 1.
+        Step 2 hosts a groupletGrid whose editors carry
+        validate_notnull: emptying product or qty must mark the form
+        invalid (no console noise)."""
+        pane.borderContainer(height='500px').contentPane(
+            region='center').dialogTableHandler(
+            table='test.myticket',
+            datapath='.ticket_wizard',
+            viewResource='ViewWizard',
+            formResource='FormWizard',
+            view_store__onStart=True)
 
     def test_6_collapsible_grid(self, pane):
         """myprospect with collapsible topic-grid form (FormGrid resource)"""

@@ -34,6 +34,37 @@
     display: unset;
 }
 
+/* Placeholder label: auto-added to unlabeled action widgets (buttons,
+   checkboxes) that sit next to labeled fields in a formlet grid. With the
+   label on top/bottom it keeps the label height (hidden but occupying
+   space), so the widget lines up with the sibling inputs; with the label
+   on left/right it takes no space at all. */
+.formlet_placeholder_label.labledBox>.labledBox_label{
+    display: none;
+}
+
+.formlet_placeholder_label.labledBox_top>.labledBox_label,
+.formlet_placeholder_label.labledBox_bottom>.labledBox_label{
+    display: flex;
+    visibility: hidden;
+}
+
+.developerToolElementsVisible .formlet_placeholder_label.labledBox>.labledBox_label{
+    display: flex;
+    visibility: visible;
+}
+
+/* The placeholder label lines up the widget's TOP with the sibling inputs, but
+   .labledBox_content is flex-start (top-aligned) so a widget shorter than the
+   inputs (a button, a checkbox) rides high. Center it in its content cell —
+   which the grid row stretches to the field height — so it sits on the field's
+   vertical midline instead. Only for top/bottom labels, where the cells share a
+   row height; left/right labels are already inline with their field. */
+.formlet_placeholder_label.labledBox_top>.labledBox_content,
+.formlet_placeholder_label.labledBox_bottom>.labledBox_content{
+    align-items: center;
+}
+
 .labledBox.labledBox_top.labledBox_gridbox>.labledBox_content{
     padding:10px;
 }
@@ -213,6 +244,15 @@
     padding: var(--formlet-padding);
 }
 
+/* formlet(wrap=True): responsive single-strip mode — items keep their
+   intrinsic width and flow onto new rows when the container narrows.
+   Pair with an auto-height region (BorderContainer re-measures top/bottom
+   panes on every layout) so the strip can grow vertically. */
+.gnrgridbox.formlet_wrap{
+    display: flex;
+    flex-wrap: wrap;
+}
+
 .gnrgridbox.formlet .labledBox_left>.labledBox_label{
     padding-right: 2px;
 }
@@ -245,4 +285,19 @@
 .gnrgridbox.formlet .labledBox_top > .labledBox_label{
     font-weight: var(--formlet-label-font-weight);
     font-size: var(--formlet-label-font-size);
+}
+
+/* Formlet checkbox: same box metrics as the sibling inputs (padding and a
+   transparent border of the same width), so its text line sits exactly where
+   the input text sits; the side text reads as field content, not as a label,
+   undoing the generic labledBox .9em/bold rules. */
+.gnrgridbox.formlet .labledBox_content>.gnrcheckbox_wrapper{
+    font-size: unset;
+    padding: var(--formlet-field-padding-y) 0;
+    border: var(--formlet-field-border-width) solid transparent;
+}
+
+.gnrgridbox.formlet .labledBox_content>.gnrcheckbox_wrapper label{
+    font-size: unset;
+    font-weight: unset;
 }

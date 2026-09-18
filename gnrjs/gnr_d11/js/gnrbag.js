@@ -975,6 +975,12 @@ dojo.declare("gnr.GnrBag", null, {
     htraverse: function(pathlist, autocreate) {
         var curr = this;
         if (typeof pathlist == "string") {
+            if (pathlist.indexOf('.') < 0 && pathlist.indexOf('?') < 0 &&
+                pathlist.indexOf('~') < 0 && pathlist.indexOf('/') < 0 &&
+                pathlist != '#parent') {
+                //single plain label: nothing to split or traverse
+                return {"value":curr, "label":pathlist};
+            }
             var m = pathlist.match(/(.*?)([?|~])(.*)/);
             if(m){
                 pathlist = smartsplit(m[1].replace(/\.\.\//g, '#parent.'), '.');
@@ -1419,12 +1425,11 @@ dojo.declare("gnr.GnrBag", null, {
         var p = this.index(label);
         var node = null;
         if (p >= 0) {
-            //implementazione diversa da quella python
-            node = this._nodes[p]; //ottengo il nodo p-esimo
-            //elimino dalla lista dei nodi il nodo p-esimo
-            var sx = this._nodes.slice(0, p);
-            var dx = this._nodes.slice(p + 1, this._nodes.length);
-            this._nodes = sx.concat(dx);
+            node = this._nodes[p];
+            //rebuild the array instead of splicing it in place: several
+            //callers iterate _nodes while popping and rely on the original
+            //array staying untouched
+            this._nodes = this._nodes.slice(0, p).concat(this._nodes.slice(p + 1));
             if (this._backref && doTrigger){
                 this.onNodeTrigger({'evt':'del','node':node,'where':this, 'ind':p, 'reason':doTrigger});
             }
@@ -1747,16 +1752,18 @@ dojo.declare("gnr.GnrBag", null, {
                     label = splittedlabel[0];
                     var attr = splittedlabel[1];
                     var node = obj.getNode(label, false, true);
-                    if(kwargs.lazySet && isEqual(node.attr[attr],value)){  
-                        return;
-                    }
-                    var auxattr = {};
+                    var auxattr = objectUpdate({}, _attributes);
                     auxattr[attr] = value;
+                    var changedAttrs = changedAttrKeys(node.attr,auxattr,'*');
+                    if(kwargs.lazySet && !changedAttrs.length){
+                        return node;
+                    }
                     var _doTrigger = true;
                     if ('doTrigger' in kwargs) {
                         _doTrigger = kwargs.doTrigger;
                     }
-                    node.setAttr(auxattr, _doTrigger, '*', attr);
+                    node.setAttr(auxattr, _doTrigger, '*',
+                                 changedAttrs.length>1 ? null : (changedAttrs.length ? changedAttrs[0] : attr));
                     return node;
                 }
                 else {
@@ -1815,10 +1822,17 @@ dojo.declare("gnr.GnrBag", null, {
             if (resolver) {
                 node.setResolver(resolver);
             }
-            if(kwargs.lazySet){
-                if(isEqual(node._value,value)){
+            if(kwargs.lazySet && isEqual(node._value,value)){
+                var changedAttrs = changedAttrKeys(node.attr,_attributes,_updattr);
+                if(!changedAttrs.length){
                     return node;
                 }
+                //same value, changed attributes: only the attribute listeners have to be notified.
+                //changedAttr comes from here because setAttr cannot default it without changing the
+                //callers that read its absence as a whole-attribute change
+                node.setAttr(_attributes, _doTrigger, _updattr,
+                             changedAttrs.length==1?changedAttrs[0]:null);
+                return node;
             }
             node.setValue(value, _doTrigger, _attributes, _updattr,kwargs.fired);
             return node;
@@ -1925,11 +1939,12 @@ dojo.declare("gnr.GnrBag", null, {
 
     walk: function (callback, mode, kw, notRecursive) {
         var result;
+        var isStatic = mode && mode.indexOf('static') >= 0;
         var bagnodes = this.getNodes();
         for (var i = 0; ((i < bagnodes.length) && ((result == null)|| (result=='__continue__'))); i++) {
             result = callback(bagnodes[i], kw, i);
             if (result == null && !notRecursive) {
-                var value = bagnodes[i].getValue(mode);
+                var value = isStatic ? bagnodes[i]._value : bagnodes[i].getValue(mode);
                 if (isBag(value)) {
                     result = value.walk(callback, mode, kw);
                 }
@@ -2045,10 +2060,10 @@ dojo.declare("gnr.GnrBag", null, {
                         convertAs = node.attributes[j].value;
                     }
                     else {
-                        if (attrvalue.includes('::')) {
-                            attrvalue = convertFromText(attrvalue);
-                        }
-                        attributes[attrname] = mapConvertFromText(attrvalue);
+                        //typed values carry a '::T' suffix; anything else is
+                        //a plain string and needs no conversion at all
+                        attributes[attrname] = attrvalue.includes('::') ?
+                            convertFromText(attrvalue) : attrvalue;
                     }
                 }
                 var newcls = objectPop(attributes, '__cls');

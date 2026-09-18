@@ -4,7 +4,7 @@
 "genro.dom.centerOn"
 
 class GnrCustomWebPage(object):
-    py_requires = "gnrcomponents/testhandler:TestHandlerBase"
+    py_requires = "gnrcomponents/testhandler:TestHandlerFull"
     
     
     def test_0_hidden(self, pane):
@@ -58,3 +58,25 @@ class GnrCustomWebPage(object):
                     values='/2,pippo,pluto,paperino,pancrazio',
                     popup=True)
         fb.textbox(value='^.beta',lbl='Valori')
+
+    def test_4_hidden_lblpos_top(self, pane):
+        "hidden hides the label as well when labels are on top of the fields"
+        fb = pane.mobileFormBuilder(cols=2)
+        fb.data('^.hidden_alfa',True)
+        fb.checkbox(value='^.hidden_alfa',label='Hidden alfa')
+        fb.checkbox(value='^.hidden_beta',label='Hidden beta')
+        fb.textbox(value='^.alfa',lbl='Alfa',hidden='^.hidden_alfa')
+        fb.textbox(value='^.beta',lbl='Beta',hidden='^.hidden_beta')
+        fb.textbox(value='^.gamma',lbl='Gamma')
+        fb.textbox(value='^.delta',lbl='Delta')
+
+    def test_5_hidden_group_lblpos_top(self, pane):
+        "hiddenGroup hides labels too when they are on top of the fields"
+        fb = pane.mobileFormBuilder(cols=2)
+        fb.data('^.hidden_alfa',True)
+        fb.checkbox(value='^.hidden_alfa',label='Hidden alfa')
+        fb.checkbox(value='^.other',label='Other')
+        fb.textbox(value='^.alfa',lbl='Alfa',hidden='^.hidden_alfa',hiddenGroup='alfa')
+        fb.textbox(value='^.beta',lbl='Beta')
+        fb.textbox(value='^.gamma',lbl='Gamma',hiddenGroup='alfa')
+        fb.textbox(value='^.delta',lbl='Delta')

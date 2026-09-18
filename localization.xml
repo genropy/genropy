@@ -194,6 +194,8 @@
 <en_confirm fr="Confirmer" en="Confirm" de="Bestätigen" it="Conferma" base="Confirm" zh="确认"></en_confirm>
 <en_notes fr="Remarques" de="Aufzeichnungen" en="Notes" it="Note" base="Notes"></en_notes>
 <en_drop_import_file_here base="Drop import file here" it="Trascina qui il file di importazione"></en_drop_import_file_here>
+<en_file_exceeds_size_limit base="File exceeds size limit" it="Il file supera la dimensione massima"></en_file_exceeds_size_limit>
+<en_error base="Error" de="Fehler" en="Error" fr="Erreur" it="Errore"></en_error>
 <en_the_lines_in_preview_are_limited_to base="The lines in preview are limited to"></en_the_lines_in_preview_are_limited_to>
 <en_errors fr="Erreurs" de="Fehler" en="Errors" it="Errori" base="Errors"></en_errors>
 <en_method fr="Méthode" de="Verfahren" en="Method" it="Metodo" base="Method"></en_method>
@@ -246,7 +248,7 @@
 <en_you_are_about_to_set_archiviation_date_in_the_selected_count_records base="You are about to set archiviation date in the selected $count records" it="Stai per archiviare, impostando la data di archiviazione a $count records"></en_you_are_about_to_set_archiviation_date_in_the_selected_count_records>
 <en_date fr="Date" de="Datum" en="Date" it="Data" base="Date"></en_date>
 <en_n_records base="N.Records"></en_n_records>
-<en_records_to_delete base="Records to delete"></en_records_to_delete>
+<en_records_to_delete base="Records to delete" it="Record da eliminare"></en_records_to_delete>
 <en_duplicate_rows base="Duplicate rows"></en_duplicate_rows>
 <en_you_are_going_to_duplicate base="You are going to duplicate"></en_you_are_going_to_duplicate>
 <en_records base="records" it="Record"></en_records></genro_components>
@@ -420,6 +422,11 @@
 <en_uploader base="Uploader" de="Uploader" en="Uploader" fr="Uploader" it="Uploader"></en_uploader>
 <en_drag_here_or_double_click_to_upload base="Drag here or double click to upload" it="Trascina qui o fai doppio click" en=""></en_drag_here_or_double_click_to_upload>
 <en_double_click_to_upload base="Double click to upload" it="Doppio click per caricare" en=""></en_double_click_to_upload>
+<en_drop_document_here base="Drop document here" it="Trascina qui il documento" en=""></en_drop_document_here>
+<en_or_double_click_to_upload base="or double click to upload" it="o fai doppio click per caricare" en=""></en_or_double_click_to_upload>
+<en_type base="Type" de="Art" en="Type" fr="Type" it="Tipo"></en_type>
+<en_open base="Open" it="Apri" en=""></en_open>
+<en_copy base="Copy" it="Copia" en=""></en_copy>
 <en_attachment base="Attachment" de="Befestigung" en="Attachment" fr="Attachement" it="Allegato"></en_attachment>
 <en_attachments base="Attachments" de="Zubehör" en="Attachments" fr="Pièces jointes" it="Allegati"></en_attachments>
 <en_delete_attachment base="Delete attachment" de="Anhang löschen" en="Delete attachment" fr="Supprimer la pièce jointe" it="Elimina allegato"></en_delete_attachment>
@@ -428,7 +435,7 @@
 <en_copy_attachment_url base="Copy attachment url"></en_copy_attachment_url>
 <en_en_copy_and_paste_attachment_url _tag="en__en_copy_and_paste_attachment_url" base="!![en]Copy and paste attachment url"></en_en_copy_and_paste_attachment_url>
 <en_external_url base="External url" it="URL esterno"></en_external_url>
-<en_save_record_before_upload_attachments base="Save record before upload attachments" it="Salva il record prima di caricare allegati"></en_save_record_before_upload_attachments></attachmanager></attachmanager>
+<en_save_record_before_upload_attachments base="Save record before upload attachments" it="Salva il record prima di caricare allegati"></en_save_record_before_upload_attachments><en_this_attachment_links_to_an_external_site_and_cannot_be_previewed_here base="This attachment links to an external site and cannot be previewed here." it="Questo allegato rimanda a un sito esterno e non può essere visualizzato qui."></en_this_attachment_links_to_an_external_site_and_cannot_be_previewed_here><en_open_in_a_new_tab base="Open in a new tab" it="Apri in una nuova scheda"></en_open_in_a_new_tab></attachmanager></attachmanager>
 <batch_handler><batch_handler path="resources/common/gnrcomponents/batch_handler/batch_handler.py" ext="py"><en_batch base="Batch" de="Stapel" en="Batch" fr="Lot" it="Partita"></en_batch>
 <en_batch_monitor base="Batch monitor" de="Batch Monitor" en="Batch monitor" fr="Batch Monitor" it="Monitor Batch"></en_batch_monitor>
 <en_s_i_ _tag="en__s_i_" base="%s (%i)" en="[0] ([1])" it="%s (%i)"></en_s_i_>
@@ -733,7 +740,9 @@
 <en_edit_ base="Edit " de="Bearbeiten" en="Edit " fr="Éditer" it="Modifica"></en_edit_>
 <en_save_pdf_form base="Save PDF form" it="Salva modulo PDF"></en_save_pdf_form>
 <en_save_template base="Save template" de="Vorlage speichern" en="Save template" fr="Enregistrer le modèle" it="Salva modello"></en_save_template>
-<en_new_pdf_form base="New PDF form" it="Nuovo modulo PDF"></en_new_pdf_form></component></pdftk></pdfform></services>
+<en_new_pdf_form base="New PDF form" it="Nuovo modulo PDF"></en_new_pdf_form></component></pdftk></pdfform>
+<storage><relative path="resources/common/services/storage/relative.py" ext="py"><en_parent_service base="Parent service" en="Parent service" it="Servizio padre"></en_parent_service>
+<en_relative_path base="Relative path" en="Relative path" it="Percorso relativo"></en_relative_path></relative></storage></services>
 <tables><_default><action><_common><_doc path="resources/common/tables/_default/action/_common/_doc.py" ext="py"><en_common base="Common" de="Gemeinsam" en="Common" fr="Commun" it="Comune"></en_common>
 <en_common_actions base="Common Actions" de="Gemeinsame Maßnahmen" en="Common Actions" fr="Actions communes" it="Azioni comuni"></en_common_actions></_doc>
 <align_counter path="resources/common/tables/_default/action/_common/align_counter.py" ext="py"><en_align_counter base="Align counter" de="Richten Gegen" en="Align counter" fr="Alignez compteur" it="Allineare contatore"></en_align_counter>
@@ -801,7 +810,8 @@
 <en_revert base="Revert" de="Zurückkehren" en="Revert" fr="Revenir" it="Ritornare"></en_revert>
 <en_save fr="Sauvegarder" de="Speichern" en="Save" it="Salva" base="Save"></en_save>
 <en_record_history base="Record History" it="Cronologia dei record"></en_record_history>
-<en_copy_and_paste base="Copy and paste" de="Kopieren und Einfügen" en="Copy and paste" fr="Copier coller" it="Copia e incolla"></en_copy_and_paste></th_form>
+<en_copy_and_paste base="Copy and paste" de="Kopieren und Einfügen" en="Copy and paste" fr="Copier coller" it="Copia e incolla"></en_copy_and_paste>
+<en_draft base="Draft" de="Entwurf" en="Draft" fr="Brouillon" it="Bozza"></en_draft></th_form>
 <th_groupth path="resources/common/th/th_groupth.py" ext="py"><en_grid_view base="Grid View" it="Visualizzazione a griglia"></en_grid_view>
 <en_group_by base="Group by" it="Raggruppa per"></en_group_by>
 <en_flat base="Flat" it="Piatto"></en_flat>
