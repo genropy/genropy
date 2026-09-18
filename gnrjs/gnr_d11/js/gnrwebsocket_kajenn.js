@@ -2,7 +2,7 @@
  *-*- coding: UTF-8 -*-
  *--------------------------------------------------------------------------
  * package       : Genro js - see LICENSE for details
- * module gnrwebsocket_wsx : the WSX transport of page RPC calls
+ * module gnrwebsocket_kajenn : the WSX transport of page RPC calls
  * Copyright (c) : 2004 - 2007 Softwell sas - Milano
  * Written by    : Giovanni Porcari, Michele Bertoldi
  *                 Saverio Porcari, Francesco Porcari

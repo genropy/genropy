@@ -31,7 +31,7 @@ OTHER_DIST = 'another-test-provider'
 
 class FakeWebSocketHandler(object):
     """What a provider declares: a class built with the site, and two methods."""
-    client_module = 'gnrwebsocket_wsx'
+    client_module = 'gnrwebsocket_kajenn'
 
     def __init__(self, site):
         self.site = site
@@ -169,7 +169,7 @@ def test_a_site_without_websockets_leaves_the_frontend_imports_alone():
 
 def test_the_named_client_takes_the_place_of_the_classic_one():
     imports = GnrWebPage.gnrjs_imports(page_with(FakeWebSocketHandler(None)))
-    assert imports == ['genro', 'genro_rpc', 'gnrwebsocket_wsx', 'gnrsharedobjects']
+    assert imports == ['genro', 'genro_rpc', 'gnrwebsocket_kajenn', 'gnrsharedobjects']
     assert 'gnrwebsocket' not in imports
 
 
