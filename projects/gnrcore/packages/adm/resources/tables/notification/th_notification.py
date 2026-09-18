@@ -8,7 +8,7 @@ class View(BaseComponent):
 
     def th_struct(self,struct):
         r = struct.view().rows()
-        r.fieldcell('title', width='20em')
+        r.fieldcell('title', width='auto')
         r.fieldcell('tag_rule', width='15em')
         r.fieldcell('group_code', width='10em')
         r.fieldcell('dynamic_list', width='6em')
@@ -29,24 +29,41 @@ class Form(BaseComponent):
 
     def th_form(self, form):
         bc = form.center.borderContainer()
-        top = bc.borderContainer(region='top',datapath='.record', height='160px')
+        top = bc.borderContainer(region='top',datapath='.record', height='250px')
 
-        fb = top.contentPane(region='center').formbuilder(cols=2, border_spacing='4px', fld_width='100%')
-        fb.field('title', colspan=2)
-        fb.field('tag_rule', tag='checkboxtext', table='adm.htag', popup=True, cols=4, colspan=2)
-        fb.field('group_code', tag='checkboxtext', table='adm.group', popup=True, cols=4, colspan=2)
-        fb.field('confirm_label',width='20em', colspan=2)
-        fb.field('letterhead_id')
-        fb.field('dynamic_list')
-        fb.field('start_date')
-        fb.field('end_date')
-        
+        self.confirmationSettingsPane(top.roundedGroup(region='left',width='320px',
+                                title='!!Confirmation settings'))
+        self.generalSettingsPane(top.roundedGroup(region='center',
+                                title='!!General settings'))
         self.linkedQueryPane(top.roundedGroup(region='right',width='400px', 
                                 title='!![en]Restriction query'))
         
         sc = bc.stackContainer(region='center')
         self.templatePage(sc.framePane(title='!!Template'))
         self.connectedUser(sc.contentPane(title='!!Users'))
+
+    def confirmationSettingsPane(self,pane):
+        """The three captions of the notification dialog, each one with the
+        placeholder spelling out what an empty value means: the notification
+        is the only way an installation talks to a user before letting them
+        in, so the consequences of leaving a caption out have to be readable
+        while editing it, not discovered on the login of somebody else."""
+        fb = pane.formlet(cols=1, gap='8px', item_lbl_side='top', item_fld_width='100%')
+        fb.field('confirm_label',
+                 placeholder='!!If empty no confirmation checkbox is shown')
+        fb.field('confirm_button_label', placeholder='!!Confirm')
+        fb.field('cancel_button_label',
+                 placeholder='!!If empty the cancel button is hidden')
+
+    def generalSettingsPane(self,pane):
+        fb = pane.formlet(cols=2, gap='8px', item_lbl_side='top', item_fld_width='100%')
+        fb.field('title', colspan=2)
+        fb.field('tag_rule', tag='checkboxtext', table='adm.htag', popup=True, cols=4)
+        fb.field('group_code', tag='checkboxtext', table='adm.group', popup=True, cols=4)
+        fb.field('letterhead_id')
+        fb.field('dynamic_list')
+        fb.field('start_date')
+        fb.field('end_date')
 
     def templatePage(self,frame):
         centerpane = frame.center.contentPane(overflow='auto')
@@ -135,18 +152,13 @@ class FormEmbed(Form):
     def th_form(self, form):
         bc = form.center.borderContainer()
         left = bc.borderContainer(region='left', width='400px', datapath='.record')
-        fb = left.roundedGroup(title='!![en]Notification parameters', region='top', 
-                               height='50%').formbuilder(cols=1)
-        fb.field('title')
-        fb.field('tag_rule', tag='checkboxtext', table='adm.htag', popup=True, cols=4)
-        fb.field('group_code', tag='checkboxtext', table='adm.group', popup=True, cols=4)
-        fb.field('confirm_label',width='20em')
-        fb.field('letterhead_id')
-        fb.field('dynamic_list')
-        fb.field('start_date')
-        fb.field('end_date')
+        self.generalSettingsPane(left.roundedGroup(title='!!General settings',
+                                                   region='top', height='50%'))
+        self.confirmationSettingsPane(left.roundedGroup(title='!!Confirmation settings',
+                                                        region='center'))
 
-        self.linkedQueryPane(left.roundedGroup(region='center', title='!![en]Restriction query'))
+        self.linkedQueryPane(left.roundedGroup(region='bottom', height='60px',
+                                               title='!![en]Restriction query'))
 
         sc = bc.stackContainer(region='center')
         self.templatePage(sc.framePane(title='!!Template'))
