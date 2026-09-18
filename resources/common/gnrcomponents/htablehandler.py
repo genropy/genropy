@@ -453,7 +453,7 @@ class HTableHandler(HTableHandlerBase):
                                  var editNode = treestore.getNode(treepath);
                                  var attr= editNode.attr;
                                  attr.caption = treeCaption;
-                                 editNode.setAttr(attr);
+                                 editNode.setAttr(attr,true,false,false);
                                  FIRE .edit.load;
                              }else{
                                 SET .edit.pkey = savedPkey;

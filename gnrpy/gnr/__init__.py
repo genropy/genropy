@@ -1,6 +1,10 @@
 import sys
 import logging
 
+from gnr._bag_mode import configure_bag_mode
+
+BAG_MODE = configure_bag_mode()
+
 from gnr.core import gnrlog
 
 VERSION = "26.09.18"

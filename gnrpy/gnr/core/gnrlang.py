@@ -357,6 +357,10 @@ def moduleClasses(m):
 
     :param m: TODO"""
     modulename = m.__name__
+    if modulename == 'gnr.core.gnrbag' and getattr(m, '__native_genro_bag__', False):
+        # The native facade intentionally re-exports classes without changing
+        # their identity or __module__; wildcard mixins must still see them.
+        return sorted(m.__native_genro_bag_exports__)
     return [x for x in dir(m) if (not x.startswith('__')) and  getattr(getattr(m, x), '__module__', None) == modulename]
 
 def clonedClassMixin(target_class, source_class, methods=None, only_callables=True,

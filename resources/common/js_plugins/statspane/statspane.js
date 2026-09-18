@@ -100,7 +100,7 @@ genro.statspane =  {
         result.setItem('sep',null,{caption:'-'});
         dataframes.keys().forEach(function(dfname){
             var r = new gnr.GnrBag();
-            dfcommands._nodes.forEach(function(n){
+            dfcommands.getNodes().forEach(function(n){
                 var kw = objectUpdate({},n.attr);
                 kw.default_kw = objectUpdate({dfname:dfname},n.attr.default_kw);
                 r.setItem(n.label,null,kw);

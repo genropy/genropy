@@ -446,7 +446,7 @@ var genro_plugin_grid_configurator = {
                         }else{
                             updDict[_triggerpars.kw.node.label] = updValue;
                         }
-                        destbag.getNode(rowNode.label).updAttributes(updDict,'_columnsetsEditor');
+                        destbag.getNode(rowNode.label).setAttr(updDict,'_columnsetsEditor',true,false);
                     }else if(evt=='ins'){
                         var ds = destbag || new gnr.GnrBag(); 
                         ds.setItem(_triggerpars.kw.node.label,null,_triggerpars.kw.node.getValue().asDict('flat',true),{doTrigger:'_columnsetsEditor'});
@@ -601,7 +601,7 @@ var genro_plugin_grid_configurator = {
                     }else{
                         updDict[_triggerpars.kw.node.label] = updValue;
                     }
-                    destbag.getNode(rowNode.label).updAttributes(updDict,reason);
+                    destbag.getNode(rowNode.label).setAttr(updDict,reason,true,false);
                 }else if(evt=='ins'){
                     var ds = destbag || new gnr.GnrBag(); 
                     ds.setItem(_triggerpars.kw.node.label,null,_triggerpars.kw.node.getValue().asDict('flat',true),{doTrigger:reason,

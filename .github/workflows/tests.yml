@@ -55,11 +55,14 @@ jobs:
         echo '<p>render check</p>' > /tmp/wkcheck.html
         wkhtmltopdf /tmp/wkcheck.html /tmp/wkcheck.pdf
         test -s /tmp/wkcheck.pdf
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '22'
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         python -m pip install flake8==7.1.2 pytest
-        cd gnrpy && pip install -e .[developer]
+        cd gnrpy && pip install -e .[developer,genro-bag]
     - name: Lint with flake8
       run: |
         # stop the build if there are Python syntax errors or undefined names

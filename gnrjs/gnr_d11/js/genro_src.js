@@ -165,10 +165,11 @@ dojo.declare("gnr.GnrSrcHandler", null, {
     },
     
     nodeTrigger:function(kw) {
-        if (kw.node._isBuilding){
+        var originNode = kw.evt === 'del' && kw.where && kw.where.getParentNode();
+        if (kw.node._isBuilding || (originNode && originNode._isBuilding)){
             return;
         }
-        if (kw.node.isFreezed()){
+        if (kw.node.isFreezed() || (originNode && originNode.isFreezed())){
             //the rebuild waits for unfreeze, but a replaced or popped content is
             //already detached: what the unfreeze rebuild cannot do for it later
             //has to happen now. The rebuild runs on the new value, so it never
@@ -587,7 +588,7 @@ dojo.declare("gnr.GnrSrcHandler", null, {
                     if(valuepath){
                         var valueNode = genro.getDataNode(node.absDatapath(valuepath));
                         if(valueNode){
-                            valueNode.updAttributes(node.evaluateOnNode(specialattr));
+                            valueNode.setAttr(node.evaluateOnNode(specialattr),true,true,false);
                         }
                     }
                 }                

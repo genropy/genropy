@@ -411,7 +411,7 @@ dojo.declare("gnr.widgets.chartjs", gnr.widgets.baseHtml, {
                             'filterCb':filterCb,'labels':data.labels,
                             'captionField':captionField};
                 if(datasets){
-                    datasets._nodes.forEach(function(n){
+                    datasets.getNodes().forEach(function(n){
                         var v = n.getValue();
                         if(!(v.getNode('enabled')) || v.getItem('enabled')){
                             dskw.pars = v.getItem('parameters').asDict(true,true);

@@ -1,0 +1,419 @@
+✔ digest retains row shape, columns flag, static values and field access (24.112667ms)
+✔ sum ignores strings and includes booleans; strict null handling (10.912917ms)
+✔ sort preserves legacy mode a (10.5115ms)
+✔ sort preserves legacy mode a* (9.369833ms)
+✔ sort preserves legacy mode d (9.966375ms)
+✔ sort preserves legacy mode d* (9.924667ms)
+✔ sort preserves legacy mode asc (26.422459ms)
+✔ sort preserves legacy mode desc (15.349875ms)
+✔ sort preserves legacy mode > (6.415625ms)
+✔ sort preserves legacy mode < (7.134958ms)
+✔ sort uses nested Bag fields (6.512416ms)
+✔ asDict supports recursive, flat, null exclusion and executable text filtering (5.215ms)
+✔ asDict supports automatic lists (11.343958ms)
+✔ addItem preserves duplicates and numeric zero insertion position (11.854459ms)
+✔ setItem empty path merges values and attribute paths retain value (4.668292ms)
+✖ lazySet and fired provide legacy event metadata (4.913ms)
+✖ pop and delItem preserve suppression, return and orphan semantics (6.22325ms)
+✔ update static mode still replaces null and merges attributes (3.290708ms)
+✖ update honors replace marker and event reason (5.750542ms)
+✔ deepCopy preserves duplicate labels and independent nested Bags (6.409833ms)
+✔ walk and forEach pass kwargs and index and honor early return (3.935917ms)
+✔ fillFrom merges into existing contents and creates array rows (4.836625ms)
+✔ items retain named key/value entries (10.091625ms)
+✔ setAttr autocreates missing nodes and replaces existing attributes (6.384542ms)
+✔ isEqual compares identity rather than equal content (3.46925ms)
+✔ getNode uses attribute lookup and missing tuple preserves destination (4.558875ms)
+✔ XML serialization retains GenRoBag wrapper and legacy dtype encoding (9.45075ms)
+✔ clearBackRef retains node ownership and clears child backrefs (6.917459ms)
+✔ getNodeByAttr prioritizes depth-first and preserves existence search (4.792875ms)
+✔ getNodeByValue traverses nested fields (4.746709ms)
+✔ getNodes exposes live container and applies filters (2.931417ms)
+✔ root parent and attribute accessors preserve absence (3.736917ms)
+✔ clear sends reverse deletion positions without an invented reason (3.28625ms)
+✔ every legacy Bag and DOM source prototype member remains available (28.77375ms)
+✔ legacy object lists and HTML table formatting (13.817ms)
+✔ legacy string representations and empty compatibility hooks (10.314708ms)
+✔ node creation helpers and callback reads (9.370459ms)
+✔ formula definitions with an explicitly bound evaluation parent (8.42475ms)
+✔ modified tracking subscription lifecycle (11.745291ms)
+✔ moveNode order and insert/delete notifications (21.428292ms)
+✔ index enumeration of nested Bags (13.820791ms)
+✔ index enumeration handles scalar and null leaves (3.761083ms)
+✔ legacy constructor fields and globals remain addressable (5.670792ms)
+✔ direct trigger API bubbles insertion with original location (9.886958ms)
+✔ nested table formatting respects empty values (4.50975ms)
+✔ back-reference consistency check (7.514667ms)
+✔ XML blocks preserve attributes and nested content (7.364166ms)
+✔ every enumerable legacy member remains visible to mixin enumeration (11.147375ms)
+✔ selected GnrBagNode exposes every legacy method with matching arity (23.065125ms)
+✖ selected GnrBagNode constructor preserves legacy identity and resolver state (11.450792ms)
+✖ selected GnrBagNode ancestry and orphaning match legacy graph behavior (12.828417ms)
+✔ selected GnrBagNode attribute edge cases match legacy truthy defaults (11.785083ms)
+✔ selected GnrBagNode refresh and reset delegate with legacy conditions (10.464125ms)
+✔ selected GnrBagNode formatting and XML serialization match legacy (11.130125ms)
+✖ selected GnrBagNode setValue preserves callback order, fired value and return (16.824958ms)
+✖ selected GnrBagNode setValue detaches the replaced child Bag (4.422791ms)
+✔ silent physical push: equal (28.941584ms)
+✔ silent physical push: changed (6.421333ms)
+✔ silent physical push: to null (8.728125ms)
+✔ silent physical push: from null (10.530541ms)
+✔ silent physical push: to zero (6.696167ms)
+✔ silent physical push: to blank (9.477625ms)
+✔ silent virtual push: equal (7.93775ms)
+✔ silent virtual push: changed (18.623ms)
+✔ silent virtual push: to null (3.438667ms)
+✔ silent virtual push: from null (10.663791ms)
+✔ silent virtual push: to zero (6.668625ms)
+✔ silent virtual push: to blank (4.527542ms)
+✔ silent push creates a clean node for false (3.785834ms)
+✔ silent push creates a clean node for null (8.183666ms)
+✔ silent push creates a clean node for 0 (5.025084ms)
+✔ silent push creates a clean node for "" (6.5425ms)
+✔ silent push acknowledges an edited field with value 11 (9.713291ms)
+✔ silent push acknowledges an edited field with value 12 (8.533709ms)
+✔ a silent push preserves unrelated local edits (3.46275ms)
+✔ bindings receive one changed-value notification and no duplicate on an equal push (5.655333ms)
+✔ a reactive write to another field is still a local edit (5.399167ms)
+✔ a reactive write to the pushed field uses the server value as its baseline (7.410875ms)
+✔ non-silent pushes keep normal change tracking and preserve attributes (4.93525ms)
+✔ a non-silent insertion is still tracked (3.708167ms)
+✔ a silent Bag replacement clears its none changes (3.107833ms)
+✔ a silent Bag replacement clears its update changes (2.773292ms)
+✔ a silent Bag replacement clears its insert changes (3.427208ms)
+✔ a silent Bag replacement clears its delete changes (2.91425ms)
+✔ a Bag replacement preserves a sibling whose name shares its prefix (3.493167ms)
+✔ an equal Bag snapshot acknowledges child changes (3.952875ms)
+✔ a silent push acknowledges a previously deleted field (4.364125ms)
+✔ form ancestry checks recognize nested data nodes and reject sibling data (4.240291ms)
+✔ gnrbag creates the global namespace during a clean bootstrap (23.436209ms)
+✔ Bag classes preserve identity, metadata, and enumerable prototype members (5.898042ms)
+✔ DomSource construction runs base initialization with the specialized node factory (6.02775ms)
+✔ selected adapter reads legacy typed XML envelopes (12.079584ms)
+✔ selected XML keeps populated resolver branches loaded with resolved metadata (5.327375ms)
+✔ selected XML reconstructs and synchronously loads scalar relation resolvers (6.791542ms)
+✔ selected htraverse continues through a Deferred relation branch (6.608625ms)
+✔ selected adapter loads RPC XML documents and preserves declared branch classes (7.839417ms)
+✔ Bag notifications retain their order and parent propagation (8.437542ms)
+✔ selected event envelopes drive the real source insertion consumer (11.952ms)
+✔ selected DomSource clear follows legacy silent and per-node delete events (6.11875ms)
+✔ Resolver subclasses initialize the base state and preserve sync and Deferred resolution (4.50375ms)
+✔ selected Bag concat moves component children without insertion events (11.739375ms)
+✔ selected resolver preserves static, cache, concurrency, node state and Dojo Deferred errors (10.095208ms)
+✔ RPC resolver subclasses retain BagResolver construction and inheritance (6.222541ms)
+✔ selected FramePane-style #id insertion generates unique child labels (3.436ms)
+✔ selected DomSource nodes support component attribute detachment (5.942208ms)
+✔ ClientCaller retains BagResolver construction and callback behavior (4.935875ms)
+✖ selected data Bags detach cleanly from the DOM source event tree (5.708ms)
+✔ selected DOM source attribute lookup does not resolve preceding data nodes (3.027417ms)
+✔ selected menu full paths round-trip against the main data root (7.41625ms)
+✔ selected insert bubbling never reparents the inserted Bag to an ancestor (6.109208ms)
+✔ selected getNode autocreate labels every insert for source-trigger suppression (4.756042ms)
+✔ selected adapter exposes legacy bagRealPath normalization (5.900875ms)
+✔ selected node container supports the component popSubTagItems pipeline (11.486584ms)
+✔ selected slotbar cleanup removes consecutive slot nodes while iterating (3.495125ms)
+✔ selected copy-on-pop keeps specialized source ancestry and freeze propagation (2.941875ms)
+✔ selected slot wrapper adopts a source node without traversing its internals (2.5805ms)
+✔ selected SlotButton retains null command as a generated action argument (3.396125ms)
+✔ selected node attributes replace by default and remove null only in star mode (2.850125ms)
+✔ selected getItem attribute suffix returns grid metadata instead of Bag rows (6.470917ms)
+✔ selected source ancestry resolves FORM alternatives and inheritance boundaries (3.207958ms)
+✔ selected query captions resolve through inner parent attribute paths (4.389958ms)
+✔ selected getNode attribute paths preserve metadata during autocreate lookup (3.398708ms)
+✔ every legacy resolver subclass member exists and remains enumerable (35.826875ms)
+✔ resolver constructor, cache, attributes, parent, default load and reset (17.296167ms)
+✔ resolve kwargs override destination/static and preserve caller objects (18.495416ms)
+✔ getter resolution leaves timestamp unchanged and omits destination argument (32.668875ms)
+✔ resolver forwards the entire legacy Bag interface (19.58075ms)
+✔ resolver Deferred finalization, pending callbacks and cancellation (17.454083ms)
+✔ callback resolver merges parameters, kwargs and call-time overrides with bound receiver (23.123375ms)
+✔ formula resolves root and current Bag symbols including resolver references (13.387959ms)
+✔ Getter intentionally repairs legacy undefined thisWhat for node/value/attr modes (9.359834ms)
+✔ formula insertion records pre-existing failures without claiming a working formula flow (9.322417ms)
+✔ resolver description respects a custom value formatter (9.639125ms)
+✔ resolver Promise is returned untouched as a non-Deferred legacy value (10.916584ms)
+✔ resolver and callback accept inherited enumerable kwargs and Bag attributes (11.452666ms)
+✔ resolver constructor invokes subclass cache setter after creating attributes (16.292458ms)
+ℹ tests 136
+ℹ suites 0
+ℹ pass 128
+ℹ fail 8
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 347.665083
+
+✖ failing tests:
+
+test at ../../../../../../../private/tmp/genropy-js-bag-integration/gnrjs/tests/bag_semantics_audit.test.js:7:5
+✖ lazySet and fired provide legacy event metadata (4.913ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+    [
+      [
+        [
+          'upd',
+          null,
+  +       false,
+  -       null,
+          true,
+          'x'
+        ],
+        [
+          'upd',
+
+      at TestContext.<anonymous> (/private/tmp/genropy-js-bag-integration/gnrjs/tests/bag_semantics_audit.test.js:11:16)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1047:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+      at Test.postRun (node:internal/test_runner/test:1173:19)
+      at Test.run (node:internal/test_runner/test:1101:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:744:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ [ [Array], [Array] ], null ],
+    expected: [ [ [Array], [Array] ], null ],
+    operator: 'deepStrictEqual'
+  }
+
+test at ../../../../../../../private/tmp/genropy-js-bag-integration/gnrjs/tests/bag_semantics_audit.test.js:7:5
+✖ pop and delItem preserve suppression, return and orphan semantics (6.22325ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+    [
+      1,
+      null,
+      null,
+  +   true,
+  -   false,
+      []
+    ]
+
+      at TestContext.<anonymous> (/private/tmp/genropy-js-bag-integration/gnrjs/tests/bag_semantics_audit.test.js:11:16)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1047:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+      at Test.postRun (node:internal/test_runner/test:1173:19)
+      at Test.run (node:internal/test_runner/test:1101:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:744:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ 1, null, null, true, [] ],
+    expected: [ 1, null, null, false, [] ],
+    operator: 'deepStrictEqual'
+  }
+
+test at ../../../../../../../private/tmp/genropy-js-bag-integration/gnrjs/tests/bag_semantics_audit.test.js:7:5
+✖ update honors replace marker and event reason (5.750542ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+    [
+      [
+        'x'
+      ],
+      [
+        'audit',
+  -     'audit'
+      ],
+      {}
+    ]
+
+      at TestContext.<anonymous> (/private/tmp/genropy-js-bag-integration/gnrjs/tests/bag_semantics_audit.test.js:11:16)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1047:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+      at Test.postRun (node:internal/test_runner/test:1173:19)
+      at Test.run (node:internal/test_runner/test:1101:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:744:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ [ 'x' ], [ 'audit' ], {} ],
+    expected: [ [ 'x' ], [ 'audit', 'audit' ], {} ],
+    operator: 'deepStrictEqual'
+  }
+
+test at ../../../../../../../private/tmp/genropy-js-bag-integration/gnrjs/tests/bagnode_legacy_audit.test.js:25:1
+✖ selected GnrBagNode constructor preserves legacy identity and resolver state (11.450792ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+    {
+      callback: null,
+      locked: false,
+      nullable: null,
+  +   status: 'unloaded'
+  -   status: 'loaded'
+    }
+
+      at TestContext.<anonymous> (/private/tmp/genropy-js-bag-integration/gnrjs/tests/bagnode_legacy_audit.test.js:38:12)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1047:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+      at Test.postRun (node:internal/test_runner/test:1173:19)
+      at Test.run (node:internal/test_runner/test:1101:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:297:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { status: 'unloaded', locked: false, callback: null, nullable: null },
+    expected: { status: 'loaded', locked: false, callback: null, nullable: null },
+    operator: 'deepStrictEqual'
+  }
+
+test at ../../../../../../../private/tmp/genropy-js-bag-integration/gnrjs/tests/bagnode_legacy_audit.test.js:41:1
+✖ selected GnrBagNode ancestry and orphaning match legacy graph behavior (12.828417ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + null
+  - undefined
+
+      at TestContext.<anonymous> (/private/tmp/genropy-js-bag-integration/gnrjs/tests/bagnode_legacy_audit.test.js:59:12)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1047:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+      at Test.postRun (node:internal/test_runner/test:1173:19)
+      at Test.run (node:internal/test_runner/test:1101:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:744:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: null,
+    expected: undefined,
+    operator: 'strictEqual'
+  }
+
+test at ../../../../../../../private/tmp/genropy-js-bag-integration/gnrjs/tests/bagnode_legacy_audit.test.js:110:1
+✖ selected GnrBagNode setValue preserves callback order, fired value and return (16.824958ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+    {
+      log: [
+  -     'callback',
+        'event:true'
+      ],
+  +   returned: <ref *1> GnrBagNode {
+  +     _attr: {},
+  +     _compiled: null,
+  +     _id: 1,
+  +     _invalidReasons: [],
+  +     _nodeSubscribers: {},
+  +     _onChangedValue: [Function (anonymous)],
+  +     _parentBag: <ref *2> GnrBag {
+  +       __nodes: _BagNodeContainer {
+  +         '0': [Circular *1],
+  +         _dict: {
+  +           item: [Circular *1]
+  +         },
+  +         _list: [
+  +           [Circular *1]
+  +         ],
+  +         _parentBag: [Circular *2]
+  +       },
+  +       _backref: true,
+  +       _delSubscribers: {},
+  +       _insSubscribers: {},
+  +       _parent: null,
+  +       _parentNode: null,
+  +       _parentnode: null,
+  +       _rootAttributes: null,
+  +       _subscribers: {},
+  +       _symbols: null,
+  +       _updSubscribers: {
+  +         audit: [Function: upd]
+  +       }
+  +     },
+  +     _parentbag: <ref *2> GnrBag {
+  +       __nodes: _BagNodeContainer {
+  +         '0': [Circular *1],
+  +         _dict: {
+  +           item: [Circular *1]
+  +         },
+  +         _list: [
+  +           [Circular *1]
+  +         ],
+  +         _parentBag: [Circular *2]
+  +       },
+  +       _backref: true,
+  +       _delSubscribers: {},
+  +       _insSubscribers: {},
+  +       _parent: null,
+  +       _parentNode: null,
+  +       _parentnode: null,
+  +       _rootAttributes: null,
+  +       _subscribers: {},
+  +       _symbols: null,
+  +       _updSubscribers: {
+  +         audit: [Function: upd]
+  +       }
+  +     },
+  +     _resolver: null,
+  +     _status: 'loaded',
+  +     _value: null,
+  +     label: 'item',
+  +     locked: false,
+  +     nodeTag: null,
+  +     xmlTag: null
+  +   },
+  +   value: null
+  -   returned: undefined,
+  -   value: 2
+    }
+
+      at TestContext.<anonymous> (/private/tmp/genropy-js-bag-integration/gnrjs/tests/bagnode_legacy_audit.test.js:124:12)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1047:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+      at Test.postRun (node:internal/test_runner/test:1173:19)
+      at Test.run (node:internal/test_runner/test:1101:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:744:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [Object],
+    expected: [Object],
+    operator: 'deepStrictEqual'
+  }
+
+test at ../../../../../../../private/tmp/genropy-js-bag-integration/gnrjs/tests/bagnode_legacy_audit.test.js:127:1
+✖ selected GnrBagNode setValue detaches the replaced child Bag (4.422791ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+
+  true !== false
+
+      at TestContext.<anonymous> (/private/tmp/genropy-js-bag-integration/gnrjs/tests/bagnode_legacy_audit.test.js:139:12)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1047:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+      at Test.postRun (node:internal/test_runner/test:1173:19)
+      at Test.run (node:internal/test_runner/test:1101:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:744:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'deepStrictEqual'
+  }
+
+test at ../../../../../../../private/tmp/genropy-js-bag-integration/gnrjs/tests/native_bag_classes.test.js:497:1
+✖ selected data Bags detach cleanly from the DOM source event tree (5.708ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + undefined
+  - null
+
+      at TestContext.<anonymous> (/private/tmp/genropy-js-bag-integration/gnrjs/tests/native_bag_classes.test.js:514:16)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1047:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+      at Test.postRun (node:internal/test_runner/test:1173:19)
+      at Test.run (node:internal/test_runner/test:1101:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:744:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: null,
+    operator: 'strictEqual'
+  }
