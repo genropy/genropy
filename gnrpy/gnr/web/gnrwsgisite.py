@@ -37,6 +37,7 @@ from gnr.app.pathresolver import PathResolver
 from gnr.app.gnrapp import GnrPackage
 from gnr.web import logger
 from gnr.web.gnrwebapp import GnrWsgiWebApp
+from gnr.web.gnrbagtransport import decode_parameter
 from gnr.web.gnrwebpage import GnrUnsupportedBrowserException
 from gnr.web.gnrwsgisite_proxy.gnrresourceloader import ResourceLoader
 from gnr.web.gnrwsgisite_proxy.gnrstoragehandler import LegacyStorageHandler
@@ -1986,7 +1987,6 @@ class GnrWsgiSite(object):
                         # Keep callable references as names; normal RPC dispatch authorizes them.
                         v = v[:-5]
                     elif isinstance(v, str) and v.endswith('::BAGTYTX'):
-                        from gnr.web.gnrbagtransport import decode_parameter
                         v = decode_parameter(v, self.gnrapp)
                     else:
                         v = catalog.fromTypedText(v)

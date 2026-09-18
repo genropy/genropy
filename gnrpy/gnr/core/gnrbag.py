@@ -55,10 +55,6 @@ to interact with BagNode instances inside a Bag.
           
 .. note:: Some methods have the "square-brackets notation": it is a shorter notation for the method"""
 
-from gnr._bag_mode import assert_legacy_bag_allowed
-
-assert_legacy_bag_allowed()
-
 from functools import cmp_to_key
 import os
 import os.path
@@ -72,6 +68,10 @@ import urllib.request, urllib.parse, urllib.error
 import urllib.parse
 
 import requests
+
+from gnr._bag_mode import assert_legacy_bag_allowed
+
+assert_legacy_bag_allowed()
 
 from gnr.core import gnrstring, logger
 from gnr.core.gnrclasses import GnrClassCatalog
