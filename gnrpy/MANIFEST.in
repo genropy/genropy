@@ -3,5 +3,3 @@ recursive-include ../projects *
 recursive-include ../dojo_libs *
 recursive-include ../resources *
 recursive-include ../webtools *
-
-recursive-include gnr/web/gramlot_assets *

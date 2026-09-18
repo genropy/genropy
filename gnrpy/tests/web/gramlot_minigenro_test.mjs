@@ -31,7 +31,7 @@ const context = vm.createContext({
     document: documentTarget,
     Object,
 });
-const source = readFileSync(new URL('../../gnr/web/gramlot_assets/minigenro.js', import.meta.url), 'utf8');
+const source = readFileSync(new URL('../../../projects/test_invoice/gramlot_tools/minigenro.js', import.meta.url), 'utf8');
 vm.runInContext(source, context);
 
 const application = {

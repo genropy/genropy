@@ -12,6 +12,7 @@ import inspect
 from gramlot.page import WebPage, page_methods
 from gramlot.transport import to_tytx
 from genro_tytx import from_tytx
+from werkzeug.utils import send_file
 
 
 class GramlotPage(WebPage):
@@ -27,7 +28,12 @@ class GramlotPage(WebPage):
 
     @property
     def db(self):
-        return self.site.db
+        """Start with a fresh database environment once per page request."""
+        if getattr(self, '_db', None) is None:
+            db = self.site.db
+            db.clearCurrentEnv()
+            self._db = db
+        return self._db
 
     def serve(self, request, response):
         """Serve the initial Source through the shared Gramlot bootstrap."""
@@ -36,10 +42,17 @@ class GramlotPage(WebPage):
             response.set_data('This adapter requires an explicitly public page.')
             return response
         if self.request_args == ('_assets', 'gramlot.min.js'):
-            response.content_type = 'text/javascript'
-            response.set_data(Path(__file__).with_name('gramlot_assets')
-                              .joinpath('gramlot.min.js').read_bytes())
-            return response
+            configured = self.site.config.getItem('gramlot?assets_path')
+            assets = Path(configured or 'gramlot_assets')
+            if not assets.is_absolute():
+                assets = Path(self.site.site_path) / assets
+            bundle = assets / 'gramlot.min.js'
+            if not bundle.is_file():
+                response.status_code = 503
+                response.set_data('Gramlot browser assets are not installed for this site.')
+                return response
+            return send_file(bundle, request.environ, mimetype='text/javascript',
+                             conditional=True)
         if self.request_args:
             return self.serve_rpc(request, response)
         allowed_args = {'windowTitle', '_parent_page_id', '_calling_page_id'}

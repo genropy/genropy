@@ -39,12 +39,43 @@ change your instance settings. The examples only read the selected database.
 
 ## Runtime and authoring boundary
 
-The checked-in `gnrpy/gnr/web/gramlot_assets/gramlot.min.js` is a single minified
-ES module, including dependencies and the minimal parent-frame adapter. Pages
-load it through their own `/_assets/gramlot.min.js` route. No npm installation,
-import map, per-instance asset copy or local Gramlot checkout is needed to try it.
-Component styles are supplied by the runtime; the document has a small base style.
-The Python dependency uses the published 0.1.3 wheel, verified with this bundle.
+The browser runtime is installed separately for each site; it is not shipped in
+Genropy's Python wheel. By default place `gramlot.min.js` and its license files
+under `<site directory>/gramlot_assets/`. Pages serve that bundle through their
+own `/_assets/gramlot.min.js` route, with ETag and Last-Modified validation.
+Missing assets return HTTP 503 with an explicit installation message.
+
+An alternate asset directory can be configured in `siteconfig.xml`:
+
+```xml
+<gramlot assets_path="gramlot_assets"/>
+```
+
+Relative paths are resolved against the site directory, not the working
+directory. Absolute paths may point to a shared, administrator-managed runtime.
+Only the exact bundle route is served; this does not expose a directory browser.
+
+For this experimental branch, the previously tested snapshot remains available
+from the immutable original PR commit. To install it without an npm build:
+
+```sh
+# Replace this with the real directory containing this site's siteconfig.xml.
+GRAMLOT_SITE_DIR=/path/to/instance/site
+mkdir -p "$GRAMLOT_SITE_DIR/gramlot_assets"
+git archive ae9d4a3785d6a6888e71c5209aca31295af2e2ae \
+  gnrpy/gnr/web/gramlot_assets | \
+  tar -x -C "$GRAMLOT_SITE_DIR/gramlot_assets" --strip-components=4
+```
+
+Keep `LICENSE`, `NOTICE`, `THIRD-PARTY-NOTICES.txt` and `licenses/` alongside
+the runtime. The expected SHA-256 of `gramlot.min.js` is
+`c01c83454c7dfee437099db340e709c8c3db977afc72296224e64e2bd04ea7a4`.
+This is a transitional snapshot installation, not a new upstream release or a
+claim that the full browser build can be reproduced from this repository.
+A versioned Gramlot browser release should replace this source when available.
+
+Component styles are supplied by the runtime. The Python dependency uses the
+published 0.1.3 wheel, verified with this snapshot.
 
 `window.gramlot` is the actual application. `window.genro` is a separate small
 facade providing readiness, publication, resize and unload checks to the legacy
@@ -70,19 +101,29 @@ assets and unsaved-change warnings remain outside this initial integration.
 
 The initial bundle was consolidated from Gramlot browser distribution
 `f56e90a19a7ee835` (framework source version 0.1.5), the deployed pre-alpha runtime
-used to verify these demonstrations. It is checked in as an experimental snapshot,
+used to verify these demonstrations. It is retained in the original PR commit as an experimental snapshot,
 not a claim that 0.1.5 is a published package. Its Python authoring contract is
 compatible with the pinned public wheel.
 
-`gramlot_assets/minigenro.js` is the readable compatibility source, included in
-the bundle. `gramlot_assets/build.mjs` rebundles a prepared Gramlot browser
+`projects/test_invoice/gramlot_tools/minigenro.js` is the readable compatibility source, included in
+the bundle. `projects/test_invoice/gramlot_tools/build.mjs` rebundles a prepared Gramlot browser
 distribution: install `esbuild@0.28.2` in a working directory, then run
-`node /path/to/gramlot_assets/build.mjs /path/to/browser-distribution`.
+`node projects/test_invoice/gramlot_tools/build.mjs /path/to/browser-distribution /path/to/site/gramlot_assets`.
 The distribution must include its manifest and all ESM chunks. Retain the
 third-party licenses when replacing the bundle. Runtime changes belong upstream
 in Gramlot; do not edit the minified payload manually.
 
-## Verification
+## Asset relocation verification
+
+The asset tests use isolated site directories and cover default, relative and
+absolute configuration, conditional requests, a missing installation and the
+public-page gate. Build the wheel and verify it contains no `gramlot.min.js` or
+vendored Gramlot runtime/licenses before publishing Genropy.
+
+## Original snapshot verification
+
+The results below describe the original PR snapshot, not a new browser run after
+asset relocation.
 
 - The legacy web test suite passed: 595 tests using the public Gramlot wheel.
 - The configured flake8 7.1.2 check passed on all modified Python files.
