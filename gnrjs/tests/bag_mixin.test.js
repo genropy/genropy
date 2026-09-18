@@ -452,7 +452,10 @@ test('detached source deletions respect the frozen origin and still dispatch aft
     content._('div', 'first', {});
     content._('div', 'second', {});
     const handled = [];
-    const handler = {pendingBuild: [], building: false, _trigger_del: event => handled.push(event.node.label)};
+    const handler = Object.assign(Object.create(gnr.GnrSrcHandler.prototype), {
+        pendingBuild: [], building: false, _subscribedNodes: {}, _index: {},
+        _trigger_del: event => handled.push(event.node.label)
+    });
     source.subscribe('delete-test', {del: event => gnr.GnrSrcHandler.prototype.nodeTrigger.call(handler, event)});
     parent.freeze();
     const removed = content.popNode('first');

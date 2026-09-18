@@ -7,8 +7,8 @@ suppress the preference margins) and the ``page_margins_defined`` letterhead
 flag computed by ``BagToHtml.prepareTemplates``.
 
 The integration tests resolve the real weasyprint implementation from the
-repository's ``resources/common`` tree (same harness as
-``services_addservice_test``), render real HTML documents and assert the text
+repository's ``resources/common`` tree (through the site facade shared with
+``htmltopdf_enginediff_test``), render real HTML documents and assert the text
 position in the produced PDF: preference margins must win over a document
 ``@page {margin:0}``, an explicit ``pageMargin`` must skip them entirely while
 winning over the document itself (#1022), and a document's own ``@page``
@@ -17,20 +17,16 @@ They are skipped when weasyprint or pymupdf are not importable.
 """
 
 import os
-from types import SimpleNamespace
 
 import pytest
 
+from core.pdfsite import make_pdf_site
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrbaghtml import BagToHtml
 from gnr.lib.services import BaseServiceType
 from gnr.lib.services.htmltopdf import HtmlToPdfService
-from gnr.lib.services.storage import StorageNode, BaseLocalService
 from gnr.web.gnrbaseclasses import BagToHtmlWeb
-from gnr.web.gnrwsgisite_proxy.gnrresourceloader import ResourceLoader
 
-REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
-COMMON_RESOURCES = os.path.join(REPO_ROOT, 'resources', 'common')
 MM_TO_PT = 72 / 25.4
 
 HTML_TEMPLATE = """<html><head><style>
@@ -226,27 +222,6 @@ def test_page_margins_defined_reset_on_rerun_without_letterhead():
 
 
 # --- weasyprint integration --------------------------------------------------
-
-def make_pdf_site(tmp_path):
-    """A minimal site facade: a real ResourceLoader over the repo resources
-    plus a real local storage service rooted at tmp_path."""
-    site = SimpleNamespace(
-        site_path=str(tmp_path),
-        site_name='htmltopdftest',
-        gnr_config=None,
-        debug=False,
-        getStatic=lambda name: None,
-        default_page=None,
-        gnrapp=SimpleNamespace(packages={}, experimentalFlag=lambda group, name: False),
-    )
-    site.resource_loader = ResourceLoader(site)
-    site.resources_dirs = [COMMON_RESOURCES]
-    storage = BaseLocalService(parent=site, base_path=str(tmp_path))
-    storage.service_name = 'temp'
-    site.storageNode = lambda path, **kwargs: path if isinstance(path, StorageNode) \
-        else StorageNode(parent=site, path=str(path).split(':', 1)[-1], service=storage)
-    return site
-
 
 def marker_origin(tmp_path, html, **write_kwargs):
     """Render html through the real weasyprint service and return the

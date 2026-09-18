@@ -973,8 +973,7 @@ class GnrBaseAsyncServer:
     async def _run(self):
         self.loop = asyncio.get_running_loop()
         self.app = self._build_app()
-        # The shared Unix listener cannot use TCP keepalive on macOS.
-        self.runner = web.AppRunner(self.app, tcp_keepalive=False)
+        self.runner = web.AppRunner(self.app)
         await self.runner.setup()
 
         sockets_dir = self._ensure_sockets_dir()

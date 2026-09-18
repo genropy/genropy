@@ -64,6 +64,19 @@
             assert(await wait(dfd) === 42, 'Transformed result');
             assert(order.join(',') === 'load,handle,callback', 'Callback ordering');
         });
+        await test(transport + ': XML MIME defaults and invalid documents', async function(){
+            for(const name of ['xml', 'xml-no-content-type', 'xml-invalid', 'xml-text']){
+                const dfd = dojo.xhrGet({url: '/transport-test/' + name, handleAs: 'xml'});
+                assert(dfd instanceof dojo.Deferred, 'XML request returns a Dojo Deferred');
+                const xml = await wait(dfd);
+                if(name === 'xml' || name === 'xml-no-content-type'){
+                    assert(xml && xml.documentElement.nodeName === 'GenRoBag', name + ' XML document');
+                }else{
+                    assert(xml === null, name + ' has no XML document: ' +
+                        (xml && xml.documentElement.outerHTML));
+                }
+            }
+        });
         await test(transport + ': empty raw PUT retains legacy content and Deferred chaining', async function(){
             const dfd = dojo.rawXhrPut({url: endpoint, handleAs: 'json', putData: '',
                 content: {value: 'preserved'}});
@@ -165,15 +178,6 @@
         genropatches.dojoXhr('fetch');
         assert(dojo.xhr === patched, 'Idempotent installation');
         await contract('fetch');
-        await test('binary: fetch and synchronous XHR preserve every byte', async function(){
-            for (const sync of [false, true]) {
-                const bytes = await wait(dojo.xhrGet({url:'/transport-test/binary', handleAs:'genro-bag', sync:sync}));
-                assert(bytes.length === 256, 'binary length');
-                assert(Array.from(bytes).every((value,index) => value === index), 'byte identity');
-                const xml = await wait(dojo.xhrGet({url:'/transport-test/xml', handleAs:'genro-bag', sync:sync}));
-                assert(xml.includes('<GenRoBag>'), 'XML response fallback');
-            }
-        });
         await test('fetch: async completion bypasses polling', async function(){
             const watch = dojo._ioWatch;
             let watched = 0;

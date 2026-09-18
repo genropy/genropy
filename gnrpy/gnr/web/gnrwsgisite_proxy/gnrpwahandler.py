@@ -42,7 +42,7 @@ class PWAHandler(object):
         if not package_conf.exists:
             return
         with package_conf.open('r') as f:
-            confbag = Bag(f)
+            confbag = Bag(f.read())
         pref_customizations = Bag(self.site.getPreference('pwa',pkg=self.site.mainpackage))
         pref_customizations = {k:v for k,v in pref_customizations.items() if v is not None and k!='icons'}
         if pref_customizations:

@@ -7108,8 +7108,7 @@ var GenroBagJS = (() => {
     /**
      * Set value at a hierarchical path.
      *
-     * Empty path merges first-level Bag/object/Map entries and returns this Bag.
-     * Nested Bags with matching labels are replaced, not recursively merged.
+     * An empty path raises RangeError without modifying the Bag.
      *
      * Resolver handling:
      *   - resolver=null (default): throw if node already has a resolver
@@ -7131,30 +7130,7 @@ var GenroBagJS = (() => {
      */
     setItem(path, value, attr = null, nodePosition = ">", updattr = false, removeNullAttributes = true, reason = null, fired = false, doTrigger = true, resolver = null, nodeTag = null) {
       if (path === "") {
-        let entries;
-        if (value instanceof _Bag) {
-          entries = Array.from(value.getNodes(), (node) => [node.label, node.value, { ...node.attr }]);
-        } else if (value instanceof Map) {
-          entries = Array.from(value, ([key, item]) => [key, item, null]);
-        } else if (value !== null && typeof value === "object") {
-          entries = Object.entries(value).map(([key, item]) => [key, item, null]);
-        } else {
-          return this;
-        }
-        for (const [key, item, attributes] of entries) {
-          this.setItem(
-            key,
-            item,
-            attributes,
-            ">",
-            updattr,
-            removeNullAttributes,
-            reason,
-            false,
-            doTrigger
-          );
-        }
-        return this;
+        throw new RangeError("setItem requires a non-empty path");
       }
       const [obj, label] = this._htraverse(path, true);
       return obj._nodes.set(
@@ -9289,7 +9265,7 @@ ${"  ".repeat(depth)}</${tag}>`;
 
   // src/browser.js
   setDecimalLibrary("number");
-  var version = "0.6.0";
+  var version = "0.7.0";
   return __toCommonJS(browser_exports);
 })();
 //# sourceMappingURL=genro-bag.browser.js.map

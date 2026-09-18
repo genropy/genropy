@@ -23,8 +23,7 @@ const callers = [
  ['projects/gnrcore/packages/adm/resources/tables/group/th_group.py', 'setAttr(row', 'var row={tags:null};', 'tags'],
  ['projects/gnrcore/packages/adm/resources/tables/tblinfo_item/th_tblinfo_item.py', 'setAttr(row', 'var row={fullcaption:null};', 'fullcaption'],
  ['projects/gnrcore/packages/sys/resources/logging.js', 'setAttr(res.asDict()', 'var res=new gnr.GnrBag({level:null});', 'level'],
- ['projects/gnrcore/packages/test15/webpages/gnrwdg/bageditor.py', 'setAttr(kw', 'var kw={field:null};', 'field'],
- ['projects/gnrcore/packages/test15/webpages/gnrwdg/menuselect.py', 'setAttr(b.getNode(p).attr', 'var b=new gnr.GnrBag(); b.setItem("option",null,{caption:null}); var p="option";', 'caption', true]
+ ['projects/gnrcore/packages/test/webpages/gnrwdg/bageditor.py', 'setAttr(kw', 'var kw={field:null};', 'field'],
 ];
 
 for (const [file, marker, setup, nullableKey, replacement] of callers) {

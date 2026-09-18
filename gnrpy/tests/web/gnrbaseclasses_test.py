@@ -3,16 +3,24 @@
 ``sys.batch_log`` is the fixture table: its ``caption_field`` is the formula
 column ``log_caption``, the shape that made every record of a table print to
 the same file name.
+
+TestTableTemplatePdfPath covers issue #1264 on the sibling base class
+TableTemplateToHtml: a string ``pdf`` argument is the requested output path,
+the meaning TableScriptToHtml already gives it. The PDF cases render through
+the real htmltopdf service and are skipped when weasyprint or pymupdf are not
+importable (same guard as tests/core/htmltopdf_test.py).
 """
 
 import os
 import re
 
+import pytest
+
 from core.common import BaseGnrTest
 
 from gnr.app.gnrapp import GnrApp
 from gnr.web import gnrbaseclasses
-from gnr.web.gnrbaseclasses import TableScriptToHtml
+from gnr.web.gnrbaseclasses import TableScriptToHtml, TableTemplateToHtml
 from gnr.web.gnrdummysite import GnrDummySite
 
 
@@ -108,3 +116,59 @@ class TestTableScriptOutputName(BaseGnrTest):
         assert len(set(names)) == len(self.pkeys)
         for pkey, name in zip(self.pkeys, names):
             assert name.endswith('%s.html' % re.sub(r'\W', '_', pkey))
+
+
+class TestTableTemplatePdfPath(BaseGnrTest):
+    """``adm.user`` and its ``homepage`` template resource are the fixture: the
+    template prints the username, so the rendered document can be recognized."""
+
+    @classmethod
+    def setup_class(cls):
+        super().setup_class()
+        app = GnrApp(cls.test_instance_name)
+        app.db.model.check(applyChanges=True)
+        app.db.commit()
+        cls.site = GnrDummySite(cls.test_instance_name, site_name=cls.test_instance_name)
+        cls.tblobj = cls.site.db.table('adm.user')
+        record = cls.tblobj.newrecord(username='tpluser')
+        cls.tblobj.insert(record)
+        cls.site.db.commit()
+        cls.pkey = record[cls.tblobj.pkey]
+
+    def buildScript(self):
+        page = self.site.dummyPage
+
+        def loadTemplate(template_address, **kwargs):
+            # adm.userobject is empty on the sqlite test instance and querying it
+            # raises (#1165): go straight to the resource the address points at
+            table, tplname = template_address.split(':', 1)
+            data, _dataInfo = page.templateFromResource(table=table, tplname=tplname)
+            return data['compiled']
+        page.loadTemplate = loadTemplate
+        return TableTemplateToHtml(page=page, table=self.tblobj, record_template='homepage')
+
+    def pdfText(self, pdfpath):
+        fitz = pytest.importorskip('fitz')
+        with fitz.open(pdfpath) as doc:
+            return '\n'.join(page.get_text() for page in doc)
+
+    def test_a_string_pdf_is_the_output_path(self, tmp_path):
+        pytest.importorskip('weasyprint')
+        target = str(tmp_path / 'badge.pdf')
+        script = self.buildScript()
+        assert script(record=self.pkey, pdf=target) == target
+        assert os.path.getsize(target) > 0
+        assert 'tpluser' in self.pdfText(target)
+
+    def test_pdf_true_still_writes_beside_the_html(self):
+        pytest.importorskip('weasyprint')
+        script = self.buildScript()
+        result = script(record=self.pkey, pdf=True)
+        assert result == script.filepath.replace('.html', '.pdf')
+        assert os.path.getsize(result) > 0
+
+    def test_no_pdf_returns_the_html(self):
+        script = self.buildScript()
+        result = script(record=self.pkey)
+        assert result.startswith('<!DOCTYPE html')
+        assert 'tpluser' in result

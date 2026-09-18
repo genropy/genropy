@@ -17,7 +17,7 @@ def transport_format(application, page=None):
         if (application.experimentalValue('bag', 'implementation') != 'genro-bag'
                 or application.experimentalValue('bag_js', 'implementation') != 'genro-bag-js-mixin'):
             raise ValueError('TYTX transport requires genro-bag and genro-bag-js-mixin')
-    if value == 'tytx' and application.config.getItem('experimental-features?dojo-xhr-patch') != 'fetch':
+    if value == 'tytx' and application.config.getItem('experimental.page?dojo_xhr_patch') != 'fetch':
         raise ValueError('TYTX transport requires the fetch HTTP transport')
     return value
 

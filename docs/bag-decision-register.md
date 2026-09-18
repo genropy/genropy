@@ -113,3 +113,60 @@ The source node now calls the source handler explicitly; native data-change
 semantics and compatibility mixins are unchanged. The handler still respects
 freeze/build guards. `source_rebuild.test.js` verifies legacy and selected
 modes, content identity, ancestry, `unfreeze(true)` and frozen rebuilds.
+
+## D22 — Empty-path assignment (supersedes the native merge decision)
+
+Native Python `set_item('', value)` and JS `setItem('', value)` reject empty
+paths with ValueError / RangeError, without mutation. Successful native writes
+return the written BagNode. Empty-label creation is not restored. Builders must
+validate empty identifiers before insertion. Python camelCase `setItem` and the
+GenroJS mixin retain legacy empty-path merge and scalar no-op behavior; JS keeps
+copied resolvers unresolved. Native and compatibility tests cover these separate
+contracts. This corrects the contract introduced in Python 0.24.0 / JS 0.6.0.
+
+## D23 — Sandbox resolver and application compatibility
+
+The sandbox handoff exposed legacy resolver defaults and extra-keyword access.
+Native Python now honors `read_only` class defaults, including inherited
+declarations. Its names mixin only translates `classKwargs`/`readOnly`.
+Explicit constructor overrides win; automatic policy applies only when no
+class or constructor policy is set. Both True and False defaults are honored. Its `kwargs` view exposes
+extra parameters only, excluding declared defaults and consumed positional
+arguments; aliasing it to the entire native `kw` would change menu behavior.
+No menu-specific bridge or duplicated SQL constructor defaults are needed.
+
+Application corrections stay with their consumers: PWA configuration reads
+XML text explicitly; related-tree SQL retains its original root predicate.
+Missing SQL bindings resolve to NULL in the shared execute path (separate
+Genropy issue #1341 / PR #1342); the tree workaround is withdrawn.
+SQL relation resolvers use `output_mode` for their result format (separate
+Genropy issue #1343 / PR #1344); O/M relation metadata retains `mode`.
+The two temporary `internal_params` exceptions are removed. Native null-attribute
+policy is unchanged. `test_sandbox_bag_regressions.py` covers these consumers
+in separate legacy/native processes, and the library tests cover inherited
+resolver defaults, explicit overrides and live extra-keyword access.
+
+
+## D24 — Readonly cache storage is a native contract
+
+Readonly resolution never writes its result to the BagNode. Zero cache reloads
+on every read; negative cache retains results in the resolver until invalidation;
+positive cache retains results there until TTL expiry. Constructor settings
+precede class defaults; class defaults precede automatic policy. Python had
+ignored class defaults when choosing storage; the fix belongs in the native
+property, not in SQL constructors or the compatibility mixin. JS already respects
+class defaults. Tests in both libraries cover inherited defaults, constructor
+overrides, the three durations, TTL expiry, reset and unchanged static node values.
+
+## D25 — Resolver parameter preparation belongs to the engine
+
+Native Python removes the `kw` property. Resolver authors keep `load(self)` and
+read declared arguments as attributes, with `kwargs` for extras only. The engine
+prepares a shallow copy through `on_loading` once per actual load attempt, never
+on parameter reads or cache hits. Both pull resolution and explicit refresh use
+the same private wrapper. Nested contexts and exceptions restore prior prepared
+state; original persistent parameters remain available outside load. Existing
+call-time updates remain persistent. No public preparation helper is added.
+This supersedes the D23 description of extras as only a compatibility API.
+The library migration and tests cover callbacks, concrete resolvers, retry,
+refresh, invalid hook returns and nested calls; see its resolver documentation.

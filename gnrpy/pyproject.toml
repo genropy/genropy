@@ -41,7 +41,7 @@ dependencies = [
 	     "packaging",
 	     "paramiko", # gnr.core.gnrssh
 	     "psutil",
-	     "pymupdf",
+	     "pymupdf>=1.24.3", # the pymupdf module name, fitz only before it
 	     "pypdftk",
 	     "PyPDF2",
 	     "pyro4",
@@ -65,7 +65,7 @@ dependencies = [
 	     ]
 
 [project.optional-dependencies]
-genro-bag = ["genro-bag>=0.24.0,<0.25"]
+genro-bag = ["genro-bag>=0.25.0,<0.26"]
 pgsql = [
   "psycopg2-binary",
   "psycopg"

@@ -502,10 +502,7 @@ class Server(object):
         treated as not-running: gnr web async itself replaces stale files
         on startup.
         """
-        sockets_dir = os.path.join(self.site_path, 'sockets')
-        if len(sockets_dir) > 90:
-            sockets_dir = os.path.join('/tmp', self.site_name, 'gnr_sock')
-        socket_path = os.path.join(sockets_dir, 'async.sock')
+        socket_path = os.path.join(self.site_path, 'sockets', 'async.sock')
         if not os.path.exists(socket_path):
             return False
         try:

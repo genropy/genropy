@@ -149,7 +149,7 @@ test at ../../../../../../../private/tmp/genropy-js-bag-integration/gnrjs/tests/
 ✖ lazySet and fired provide legacy event metadata (4.913ms)
   AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
   + actual - expected
-  
+
     [
       [
         [
@@ -162,7 +162,7 @@ test at ../../../../../../../private/tmp/genropy-js-bag-integration/gnrjs/tests/
         ],
         [
           'upd',
-  
+
       at TestContext.<anonymous> (/private/tmp/genropy-js-bag-integration/gnrjs/tests/bag_semantics_audit.test.js:11:16)
       at Test.runInAsyncScope (node:async_hooks:214:14)
       at Test.run (node:internal/test_runner/test:1047:25)
@@ -181,7 +181,7 @@ test at ../../../../../../../private/tmp/genropy-js-bag-integration/gnrjs/tests/
 ✖ pop and delItem preserve suppression, return and orphan semantics (6.22325ms)
   AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
   + actual - expected
-  
+
     [
       1,
       null,
@@ -190,7 +190,7 @@ test at ../../../../../../../private/tmp/genropy-js-bag-integration/gnrjs/tests/
   -   false,
       []
     ]
-  
+
       at TestContext.<anonymous> (/private/tmp/genropy-js-bag-integration/gnrjs/tests/bag_semantics_audit.test.js:11:16)
       at Test.runInAsyncScope (node:async_hooks:214:14)
       at Test.run (node:internal/test_runner/test:1047:25)
@@ -209,7 +209,7 @@ test at ../../../../../../../private/tmp/genropy-js-bag-integration/gnrjs/tests/
 ✖ update honors replace marker and event reason (5.750542ms)
   AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
   + actual - expected
-  
+
     [
       [
         'x'
@@ -220,7 +220,7 @@ test at ../../../../../../../private/tmp/genropy-js-bag-integration/gnrjs/tests/
       ],
       {}
     ]
-  
+
       at TestContext.<anonymous> (/private/tmp/genropy-js-bag-integration/gnrjs/tests/bag_semantics_audit.test.js:11:16)
       at Test.runInAsyncScope (node:async_hooks:214:14)
       at Test.run (node:internal/test_runner/test:1047:25)
@@ -239,7 +239,7 @@ test at ../../../../../../../private/tmp/genropy-js-bag-integration/gnrjs/tests/
 ✖ selected GnrBagNode constructor preserves legacy identity and resolver state (11.450792ms)
   AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
   + actual - expected
-  
+
     {
       callback: null,
       locked: false,
@@ -247,7 +247,7 @@ test at ../../../../../../../private/tmp/genropy-js-bag-integration/gnrjs/tests/
   +   status: 'unloaded'
   -   status: 'loaded'
     }
-  
+
       at TestContext.<anonymous> (/private/tmp/genropy-js-bag-integration/gnrjs/tests/bagnode_legacy_audit.test.js:38:12)
       at Test.runInAsyncScope (node:async_hooks:214:14)
       at Test.run (node:internal/test_runner/test:1047:25)
@@ -266,10 +266,10 @@ test at ../../../../../../../private/tmp/genropy-js-bag-integration/gnrjs/tests/
 ✖ selected GnrBagNode ancestry and orphaning match legacy graph behavior (12.828417ms)
   AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
   + actual - expected
-  
+
   + null
   - undefined
-  
+
       at TestContext.<anonymous> (/private/tmp/genropy-js-bag-integration/gnrjs/tests/bagnode_legacy_audit.test.js:59:12)
       at Test.runInAsyncScope (node:async_hooks:214:14)
       at Test.run (node:internal/test_runner/test:1047:25)
@@ -288,7 +288,7 @@ test at ../../../../../../../private/tmp/genropy-js-bag-integration/gnrjs/tests/
 ✖ selected GnrBagNode setValue preserves callback order, fired value and return (16.824958ms)
   AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
   + actual - expected
-  
+
     {
       log: [
   -     'callback',
@@ -361,7 +361,7 @@ test at ../../../../../../../private/tmp/genropy-js-bag-integration/gnrjs/tests/
   -   returned: undefined,
   -   value: 2
     }
-  
+
       at TestContext.<anonymous> (/private/tmp/genropy-js-bag-integration/gnrjs/tests/bagnode_legacy_audit.test.js:124:12)
       at Test.runInAsyncScope (node:async_hooks:214:14)
       at Test.run (node:internal/test_runner/test:1047:25)
@@ -379,9 +379,9 @@ test at ../../../../../../../private/tmp/genropy-js-bag-integration/gnrjs/tests/
 test at ../../../../../../../private/tmp/genropy-js-bag-integration/gnrjs/tests/bagnode_legacy_audit.test.js:127:1
 ✖ selected GnrBagNode setValue detaches the replaced child Bag (4.422791ms)
   AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
-  
+
   true !== false
-  
+
       at TestContext.<anonymous> (/private/tmp/genropy-js-bag-integration/gnrjs/tests/bagnode_legacy_audit.test.js:139:12)
       at Test.runInAsyncScope (node:async_hooks:214:14)
       at Test.run (node:internal/test_runner/test:1047:25)
@@ -400,10 +400,10 @@ test at ../../../../../../../private/tmp/genropy-js-bag-integration/gnrjs/tests/
 ✖ selected data Bags detach cleanly from the DOM source event tree (5.708ms)
   AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
   + actual - expected
-  
+
   + undefined
   - null
-  
+
       at TestContext.<anonymous> (/private/tmp/genropy-js-bag-integration/gnrjs/tests/native_bag_classes.test.js:514:16)
       at Test.runInAsyncScope (node:async_hooks:214:14)
       at Test.run (node:internal/test_runner/test:1047:25)

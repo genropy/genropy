@@ -158,11 +158,11 @@ if (typeof gnr === 'undefined') var gnr = {};
             }else{
                 v = v.getFormattedValue(kw,mode);
             }
-            
+
         }else{
             v = this.attr._formattedValue || this.attr._displayedValue || v;
         }
-        return (!isNullOrBlank(v) || !kw.omitEmpty)?((this.attr._valuelabel || this.attr.name_long || stringCapitalize(this.label)) +': ' +_F(v,null,this.attr.dtype)):''; 
+        return (!isNullOrBlank(v) || !kw.omitEmpty)?((this.attr._valuelabel || this.attr.name_long || stringCapitalize(this.label)) +': ' +_F(v,null,this.attr.dtype)):'';
     }
         getValue2() { return this.getValue('static'); }
         getValue(mode, options, kwargs) {
@@ -722,6 +722,18 @@ if (typeof gnr === 'undefined') var gnr = {};
         setItem(path, value, attributes, options = {}) {
             if (arguments.length > 4 || (options != null && typeof options !== 'object')) {
                 return super.setItem(...arguments);
+            }
+            if (path === '') {
+                if (value instanceof api.Bag) {
+                    for (const node of value.getNodes()) {
+                        this.setItem(node.label, node.getResolver() || node.getValue(), node.attr);
+                    }
+                } else if (value !== null && typeof value === 'object') {
+                    for (const key in value) {
+                        this.setItem(key, value[key] == null ? value[key] : value[key].valueOf());
+                    }
+                }
+                return this;
             }
             options = options || {};
             if (typeof path === 'string') path = path.replace(/(^|\.)#id$/, (_, prefix) => prefix + genro.time36Id());

@@ -124,3 +124,30 @@ the optional JS devtools import and htmlRepr were verified as well.
 
 Genropy remains on genro_integration: no Genropy package release tag was
 created. Real-server application/browser acceptance remains outstanding.
+
+
+## Integration PR checkpoint — 2026-09-18
+
+Merged develop at `88235ae95`. Python dependencies now require
+`genro-bag>=0.25.0,<0.26`; the bundle and source map match the published
+`genro-bag-js` v0.7.0 artifacts byte for byte.
+
+- Full Python suite against the installed PyPI wheel: 2,791 passed, 19 skipped,
+  zero failures, with real SQLite and PostgreSQL fixtures.
+- Explicit native transport/serialization run: 17 passed. The ordinary suite
+  runs the transport cases in a dedicated native-mode subprocess.
+- Default JS: 269 passed, 26 mode-gated skips; selected mixin: 295 passed,
+  zero skips; framework attribute consumers: 15 passed.
+- CI-pinned flake8 7.1.2 and whitespace checks against develop pass.
+
+The fetch switch follows develop: `experimental.page?dojo_xhr_patch=fetch`.
+The obsolete `experimental-features` spelling is not used. CI now installs
+standalone Bag for Python integration tests and executes both JS variants.
+Develop's discarded-source cleanup is retained when handling detached deletion
+notifications. Upstream-deleted/moved demonstration callers are removed/updated
+in the attribute audit tests.
+
+The unrelated Unix socket fixes and their tests are excluded from the PR.
+SQL prerequisites remain separately reviewed as #1342 and #1344. A final
+browser acceptance run on this exact merged revision is still outstanding.
+Earlier browser acceptance is historical evidence, not a substitute for that run.

@@ -42,11 +42,27 @@ jobs:
           ${{ runner.os }}-python-${{ matrix.python-version }}-
           ${{ runner.os }}-python-
     
+    - name: Install wkhtmltopdf
+      run: |
+        # the htmltopdf engine comparison needs both engines: without this the
+        # whole wk geometry perimeter skips silently, which is how it would
+        # stop being checked without anyone noticing. Rendering a document
+        # here fails the job at install time instead. This is a stock Qt build
+        # and shrinks by its own factor rather than the 0.8 of the official
+        # ones, which is why the tests measure the zoom instead of assuming it
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends wkhtmltopdf
+        echo '<p>render check</p>' > /tmp/wkcheck.html
+        wkhtmltopdf /tmp/wkcheck.html /tmp/wkcheck.pdf
+        test -s /tmp/wkcheck.pdf
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '22'
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         python -m pip install flake8==7.1.2 pytest
-        cd gnrpy && pip install -e .[developer]
+        cd gnrpy && pip install -e .[developer,genro-bag]
     - name: Lint with flake8
       run: |
         # stop the build if there are Python syntax errors or undefined names
@@ -56,3 +72,13 @@ jobs:
     - name: Test with pytest
       run: |
         cd gnrpy &&  pytest
+    - name: Documentation ratchet on the test-page packages
+      run: |
+        # gnrpy's pytest config restricts collection to gnrpy/tests, so the
+        # package suites under projects/ need their own invocation. Only the
+        # source-only checks belong here: the render sweep needs a built
+        # instance and a running daemon, which this job does not provide. Its
+        # backpressure logic is covered without one, so that check runs here.
+        pytest projects/gnrcore/packages/test/tests/test_pages_documented.py \
+               projects/gnrcore/packages/test/tests/test_pages_ratchet.py \
+               projects/gnrcore/packages/test/tests/test_smoke_backpressure.py -q

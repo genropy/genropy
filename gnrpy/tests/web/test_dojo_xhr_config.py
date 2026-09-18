@@ -1,10 +1,11 @@
 """The instance configuration owns the HTTP transport bootstrap option."""
 
 import json
-from types import SimpleNamespace
+from types import MethodType, SimpleNamespace
 
 import pytest
 
+from gnr.app.gnrapp import GnrApp
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrclasses import GnrClassCatalog
 from gnr.web.gnrwebpage import GnrWebPage
@@ -14,11 +15,12 @@ from gnr.web.gnrwebpage import GnrWebPage
 def test_transport_bootstrap_uses_instance_configuration(transport):
     config = Bag()
     if transport:
-        config.setItem('experimental-features', None,
-                       _attributes={'dojo-xhr-patch': transport})
+        config.setItem('experimental.page', None, dojo_xhr_patch=transport)
+    application = SimpleNamespace(config=config)
+    application.experimentalValue = MethodType(GnrApp.experimentalValue, application)
     static = SimpleNamespace(url=lambda *args: '/static/', internal_path=lambda *args: '/static/' + '/'.join(args))
     page = SimpleNamespace(
-        application=SimpleNamespace(config=config, experimentalValue=lambda *args: None),
+        application=application,
         site=SimpleNamespace(
             storage=lambda name: static, debug=False, debugpy=False,
             home_uri='/', compressedJsPath='/client.js', config=Bag()),

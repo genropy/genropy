@@ -3,8 +3,8 @@
 Enable on an instance using both new Bag implementations:
 
 ```xml
-<experimental-features dojo-xhr-patch="fetch"/>
 <experimental>
+    <page dojo_xhr_patch="fetch"/>
     <bag implementation="genro-bag"/>
     <bag_js implementation="genro-bag-js-mixin"/>
     <bag_transport format="tytx"/>

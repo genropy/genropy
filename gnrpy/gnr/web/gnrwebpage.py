@@ -642,8 +642,11 @@ class GnrWebPage(GnrBaseWebPage):
         self._lastUserEventTs = kwargs.pop('_lastUserEventTs', None)
         self._lastRpc = kwargs.pop('_lastRpc', None)
         self._pageProfilers = kwargs.pop('_pageProfilers', None)
-        if _serverstore_changes:
-            self.site.register.set_serverstore_changes(self.page_id, _serverstore_changes)
+        if _serverstore_changes and not self.site.register.set_serverstore_changes(
+                self.page_id, _serverstore_changes):
+            # the page passed _check_page_id in __init__, so this is the cleanup race
+            logger.warning('page %s vanished from the register: serverstore changes discarded (%s)',
+                           self.page_id, ','.join(sorted(_serverstore_changes)))
         auth = AUTH_OK
         if method not in ('doLogin', 'onClosePage'):
             auth = self._checkAuth(method=method, **kwargs)
@@ -1346,8 +1349,8 @@ class GnrWebPage(GnrBaseWebPage):
         kwargs['servertime'] = datetime.datetime.now()
         kwargs['websockets_url'] = '/websocket' if self.wsk_enabled else None
         kwargs['websockets_endpoint'] = self.async_endpoint if self.wsk_enabled else None
-        kwargs['dojoXhrPatch'] = self.application.config.getItem(
-            'experimental-features?dojo-xhr-patch') or ''
+        kwargs['dojoXhrPatch'] = self.application.experimentalValue(
+            'page', 'dojo_xhr_patch') or ''
         self.getPwaIntegration(arg_dict)
         self.getSquareLogoUrl(arg_dict)
         self.getCoverLogoUrl(arg_dict)
