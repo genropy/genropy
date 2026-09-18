@@ -7,7 +7,7 @@ BAG_MODE = configure_bag_mode()
 
 from gnr.core import gnrlog
 
-VERSION = "26.09.07"
+VERSION = "26.09.18"
 
 gnrlog.init_logging_system()
 logger = logging.getLogger("gnr")
