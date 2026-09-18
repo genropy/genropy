@@ -72,6 +72,7 @@ class TestDocuHandbookStorage(BaseGnrAppTest):
                                external_host=INSTANCE_HOST,
                                getUuid=lambda: 'test-batch')
         batch = module.Main(page=page, resource_table=self.tbl)
+        batch.zip_urls = []
         batch.handbook_id = handbook_id
         batch.handbook_record = self.tbl.record(handbook_id).output('bag')
         batch.prepareHandbookFolder()
@@ -123,8 +124,8 @@ class TestDocuHandbookStorage(BaseGnrAppTest):
         assert batch.sourceDirNode.fullpath == 'page:handbook_build/onlinebook/sphinx/source'
 
     def test_the_build_is_published_at_the_root_of_the_handbook_folder(self):
-        """post_process promotes the build to the root of the handbook folder and
-        drops the sphinx working folder: what is left is the published site."""
+        """publishHandbook promotes the build to the root of the handbook folder
+        and drops the sphinx working folder: what is left is the published site."""
         batch = self._batch(self.online_id)
         batch.handbook_url = 'https://docs.example.org/onlinebook/'
         batch.resultNode = batch.sphinxNode.child('build')
@@ -132,7 +133,7 @@ class TestDocuHandbookStorage(BaseGnrAppTest):
             html_file.write(b'<html>built</html>')
         with batch.sourceDirNode.child('index.rst').open('wb') as rst_file:
             rst_file.write(b'built')
-        batch.post_process()
+        batch.publishHandbook()
         assert self.app.site.storageNode('handbooks:onlinebook/index.html').exists
         assert not self.app.site.storageNode('page:handbook_build/onlinebook/sphinx').exists
         record = self._record(self.online_id)

@@ -42,6 +42,7 @@ class BagToHtml(object):
     page_margin_left = 0
     page_margin_right = 0
     page_margin_bottom = 0
+    page_margins_defined = False
     page_header_height = 0
     page_footer_height = 0
     page_leftbar_width = 0
@@ -295,6 +296,13 @@ class BagToHtml(object):
         else:
             self.page_width = long_side
             self.page_height = short_side
+        #a loaded letterhead means the designer controls the page geometry: track it so
+        #preference margins can be suppressed downstream. Per-side page.* values cannot be
+        #trusted to mean 'explicitly set' because the letterhead editor seeds zeros on every
+        #new letterhead. Instance attributes cannot be inspected either: the assignments
+        #below set them on every run and prepareTemplates may run more than once on the
+        #same instance
+        self.page_margins_defined = bool(self.htmlTemplate)
         self.page_margin_top = float(d.get('page_margin_top') or top_layer['main.page.top'] or self.page_margin_top)
         self.page_margin_left = float(d.get('page_margin_left')or top_layer['main.page.left'] or self.page_margin_left)
         self.page_margin_right = float(d.get('page_margin_right')or top_layer['main.page.right'] or self.page_margin_right)

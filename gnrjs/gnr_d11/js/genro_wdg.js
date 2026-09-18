@@ -107,6 +107,7 @@ dojo.declare("gnr.GnrWdgHandler", null, {
             'canvas':['width','height']
             };
         this.tagParameters = {};
+        this._factoryCache = {};
         this.tagParameters['button'] = {'caption':'input'};
         this.tagParameters['contentpane'] = {'label':'input','layoutAlign':'select:top,bottom,left,right,client'};
         this.tagParameters['splitcontainer'] = {'activeSizing':'checkbox','sizerWidth':'input'};
@@ -233,9 +234,12 @@ dojo.declare("gnr.GnrWdgHandler", null, {
                 result.hasDownArrow = true;
             }
         }
-        if('values' in fieldattr){
+        // A declared `values` is a closed set of choices, so it wins over the
+        // dtype widget. B (checkBox) and X (tree) are the exception: their own
+        // widget is not a list of choices at all.
+        if('values' in fieldattr && dt!='B' && dt!='X'){
             result.values = fieldattr.values;
-            result.tag = fieldattr.values.indexOf(':')>=0?'filteringselect':'combobox';
+            result.tag = 'filteringselect';
         }
         if('size' in fieldattr && result.tag=='Textbox'){
             result.validate_len = fieldattr.size;
@@ -466,7 +470,14 @@ dojo.declare("gnr.GnrWdgHandler", null, {
         return domnode;
     },
     getWidgetFactory: function(tag, handler) {
-        var dojotag = this.namespace[(handler._dojotag || tag).toLowerCase()];
+        //cache by the resolved dojo tag, not by the genro tag: handlers can
+        //switch _dojotag per instance (e.g. menuline -> MenuItem/MenuSeparator)
+        var cachekey = (handler._dojotag || tag).toLowerCase();
+        var cached = this._factoryCache[cachekey];
+        if (cached) {
+            return cached;
+        }
+        var dojotag = this.namespace[cachekey];
         var wdgpath;
         if (!dojotag) {
             wdgpath = handler._dojotag.split('.');
@@ -491,6 +502,7 @@ dojo.declare("gnr.GnrWdgHandler", null, {
         for (var i = 0; i < wdgpath.length; i++) {
             wdgfactory = wdgfactory[wdgpath[i]];
         }
+        this._factoryCache[cachekey] = wdgfactory;
         return wdgfactory;
     },
     createDojoWidget:function(tag, domnode, attributes, kw, sourceNode) {
@@ -571,55 +583,71 @@ dojo.declare("gnr.GnrWdgHandler", null, {
             };
         }
     },
-    doMixin:function(obj, handler, tag, sourceNode) {
-        var oldfunc, funcname;
+    _mixinPlan:function(handler) {
+        //the applicable mixin_/patch_/versionpatch_/nodemixin_/validatemixin_
+        //props of a handler never change: scan them once per handler
+        if (handler.__mixinPlan) {
+            return handler.__mixinPlan;
+        }
         var versionpatch = 'versionpatch_' + dojo.version.major + dojo.version.minor + '_';
         var versionpatch_fallback = (versionpatch !== 'versionpatch_11_') ? 'versionpatch_11_' : null;
-        var ispatch;
+        var plan = {methods:[], nodemixins:[], validatemixins:[]};
         for (var prop in handler) {
-            funcname = null;
             if (prop.indexOf('mixin_') == 0) {
-                ispatch = false;
-                funcname = prop.replace('mixin_', '');
+                plan.methods.push({funcname:prop.slice('mixin_'.length), prop:prop, ispatch:false});
             }
             else if (stringStartsWith(prop, 'versionpatch_')) {
-                ispatch = true;
                 if (stringStartsWith(prop, versionpatch)) {
-                    funcname = prop.replace(versionpatch, '');
+                    plan.methods.push({funcname:prop.slice(versionpatch.length), prop:prop, ispatch:true});
                 } else if (versionpatch_fallback && stringStartsWith(prop, versionpatch_fallback)) {
                     // fallback: if no version-specific patch exists, use 1.1 patch
-                    var fallback_funcname = prop.replace(versionpatch_fallback, '');
+                    var fallback_funcname = prop.slice(versionpatch_fallback.length);
                     if (!(versionpatch + fallback_funcname in handler)) {
-                        funcname = fallback_funcname;
+                        plan.methods.push({funcname:fallback_funcname, prop:prop, ispatch:true});
                     }
                 }
             }
             else if (stringStartsWith(prop, 'patch_')) {
-                ispatch = true;
-                funcname = prop.replace('patch_', '');
+                plan.methods.push({funcname:prop.slice('patch_'.length), prop:prop, ispatch:true});
             } else if (stringStartsWith(prop, 'nodemixin_')) {
-                sourceNode[prop.replace('nodemixin_', '')] = handler[prop];
+                plan.nodemixins.push({funcname:prop.slice('nodemixin_'.length), prop:prop});
             } else if (stringStartsWith(prop, 'validatemixin_')) {
-                if (sourceNode && (sourceNode.hasValidations())) {
-                    sourceNode[prop.replace('validatemixin_', '')] = handler[prop];
-                }
+                plan.validatemixins.push({funcname:prop.slice('validatemixin_'.length), prop:prop});
             }
-            if (funcname) {
-                oldfunc = obj[funcname];
-                if (ispatch) {
-                    obj[funcname] = handler[prop];
-                    if (oldfunc) {
-                        obj[funcname + '_replaced'] = oldfunc;
-                    } else if ((!handler._basedojotag) || (handler._dojotag == handler._basedojotag)) {
-                        genro.warning(tag + ' - Patch ' + prop + ': cannot find the replaced method.');
-                    }
-                } else {
-                    if (oldfunc) {
-                        genro.warning(tag + ' - Mixin ' + prop + ': method already existing.');
-                        obj[funcname + '_replaced'] = oldfunc;
-                    }
-                    obj[funcname] = handler[prop];
+        }
+        handler.__mixinPlan = plan;
+        return plan;
+    },
+
+    doMixin:function(obj, handler, tag, sourceNode) {
+        var plan = this._mixinPlan(handler);
+        var oldfunc, m, i;
+        for (i = 0; i < plan.nodemixins.length; i++) {
+            m = plan.nodemixins[i];
+            sourceNode[m.funcname] = handler[m.prop];
+        }
+        if (sourceNode && sourceNode.hasValidations()) {
+            for (i = 0; i < plan.validatemixins.length; i++) {
+                m = plan.validatemixins[i];
+                sourceNode[m.funcname] = handler[m.prop];
+            }
+        }
+        for (i = 0; i < plan.methods.length; i++) {
+            m = plan.methods[i];
+            oldfunc = obj[m.funcname];
+            if (m.ispatch) {
+                obj[m.funcname] = handler[m.prop];
+                if (oldfunc) {
+                    obj[m.funcname + '_replaced'] = oldfunc;
+                } else if ((!handler._basedojotag) || (handler._dojotag == handler._basedojotag)) {
+                    genro.warning(tag + ' - Patch ' + m.prop + ': cannot find the replaced method.');
                 }
+            } else {
+                if (oldfunc) {
+                    genro.warning(tag + ' - Mixin ' + m.prop + ': method already existing.');
+                    obj[m.funcname + '_replaced'] = oldfunc;
+                }
+                obj[m.funcname] = handler[m.prop];
             }
         }
         return obj;

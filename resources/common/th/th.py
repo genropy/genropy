@@ -1007,7 +1007,8 @@ class ThLinker(BaseComponent):
 
     @struct_method          
     def th_linkerBar(self,pane,field=None, label=None, _class='pbl_roundedGroupLabel',newRecordOnly=True, addEnabled=None, **kwargs):
-        bar = pane.slotBar('lbl,*,linkerslot,5',height='20px',_class=_class)
+        bar = pane.slotBar('lbl,*,linkerslot,5',height='20px',
+                           _class='%s th_linkerBar' % _class)
         linker = bar.linkerslot.linker(field=field,newRecordOnly=newRecordOnly, addEnabled=addEnabled, **kwargs)
         bar.linker = linker
         label = label or self.db.table(linker.attributes['table']).name_long

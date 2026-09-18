@@ -40,6 +40,7 @@ from aiohttp import web
 from concurrent.futures import ProcessPoolExecutor
 
 from gnr.core.gnrbag import Bag
+from gnr.core.gnrdatetime import localnow
 from gnr.app.gnrapp import GnrApp
 from gnr.web.gnrwsgisite import GnrWsgiSite
 from gnr.web import logger
@@ -177,7 +178,12 @@ class GnrTask:
         Compute if the task is to be executed
         """
         if not timestamp:
-            timestamp = datetime.now(timezone.utc)
+            # The month/day/hour/minute entries of the schedule are local wall
+            # clock time as entered by the user, so they must be compared
+            # against a timestamp carrying the local offset. last_scheduled_ts
+            # stays UTC: it is the same instant, just written with a different
+            # offset, so the frequency branch below is unaffected.
+            timestamp = localnow()
 
         result = []
                 
@@ -196,7 +202,7 @@ class GnrTask:
         months =  list(map(int, self.schedule.get('month').split(','))) if self.schedule.get('month') else range(1,13)
         days = list(map(int, self.schedule.get('day').split(','))) if self.schedule.get('day') else range(1,32)
         hours = list(map(int, self.schedule.get('hour').split(','))) if self.schedule.get('hour') else range(0,24)
-        minutes = list(map(int, self.schedule.get('minute').split(','))) if self.schedule.get('minutes') else range(0,60)
+        minutes = list(map(int, self.schedule.get('minute').split(','))) if self.schedule.get('minute') else range(0,60)
 
         hm = []
         for h in hours:
@@ -666,25 +672,30 @@ def execute_task(sitename, task):
 
     page = site.dummyPage
     site.currentPage = page
-    page._db = None
-    page.db
-    record = task['payload'] #{x[0]:x[1] for x in task['payload']}
-    task_class = tasktbl.getBtcClass(table=record['table_name'],
-                                     command=record['action'],
-                                     page=page
-                                     )
-    if task_class:
-        task_obj = task_class(page=page, resource_table=page.db.table(record['table_name']),
-                              batch_selection_savedQuery=record['saved_query_code'])
-        task_params = record.get('parameters', {})
-        with db.tempEnv(connectionName="execution"):
-            logger.info("Executing task %s - %s",
-                        record['table_name'],
-                        record['action'])
-            task_obj(parameters=Bag(task_params),task_execution_record=record)
-    else:
-        logger.error("Can't find task class for command %s", record['action'])
-            
+    try:
+        page._db = None
+        page.db
+        record = task['payload'] #{x[0]:x[1] for x in task['payload']}
+        task_class = tasktbl.getBtcClass(table=record['table_name'],
+                                         command=record['action'],
+                                         page=page
+                                         )
+        if task_class:
+            task_obj = task_class(page=page, resource_table=page.db.table(record['table_name']),
+                                  batch_selection_savedQuery=record['saved_query_code'])
+            task_params = record.get('parameters', {})
+            with db.tempEnv(connectionName="execution"):
+                logger.info("Executing task %s - %s",
+                            record['table_name'],
+                            record['action'])
+                task_obj(parameters=Bag(task_params),task_execution_record=record)
+        else:
+            logger.error("Can't find task class for command %s", record['action'])
+    finally:
+        # currentPage is thread local: an exception raised by the task must not
+        # leave this executor thread's entry behind forever (#379/#380)
+        site.currentPage = None
+
     try:
         with requests.Session() as session:
             resp = session.post(f"{GNR_SCHEDULER_URL}/ack", json={"run_id": task["run_id"]})
