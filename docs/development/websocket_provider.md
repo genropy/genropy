@@ -38,7 +38,7 @@ was: it takes the place of the classic client, never a place beside it, so a
 page declares one `gnr.GnrWebSocketHandler`. A handler without the attribute
 leaves the frontend imports untouched.
 
-`gnrwebsocket_wsx` is the client genropy ships for a provider whose server
+`gnrwebsocket_kajenn` is the client genropy ships for a provider whose server
 terminates the socket and speaks WSX. The wire format is the text `WSX://`
 followed by a JSON object with `id`, `method`, `path`, `page_id` and `data`,
 where `data` is the payload serialized as a TYTX json string; an answer carries
