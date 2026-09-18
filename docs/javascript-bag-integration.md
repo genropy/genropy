@@ -17,7 +17,7 @@ development and compressed modes. No instance configuration is changed by this P
 
 ## Browser bundle
 
-The checked-in bundle contains genro-bag-js 0.7.0 and one genro-tytx registry.
+The checked-in bundle contains genro-bag-js 0.7.1 and one genro-tytx registry.
 Decimal decoding uses JavaScript Number for existing widgets. Rebuild from
 the matching library checkout using locked dependencies:
 

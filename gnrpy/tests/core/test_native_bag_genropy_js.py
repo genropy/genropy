@@ -20,7 +20,7 @@ def test_genropy_js_rows_preserve_references_and_legacy_localization(tmp_path):
 import json
 from gnr.core.gnrbag import Bag
 from genro_bag import Bag as NativeBag
-from genro_tytx import from_tytx, to_tytx
+from gnr.web.gnrbagtransport import encode_envelope
 
 class Handler:
     def rpc_ping(self):
@@ -69,8 +69,9 @@ assert bag["title"] == before_value
 assert bag.get_node("title").attr == before_attrs
 assert bag.get_node("title").attr["action"].__self__ is handler
 assert bag.get_node("title").attr["action"].__func__ is Handler.rpc_ping
-wire = to_tytx(result, transport="msgpack")
-assert from_tytx(wire, transport="msgpack") == json.loads(json.dumps(result))
+wire = encode_envelope(bag, translate)
+assert isinstance(wire, bytes)
+assert json.loads(wire.decode("utf-8")) == json.loads(json.dumps(result))
 print(json.dumps(result))
 '''
     env = os.environ.copy()
