@@ -65,7 +65,7 @@ dependencies = [
 	     ]
 
 [project.optional-dependencies]
-genro-bag = ["genro-bag>=0.25.0,<0.26"]
+genro-bag = ["genro-bag>=0.25.1,<0.26"]
 pgsql = [
   "psycopg2-binary",
   "psycopg"
