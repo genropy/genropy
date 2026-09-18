@@ -44,7 +44,7 @@ from gnr.web.gnrwsgisite_proxy.gnrstatichandler import StaticHandlerManager
 from gnr.web.gnrwsgisite_proxy.gnrpwahandler import PWAHandler
 from gnr.web.daemon.siteregister_client import SiteRegisterClient
 from gnr.web.daemon.siteregister import DEFAULT_PAGE_MAX_AGE
-from gnr.web.gnrwsgisite_proxy.gnrwebsockethandler import WsgiWebSocketHandler
+from gnr.web.gnrwsgisite_proxy.gnrwebsockethandler import WsgiWebSocketHandler, websocketHandlerClass
 from gnr.web.gnrwsgisite_proxy.datacollector import DataCollector
 
 try:
@@ -465,7 +465,13 @@ class GnrWsgiSite(object):
 
         self.default_page = self.config['wsgi?default_page'] or 'sys/default'
         self.root_static = self.config['wsgi?root_static']
+        self.websocket_handler_class = websocketHandlerClass()
         self.websockets= boolean(self.config['wsgi?websockets']) or websockets
+        if not self.websockets and self.websocket_handler_class is not WsgiWebSocketHandler:
+            # The selected provider terminates the socket in the server that
+            # serves the site: there is no daemon to reach and no config word to
+            # write, so the site has WebSockets because the provider says so.
+            self.websockets = True
         self.allConnectionsFolder = os.path.join(self.site_path, 'data', '_connections')
         self.allUsersFolder = os.path.join(self.site_path, 'data', '_users')
 
@@ -622,7 +628,7 @@ class GnrWsgiSite(object):
         if not self.websockets:
             return
         if not hasattr(self,'_wsk'):
-            wsk = WsgiWebSocketHandler(self)
+            wsk = self.websocket_handler_class(self)
             if self.websockets=='required' or wsk.checkSocket():
                 self._wsk = wsk
             else:
