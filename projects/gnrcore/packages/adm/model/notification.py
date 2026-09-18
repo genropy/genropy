@@ -11,6 +11,15 @@ class Table(object):
         tbl.column('title' ,name_long='!!Title')
         tbl.column('template','X',name_long='!!Template')
         tbl.column('confirm_label',name_long='!!Confirm label')
+        # The two button captions are optional overrides of the notification
+        # dialog defaults: an empty `confirm_button_label` falls back to the
+        # translated `Confirm`, an empty `cancel_button_label` hides the
+        # cancel button altogether -- which is how a notification is made
+        # mandatory, since cancelling means being logged out.
+        tbl.column('confirm_button_label',name_long='!!Confirm button label',
+                   name_short='!!Confirm')
+        tbl.column('cancel_button_label',name_long='!!Cancel button label',
+                   name_short='!!Cancel')
         tbl.column('tag_rule',name_long='!!Tag rule')
         tbl.column('group_code',name_long='!!Group code')
         tbl.column('all_users','B',name_long='!!For all users')
@@ -21,8 +30,8 @@ class Table(object):
         # (True) keep enrolling users at login. Static is an explicit opt-out.
         tbl.column('dynamic_list','B',default=True,
                    name_long='!!Dynamic list', name_short='!!Dynamic')
-        tbl.column('start_date','D',name_long='!!Start date')
-        tbl.column('end_date','D',name_long='!!End date')
+        tbl.column('start_date','D',name_long='!!Start date',name_short='!!Start')
+        tbl.column('end_date','D',name_long='!!End date',name_short='!!End')
         
         tbl.formulaColumn('existing_for_current_user',"""
                 (EXISTS(SELECT * FROM adm.adm_user_notification AS un WHERE un.user_id=:env_user_id AND un.notification_id=#THIS.id))
