@@ -1,0 +1,10 @@
+{
+  "env_diff": {},
+  "sqlparams": {
+    "jc_kwargs": {},
+    "period": "2024",
+    "period_from": "2024-01-01",
+    "period_to": "2024-12-31"
+  },
+  "sqltext": "SELECT  \"t0\".\"code\" AS \"code\",\n\"t0\".\"id\" AS \"pkey\"\n FROM \"invc\".\"invc_product\" AS t0\nWHERE ( (\"t0\".\"unit_price\" BETWEEN :period_from AND :period_to) ) AND (\"t0\".\"__del_ts\" IS NULL)"
+}

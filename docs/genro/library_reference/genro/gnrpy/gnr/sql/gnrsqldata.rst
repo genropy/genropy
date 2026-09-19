@@ -89,11 +89,11 @@
     .. module:: gnr.sql.gnrsqldata.SqlQueryCompiler
 
     ============================= ========================
-    :meth:`compiledQuery`         :meth:`getFieldAlias`   
-    :meth:`compiledRecordQuery`   :meth:`getJoinCondition`
-    :meth:`expandMultipleColumns` :meth:`init`            
-    :meth:`expandPeriod`          :meth:`recordFields`    
+    :meth:`compiledQuery`         :meth:`getJoinCondition`
+    :meth:`compiledRecordQuery`   :meth:`init`            
+    :meth:`expandMultipleColumns` :meth:`recordFields`    
     :meth:`getAlias`              :meth:`updateFieldDict` 
+    :meth:`getFieldAlias`                                 
     ============================= ========================
 
 .. _gnrsqldata_sqlrecord:
