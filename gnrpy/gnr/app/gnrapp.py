@@ -54,6 +54,7 @@ from gnr.app.pathresolver import PathResolver
 from gnr.app import logger
 from gnr.app.gnrlocalization import AppLocalizer
 from gnr.sql.gnrsql import GnrSqlDb
+from gnr.sql.gnrsqlmacros import APP_MACROS
 from gnr.core.gnrstructures import GnrStructData
 
 class GnrRestrictedAccessException(GnrException):
@@ -352,27 +353,25 @@ class GnrSqlAppDb(GnrSqlDb):
     def registerMacros(self):
         """Register SQL macros: base + adapter + app-level + package-level.
 
-        Registration order:
+        Registration order, which is also the expansion order inside every
+        context:
             1. Base macros (IN_RANGE, PERIOD) via super()
             2. Adapter macros (TSQUERY, TSRANK, etc.) via super()
-            3. App-level macros (PREF, THIS, BAG, BAGCOLS) — here
+            3. App-level macros (BAG, BAGCOLS) — here
             4. Package macros via pkgBroadcast
+
+        ``#ENV``, ``#PREF`` and ``#THIS`` are not registered: they are
+        expanded by closures of ``SqlQueryCompiler.getFieldAlias``, which
+        need the field alias being compiled.
 
         Passes ``self`` (the db) to pkgBroadcast so packages can call
         ``db.addMacro()`` even though ``application.db`` is not yet
         assigned at this point in the init sequence.
         """
         super().registerMacros()
-        from gnr.sql.gnrsqldata.compiler import (
-            PREFFINDER, THISFINDER,
-            BAGEXPFINDER, BAGCOLSEXPFINDER
-        )
-        self.addMacro('PREF', PREFFINDER, None)
-        self.addMacro('THIS', THISFINDER, None)
-        self.addMacro('BAG', BAGEXPFINDER, None)
-        self.addMacro('BAGCOLS', BAGCOLSEXPFINDER, None)
-        if self.application:
-            self.application.pkgBroadcast('registerMacros', self)
+        for name, regex, callback, contexts in APP_MACROS:
+            self.addMacro(name, regex, callback, contexts=contexts)
+        self.application.pkgBroadcast('registerMacros', self)
 
     def checkTransactionWritable(self, tblobj):
         """TODO

@@ -36,10 +36,25 @@ Contains two classes:
   - `compiledQuery()` for multi-row selections
   - `compiledRecordQuery()` for single-record loading
 
+Macro expansion: every macro but `#ENV`, `#PREF` and `#THIS` comes from
+`db._macro_registry`, filled by `db.addMacro(name, regex, callback,
+contexts=...)`.  The compiler builds one `MacroExpander` per compilation
+and calls `replace_context(sql_text, context)` at seven points, whose
+context names are `formula_pre` and `formula_post` (in `getFieldAlias`),
+`join_cnd` (in `getJoin`), `where`, `columns`, `columns_final` and
+`order_by` (in `compiledQuery`).  A macro is expanded at a point when its
+`contexts` lists that name, or when it is `None`.  `#ENV`, `#PREF` and
+`#THIS` stay outside the registry: they are expanded by closures of
+`getFieldAlias`, which need the field alias being compiled.
+
+A registry macro keeps its regex and its `callback(match, compiler)`
+outside this package: `#IN_RANGE`, `#PERIOD`, `#BAG` and `#BAGCOLS` in
+`gnr/sql/gnrsqlmacros.py`, the engine specific ones in the adapter module
+that registers them.
+
 Module-level regex constants:
-`COLFINDER`, `RELFINDER`, `COLRELFINDER`, `IN_RANGEFINDER`,
-`PERIODFINDER`, `BAGEXPFINDER`, `BAGCOLSEXPFINDER`, `ENVFINDER`,
-`PREFFINDER`, `THISFINDER`.
+`COLFINDER`, `RELFINDER`, `COLRELFINDER`, `ENVFINDER`, `PREFFINDER`,
+`THISFINDER`.
 
 ### `query.py` — Query building and execution
 

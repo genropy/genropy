@@ -41,12 +41,13 @@ directly by application code.
 Module-level constants:
     COLFINDER, RELFINDER, COLRELFINDER: Regular expressions for detecting
         ``$column`` and ``@relation.column`` references in SQL fragments.
-    IN_RANGEFINDER: Regular expression for the ``#IN_RANGE`` macro syntax.
-    PERIODFINDER: Regular expression for the ``#PERIOD`` macro syntax.
-    BAGEXPFINDER, BAGCOLSEXPFINDER: Regular expressions for the ``#BAG``
-        and ``#BAGCOLS`` macro syntax.
     ENVFINDER, PREFFINDER, THISFINDER: Regular expressions for the
         ``#ENV``, ``#PREF``, and ``#THIS`` macro syntax.
+
+The registry macros (``#IN_RANGE``, ``#PERIOD``, ``#BAG``, ``#BAGCOLS`` and
+the engine specific ones) keep their regex and their expansion function in
+``gnr/sql/gnrsqlmacros.py`` and in the adapter modules: this compiler only
+calls ``macro_expander.replace_context(sql_text, context)``.
 """
 
 import re
@@ -54,7 +55,6 @@ from collections import OrderedDict
 
 from gnr.core.gnrdict import dictExtract
 from gnr.core.gnrlang import uniquify
-from gnr.core.gnrdate import decodeDatePeriod
 from gnr.core import gnrstring
 from gnr.core.gnrbag import Bag
 from gnr.sql.gnrsql_exceptions import GnrSqlException, GnrSqlMissingField, GnrSqlInvalidVirtualColumn
@@ -62,12 +62,6 @@ from gnr.sql.gnrsql_exceptions import GnrSqlException, GnrSqlMissingField, GnrSq
 COLFINDER = re.compile(r"(\W|^)\$(\w+)")
 RELFINDER = re.compile(r"([^A-Za-z0-9_]|^)(\@(\w[\w.@:]+))")
 COLRELFINDER = re.compile(r"([@$]\w+(?:\.\w+)*)")
-
-IN_RANGEFINDER = re.compile(r"#IN_RANGE\s*\(\s*((?:\$|@|\:)?[\w\.\@]+)\s*,\s*((?:\$|@|\:)?[\w\.\@]+)\s*,\s*((?:\$|@|\:)?[\w\.\@]+)\s*\)\s*",re.MULTILINE)
-PERIODFINDER = re.compile(r"#PERIOD\s*\(\s*((?:\$|@)?[\w\.\@]+)\s*,\s*:?(\w+)\)")
-
-BAGEXPFINDER = re.compile(r"#BAG\s*\(\s*((?:\$|@)?[\w\.\@]+)\s*\)(\s*AS\s*(\w*))?")
-BAGCOLSEXPFINDER = re.compile(r"#BAGCOLS\s*\(\s*((?:\$|@)?[\w\.\@]+)\s*\)(\s*AS\s*(\w*))?")
 
 ENVFINDER = re.compile(r"#ENV\(([^,)]+)(,[^),]+)?\)")
 PREFFINDER = re.compile(r"#PREF\(([^,)]+)(,[^),]+)?\)")
@@ -201,7 +195,12 @@ class SqlQueryCompiler(object):
             (set during compilation).
         aliasPrefix (str): Prefix for table aliases (default ``'t'``).
         locale (str | None): Current locale for date/text formatting.
-        macro_expander: Adapter-specific macro expander instance.
+        macro_expander: MacroExpander holding a copy of ``db._macro_registry``.
+            Called as ``replace_context(sql_text, context)`` at each
+            expansion point: ``formula_pre`` and ``formula_post`` in
+            ``getFieldAlias``, ``join_cnd`` in ``getJoin``, ``where``,
+            ``columns``, ``columns_final`` and ``order_by`` in
+            ``compiledQuery``.
     """
 
     def __init__(self, tblobj, joinConditions=None, sqlContextName=None, sqlparams=None, locale=None, aliasPrefix=None):
@@ -418,9 +417,9 @@ class SqlQueryCompiler(object):
                         sql_text = self.db.queryCompile(table=sq_table,where=sq_where,aliasPrefix=aliasPrefix,addPkeyColumn=False,ignoreTableOrderBy=True,**sq_pars)
                         sql_formula = re.sub('#%s\\b' %susbselect, tpl %sql_text,sql_formula)
                 subreldict = {}
-                sql_formula = self.macro_expander.replace(sql_formula,'TSRANK,TSHEADLINE,VECRANK')
+                sql_formula = self.macro_expander.replace_context(sql_formula,'formula_pre')
                 sql_formula = self.updateFieldDict(sql_formula, reldict=subreldict)
-                sql_formula = IN_RANGEFINDER.sub(self.expandInRange, sql_formula)
+                sql_formula = self.macro_expander.replace_context(sql_formula,'formula_post')
                 sql_formula = ENVFINDER.sub(expandEnv, sql_formula)
                 sql_formula = PREFFINDER.sub(expandPref, sql_formula)
                 sql_formula = THISFINDER.sub(expandThis,sql_formula)
@@ -609,7 +608,7 @@ class SqlQueryCompiler(object):
         if joiner.get('cnd'):
             # Branch: explicit condition expression
             cnd = joiner.get('cnd')
-            cnd = IN_RANGEFINDER.sub(self.expandInRange, cnd)
+            cnd = self.macro_expander.replace_context(cnd,'join_cnd')
             #cnd = self.updateFieldDict(joiner['cnd'], reldict=joindict)
         elif joiner.get('between'):
             # Branch: legacy ``between`` syntax
@@ -957,9 +956,7 @@ class SqlQueryCompiler(object):
             subtable = context_subtables
         subtable = subtable or self.tblobj.attributes.get('default_subtable')
         if where:
-            where = IN_RANGEFINDER.sub(self.expandInRange, where)
-            where = PERIODFINDER.sub(self.expandPeriod, where)
-            where = self.macro_expander.replace(where,'TSQUERY,VECQUERY')
+            where = self.macro_expander.replace_context(where,'where')
 
         env_conditions = dictExtract(currentEnv,'env_%s_condition_' %self.tblobj.fullname.replace('.','_'))
         wherelist = [where]
@@ -994,8 +991,7 @@ class SqlQueryCompiler(object):
         order_by = self.updateFieldDict(order_by or '')
         group_by = self.updateFieldDict(group_by or '')
         having = self.updateFieldDict(having or '')
-        columns = BAGEXPFINDER.sub(self.expandBag,columns)
-        columns = BAGCOLSEXPFINDER.sub(self.expandBagcols,columns)
+        columns = self.macro_expander.replace_context(columns,'columns')
 
         col_list = uniquify([col for col in gnrstring.split(columns, ',') if col])
         col_dict = OrderedDict()
@@ -1091,11 +1087,11 @@ class SqlQueryCompiler(object):
 
         # --- Store all compiled fragments into the SqlCompiledQuery ---
         self.cpl.distinct = distinct
-        self.cpl.columns = self.macro_expander.replace(columns,'TSRANK,TSHEADLINE,VECRANK')
+        self.cpl.columns = self.macro_expander.replace_context(columns,'columns_final')
         self.cpl.where = where
         self.cpl.group_by = group_by
         self.cpl.having = having
-        self.cpl.order_by = self.macro_expander.replace(order_by,'TSRANK,VECRANK')
+        self.cpl.order_by = self.macro_expander.replace_context(order_by,'order_by')
         self.cpl.limit = limit
         self.cpl.offset = offset
         self.cpl.for_update = for_update
@@ -1271,131 +1267,6 @@ class SqlQueryCompiler(object):
             self.cpl.resultmap.setItem(path_name, None, xattrs)
             #self.cpl.dicttemplate[path_name] = as_name
 
-    def expandBag(self, m):
-        """Regex callback: expand a ``#BAG($field) AS alias`` macro.
-
-        Registers the column for post-query Bag evaluation (the raw value
-        will be parsed into a ``Bag`` object after fetching).
-
-        Args:
-            m: Regex match object with groups (1) field, (3) optional alias.
-
-        Returns:
-            str: The column expression, optionally with ``AS alias``.
-        """
-        fld = m.group(1)
-        asfld = m.group(3)
-        self.cpl.evaluateBagColumns.append(((asfld or fld).replace('$',''),False))
-        return fld if not asfld else '{} AS {}'.format(fld, asfld)
-
-    def expandBagcols(self, m):
-        """Regex callback: expand a ``#BAGCOLS($field) AS alias`` macro.
-
-        Like ``expandBag`` but the second element of the registered tuple
-        is ``True``, signalling that the Bag should be expanded into
-        individual columns.
-
-        Args:
-            m: Regex match object with groups (1) field, (3) optional alias.
-
-        Returns:
-            str: The column expression, optionally with ``AS alias``.
-        """
-        fld = m.group(1)
-        asfld = m.group(3)
-        self.cpl.evaluateBagColumns.append(((asfld or fld).replace('$',''),True))
-        return fld if not asfld else '{} AS {}'.format(fld, asfld)
-
-    def expandInRange(self, m):
-        """Regex callback: expand ``#IN_RANGE(value, low, high)`` into SQL.
-
-        Generates a four-branch OR expression that handles NULLs on either
-        bound:
-
-        - Only high bound present: ``value <= high``.
-        - Only low bound present: ``value >= low``.
-        - Both bounds present: ``low <= value <= high``.
-        - Both NULL: always true.
-
-        Args:
-            m: Regex match object with groups (1) value_field,
-                (2) low_field, (3) high_field.
-
-        Returns:
-            str: SQL fragment implementing the inclusive range check.
-        """
-        # Example: #IN_RANGE($dataLavoro,$dataInizioValidita,$dataFineValidita)
-        value_field = m.group(1)
-        low_field = m.group(2)
-        high_field = m.group(3)
-
-        result = f"""
-                (({low_field} IS NULL AND {high_field} IS NOT NULL AND {value_field}<={high_field}) OR
-                ({low_field} IS NOT NULL AND {high_field} IS NULL AND {value_field}>={low_field}) OR
-                ({low_field} IS NOT NULL AND {high_field} IS NOT NULL AND
-                    {value_field} >= {low_field} AND {value_field} <= {high_field}) OR
-                ({low_field} IS NULL AND {high_field} IS NULL))
-            """
-        return result
-
-    def expandPeriod(self, m):
-        """Regex callback: expand ``#PERIOD($field, param)`` into a date range.
-
-        Decodes the period string stored in ``self.sqlparams[param]``
-        (e.g. ``'2024Q1'``, ``'202401'``) into concrete ``date_from`` /
-        ``date_to`` values via ``decodeDatePeriod``, then generates the
-        appropriate SQL predicate:
-
-        - Both dates present and equal: ``field = :param_from``.
-        - Both dates present: ``field BETWEEN :param_from AND :param_to``.
-        - Only from: ``field >= :param_from``.
-        - Only to: ``field <= :param_to``.
-        - Neither: ``true`` (no filtering).
-
-        Side effect: adds ``param_from`` and/or ``param_to`` keys to
-        ``self.sqlparams``.
-
-        Args:
-            m: Regex match object with groups (1) field, (2) param name.
-
-        Returns:
-            str: SQL fragment for the period filter.
-        """
-        fld = m.group(1)
-        period_param = m.group(2)
-        date_from, date_to = decodeDatePeriod(self.sqlparams[period_param],
-                                              workdate=self.db.workdate,
-                                              returnDate=True, locale=self.db.locale)
-        from_param = '%s_from' % period_param
-        to_param = '%s_to' % period_param
-
-        # Branch: no date boundaries -- no filtering
-        if date_from is None and date_to is None:
-            return ' true'
-        # Branch: both boundaries present
-        elif date_from and date_to:
-            if date_from == date_to:
-                # Single-day period
-                self.sqlparams[from_param] = date_from
-                return ' %s = :%s ' % (fld, from_param)
-
-            self.sqlparams[from_param] = date_from
-            self.sqlparams[to_param] = date_to
-            # REVIEW: TODO -- deprecare l'uso di BETWEEN nativo SQL a favore
-            # di >= / < per coerenza con il comportamento delle date (il
-            # BETWEEN SQL e' inclusivo su entrambi gli estremi).
-            result = ' (%s BETWEEN :%s AND :%s) ' % (fld, from_param, to_param)
-            return result
-
-        # Branch: only lower bound
-        elif date_from:
-            self.sqlparams[from_param] = date_from
-            return ' %s >= :%s ' % (fld, from_param)
-        # Branch: only upper bound
-        else:
-            self.sqlparams[to_param] = date_to
-            return ' %s <= :%s ' % (fld, to_param)
-
     def _recordWhere(self, where=None):
         """Compile a WHERE clause for a single-record query.
 
@@ -1487,12 +1358,12 @@ class SqlQueryCompiler(object):
 #    - ``#print 'not existing col:%s' % col_name`` is Python 2 syntax.
 #    - If a warning is needed, use logging.warning.
 #
-# 8. expandInRange -- interval inclusivity inconsistency
-#    - expandInRange uses ``<=`` (inclusive) on the upper bound.
+# 8. gnrsqlmacros.expand_in_range -- interval inclusivity inconsistency
+#    - expand_in_range uses ``<=`` (inclusive) on the upper bound.
 #    - The legacy between in _getRelationAlias uses ``<`` (exclusive).
 #    - Inconsistent behaviour: unify.
 #
-# 9. expandPeriod -- SQL BETWEEN
+# 9. gnrsqlmacros.expand_period -- SQL BETWEEN
 #    - Uses native ``BETWEEN`` (inclusive on both ends).
 #    - For dates, ``>= / <`` might be more correct.
 #    - Consider deprecating in favour of explicit range.

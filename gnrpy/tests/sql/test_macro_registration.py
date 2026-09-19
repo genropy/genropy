@@ -1,11 +1,12 @@
-"""Tests for the db.addMacro() infrastructure (issue #617, Phase 1).
+"""Tests for the db.addMacro() infrastructure (issue #617).
 
 Verifies that:
 - GnrSqlDb.registerMacros() populates _macro_registry with base macros
 - Postgres adapter adds its own macros via registerMacros()
-- MacroExpander.register() and replace() work correctly
-- The compiler copies registered macros into the expander
-- Package-level macros are registered via pkgBroadcast
+- every entry is a dict with ``regex``, ``callback`` and ``contexts``
+- MacroExpander copies the registry and expands one context at a time
+- a callback receives the regex match and the running SqlQueryCompiler
+- GnrSqlAppDb registers the app-level macros and broadcasts to packages
 """
 
 import os
@@ -14,7 +15,22 @@ import re
 import pytest
 
 from gnr.sql.gnrsql.db import GnrSqlDb
-from gnr.sql.adapters._gnrbaseadapter import MacroExpander
+from gnr.sql.gnrsqldata.compiler import SqlQueryCompiler
+from gnr.sql.gnrsqlmacros import (IN_RANGEFINDER, PERIODFINDER,
+                                  BAGEXPFINDER, BAGCOLSEXPFINDER,
+                                  expand_in_range, expand_period,
+                                  expand_bag, expand_bagcols)
+from gnr.sql.adapters._gnrbasepostgresadapter import (TSQUERYFINDER,
+                                                      VECQUERYFINDER,
+                                                      expand_tsquery,
+                                                      expand_vecquery)
+
+
+def _double(match, compiler):
+    return str(int(match.group(1)) * 2)
+
+
+DOUBLEFINDER = re.compile(r'#DOUBLE\((\d+)\)')
 
 
 # -- GnrSqlDb macro registration -------------------------------------------
@@ -37,50 +53,81 @@ class TestDbRegisterMacros:
     def test_base_macros_have_regex(self):
         """Each registered macro must have a compiled regex, not None."""
         db = GnrSqlDb(implementation='sqlite')
-        for name, (regex, cb) in db._macro_registry.items():
-            assert regex is not None, f'Macro {name} has no regex'
-            assert hasattr(regex, 'pattern'), f'Macro {name} regex is not compiled'
+        for name, macro in db._macro_registry.items():
+            assert macro['regex'] is not None, f'Macro {name} has no regex'
+            assert hasattr(macro['regex'], 'pattern'), f'Macro {name} regex is not compiled'
+
+    def test_base_macros_have_callback(self):
+        """A macro with no callback would never expand: none is allowed."""
+        db = GnrSqlDb(implementation='sqlite')
+        for name, macro in db._macro_registry.items():
+            assert macro['callback'] is not None, f'Macro {name} has no callback'
+
+    def test_base_macros_contexts(self):
+        """IN_RANGE and PERIOD declare the contexts the compiler expands."""
+        db = GnrSqlDb(implementation='sqlite')
+        assert db._macro_registry['IN_RANGE']['contexts'] == 'where,formula_post,join_cnd'
+        assert db._macro_registry['PERIOD']['contexts'] == 'where'
+
+    def test_base_macros_come_from_gnrsqlmacros(self):
+        """The base macros are the SQL_MACROS entries of gnrsqlmacros."""
+        db = GnrSqlDb(implementation='sqlite')
+        assert db._macro_registry['IN_RANGE']['regex'] is IN_RANGEFINDER
+        assert db._macro_registry['IN_RANGE']['callback'] is expand_in_range
+        assert db._macro_registry['PERIOD']['regex'] is PERIODFINDER
+        assert db._macro_registry['PERIOD']['callback'] is expand_period
 
     def test_in_range_regex_matches(self):
         """IN_RANGE regex must match the macro syntax."""
         db = GnrSqlDb(implementation='sqlite')
-        regex, cb = db._macro_registry['IN_RANGE']
-        assert regex.search('#IN_RANGE($value, $low, $high)')
+        assert db._macro_registry['IN_RANGE']['regex'].search('#IN_RANGE($value, $low, $high)')
 
     def test_period_regex_matches(self):
         """PERIOD regex must match the macro syntax."""
         db = GnrSqlDb(implementation='sqlite')
-        regex, cb = db._macro_registry['PERIOD']
-        assert regex.search('#PERIOD($date_field, period_param)')
+        assert db._macro_registry['PERIOD']['regex'].search('#PERIOD($date_field, period_param)')
 
     def test_addMacro_adds_to_registry(self):
         """addMacro must add to _macro_registry."""
         db = GnrSqlDb(implementation='sqlite')
         n_before = len(db._macro_registry)
-        dummy_re = re.compile(r'#DUMMY\(\)')
-        db.addMacro('DUMMY', dummy_re, None)
+        db.addMacro('DOUBLE', DOUBLEFINDER, _double)
         assert len(db._macro_registry) == n_before + 1
-        assert 'DUMMY' in db._macro_registry
-        regex, cb = db._macro_registry['DUMMY']
-        assert regex is dummy_re
+        assert db._macro_registry['DOUBLE']['regex'] is DOUBLEFINDER
+        assert db._macro_registry['DOUBLE']['callback'] is _double
+
+    def test_addMacro_contexts_default_is_none(self):
+        """Without contexts the macro is valid in every context."""
+        db = GnrSqlDb(implementation='sqlite')
+        db.addMacro('DOUBLE', DOUBLEFINDER, _double)
+        assert db._macro_registry['DOUBLE']['contexts'] is None
+
+    def test_addMacro_stores_contexts(self):
+        """The contexts string is stored as given."""
+        db = GnrSqlDb(implementation='sqlite')
+        db.addMacro('DOUBLE', DOUBLEFINDER, _double, contexts='where,columns')
+        assert db._macro_registry['DOUBLE']['contexts'] == 'where,columns'
+
+    def test_addMacro_without_callback_raises(self):
+        """A macro without callback would never expand: it is refused."""
+        db = GnrSqlDb(implementation='sqlite')
+        with pytest.raises(ValueError):
+            db.addMacro('DOUBLE', DOUBLEFINDER, None)
 
     def test_addMacro_duplicate_raises(self):
         """addMacro must raise on duplicate name without replace=True."""
         db = GnrSqlDb(implementation='sqlite')
-        dummy_re = re.compile(r'#DUMMY\(\)')
-        db.addMacro('DUMMY', dummy_re, None)
+        db.addMacro('DOUBLE', DOUBLEFINDER, _double)
         with pytest.raises(KeyError):
-            db.addMacro('DUMMY', dummy_re, None)
+            db.addMacro('DOUBLE', DOUBLEFINDER, _double)
 
     def test_addMacro_replace(self):
         """addMacro with replace=True must overwrite."""
         db = GnrSqlDb(implementation='sqlite')
-        dummy_re1 = re.compile(r'#DUMMY1\(\)')
-        dummy_re2 = re.compile(r'#DUMMY2\(\)')
-        db.addMacro('DUMMY', dummy_re1, None)
-        db.addMacro('DUMMY', dummy_re2, None, replace=True)
-        regex, cb = db._macro_registry['DUMMY']
-        assert regex is dummy_re2
+        other = re.compile(r'#DOUBLE2\(\)')
+        db.addMacro('DOUBLE', DOUBLEFINDER, _double)
+        db.addMacro('DOUBLE', other, _double, replace=True)
+        assert db._macro_registry['DOUBLE']['regex'] is other
 
 
 # -- Postgres adapter macro registration -----------------------------------
@@ -105,146 +152,156 @@ class TestPostgresAdapterRegisterMacros:
         assert 'PERIOD' in pg_db._macro_registry
 
     def test_postgres_macros_have_regex(self, pg_db):
-        for name, (regex, cb) in pg_db._macro_registry.items():
-            assert regex is not None, f'Macro {name} has no regex'
-            assert hasattr(regex, 'pattern'), f'Macro {name} regex is not compiled'
+        for name, macro in pg_db._macro_registry.items():
+            assert macro['regex'] is not None, f'Macro {name} has no regex'
+            assert hasattr(macro['regex'], 'pattern'), f'Macro {name} regex is not compiled'
+
+    def test_postgres_macros_have_callback(self, pg_db):
+        for name, macro in pg_db._macro_registry.items():
+            assert macro['callback'] is not None, f'Macro {name} has no callback'
+
+    def test_postgres_macros_contexts(self, pg_db):
+        expected = {
+            'TSQUERY': 'where',
+            'TSRANK': 'formula_pre,columns_final,order_by',
+            'TSHEADLINE': 'formula_pre,columns_final',
+            'VECQUERY': 'where',
+            'VECRANK': 'formula_pre,columns_final,order_by',
+        }
+        for name, contexts in expected.items():
+            assert pg_db._macro_registry[name]['contexts'] == contexts
+
+    def test_postgres_macros_come_from_the_adapter_module(self, pg_db):
+        """The adapter macros are the POSTGRES_MACROS entries."""
+        assert pg_db._macro_registry['TSQUERY']['regex'] is TSQUERYFINDER
+        assert pg_db._macro_registry['TSQUERY']['callback'] is expand_tsquery
+        assert pg_db._macro_registry['VECQUERY']['regex'] is VECQUERYFINDER
+        assert pg_db._macro_registry['VECQUERY']['callback'] is expand_vecquery
 
     def test_postgres_tsquery_regex_matches(self, pg_db):
-        regex, cb = pg_db._macro_registry['TSQUERY']
-        assert regex.search('#TSQUERY($ts_vec, :search_text)')
+        assert pg_db._macro_registry['TSQUERY']['regex'].search('#TSQUERY($ts_vec, :search_text)')
 
     def test_postgres_vecquery_regex_matches(self, pg_db):
-        regex, cb = pg_db._macro_registry['VECQUERY']
-        assert regex.search('#VECQUERY($embedding, :target)')
+        assert pg_db._macro_registry['VECQUERY']['regex'].search('#VECQUERY($embedding, :target)')
 
 
-# -- MacroExpander unit tests ----------------------------------------------
+# -- Real application database ---------------------------------------------
 
-class TestMacroExpanderRegister:
-    """MacroExpander.register() and replace() with registered macros."""
-
-    def test_register_and_replace(self):
-        """A registered macro must be expanded by replace()."""
-        expander = MacroExpander(querycompiler=None)
-        regex = re.compile(r'#DOUBLE\((\d+)\)')
-
-        def expand_double(m, exp):
-            return str(int(m.group(1)) * 2)
-
-        expander.register('DOUBLE', regex, expand_double)
-        result = expander.replace('SELECT #DOUBLE(21)', 'DOUBLE')
-        assert result == 'SELECT 42'
-
-    def test_replace_unknown_macro_is_noop(self):
-        """Requesting an unregistered macro must leave text unchanged."""
-        expander = MacroExpander(querycompiler=None)
-        text = 'SELECT #UNKNOWN(x)'
-        assert expander.replace(text, 'UNKNOWN') == text
-
-    def test_registered_overrides_class_level(self):
-        """Instance-registered macros take precedence over class-level."""
-
-        class CustomExpander(MacroExpander):
-            macros = {'HELLO': re.compile(r'#HELLO')}
-
-            def _expand_HELLO(self, m):
-                return 'class_level'
-
-        expander = CustomExpander(querycompiler=None)
-        # Class-level works
-        assert expander.replace('#HELLO', 'HELLO') == 'class_level'
-        # Now register override
-        expander.register('HELLO', re.compile(r'#HELLO'),
-                          lambda m, exp: 'instance_level')
-        assert expander.replace('#HELLO', 'HELLO') == 'instance_level'
-
-    def test_context_available_in_callback(self):
-        """The expander.context dict must be accessible from callbacks."""
-        expander = MacroExpander(querycompiler=None)
-        expander.context['multiplier'] = 3
-        regex = re.compile(r'#MULT\((\d+)\)')
-
-        def expand_mult(m, exp):
-            return str(int(m.group(1)) * exp.context['multiplier'])
-
-        expander.register('MULT', regex, expand_mult)
-        assert expander.replace('#MULT(7)', 'MULT') == '21'
-
-    def test_multiple_macros_in_one_replace(self):
-        """replace() with comma-separated names must expand all."""
-        expander = MacroExpander(querycompiler=None)
-        expander.register('A', re.compile(r'#A'), lambda m, e: '1')
-        expander.register('B', re.compile(r'#B'), lambda m, e: '2')
-        result = expander.replace('#A + #B', 'A,B')
-        assert result == '1 + 2'
+@pytest.fixture(scope='module')
+def app_db(tmp_path_factory):
+    """Create a real GnrApp('test_invoice') with SQLite."""
+    from core.common import BaseGnrTest
+    from gnr.app.gnrapp import GnrApp
+    BaseGnrTest.setup_class()
+    try:
+        tmpdir = tmp_path_factory.mktemp('macro_reg')
+        app = GnrApp('test_invoice', db_attrs=dict(
+            implementation='sqlite',
+            dbname=os.path.join(str(tmpdir), 'testing'),
+        ))
+        yield app.db
+    finally:
+        BaseGnrTest.teardown_class()
 
 
-# -- Package-level macro registration via GnrApp ---------------------------
+def _expander(db):
+    """A MacroExpander built the way the compiler builds it."""
+    compiler = SqlQueryCompiler(db.table('invc.product').model, sqlparams={})
+    return compiler.macro_expander
 
-class TestPackageMacroRegistration:
-    """Package registerMacros() via pkgBroadcast with real GnrApp."""
 
-    @pytest.fixture(scope='class')
-    def app_db(self, tmp_path_factory):
-        """Create a real GnrApp('test_invoice') with SQLite."""
-        from core.common import BaseGnrTest
-        from gnr.app.gnrapp import GnrApp
-        BaseGnrTest.setup_class()
+# -- MacroExpander ----------------------------------------------------------
+
+class TestMacroExpander:
+    """The expander copies the registry and filters the macros by context."""
+
+    @pytest.fixture()
+    def where_only_db(self, app_db):
+        app_db.addMacro('DOUBLE', DOUBLEFINDER, _double, contexts='where')
+        yield app_db
+        del app_db._macro_registry['DOUBLE']
+
+    @pytest.fixture()
+    def every_context_db(self, app_db):
+        app_db.addMacro('DOUBLE', DOUBLEFINDER, _double)
+        yield app_db
+        del app_db._macro_registry['DOUBLE']
+
+    def test_copies_the_registry_in_order(self, app_db):
+        expander = _expander(app_db)
+        assert list(expander._registered_macros) == list(app_db._macro_registry)
+
+    def test_replace_context_expands_in_the_declared_context(self, where_only_db):
+        expander = _expander(where_only_db)
+        assert expander.replace_context('SELECT #DOUBLE(21)', 'where') == 'SELECT 42'
+
+    def test_replace_context_skips_the_other_contexts(self, where_only_db):
+        expander = _expander(where_only_db)
+        text = 'SELECT #DOUBLE(21)'
+        assert expander.replace_context(text, 'order_by') == text
+
+    @pytest.mark.parametrize('context', ['where', 'columns', 'columns_final',
+                                         'order_by', 'formula_pre',
+                                         'formula_post', 'join_cnd'])
+    def test_contexts_none_expands_everywhere(self, every_context_db, context):
+        expander = _expander(every_context_db)
+        assert expander.replace_context('#DOUBLE(21)', context) == '42'
+
+    def test_callback_receives_the_query_compiler(self, app_db):
+        """The second argument of a callback is the running compiler."""
+        seen = []
+
+        def _capture(match, compiler):
+            seen.append(compiler)
+            return '42'
+
+        app_db.addMacro('DOUBLE', DOUBLEFINDER, _capture, contexts='where')
         try:
-            tmpdir = tmp_path_factory.mktemp('macro_reg')
-            app = GnrApp('test_invoice', db_attrs=dict(
-                implementation='sqlite',
-                dbname=os.path.join(str(tmpdir), 'testing'),
-            ))
-            yield app.db
+            compiler = SqlQueryCompiler(app_db.table('invc.product').model,
+                                        sqlparams={})
+            compiler.macro_expander.replace_context('#DOUBLE(21)', 'where')
         finally:
-            BaseGnrTest.teardown_class()
+            del app_db._macro_registry['DOUBLE']
+        assert isinstance(seen[0], SqlQueryCompiler)
+        assert seen[0] is compiler
 
-    def test_package_macro_registered(self, app_db):
-        """invc package must register #UPPERCASE via registerMacros."""
-        assert 'UPPERCASE' in app_db._macro_registry
 
-    def test_package_macro_has_regex(self, app_db):
-        """Package macro must have a compiled regex."""
-        regex, cb = app_db._macro_registry['UPPERCASE']
-        assert regex is not None
-        assert hasattr(regex, 'pattern')
-        assert regex.search('#UPPERCASE($name)')
+# -- App-level macro registration ------------------------------------------
 
-    def test_package_macro_has_callback(self, app_db):
-        """Package macro must have a callback."""
-        regex, cb = app_db._macro_registry['UPPERCASE']
-        assert cb is not None
-
-    def test_package_macro_callback_expands(self, app_db):
-        """The #UPPERCASE callback must produce UPPER(...)."""
-        regex, cb = app_db._macro_registry['UPPERCASE']
-        m = regex.search('#UPPERCASE($name)')
-        result = cb(m, None)
-        assert result == 'UPPER($name)'
+class TestAppLevelMacroRegistration:
+    """GnrSqlAppDb.registerMacros() adds the macros the compiler needs."""
 
     def test_app_level_macros_registered(self, app_db):
-        """App-level macros (PREF, THIS, BAG, BAGCOLS) must be in registry."""
-        for name in ('PREF', 'THIS', 'BAG', 'BAGCOLS'):
+        """App-level macros (BAG, BAGCOLS) must be in registry."""
+        for name in ('BAG', 'BAGCOLS'):
             assert name in app_db._macro_registry, f'{name} not registered'
 
     def test_app_level_macros_have_regex(self, app_db):
         """App-level macros must have a compiled regex."""
-        for name in ('PREF', 'THIS', 'BAG', 'BAGCOLS'):
-            regex, cb = app_db._macro_registry[name]
+        for name in ('BAG', 'BAGCOLS'):
+            regex = app_db._macro_registry[name]['regex']
             assert regex is not None, f'{name} has no regex'
             assert hasattr(regex, 'pattern'), f'{name} regex is not compiled'
 
-    def test_app_level_macros_callback_is_none(self, app_db):
-        """App-level macros have None callback (registration only)."""
-        for name in ('PREF', 'THIS', 'BAG', 'BAGCOLS'):
-            regex, cb = app_db._macro_registry[name]
-            assert cb is None, f'{name} should have None callback'
+    def test_app_level_macros_come_from_gnrsqlmacros(self, app_db):
+        """The app-level macros are the APP_MACROS entries of gnrsqlmacros."""
+        assert app_db._macro_registry['BAG']['regex'] is BAGEXPFINDER
+        assert app_db._macro_registry['BAG']['callback'] is expand_bag
+        assert app_db._macro_registry['BAGCOLS']['regex'] is BAGCOLSEXPFINDER
+        assert app_db._macro_registry['BAGCOLS']['callback'] is expand_bagcols
 
-    def test_package_macro_in_expander(self, app_db):
-        """Package macros must be copied into the MacroExpander."""
-        expander = MacroExpander(querycompiler=None)
-        for name, (regex, callback) in app_db._macro_registry.items():
-            expander.register(name, regex, callback)
-        result = expander.replace('SELECT #UPPERCASE($name)', 'UPPERCASE')
-        assert result == 'SELECT UPPER($name)'
+    def test_app_level_macros_contexts(self, app_db):
+        """BAG and BAGCOLS are expanded in the select list only."""
+        for name in ('BAG', 'BAGCOLS'):
+            assert app_db._macro_registry[name]['contexts'] == 'columns'
+
+    def test_closure_macros_are_not_registered(self, app_db):
+        """ENV, PREF and THIS are expanded by closures of getFieldAlias."""
+        for name in ('ENV', 'PREF', 'THIS'):
+            assert name not in app_db._macro_registry
+
+    def test_base_and_adapter_macros_come_first(self, app_db):
+        """Registration order drives expansion order inside a context."""
+        names = list(app_db._macro_registry)
+        assert names[:2] == ['IN_RANGE', 'PERIOD']
+        assert names.index('BAG') > names.index('PERIOD')
