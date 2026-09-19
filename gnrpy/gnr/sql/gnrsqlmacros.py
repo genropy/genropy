@@ -41,7 +41,8 @@ contexts=...)`` registers them together:
 The seven context names are ``formula_pre`` and ``formula_post`` (a
 ``sql_formula``, before and after the ``$column`` translation),
 ``join_cnd`` (the ``cnd`` of a join), ``where``, ``columns``,
-``columns_final`` (the select list, last step) and ``order_by``.
+``columns_final`` (the select list, last step) and ``order_by``; the
+tuple ``MACRO_CONTEXTS`` lists them.
 
 ``SQL_MACROS`` is registered by ``GnrSqlDb.registerMacros``, ``APP_MACROS``
 by ``GnrSqlAppDb.registerMacros``: the tuples are in registration order,
@@ -53,6 +54,11 @@ live in the adapter module that registers them (e.g. ``POSTGRES_MACROS`` in
 import re
 
 from gnr.core.gnrdate import decodeDatePeriod
+
+# The compilation points where SqlQueryCompiler calls
+# macro_expander.replace_context(); db.addMacro() accepts no other name.
+MACRO_CONTEXTS = ('formula_pre', 'formula_post', 'join_cnd', 'where',
+                  'columns', 'columns_final', 'order_by')
 
 IN_RANGEFINDER = re.compile(r"#IN_RANGE\s*\(\s*((?:\$|@|\:)?[\w\.\@]+)\s*,\s*((?:\$|@|\:)?[\w\.\@]+)\s*,\s*((?:\$|@|\:)?[\w\.\@]+)\s*\)\s*",re.MULTILINE)
 PERIODFINDER = re.compile(r"#PERIOD\s*\(\s*((?:\$|@)?[\w\.\@]+)\s*,\s*:?(\w+)\)")

@@ -243,7 +243,7 @@ class TestPeriod:
             params = dict(query.sqlparams)
         assert literal('PERIOD') not in sqltext
         assert 'BETWEEN :period_from AND :period_to' in sqltext
-        # expandPeriod adds these two keys to sqlparams.
+        # gnrsqlmacros.expand_period adds these two keys to sqlparams.
         assert params['period_from'].isoformat() == '2024-01-01'
         assert params['period_to'].isoformat() == '2024-12-31'
 

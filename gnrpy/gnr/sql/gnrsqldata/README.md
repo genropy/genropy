@@ -154,8 +154,8 @@ Detailed notes are also appended at the end of each module.
 | 5 | `compiledQuery` — comment "It is the right behaviour ????" on distinct/count + exploding | Design |
 | 6 | `_handle_virtual_columns` — `else` branch with only `pass`, variables unassigned | Potential bug |
 | 7 | `_handle_virtual_columns` — commented-out Python 2 debug print | Dead code |
-| 8 | `expandInRange` vs legacy between — inconsistency `<=` vs `<` | Inconsistency |
-| 9 | `expandPeriod` — native SQL BETWEEN, consider deprecating in favor of range | Deprecation |
+| 8 | `gnrsqlmacros.expand_in_range` vs legacy between — inconsistency `<=` vs `<` | Inconsistency |
+| 9 | `gnrsqlmacros.expand_period` — native SQL BETWEEN, consider deprecating in favor of range | Deprecation |
 | 10 | `compiledRecordQuery` — duplicated `virtual_columns = ... or []` line | Copy-paste |
 | 11 | `_getRelationAlias` — `target_sqlcolumn` potentially `None` | Potential bug |
 

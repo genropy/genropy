@@ -60,7 +60,7 @@ from gnr.sql.gnrsql.query import QueryMixin
 from gnr.sql.gnrsql.schema import SchemaMixin
 from gnr.sql.gnrsql.transactions import TransactionMixin
 from gnr.sql.gnrsql.write import WriteMixin
-from gnr.sql.gnrsqlmacros import SQL_MACROS
+from gnr.sql.gnrsqlmacros import SQL_MACROS, MACRO_CONTEXTS
 
 
 class GnrSqlDb(
@@ -239,13 +239,20 @@ class GnrSqlDb(
             contexts: Comma separated list of the compilation points where
                 the macro is expanded (``'where'``, ``'columns'``,
                 ``'columns_final'``, ``'order_by'``, ``'formula_pre'``,
-                ``'formula_post'``, ``'join_cnd'``).  ``None`` means every
-                context.
+                ``'formula_post'``, ``'join_cnd'``, the names in
+                ``gnrsqlmacros.MACRO_CONTEXTS``).  ``None`` means every
+                context.  Any other name raises ``ValueError``: a
+                misspelt context would leave the macro silently inert.
             replace: If ``True``, overwrite an existing macro with the
                 same *name*.  If ``False`` (default), raise on duplicate.
         """
         if callback is None:
             raise ValueError(f"SQL macro '{name}' needs a callback")
+        if contexts is not None:
+            unknown = [c for c in contexts.split(',') if c not in MACRO_CONTEXTS]
+            if unknown:
+                raise ValueError(f"SQL macro '{name}': unknown contexts {unknown}, "
+                                 f"expected names from {MACRO_CONTEXTS}")
         if name in self._macro_registry and not replace:
             raise KeyError(f"SQL macro '{name}' is already registered")
         self._macro_registry[name] = dict(regex=regex, callback=callback,

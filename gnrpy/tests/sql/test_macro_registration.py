@@ -108,6 +108,15 @@ class TestDbRegisterMacros:
         db.addMacro('DOUBLE', DOUBLEFINDER, _double, contexts='where,columns')
         assert db._macro_registry['DOUBLE']['contexts'] == 'where,columns'
 
+    def test_addMacro_unknown_context_raises(self):
+        """A misspelt context name is refused, a space after the comma too."""
+        db = GnrSqlDb(implementation='sqlite')
+        with pytest.raises(ValueError):
+            db.addMacro('DOUBLE', DOUBLEFINDER, _double, contexts='where,colums')
+        with pytest.raises(ValueError):
+            db.addMacro('DOUBLE', DOUBLEFINDER, _double, contexts='where, columns')
+        assert 'DOUBLE' not in db._macro_registry
+
     def test_addMacro_without_callback_raises(self):
         """A macro without callback would never expand: it is refused."""
         db = GnrSqlDb(implementation='sqlite')
