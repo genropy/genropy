@@ -1341,6 +1341,43 @@ class TestJoinColumn:
 
 
 # ===================================================================
+# Relation declared on a virtual column
+# ===================================================================
+
+class TestVirtualRelationColumn:
+    """A relation carried by a formulaColumn has no physical column to join
+    on, so its ON condition is emitted as a $placeholder. The record path
+    must expand it exactly as the query path does.
+    """
+
+    def _expected(self, db):
+        rows = db.table('invc.invoice').query(
+            columns='$id, $first_product_description', limit=50
+        ).fetch()
+        for r in rows:
+            if r['first_product_description'] is not None:
+                return r['id'], r['first_product_description']
+        raise AssertionError('no invoice with a first product in the fixture')
+
+    def _check(self, db):
+        pkey, expected = self._expected(db)
+        compiled = db.table('invc.invoice').record(
+            pkey=pkey, virtual_columns='first_product_description'
+        ).compiled
+        assert not [j for j in compiled.joins if '$' in j]
+        rec = db.table('invc.invoice').recordAs(
+            pkey, mode='dict', virtual_columns='first_product_description'
+        )
+        assert rec['first_product_description'] == expected
+
+    def test_relation_on_virtual_column_record_pg(self, db_pg):
+        self._check(db_pg)
+
+    def test_relation_on_virtual_column_record_sqlite(self, db_sqlite):
+        self._check(db_sqlite)
+
+
+# ===================================================================
 # var_* parameters
 # ===================================================================
 
