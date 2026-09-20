@@ -19,6 +19,7 @@ from gnr.app import logger
 from gnr.app.gnrsqltable_proxy.db_select import DbSelectHandler
 from gnr.app.gnrsqltable_proxy.record import RecordHandler
 from gnr.app.gnrsqltable_proxy.selection import SelectionProxy
+from gnr.app.gnrsqltable_proxy.write import WriteHandler
 
 mimetypes.init() # Required for python 2.6 (fixes a multithread bug)
 
@@ -666,12 +667,26 @@ class TableBase(object):
 
         The proxy holds the table level part of the dbSelect, tableAnalyzeStore,
         getValuesString and getMultiFetch flows.  It is a method and not a
-        property for the same reason ``selectionHandler`` is.
+        property for the same reason ``selectionProxy`` is.
         """
         handler = getattr(self, '_dbselect_handler', None)
         if handler is None:
             handler = DbSelectHandler(self)
             self._dbselect_handler = handler
+        return handler
+
+    def writeHandler(self):
+        """Return the write proxy of this table.
+
+        The proxy holds the table level part of the record write flows of the
+        application handler: insert, update, duplicate, unify, delete, archive
+        and the two batch updates the grid sends.  It is a method and not a
+        property for the same reason ``selectionProxy`` is.
+        """
+        handler = getattr(self, '_write_handler', None)
+        if handler is None:
+            handler = WriteHandler(self)
+            self._write_handler = handler
         return handler
 
     def hasProtectionColumns(self):

@@ -25,10 +25,19 @@
 Provides :class:`MiscMixin` — a collection of small, autonomous
 ``@public_method`` endpoints grouped by domain:
 
-- **CRUD**: insert, update, delete, duplicate, archive rows
-- **Grid rendering**: transform selections for grid display
-- **Frozen selections**: read/check/sum on pickled selections
-- **Filesystem**: browse and delete files
+- **record writes**: insert, update, save, duplicate, unify, the grid changeset
+- **row operations**: delete, archive, duplicate, touch, checkboxes, files
+- **frozen selections**: read, check and sum on a pickled selection
+- **grid rendering**: the data Bag and the structure Bag of a selection
+- **file system**: browse a storage folder as a selection
+
+Everything that needs only the table and the database is on the app level
+write proxy ``tblobj.writeHandler()``
+(:class:`gnr.app.gnrsqltable_proxy.write.WriteHandler`).  What stays here is
+what needs the page: the table permission checks, the progress thermo, the
+frozen selections, the storage service and the rpc method lookup.  The grid
+rendering stays too, for the opposite reason: it needs neither the page nor the
+table, only the selection, so a table proxy is not its place either.
 
 This module is the copy that receives new work.  The module of the same
 name under ``gnr.web.gnrwebpage_proxy.apphandler`` is frozen and is never
@@ -41,66 +50,160 @@ The methods with no caller anywhere in the tree are not part of the copy:
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Optional, Union
+from typing import Any, Callable, Optional, Union
 
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdecorator import public_method
 from gnr.core.gnrstring import toText
+from gnr.lib.services.storage import StorageResolver
 from gnr.web.gnrwebstruct import cellFromField
 from gnr.sql.gnrsql_exceptions import GnrSqlDeleteException
 
 
 class MiscMixin:
-    """Mixin for CRUD, grid rendering, frozen selections and utilities.
+    """Mixin for record writes, row operations, grids, frozen selections, files.
 
-    All methods in this mixin are autonomous — they do not call other
-    private methods within the handler (except ``_decodeWhereBag``
-    from the core class, used by ``checkFreezedSelection``).
+    Every method is an entry point of its own: none of them calls another one,
+    except ``saveEditedRows``, which deletes through ``deleteDbRows`` because a
+    page may override it, and ``checkFreezedSelection``, which decodes a where
+    bag through ``_decodeWhereBag`` of the core class.
     """
 
     # -----------------------------------------------------------------------
-    #  CRUD operations
+    #  Helpers on the page
+    # -----------------------------------------------------------------------
+
+    def _checkTableWritePermission(self, table: str, permissions: str,
+                                   action: str) -> None:
+        """Raise the page exception when *table* is closed to *permissions*.
+
+        Args:
+            table: fully qualified table name.
+            permissions: the comma separated permissions to check.
+            action: the word the message opens with, ``Delete`` or ``Duplicate``.
+
+        Raises:
+            The page ``generic`` exception, when the permission is denied.
+        """
+        if self.page.checkTablePermission(table, permissions):
+            return
+        raise self.page.exception(
+            'generic',
+            description='%s is not allowed in table %s for user %s' % (
+                action, table, self.user))
+
+    def _quickThermo(self, rows: list, labelfield: str, title: str) -> Any:
+        """Wrap *rows* in the progress bar the client shows while they change.
+
+        Args:
+            rows: the rows the flow is about to write.
+            labelfield: the column whose value names the current row.
+            title: the title of the progress box.
+
+        Returns:
+            A generator yielding the same rows.
+        """
+        return self.page.utils.quickThermo(rows, maxidx=len(rows),
+                                           labelfield=labelfield, title=title)
+
+    # -----------------------------------------------------------------------
+    #  Record writes
     # -----------------------------------------------------------------------
 
     @public_method
-    def counterFieldChanges(self, table: Optional[str] = None,
-                            counterField: Optional[str] = None,
-                            changes: Optional[list] = None) -> None:
-        """Apply counter field value changes in batch.
+    def insertRecord(self, table: Optional[str] = None,
+                     record: Optional[Bag] = None,
+                     **kwargs: Any) -> str:
+        """Insert a new record.
 
         Args:
             table: Fully qualified table name.
-            counterField: Name of the counter field to update.
-            changes: List of dicts with ``_pkey`` and ``new`` keys.
+            record: A :class:`Bag` with the record data.
+
+        Returns:
+            The primary key of the inserted record.
+
+        Note:
+            ``kwargs`` is accepted and never read.
         """
-        updaterDict = dict([(d['_pkey'], d['new']) for d in changes])
-        pkeys = list(updaterDict.keys())
-        tblobj = self.db.table(table)
-
-        def cb(r: dict) -> None:
-            r[counterField] = updaterDict[r[tblobj.pkey]]
-
-        _raw_update = True
-        counterFieldAttr = tblobj.column(counterField).attributes
-        if counterFieldAttr.get('triggerOnUpdate'):
-            _raw_update = False
-        tblobj.batchUpdate(cb, where='$%s IN:pkeys' % tblobj.pkey, pkeys=pkeys,
-                           excludeDraft=False, _raw_update=_raw_update)
-        self.db.commit()
+        return self.db.table(table).writeHandler().insertRecord(record)
 
     @public_method
-    def deleteFileRows(self, files: Optional[Union[str, list]] = None,
-                       **kwargs: Any) -> None:
-        """Delete files from the storage filesystem.
+    def updateRecord(self, table: Optional[str] = None,
+                     pkey: Optional[str] = None,
+                     record: Optional[Bag] = None,
+                     **kwargs: Any) -> None:
+        """Update an existing record.
 
         Args:
-            files: A single file path (comma-separated) or a list of
-                file paths.
+            table: Fully qualified table name.
+            pkey: Primary key of the record.
+            record: A :class:`Bag` with the fields to update.
+
+        Note:
+            ``kwargs`` is accepted and never read.
         """
-        if isinstance(files, str):
-            files = files.split(',')
-        for f in files:
-            self.page.site.storageNode(f).delete()
+        self.db.table(table).writeHandler().updateRecord(pkey, record)
+
+    @public_method
+    def saveRecord(self, table: Optional[str] = None,
+                   pkey: Optional[str] = None,
+                   data: Optional[Bag] = None,
+                   **kwargs: Any) -> dict:
+        """Save the record a form sent, inserting it when it is new.
+
+        Args:
+            table: Fully qualified table name.
+            pkey: Primary key of the record, or ``'*newrecord*'``.
+            data: The fields the form sent.
+
+        Returns:
+            ``{'pkey': <the pkey of the saved record>}``.
+
+        Note:
+            The frozen handler returns the pkey *data* carries, which on the
+            insert branch is the one the client did not have; the copy returns
+            the pkey the insert produced.  ``kwargs`` is accepted and never
+            read.
+        """
+        saved_pkey = self.db.table(table).writeHandler().saveRecord(pkey, data)
+        return dict(pkey=saved_pkey)
+
+    @public_method
+    def duplicateRecord(self, pkey: Optional[str] = None,
+                        table: Optional[str] = None,
+                        **kwargs: Any) -> str:
+        """Duplicate a single record.
+
+        Args:
+            pkey: Primary key of the record to duplicate.
+            table: Fully qualified table name.
+
+        Returns:
+            The primary key of the new record.
+
+        Note:
+            No permission check, unlike ``duplicateDbRows``, which does the same
+            thing in bulk.  ``kwargs`` is forwarded to the table.
+        """
+        return self.db.table(table).writeHandler().duplicateRecord(pkey, **kwargs)
+
+    @public_method
+    def unifyRecords(self, sourcePkey: Optional[str] = None,
+                     destPkey: Optional[str] = None,
+                     table: Optional[str] = None,
+                     **kwargs: Any) -> None:
+        """Unify two records, merging the source into the destination.
+
+        Args:
+            sourcePkey: Primary key of the source (to be merged).
+            destPkey: Primary key of the destination (to keep).
+            table: Fully qualified table name.
+
+        Note:
+            ``kwargs`` is accepted and never read.
+        """
+        self.db.table(table).writeHandler().unifyRecords(sourcePkey, destPkey)
 
     @public_method
     def saveEditedRows(self, table: Optional[str] = None,
@@ -116,14 +219,14 @@ class MiscMixin:
 
         Returns:
             A :class:`Bag` with ``wrongUpdates`` (concurrent edit
-            conflicts) and ``insertedRecords`` (new pkeys).
+            conflicts) and ``insertedRecords`` (new pkeys), or ``None`` when
+            *changeset* is empty.
 
         Note:
-            REVIEW: Concurrent edit detection relies on comparing
-            ``_loadedValue`` with the current DB value.  If the field
-            was modified by another user, the update is silently skipped
-            and added to ``wrongUpdates`` — the user is not explicitly
-            notified of the conflict.
+            The three sub-bags are popped out of *changeset*, so the caller's
+            Bag comes back empty.  A row whose ``_loadedValue`` no longer
+            matches the database is abandoned whole and lands in
+            ``wrongUpdates``; nothing tells the user that it did.
         """
         if not changeset:
             return
@@ -132,80 +235,66 @@ class MiscMixin:
         if updated:
             updated = dict(updated.digest('#a._pkey,#v'))
         deletedNode = changeset.popNode('deleted')
-        tblobj = self.db.table(table)
-        pkeyfield = tblobj.pkey
-        result = Bag()
-        wrongUpdates = Bag()
-        insertedRecords = Bag()
-
-        def cb(row: dict) -> None:
-            key = row[pkeyfield]
-            c = updated.get(key)
-            if c:
-                for n in c:
-                    if n.label in row:
-                        if isinstance(n.value, Bag):
-                            n.value.popAttributesFromNodes(['_loadedValue', 'dtype', '__old'])
-                        elif '_loadedValue' in n.attr and row[n.label] != n.attr['_loadedValue']:
-                            wrongUpdates[key] = row
-                            return
-                        row[n.label] = n.value
-                    else:
-                        if '_loadedValue' in n.attr:
-                            row[n.label] = n.value
-
-        if updated:
-            pkeys = [pkey for pkey in updated.keys() if pkey]
-            tblobj.batchUpdate(cb, _pkeys=pkeys, bagFields=True)
-        if inserted:
-            for k, r in list(inserted.items()):
-                tblobj.insert(r)
-                insertedRecords[k] = r[pkeyfield]
+        wrongUpdates, insertedRecords = self.db.table(table).writeHandler(
+            ).applyEditedRows(updated=updated, inserted=inserted)
         if deletedNode:
-            deleted = deletedNode.value
-            unlinkfield = deletedNode.attr.get('unlinkfield')
-            pkeys = [pkey for pkey in deleted.digest('#a._pkey') if pkey]
-            self.deleteDbRows(table, pkeys=pkeys, unlinkfield=unlinkfield, commit=False)
+            pkeys = [pkey for pkey in deletedNode.value.digest('#a._pkey') if pkey]
+            self.deleteDbRows(table, pkeys=pkeys,
+                              unlinkfield=deletedNode.attr.get('unlinkfield'),
+                              commit=False)
         if commit:
             self.db.commit()
+        result = Bag()
         result['wrongUpdates'] = wrongUpdates
         result['insertedRecords'] = insertedRecords
         return result
 
     @public_method
-    def duplicateDbRows(self, table: str, pkeys: Optional[list] = None,
-                        unlinkfield: Optional[str] = None,
-                        commit: bool = True,
-                        protectPkeys: Optional[list] = None,
-                        **kwargs: Any) -> list:
-        """Duplicate one or more records.
+    def newRowsData(self, table: Optional[str] = None,
+                    rows: Optional[list] = None) -> Bag:
+        """Prepare default values for new rows.
 
         Args:
             table: Fully qualified table name.
-            pkeys: List of primary keys to duplicate.
-            unlinkfield: Unused (signature kept for API compatibility).
-            commit: Whether to commit.
-            protectPkeys: Unused.
+            rows: List of row dicts with initial values.
 
         Returns:
-            List of new primary keys.
+            A :class:`Bag` of the rows, keyed ``r_0``, ``r_1``, ..., each one
+            with the table defaults filled in where the caller left ``None``.
+        """
+        result = Bag()
+        tblobj = self.db.table(table)
+        defaultValues = tblobj.defaultValues() or {}
+        for i, r in enumerate(rows):
+            row = Bag(r)
+            for k, v in defaultValues.items():
+                if row.get(k) is None:
+                    row[k] = v
+            tblobj.extendDefaultValues(row)
+            result.addItem('r_%i' % i, row)
+        return result
+
+    @public_method
+    def counterFieldChanges(self, table: Optional[str] = None,
+                            counterField: Optional[str] = None,
+                            changes: Optional[list] = None) -> None:
+        """Apply counter field value changes in batch.
+
+        Args:
+            table: Fully qualified table name.
+            counterField: Name of the counter field to update.
+            changes: List of dicts with ``_pkey`` and ``new`` keys.
 
         Note:
-            SMELL: ``unlinkfield`` and ``protectPkeys`` parameters are
-            accepted but never used — they exist only for signature
-            compatibility with ``deleteDbRows``.
+            No permission check.  The update is raw unless the counter column
+            declares ``triggerOnUpdate``, so the triggers do not run by default.
         """
-        if not self.page.checkTablePermission(table, 'readonly,ins'):
-            raise self.page.exception('generic',
-                                      description='Duplicate is not allowed in table % for user %s' % (table, self.user))
-            # BUG: format string has ``%`` instead of ``%s`` for table name
-        tblobj = self.db.table(table)
-        result_pkeys = []
-        for pkey in pkeys:
-            record = tblobj.duplicateRecord(pkey, **kwargs)
-            result_pkeys.append(record[tblobj.pkey])
-        self.db.commit()
-        return result_pkeys
+        self.db.table(table).writeHandler().counterFieldChanges(counterField,
+                                                                changes)
+
+    # -----------------------------------------------------------------------
+    #  Row operations
+    # -----------------------------------------------------------------------
 
     @public_method
     def deleteDbRows(self, table: str, pkeys: Optional[list] = None,
@@ -218,7 +307,7 @@ class MiscMixin:
         When *unlinkfield* is set, records are unlinked (the field is
         set to ``None``) rather than deleted.  Records whose pkey is in
         *protectPkeys* are logically deleted instead of physically
-        deleted.
+        deleted, on a table that has a logical deletion field.
 
         Args:
             table: Fully qualified table name.
@@ -232,43 +321,24 @@ class MiscMixin:
             on failure.
 
         Note:
-            BUG: The format string in the permission check has ``%``
-            instead of ``%s`` for the table name (same as
-            ``duplicateDbRows``).
+            The failure branch is unreachable, and would raise if it were
+            reached: the exception class it catches is the homonym of the wrong
+            module, and ``e.message`` does not exist.  Both are reproduced from
+            the frozen handler on purpose, see ``bugs_misc.md``.  ``kwargs`` is
+            accepted and never read.
         """
-        if not self.page.checkTablePermission(table, 'readonly,del'):
-            raise self.page.exception('generic',
-                                      description='Delete not allowed in table % for user %s' % (table, self.user))
-            # BUG: format string has ``%`` instead of ``%s`` for table name
+        self._checkTableWritePermission(table, 'readonly,del', 'Delete')
         try:
-            tblobj = self.db.table(table)
-            rows = tblobj.query(where='$%s IN :pkeys' % tblobj.pkey, pkeys=pkeys,
-                                excludeLogicalDeleted=False,
-                                for_update=True, addPkeyColumn=False, excludeDraft=False,
-                                subtable='*').fetch()
-            now = datetime.now()
-            caption_field = tblobj.attributes.get('caption_field')
+            writer = self.db.table(table).writeHandler()
+            rows = writer.rowsToDelete(pkeys)
             if not rows:
                 return
-            labelfield = tblobj.name
-            if caption_field and (caption_field in rows[0]):
-                labelfield = caption_field
-            deltitle = 'Unlink records' if unlinkfield else 'Delete records'
-            for r in self.page.utils.quickThermo(rows, maxidx=len(rows), labelfield=labelfield, title=deltitle):
-                if unlinkfield:
-                    record = dict(r)
-                    record[unlinkfield] = None
-                    tblobj.update(record, r)
-                else:
-                    if protectPkeys and tblobj.logicalDeletionField and r[tblobj.pkey] in protectPkeys:
-                        oldr = dict(r)
-                        r[tblobj.logicalDeletionField] = now
-                        tblobj.update(r, oldr)
-                    else:
-                        tblobj.delete(r)
-            if commit:
-                self.db.commit()
-
+            title = 'Unlink records' if unlinkfield else 'Delete records'
+            writer.deleteRows(self._quickThermo(rows,
+                                                writer.deleteLabelField(rows),
+                                                title),
+                              unlinkfield=unlinkfield,
+                              protectPkeys=protectPkeys, commit=commit)
         except GnrSqlDeleteException as e:
             return ('delete_error', {'msg': e.message})
 
@@ -287,142 +357,72 @@ class MiscMixin:
         Args:
             table: Fully qualified table name.
             pkeys: List of primary keys.
-            unlinkfield: Unused (signature compatibility).
-            commit: Whether to commit.
-            protectPkeys: Pkeys that should **not** be archived.
+            unlinkfield: Accepted and never read.
+            commit: Whether to commit, when at least one row changed.
+            protectPkeys: Pkeys that should **not** be archived — the opposite
+                of what the same parameter means in ``deleteDbRows``.
             archiveDate: The date to set as deletion timestamp.
 
         Returns:
             ``None`` on success, or ``("archive_error", {"msg": ...})``
             on failure.
+
+        Note:
+            No permission check at all, unlike ``deleteDbRows``.  The failure
+            branch carries the same two defects as that one.  ``kwargs`` is
+            accepted and never read.
         """
         try:
-            tblobj = self.db.table(table)
-            rows = tblobj.query(where='$%s IN :pkeys' % tblobj.pkey, pkeys=pkeys,
-                                excludeLogicalDeleted=False,
-                                for_update=True, addPkeyColumn=False, excludeDraft=False).fetch()
-            ts = datetime(archiveDate.year, archiveDate.month, archiveDate.day) if archiveDate else None
-            updated = False
-            protectPkeys = protectPkeys or []
-            for r in rows:
-                if not (r[tblobj.pkey] in protectPkeys):
-                    oldr = dict(r)
-                    r[tblobj.logicalDeletionField] = ts
-                    tblobj.update(r, oldr)
-                    updated = True
-            if commit and updated:
-                self.db.commit()
+            self.db.table(table).writeHandler().archiveRows(
+                pkeys, archiveDate=archiveDate, protectPkeys=protectPkeys,
+                commit=commit)
         except GnrSqlDeleteException as e:
             return ('archive_error', {'msg': e.message})
 
     @public_method
-    def insertRecord(self, table: Optional[str] = None,
-                     record: Optional[Bag] = None,
-                     **kwargs: Any) -> str:
-        """Insert a new record.
+    def duplicateDbRows(self, table: str, pkeys: Optional[list] = None,
+                        unlinkfield: Optional[str] = None,
+                        commit: bool = True,
+                        protectPkeys: Optional[list] = None,
+                        **kwargs: Any) -> list:
+        """Duplicate one or more records.
 
         Args:
             table: Fully qualified table name.
-            record: A :class:`Bag` with the record data.
+            pkeys: List of primary keys to duplicate.
+            unlinkfield: Accepted and never read.
+            commit: Accepted and never read — the duplication always commits.
+            protectPkeys: Accepted and never read.
 
         Returns:
-            The primary key of the inserted record.
+            List of new primary keys.
+
+        Note:
+            The three unread parameters are there for signature symmetry with
+            ``deleteDbRows``.  ``commit`` is one of them in the frozen handler
+            and stays one here, see ``bugs_misc.md``.
         """
-        tblobj = self.db.table(table)
-        newrecord = tblobj.newrecord(_fromRecord=record)
-        extra_items = {k: v for k, v in record.items()}
-        newrecord.update(extra_items)
-        tblobj.insert(newrecord)
-        self.db.commit()
-        return newrecord[tblobj.pkey]
+        self._checkTableWritePermission(table, 'readonly,ins', 'Duplicate')
+        return self.db.table(table).writeHandler().duplicateRecords(pkeys,
+                                                                    **kwargs)
 
     @public_method
-    def duplicateRecord(self, pkey: Optional[str] = None,
-                        table: Optional[str] = None,
-                        **kwargs: Any) -> str:
-        """Duplicate a single record.
+    def deleteFileRows(self, files: Optional[Union[str, list]] = None,
+                       **kwargs: Any) -> None:
+        """Delete files from the storage filesystem.
 
         Args:
-            pkey: Primary key of the record to duplicate.
-            table: Fully qualified table name.
+            files: A single file path (comma-separated) or a list of
+                file paths.
 
-        Returns:
-            The primary key of the new record.
+        Note:
+            No table, no permission check and no confirmation: whatever the
+            client names is deleted.  ``kwargs`` is accepted and never read.
         """
-        tblobj = self.db.table(table)
-        record = tblobj.duplicateRecord(pkey, **kwargs)
-        self.db.commit()
-        return record[tblobj.pkey]
-
-    @public_method
-    def unifyRecords(self, sourcePkey: Optional[str] = None,
-                     destPkey: Optional[str] = None,
-                     table: Optional[str] = None,
-                     **kwargs: Any) -> None:
-        """Unify two records, merging the source into the destination.
-
-        Args:
-            sourcePkey: Primary key of the source (to be merged).
-            destPkey: Primary key of the destination (to keep).
-            table: Fully qualified table name.
-        """
-        tblobj = self.db.table(table)
-        tblobj.unifyRecords(sourcePkey=sourcePkey, destPkey=destPkey)
-        self.db.commit()
-
-    @public_method
-    def updateRecord(self, table: Optional[str] = None,
-                     pkey: Optional[str] = None,
-                     record: Optional[Bag] = None,
-                     **kwargs: Any) -> None:
-        """Update an existing record.
-
-        Args:
-            table: Fully qualified table name.
-            pkey: Primary key of the record.
-            record: A :class:`Bag` with the fields to update.
-        """
-        tblobj = self.db.table(table)
-        with tblobj.recordToUpdate(pkey) as recToUpd:
-            for k, v in record.items():
-                recToUpd[k] = v
-        self.db.commit()
-
-    @public_method
-    def saveRecord(self, table=None, pkey=None, data=None, **kwargs):
-        tblobj = self.db.table(table)
-        if pkey == '*newrecord*':
-            tblobj.insert(tblobj.newrecord(**{k: v for k, v in data.items() if v is not None}))
-        else:
-            with tblobj.recordToUpdate(pkey) as recToUpd:
-                for k, v in data.items():
-                    recToUpd[k] = v
-        self.db.commit()
-        return dict(pkey=data[tblobj.pkey])
-
-    @public_method
-    def newRowsData(self, table: Optional[str] = None,
-                    rows: Optional[list] = None) -> Bag:
-        """Prepare default values for new rows.
-
-        Args:
-            table: Fully qualified table name.
-            rows: List of row dicts with initial values.
-
-        Returns:
-            A :class:`Bag` with default-enriched rows.
-        """
-        result = Bag()
-        tblobj = self.db.table(table)
-        defaultValues = tblobj.defaultValues() or {}
-        for i, r in enumerate(rows):
-            row = Bag(r)
-            for k, v in defaultValues.items():
-                if row.get(k) is None:
-                    row[k] = v
-            tblobj.extendDefaultValues(row)
-            result.addItem(f'r_{i}', row)
-        return result
+        if isinstance(files, str):
+            files = files.split(',')
+        for f in files:
+            self.page.site.storageNode(f).delete()
 
     @public_method
     def touchGridSelectedRows(self, table: Optional[str] = None,
@@ -432,9 +432,11 @@ class MiscMixin:
         Args:
             table: Fully qualified table name.
             pkeys: List of primary keys to touch.
+
+        Note:
+            No permission check.
         """
-        self.db.table(table).touchRecords(_pkeys=pkeys)
-        self.db.commit()
+        self.db.table(table).writeHandler().touchRows(pkeys)
 
     @public_method
     def updateCheckboxPkeys(self, table: Optional[str] = None,
@@ -448,143 +450,34 @@ class MiscMixin:
             changesDict: A dict mapping pkey to new boolean value,
                 plus an optional ``_fields`` key listing all fields
                 to reset.
+
+        Note:
+            ``_fields`` is popped out of the caller's dict, because the pkeys
+            are the keys that remain.  With more than one field the semantic is
+            a radio group: every other field of the list is set to ``False``.
         """
         if not changesDict:
             return
-        tblobj = self.db.table(table)
         fields = changesDict.pop('_fields', None)
-        if not fields:
-            fields = [field]
-
-        def cb(row: dict) -> None:
-            for f in fields:
-                row[f] = changesDict[row[tblobj.pkey]] if f == field else False
-
-        tblobj.batchUpdate(cb, where='$%s IN :pkeys' % tblobj.pkey, pkeys=list(changesDict.keys()))
-        self.db.commit()
-
-    # -----------------------------------------------------------------------
-    #  Grid rendering
-    # -----------------------------------------------------------------------
-
-    def gridSelectionData(self, selection: Any, outsource: Any,
-                          recordResolver: bool, numberedRows: bool,
-                          logicalDeletionField: Optional[str],
-                          _addClassesDict: Optional[dict] = None) -> Bag:
-        """Transform a selection generator into a :class:`Bag` for grid display.
-
-        Args:
-            selection: The source selection.
-            outsource: Generator or iterable of row dicts.
-            recordResolver: Whether to add resolver attributes for
-                record-level lazy loading.
-            numberedRows: Use numeric keys (``r_0``, ``r_1``, ...).
-            logicalDeletionField: Name of the logical deletion field.
-            _addClassesDict: Mapping of field names to CSS classes to
-                add based on field values.
-
-        Returns:
-            A :class:`Bag` suitable for client-side grid rendering.
-        """
-        result = Bag()
-        for j, row in enumerate(outsource):
-            row = dict(row)
-            _customClasses = (row.get('_customClasses', '') or '').split(' ')
-            pkey = row.pop('pkey', None)
-            isDeleted = row.pop('_isdeleted', None)
-            if isDeleted:
-                _customClasses.append('logicalDeleted')
-
-            if _addClassesDict:
-                for fld, _class in list(_addClassesDict.items()):
-                    val = row.get(fld)
-                    if val in (None, False, ''):
-                        continue
-                    if isinstance(_class, dict):
-                        _class = _class.get(row[fld])
-                    else:
-                        _class = row[fld] if _class is True else _class
-                    if _class:
-                        _customClasses.append(_class)
-            if numberedRows or not pkey:
-                row_key = 'r_%i' % j
-            else:
-                row_key = toText(pkey).replace('.', '_')
-            kw = dict(_pkey=pkey or row_key,
-                      _attributes=row,
-                      _removeNullAttributes=False,
-                      _customClasses=' '.join(_customClasses))
-            if recordResolver:
-                kw.update(_target_fld='%s.%s' % (selection.dbtable.fullname, selection.dbtable.pkey),
-                          _relation_value=pkey,
-                          _resolver_name='relOneResolver')
-            value = None
-            attributes = selection.typedAttributes(kw.get('_attributes'))
-            if attributes and '__value__' in attributes:
-                value = attributes.pop('__value__')
-            result.appendNode(row_key, value, **kw)
-        return result
-
-    @public_method
-    def getFieldcellPars(self, field: Optional[str] = None,
-                         table: Optional[str] = None) -> Bag:
-        """Return cell parameters for a field (used by grid column setup).
-
-        Args:
-            field: Field path.
-            table: Fully qualified table name.
-
-        Returns:
-            A :class:`Bag` with cell configuration parameters.
-        """
-        tableobj = self.db.table(table)
-        cellpars = cellFromField(field, tableobj, checkPermissions=self.page.permissionPars)
-        cellpars['field'] = field
-        return Bag(cellpars)
-
-    def gridSelectionStruct(self, selection: Any) -> Bag:
-        """Generate a view/row/cell structure :class:`Bag` from a selection.
-
-        Args:
-            selection: The source selection whose ``colAttrs`` describe
-                the columns.
-
-        Returns:
-            A :class:`Bag` with ``view > row > cell`` hierarchy.
-        """
-        structure = Bag()
-        r = structure.child('view').child('row')
-        for colname in selection.columns:
-            if ((colname != 'pkey') and (colname != 'rowidx')):
-                kwargs = dict(selection.colAttrs.get(colname, {}))
-                kwargs.pop('tag', None)
-                kwargs['name'] = kwargs.pop('label')
-                if kwargs['dataType'] == 'D':
-                    kwargs['format_date'] = 'short'
-                size = kwargs.pop('size', None)
-                size = kwargs.pop('print_width', size)
-                if size:
-                    if isinstance(size, str):
-                        if ':' in size:
-                            size = size.split(':')[1]
-                    size = int(size)
-                    if size < 3:
-                        width = size * 1.1
-                    if size < 6:  # BUG: should be ``elif`` — when size < 3 both branches execute
-                        width = size
-                    elif size < 10:
-                        width = size * .8
-                    elif size < 20:
-                        width = size * .7
-                    else:
-                        width = size * .6
-                    kwargs['width'] = '%iem' % (1 + int(int(width) * .7))
-                r.child('cell', childname=colname, field=colname, **kwargs)
-        return structure
+        self.db.table(table).writeHandler().updateCheckboxPkeys(
+            field, changesDict, fields=fields)
 
     # -----------------------------------------------------------------------
     #  Frozen selections
     # -----------------------------------------------------------------------
+
+    def _freezedSelection(self, table: Optional[str],
+                          selectionName: Optional[str]) -> Any:
+        """The frozen selection *selectionName* of *table*, or ``None``.
+
+        Args:
+            table: Fully qualified table name.
+            selectionName: Name the selection was frozen under.
+
+        Returns:
+            The unpickled selection, or ``None`` when there is no such file.
+        """
+        return self.page.unfreezeSelection(dbtable=table, name=selectionName)
 
     @public_method
     def freezedSelectionPkeys(self, table: Optional[str] = None,
@@ -599,11 +492,17 @@ class MiscMixin:
                 ``caption`` instead of plain pkeys.
 
         Returns:
-            A list of pkeys (or dicts).
+            A list of pkeys, or of ``{'pkey': ..., 'caption': ...}`` dicts.
+
+        Note:
+            The frozen handler reads the caption under the literal key
+            ``'caption_field'`` and raises ``KeyError`` for every real column
+            name; the copy reads the column *caption_field* names.
         """
-        selection = self.page.unfreezeSelection(dbtable=table, name=selectionName)
-        l = selection.output('dictlist')
-        return [dict(pkey=r['pkey'], caption=r['caption_field']) if caption_field else r['pkey'] for r in l]
+        rows = self._freezedSelection(table, selectionName).output('dictlist')
+        if not caption_field:
+            return [r['pkey'] for r in rows]
+        return [dict(pkey=r['pkey'], caption=r[caption_field]) for r in rows]
 
     @public_method
     def sumOnFreezedSelection(self, selectionName: Optional[str] = None,
@@ -615,14 +514,15 @@ class MiscMixin:
 
         Args:
             selectionName: Name of the frozen selection.
-            where: Unused (signature compatibility).
+            where: Accepted and never read.
             table: Fully qualified table name.
             sum_column: Column to sum.
 
         Returns:
-            The sum value, or ``0`` if the selection is missing.
+            The list ``selection.sum`` returns, one item per column, or the
+            integer ``0`` when the selection is missing.
         """
-        selection = self.page.unfreezeSelection(dbtable=table, name=selectionName)
+        selection = self._freezedSelection(table, selectionName)
         if selection is None:
             return 0
         return selection.sum(sum_column)
@@ -648,25 +548,40 @@ class MiscMixin:
         Returns:
             ``True`` if the selection should be refreshed.
         """
-        selection = self.page.unfreezeSelection(dbtable=table, name=selectionName)
+        selection = self._freezedSelection(table, selectionName)
         if selection is None:
             return False
-        eventdict = {}
+        eventdict: dict[str, list] = {}
         for change in changelist:
             eventdict.setdefault(change['dbevent'], []).append(change['pkey'])
-        deleted = eventdict.get('D', [])
-        if deleted:
-            if bool([r for r in selection.data if r['pkey'] in deleted]):
+        selection_pkeys = set(r['pkey'] for r in selection.data)
+        for dbevent in ('D', 'U'):
+            if selection_pkeys.intersection(eventdict.get(dbevent, [])):
                 return True
+        candidates = eventdict.get('I', []) + eventdict.get('U', [])
+        return self._freezedSelectionProbe(table, where, candidates, kwargs)
 
-        updated = eventdict.get('U', [])
-        if updated:
-            if bool([r for r in selection.data if r['pkey'] in updated]):
-                return True
+    def _freezedSelectionProbe(self, table: Optional[str], where: Any,
+                               pkeys: list, kwargs: dict) -> bool:
+        """Does any row of *pkeys* match the filter the frozen selection used?
 
-        inserted = eventdict.get('I', [])
-        kwargs.pop('where_attr', None)
+        The WHERE is the pkeys, plus the caller's *where* — decoded first when
+        it is a Bag — plus the caller's ``condition``.  ``where_attr`` and
+        ``columns`` are dropped and the limit is forced to one row: the answer
+        is a yes or a no, not a result set.
+
+        Args:
+            table: Fully qualified table name.
+            where: The filter, a string or a :class:`Bag`.
+            pkeys: The pkeys to probe.
+            kwargs: The remaining query parameters; it is modified in place.
+
+        Returns:
+            ``True`` when at least one row matches.
+        """
         tblobj = self.db.table(table)
+        kwargs.pop('where_attr', None)
+        kwargs.pop('columns', None)
         wherelist = ['( $%s IN :_pkeys )' % tblobj.pkey]
         if isinstance(where, Bag):
             where, kwargs = self._decodeWhereBag(tblobj, where, kwargs)
@@ -675,15 +590,191 @@ class MiscMixin:
         condition = kwargs.pop('condition', None)
         if condition:
             wherelist.append(condition)
-        where = ' AND '.join(wherelist)
-        kwargs.pop('columns', None)
         kwargs['limit'] = 1
-        if bool(tblobj.query(where=where, _pkeys=inserted + updated, **kwargs).fetch()):
-            return True
-        return False
+        return bool(tblobj.query(where=' AND '.join(wherelist), _pkeys=pkeys,
+                                 **kwargs).fetch())
 
     # -----------------------------------------------------------------------
-    #  Filesystem
+    #  Grid rendering
+    # -----------------------------------------------------------------------
+
+    def gridSelectionData(self, selection: Any, outsource: Any,
+                          recordResolver: bool, numberedRows: bool,
+                          logicalDeletionField: Optional[str],
+                          _addClassesDict: Optional[dict] = None) -> Bag:
+        """Transform a selection generator into a :class:`Bag` for grid display.
+
+        Args:
+            selection: The source selection.
+            outsource: Generator or iterable of row dicts.
+            recordResolver: Whether to add resolver attributes for
+                record-level lazy loading.
+            numberedRows: Use numeric keys (``r_0``, ``r_1``, ...).
+            logicalDeletionField: Accepted and never read: the flag the rows
+                carry is ``_isdeleted``.
+            _addClassesDict: Mapping of field names to CSS classes to
+                add based on field values.
+
+        Returns:
+            A :class:`Bag` suitable for client-side grid rendering.
+        """
+        result = Bag()
+        for j, row in enumerate(outsource):
+            row = dict(row)
+            pkey = row.pop('pkey', None)
+            isDeleted = row.pop('_isdeleted', None)
+            row_key = self._gridRowKey(j, pkey, numberedRows)
+            kw = dict(_pkey=pkey or row_key,
+                      _attributes=row,
+                      _removeNullAttributes=False,
+                      _customClasses=self._gridRowClasses(row, isDeleted,
+                                                          _addClassesDict))
+            if recordResolver:
+                kw.update(_target_fld='%s.%s' % (selection.dbtable.fullname,
+                                                 selection.dbtable.pkey),
+                          _relation_value=pkey,
+                          _resolver_name='relOneResolver')
+            value = None
+            attributes = selection.typedAttributes(kw.get('_attributes'))
+            if attributes and '__value__' in attributes:
+                value = attributes.pop('__value__')
+            result.appendNode(row_key, value, **kw)
+        return result
+
+    @staticmethod
+    def _gridRowKey(row_index: int, pkey: Optional[str],
+                    numberedRows: bool) -> str:
+        """The node label of one grid row.
+
+        The position when *numberedRows* asks for it or the row has no pkey,
+        the pkey with the dots turned into underscores otherwise, because a dot
+        would open a level in the Bag.
+
+        Args:
+            row_index: The position of the row in the selection.
+            pkey: The pkey of the row, when it has one.
+            numberedRows: Whether the caller asked for positional keys.
+
+        Returns:
+            The node label.
+        """
+        if numberedRows or not pkey:
+            return 'r_%i' % row_index
+        return toText(pkey).replace('.', '_')
+
+    @staticmethod
+    def _gridRowClasses(row: dict, isDeleted: Any,
+                        addClassesDict: Optional[dict]) -> str:
+        """The CSS classes of one grid row, as a space separated string.
+
+        The classes the row already carries, plus ``logicalDeleted`` when it is
+        logically deleted, plus one class per entry of *addClassesDict* whose
+        field has a value: a dict entry is a lookup table on that value, ``True``
+        means the value is itself the class name, anything else is the class.
+
+        Args:
+            row: The row, without its pkey and its deletion flag.
+            isDeleted: The ``_isdeleted`` flag popped out of the row.
+            addClassesDict: The per field class specification, or ``None``.
+
+        Returns:
+            The class list of the row.
+        """
+        classes = (row.get('_customClasses', '') or '').split(' ')
+        if isDeleted:
+            classes.append('logicalDeleted')
+        for fld, _class in list((addClassesDict or {}).items()):
+            value = row.get(fld)
+            if value in (None, False, ''):
+                continue
+            if isinstance(_class, dict):
+                _class = _class.get(value)
+            elif _class is True:
+                _class = value
+            if _class:
+                classes.append(_class)
+        return ' '.join(classes)
+
+    def gridSelectionStruct(self, selection: Any) -> Bag:
+        """Generate a view/row/cell structure :class:`Bag` from a selection.
+
+        Args:
+            selection: The source selection whose ``colAttrs`` describe
+                the columns.
+
+        Returns:
+            A :class:`Bag` with ``view > row > cell`` hierarchy.
+        """
+        structure = Bag()
+        r = structure.child('view').child('row')
+        for colname in selection.columns:
+            if colname in ('pkey', 'rowidx'):
+                continue
+            kwargs = dict(selection.colAttrs.get(colname, {}))
+            kwargs.pop('tag', None)
+            kwargs['name'] = kwargs.pop('label')
+            if kwargs['dataType'] == 'D':
+                kwargs['format_date'] = 'short'
+            size = kwargs.pop('size', None)
+            size = kwargs.pop('print_width', size)
+            width = self._gridCellWidth(size)
+            if width:
+                kwargs['width'] = width
+            r.child('cell', childname=colname, field=colname, **kwargs)
+        return structure
+
+    @staticmethod
+    def _gridCellWidth(size: Any) -> Optional[str]:
+        """The ``width`` of a grid cell, in ``em``, for a column of *size*.
+
+        The narrower the column the more room it gets per character, from the
+        full width below six characters down to 60 % above twenty.  A size
+        written ``min:max`` keeps the maximum.
+
+        Args:
+            size: The print width or the size of the column, or ``None``.
+
+        Returns:
+            The width, or ``None`` when the column declares no size.
+        """
+        if not size:
+            return None
+        if isinstance(size, str) and ':' in size:
+            size = size.split(':')[1]
+        size = int(size)
+        if size < 3:
+            width = size * 1.1
+        elif size < 6:
+            width = size
+        elif size < 10:
+            width = size * .8
+        elif size < 20:
+            width = size * .7
+        else:
+            width = size * .6
+        return '%iem' % (1 + int(int(width) * .7))
+
+    @public_method
+    def getFieldcellPars(self, field: Optional[str] = None,
+                         table: Optional[str] = None) -> Bag:
+        """Return cell parameters for a field (used by grid column setup).
+
+        Args:
+            field: Field path.
+            table: Fully qualified table name.
+
+        Returns:
+            A :class:`Bag` with cell configuration parameters, plus the
+            ``field`` the caller asked for.
+        """
+        tableobj = self.db.table(table)
+        cellpars = cellFromField(field, tableobj,
+                                 checkPermissions=self.page.permissionPars)
+        cellpars['field'] = field
+        return Bag(cellpars)
+
+    # -----------------------------------------------------------------------
+    #  File system
     # -----------------------------------------------------------------------
 
     @public_method
@@ -702,50 +793,70 @@ class MiscMixin:
             ext: File extension filter.
             include: Include pattern.
             exclude: Exclude pattern.
-            columns: Additional columns to read from XML files.
+            columns: Paths to read out of the XML files.
             hierarchical: Return the hierarchical tree rather than
                 a flat list.
             applymethod: Post-processing method name.
 
         Returns:
-            A :class:`Bag` (or tuple with attributes) representing
-            the file listing.
+            The tree :class:`Bag` when *hierarchical*, otherwise the flat Bag
+            and the attributes the applymethod added.
+
+        Note:
+            Two return types, as in the frozen handler: a Bag on one branch and
+            a tuple on the other.
         """
         files = Bag()
         resultAttributes = dict()
-        from gnr.lib.services.storage import StorageResolver
-
-        def setFileAttributes(node: Any, **kwargs: Any) -> None:
-            attr = node.attr
-            if not node.value and node.attr:
-                abs_path = attr['abs_path']
-                attr['_pkey'] = abs_path
-                attr['created_ts'] = datetime.fromtimestamp(attr['mtime'])
-                attr['changed_ts'] = datetime.fromtimestamp(attr['mtime'])
-                if columns and attr['file_ext'].lower() == 'xml':
-                    with self.page.site.storageNode(abs_path).open('rb') as f:
-                        b = Bag(f)
-                    for c in columns.split(','):
-                        c = c.replace('$', '')
-                        attr[c] = b[c]
-
         for f in folders.split(','):
-            files[f] = StorageResolver(self.page.site.storageNode(f), include=include,
-                                       exclude=exclude, ext=ext, _page=self.page)()
-        files.walk(setFileAttributes, _mode='')
+            files[f] = StorageResolver(self.page.site.storageNode(f),
+                                       include=include, exclude=exclude,
+                                       ext=ext, _page=self.page)()
+        files.walk(self._fileNodeAttributes(columns), _mode='')
         if hierarchical:
             return files
-        result = Bag([('r_%i' % i, None, t[1].attr) for i, t in enumerate(files.getIndex())
+        result = Bag([('r_%i' % i, None, t[1].attr)
+                      for i, t in enumerate(files.getIndex())
                       if t[1].attr and t[1].attr['file_ext'] != 'directory'])
         if applymethod:
             applyPars = self._getApplyMethodPars(kwargs)
-            applyresult = self.page.getPublicMethod('rpc', applymethod)(result, **applyPars)
+            applyresult = self.page.getPublicMethod('rpc', applymethod)(
+                result, **applyPars)
             if applyresult:
                 resultAttributes.update(applyresult)
         return result, resultAttributes
 
+    def _fileNodeAttributes(self, columns: Optional[str]) -> Callable:
+        """The walk callback that turns a storage node into a grid row.
+
+        It gives the node its ``_pkey`` and its two timestamps, both read from
+        the modification time because the storage resolver publishes no creation
+        time, and reads *columns* out of the file when it is an XML one.
+
+        Args:
+            columns: Comma separated Bag paths to read out of an XML file.
+
+        Returns:
+            The callback :meth:`gnr.core.gnrbag.Bag.walk` calls per node.
+        """
+        def setFileAttributes(node: Any, **kwargs: Any) -> None:
+            attr = node.attr
+            if node.value or not attr:
+                return
+            abs_path = attr['abs_path']
+            attr['_pkey'] = abs_path
+            attr['created_ts'] = datetime.fromtimestamp(attr['mtime'])
+            attr['changed_ts'] = datetime.fromtimestamp(attr['mtime'])
+            if columns and attr['file_ext'].lower() == 'xml':
+                with self.page.site.storageNode(abs_path).open('rb') as f:
+                    b = Bag(f)
+                for c in columns.split(','):
+                    attr[c.replace('$', '')] = b[c.replace('$', '')]
+
+        return setFileAttributes
+
     # -----------------------------------------------------------------------
-    #  Form
+    #  Relation captions
     # -----------------------------------------------------------------------
 
     def _relPathToCaption(self, table: str, relpath: str) -> str:
@@ -757,9 +868,14 @@ class MiscMixin:
 
         Returns:
             A colon-separated caption string.
+
+        Note:
+            Private with an external caller, ``resources/common/th/th_lib.py``,
+            so the name stays.
         """
         if not relpath:
             return ''
         tbltree = self.db.relationExplorer(table, dosort=False, pyresolver=True)
-        fullcaption = tbltree.cbtraverse(relpath, lambda node: self.page._(node.getAttr('name_long')))
+        fullcaption = tbltree.cbtraverse(
+            relpath, lambda node: self.page._(node.getAttr('name_long')))
         return ':'.join(fullcaption)

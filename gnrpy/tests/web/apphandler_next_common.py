@@ -25,7 +25,9 @@ from sql.conftest import _db_pg, _import_csv_data
 
 from gnr.app.gnrapp import GnrApp
 from gnr.core.gnrbag import Bag
+from gnr.lib.services.storage import BaseLocalService, StorageNode
 from gnr.web._gnrbasewebpage import GnrBaseWebPage
+from gnr.web.gnrwebpage import EXCEPTIONS as PAGE_EXCEPTIONS
 from gnr.web.gnrwebpage_proxy.apphandler import GnrWebAppHandler
 from gnr.web.gnrwebpage_proxy.apphandler_next import GnrWebAppHandlerNext
 
@@ -90,9 +92,57 @@ class _StandInRegister:
 
 
 class _StandInSite:
+    """The site services the flows use: the register, and a local storage.
+
+    ``storageNode`` is unavailable until ``mountStorage`` has been called with a
+    folder, because the flows that need it are the file system ones and nothing
+    else should reach a filesystem by accident.  Once mounted it is the real
+    :class:`gnr.lib.services.storage.BaseLocalService` rooted at that folder, as
+    ``tests/core/pdfsite.py`` does, so the storage nodes, the resolvers and the
+    deletions are real.
+    """
+
+    external_host = 'http://localhost/'
+
     def __init__(self, gnrapp):
         self.gnrapp = gnrapp
         self.register = _StandInRegister()
+        self.storage_service = None
+
+    def mountStorage(self, base_path, service_name='temp'):
+        """Root a real local storage service at *base_path*."""
+        service = BaseLocalService(parent=self, base_path=base_path)
+        service.service_name = service_name
+        self.storage_service = service
+        return service
+
+    def storageNode(self, path, **kwargs):
+        if self.storage_service is None:
+            raise RuntimeError('no storage mounted on the stand-in site')
+        if isinstance(path, StorageNode):
+            return path
+        return StorageNode(parent=self, path=str(path).split(':', 1)[-1],
+                           service=self.storage_service)
+
+
+class _StandInUtils:
+    """The ``page.utils`` services the flows use.
+
+    ``quickThermo`` yields the rows one by one, as the real one does, and
+    records the call so a test can assert the title and the label field the
+    flow chose instead of the progress it would have sent to a client.
+    """
+
+    def __init__(self):
+        self.thermo_calls = []
+
+    def quickThermo(self, iterator, maxidx=None, labelfield=None, title=None,
+                    **kwargs):
+        rows = list(iterator)
+        self.thermo_calls.append(dict(maxidx=maxidx, labelfield=labelfield,
+                                      title=title, rowcount=len(rows)))
+        for row in rows:
+            yield row
 
 
 class _StandInPage:
@@ -100,6 +150,11 @@ class _StandInPage:
 
     Freezing is not reimplemented: the four freeze methods call the real
     GnrBaseWebPage implementations unbound, as _gnrbasewebpage_test.py does.
+    ``exception`` is the body of :meth:`gnr.web.gnrwebpage.GnrWebPage.exception`
+    on the real exception registry; ``checkTablePermission`` is the one service
+    the stand-in decides by itself, because the real one reads the user table
+    configuration out of ``adm`` — a test sets ``forbidden_permissions`` and the
+    calls land in ``permission_calls``.
     """
 
     def __init__(self, db, connectionFolder, page_id='test_page'):
@@ -117,6 +172,9 @@ class _StandInPage:
         self._event_subscribers = {}
         self.store_log = []
         self._stores = {}
+        self.utils = _StandInUtils()
+        self.forbidden_permissions = set()
+        self.permission_calls = []
 
     # --- proxy machinery ---
 
@@ -156,6 +214,26 @@ class _StandInPage:
     def onLoadingRelatedMethod(self, table, sqlContextName=None):
         """The implementation of GnrWebPage:1032, which th_lib.py repeats."""
         return 'onLoading_%s' % table.replace('.', '_')
+
+    def checkTablePermission(self, table=None, permissions=None):
+        """True unless the test listed one of *permissions* as forbidden."""
+        self.permission_calls.append((table, permissions))
+        if not permissions:
+            return True
+        asked = set(permissions.split(',') if isinstance(permissions, str)
+                    else permissions)
+        return not asked.intersection(self.forbidden_permissions)
+
+    def exception(self, exception, **kwargs):
+        """The body of GnrWebPage.exception, on the real exception registry."""
+        if isinstance(exception, str):
+            exception = PAGE_EXCEPTIONS[exception]
+        return exception(user=self.user, localizer=self.application.localizer,
+                         **kwargs)
+
+    def _(self, value):
+        """The localizer the relation captions go through."""
+        return value
 
     # --- freezing, on the real implementations ---
 
@@ -273,6 +351,24 @@ def pg_handlers(make_handlers, db_postgres):
 @pytest.fixture
 def external_store_handlers(make_handlers, db_with_external_store):
     return make_handlers(db_with_external_store)
+
+
+@pytest.fixture
+def storage_handlers(handlers, tmp_path):
+    """The two handlers, with a real local storage mounted on both sites.
+
+    The file system flows read and delete through
+    :class:`gnr.lib.services.storage.BaseLocalService` rooted at *tmp_path*, so
+    the storage nodes, the resolvers, the XML reads and the deletions are the
+    real ones and only the folder is temporary.  The handlers share the folder,
+    which is what lets a file written once be seen by both.
+
+    Returns:
+        ``(legacy, next, root)``, the two handlers and the folder they see.
+    """
+    for handler in handlers:
+        handler.page.site.mountStorage(str(tmp_path))
+    return handlers[0], handlers[1], tmp_path
 
 
 # ---------------------------------------------------------------------------
