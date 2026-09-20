@@ -22,13 +22,20 @@
 
 """FilteringSelect (dbSelect) mixin.
 
-Provides :class:`DbSelectMixin` — the server-side implementation of
-the ``dbSelect`` widget, which performs incremental search queries
-against database tables for autocomplete/dropdown functionality.
+Provides :class:`DbSelectMixin` — the server side implementation of the
+``dbSelect`` widget, which searches a table incrementally while the user types,
+plus the three other table services the same widget family needs.
 
 This module is the copy that receives new work.  The module of the same
 name under ``gnr.web.gnrwebpage_proxy.apphandler`` is frozen and is never
 imported from here.
+
+Everything that needs only the table and the database lives on the app level
+table proxy ``tblobj.dbSelectHandler()``
+(:class:`gnr.app.gnrsqltable_proxy.db_select.DbSelectHandler`).  What stays
+here is what needs the page: the store switch, the app configuration, the
+``selectmethod`` and ``applymethod`` hooks, the locale and the localizer, the
+empty label row and the result attributes.
 
 The methods with no caller anywhere in the tree are not part of the copy:
 ``dbSelect_selection``.
@@ -36,27 +43,16 @@ The methods with no caller anywhere in the tree are not part of the copy:
 
 from __future__ import annotations
 
-import re
 import time
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 
-from gnr.core import gnrlist
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdict import dictExtract
 from gnr.core.gnrdecorator import public_method
 
-ESCAPE_SPECIAL = re.compile(r'[\[\\\^\$\.\|\?\*\+\(\)\]\{\}]')
-"""Regex to escape special characters in user search input before
-building regex-based SQL conditions."""
-
 
 class DbSelectMixin:
-    """Mixin for FilteringSelect (dbSelect) operations.
-
-    Implements the progressive search strategy used by the ``dbSelect``
-    widget: first try ``startswith``, then ``contains``, then regex
-    word-boundary matching, then ``ILIKE`` fallback.
-    """
+    """Mixin for FilteringSelect (dbSelect) operations."""
 
     @public_method
     def dbSelect(self, dbtable: Optional[str] = None, columns: Optional[str] = None,
@@ -77,10 +73,11 @@ class DbSelectMixin:
                  **kwargs: Any) -> tuple[Bag, dict]:
         """Perform an incremental database search for the dbSelect widget.
 
-        This is the main entry point for the FilteringSelect widget.
-        When ``_id`` is provided, it fetches a specific record by key.
-        When ``querystring`` is provided, it performs a progressive
-        search with fallback strategies.
+        This is the main entry point for the FilteringSelect widget.  It has
+        two branches and they are exclusive: with *_id* it fetches the single
+        row the widget currently shows, with a query string it searches.  With
+        neither it returns an empty Bag, and the *applymethod* still runs, on
+        ``None``.
 
         Args:
             dbtable: Fully qualified table name (``"pkg.table"``).
@@ -90,16 +87,19 @@ class DbSelectMixin:
             rowcaption: Custom row caption format.
             _id: When set, fetch the record with this primary key.
             _querystring: Search text typed by the user.
-            querystring: Alternative search text parameter.
-            ignoreCase: Case-insensitive search.
+            querystring: Alternative search text parameter; *_querystring*
+                wins when both are given.
+            ignoreCase: Case-insensitive search.  Part of the select handler
+                contract; the default handler does not read it.
             exclude: Comma-separated list of pkeys to exclude.
             excludeDraft: Exclude draft records.
             condition: Additional SQL WHERE condition.
-            limit: Maximum number of results.
+            limit: Maximum number of results; the app configuration
+                ``dbselect?limit`` when absent.
             alternatePkey: Use this field instead of the primary key.
             order_by: SQL ORDER BY clause.
-            selectmethod: Custom RPC method name for the query.
-            applymethod: Post-processing method name.
+            selectmethod: Page RPC replacing the default search.
+            applymethod: Page RPC post-processing the selection.
             notnull: When ``True`` no empty-label row is added.
             weakCondition: Apply *condition* only if it yields results.
             _storename: Database store to use.
@@ -112,104 +112,157 @@ class DbSelectMixin:
         Returns:
             A tuple ``(result_bag, attributes_dict)``.
         """
-        if _storename:
-            self.db.use_store(_storename)
-        elif _storename is False:
-            self.db.use_store()
+        self._dbSelectUseStore(_storename)
         resultClass = ''
         if selectmethod or not condition:
             weakCondition = False
         t0 = time.time()
-        querystring = _querystring or querystring  # SMELL: dual parameter for same purpose
-        if limit is None:
-            limit = self.gnrapp.config.get('dbselect?limit', 10)
-        limit = int(limit)
-        result = Bag()
+        querystring = _querystring or querystring
+        limit = self._dbSelectLimit(limit)
         tblobj = self.db.table(dbtable)
-        captioncolumns = tblobj.rowcaptionDecode(rowcaption)[0]
-        querycolumns = tblobj.getQueryFields(columns, captioncolumns)
-        showcolumns = gnrlist.merge(captioncolumns, tblobj.columnsFromString(auxColumns))
-        resultcolumns = gnrlist.merge(showcolumns, captioncolumns, tblobj.columnsFromString(hiddenColumns))
-        if alternatePkey and alternatePkey not in resultcolumns:
-            resultcolumns.append("$%s" % alternatePkey if not alternatePkey.startswith('$') else alternatePkey)
+        handler = tblobj.dbSelectHandler()
+        querycolumns, showcolumns, resultcolumns = handler.searchColumns(
+            columns=columns, rowcaption=rowcaption, auxColumns=auxColumns,
+            hiddenColumns=hiddenColumns, alternatePkey=alternatePkey)
         selection = None
-        identifier = 'pkey'
-        resultAttrs = {}
         errors = []
         if _id:
-            fullwhere = None
-            if alternatePkey:
-                where = '$%s = :id' % alternatePkey
-            else:
-                where = '$%s = :id' % identifier
-
-            fullwhere = '( %s ) AND ( %s ) ' % (where, condition) if (condition and weakCondition is not True) else where
-            whereargs = {}
-            whereargs.update(kwargs)
-            selection = tblobj.query(columns=','.join(resultcolumns),
-                                     where=fullwhere, excludeLogicalDeleted=False,
-                                     excludeDraft=excludeDraft,
-                                     limit=1, id=_id, **kwargs).selection()
-            if condition and not selection:
-                selection = tblobj.query(columns=','.join(resultcolumns),
-                                     where=where, excludeLogicalDeleted=False,
-                                     excludeDraft=excludeDraft,
-                                     limit=1, id=_id, **kwargs).selection()
-                errors.append('current value does not fit condition')
-
+            selection, errors = handler.recordById(
+                _id, resultcolumns, condition=condition,
+                weakCondition=weakCondition, alternatePkey=alternatePkey,
+                excludeDraft=excludeDraft, **kwargs)
         elif querystring:
-            querystring = querystring.strip('*')
-            if querystring.isdigit():
-                querystring = "%s%s" % ('%', querystring)
-            if selectmethod:
-                selectHandler = self.page.getPublicMethod('rpc', selectmethod)
-            else:
-                selectHandler = self.dbSelect_default
-            order_list = []
-            preferred = tblobj.attributes.get('preferred') if preferred is None else preferred
-            weakCondition = weakCondition or tblobj.attributes.get('weakCondition')
-            if preferred:
-                order_list.append('( %s ) desc' % preferred)
-                resultcolumns.append("""(CASE WHEN %s IS NOT TRUE THEN 'not_preferred_row' ELSE '' END) AS _customclasses_preferred""" % preferred)
-            if invalidItemCondition:
-                resultcolumns.append("""(%s IS TRUE) AS _is_invalid_item""" % invalidItemCondition)
-            order_by = order_by or tblobj.attributes.get('order_by') or showcolumns[0]
-            order_list.append(order_by if order_by[0] in ('$', '@') else '$%s' % order_by)
-            order_by = ', '.join(order_list)
-            cond = '(%s) AND (%s)' % (condition or 'TRUE', weakCondition) if isinstance(weakCondition, str) else condition
-            selection = selectHandler(tblobj=tblobj, querycolumns=querycolumns, querystring=querystring,
-                                      resultcolumns=resultcolumns, condition=cond, exclude=exclude,
-                                      limit=limit, order_by=order_by,
-                                      identifier=identifier, ignoreCase=ignoreCase, excludeDraft=excludeDraft, **kwargs)
-            if not selection and weakCondition:
-                resultClass = 'relaxedCondition'
-                selection = selectHandler(tblobj=tblobj, querycolumns=querycolumns, querystring=querystring,
-                                          resultcolumns=resultcolumns, exclude=exclude,
-                                          limit=limit, order_by=order_by,
-                                          condition=None if weakCondition is True else condition,
-                                          identifier=identifier, ignoreCase=ignoreCase, excludeDraft=excludeDraft, **kwargs)
+            selection, resultClass = self._dbSelectSearch(
+                handler, self._dbSelectHandlerMethod(selectmethod),
+                querystring.strip('*'), querycolumns, showcolumns,
+                resultcolumns, condition=condition, weakCondition=weakCondition,
+                preferred=preferred, invalidItemCondition=invalidItemCondition,
+                exclude=exclude, limit=limit, order_by=order_by,
+                ignoreCase=ignoreCase, excludeDraft=excludeDraft, **kwargs)
         applyresult = None
         if applymethod:
             applyresult = self.page.getPublicMethod('rpc', applymethod)(selection, **kwargs)
-        if selection:
-            showcols = [tblobj.colToAs(c.lstrip('$')) for c in showcolumns]
-            result = selection.output('selection', locale=self.page.locale, caption=rowcaption or True)
-            colHeaders = [selection.colAttrs[k].get('name_short') or selection.colAttrs[k]['label'] for k in showcols]
-            colHeaders = [self.page._(c) for c in colHeaders]
-            resultAttrs = {'columns': ','.join(showcols), 'headers': ','.join(colHeaders)}
-            if applyresult:
-                resultAttrs.update(applyresult)
-            if not notnull and not _id:
-                emptyLabel = emptyLabel or ''
-                _position = '<' if emptyLabel_first else None
-                result.setItem('null_row', None, caption=emptyLabel, _pkey=None,
-                               _customClasses=emptyLabel_class, _position=_position)
-
+        result, resultAttrs = self._dbSelectOutput(
+            handler, selection, showcolumns, rowcaption=rowcaption,
+            applyresult=applyresult, nullRow=not notnull and not _id,
+            emptyLabel=emptyLabel, emptyLabel_first=emptyLabel_first,
+            emptyLabel_class=emptyLabel_class)
         resultAttrs['resultClass'] = resultClass
         resultAttrs['dbselect_time'] = time.time() - t0
         if errors:
             resultAttrs['errors'] = ','.join(errors)
         return (result, resultAttrs)
+
+    def _dbSelectUseStore(self, _storename: Optional[str]) -> None:
+        """Switch the thread to the store the widget asked for.
+
+        A truthy name selects that store, the literal ``False`` resets to the
+        main one, ``None`` touches nothing.  The switch is **not** undone when
+        the call ends: it stays on the database environment of the thread for
+        the rest of the request.  That is the behaviour of the frozen handler
+        and it is reproduced on purpose; the record flows scope the same
+        parameter to their own query instead.
+        """
+        if _storename:
+            self.db.use_store(_storename)
+        elif _storename is False:
+            self.db.use_store()
+
+    def _dbSelectLimit(self, limit: Optional[int]) -> int:
+        """The page size: the caller's, or the ``dbselect?limit`` app default."""
+        if limit is None:
+            limit = self.gnrapp.config.get('dbselect?limit', 10)
+        return int(limit)
+
+    def _dbSelectHandlerMethod(self, selectmethod: Optional[str]) -> Callable:
+        """Resolve the search callable: a page RPC, or the default search."""
+        if selectmethod:
+            return self.page.getPublicMethod('rpc', selectmethod)
+        return self.dbSelect_default
+
+    def _dbSelectSearch(self, handler: Any, selectHandler: Callable,
+                        querystring: str, querycolumns: list,
+                        showcolumns: list, resultcolumns: list,
+                        condition: Optional[str] = None,
+                        weakCondition: Any = False,
+                        preferred: Optional[str] = None,
+                        invalidItemCondition: Optional[str] = None,
+                        exclude: Optional[Any] = None,
+                        limit: Optional[int] = None,
+                        order_by: Optional[str] = None,
+                        ignoreCase: bool = True, excludeDraft: bool = True,
+                        **kwargs: Any) -> tuple[Any, str]:
+        """Run the search, once more without the condition when it is weak.
+
+        A wholly numeric query is turned into a suffix match before anything
+        else, so that typing the tail of a number finds it.
+
+        *weakCondition* means "this condition is a preference": when the search
+        comes back empty it is tried again, without the condition if it is
+        ``True`` and with the caller's one if it is a string — a string weak
+        condition is an extra filter, AND-ed to the caller's condition for the
+        first attempt only.
+
+        Returns:
+            A tuple ``(selection, resultClass)``; *resultClass* is
+            ``'relaxedCondition'`` when the second attempt ran.
+        """
+        if querystring.isdigit():
+            querystring = '%%%s' % querystring
+        preferred = handler.searchPreferred(preferred)
+        weakCondition = handler.searchWeakCondition(weakCondition)
+        search_pars = dict(
+            tblobj=handler.tblobj, querycolumns=querycolumns,
+            querystring=querystring,
+            resultcolumns=handler.searchResultColumns(
+                resultcolumns, preferred=preferred,
+                invalidItemCondition=invalidItemCondition),
+            exclude=exclude, limit=limit,
+            order_by=handler.searchOrderBy(order_by, showcolumns,
+                                           preferred=preferred),
+            identifier='pkey', ignoreCase=ignoreCase,
+            excludeDraft=excludeDraft, **kwargs)
+        firstCondition = ('(%s) AND (%s)' % (condition or 'TRUE', weakCondition)
+                          if isinstance(weakCondition, str) else condition)
+        selection = selectHandler(condition=firstCondition, **search_pars)
+        if not selection and weakCondition:
+            selection = selectHandler(
+                condition=None if weakCondition is True else condition,
+                **search_pars)
+            return selection, 'relaxedCondition'
+        return selection, ''
+
+    def _dbSelectOutput(self, handler: Any, selection: Any, showcolumns: list,
+                        rowcaption: Optional[str] = None,
+                        applyresult: Optional[dict] = None,
+                        nullRow: bool = True,
+                        emptyLabel: Optional[str] = None,
+                        emptyLabel_first: Optional[bool] = None,
+                        emptyLabel_class: Optional[str] = None
+                        ) -> tuple[Bag, dict]:
+        """Turn the selection into the Bag the widget reads.
+
+        An empty or missing selection produces an empty Bag and no attributes
+        at all: no columns, no headers, no empty label row, and the applymethod
+        result dropped.  That is the behaviour of the frozen handler.
+
+        Returns:
+            A tuple ``(result_bag, attributes_dict)``.
+        """
+        if not selection:
+            return Bag(), {}
+        result = selection.output('selection', locale=self.page.locale,
+                                  caption=rowcaption or True)
+        columns, headers = handler.selectionHeaders(selection, showcolumns,
+                                                    self.page._)
+        resultAttrs = {'columns': columns, 'headers': headers}
+        if applyresult:
+            resultAttrs.update(applyresult)
+        if nullRow:
+            result.setItem('null_row', None, caption=emptyLabel or '', _pkey=None,
+                           _customClasses=emptyLabel_class,
+                           _position='<' if emptyLabel_first else None)
+        return result, resultAttrs
 
     @public_method
     def tableAnalyzeStore(self, table: Optional[str] = None,
@@ -218,32 +271,35 @@ class DbSelectMixin:
                           **kwargs: Any) -> tuple[Any, dict]:
         """Analyze table data with aggregation (totalize).
 
+        The totalized Bag is pickled through ``page.lazyBag`` under the
+        ``page:explorer`` static location and the resolver is returned already
+        resolved, so the caller gets the Bag and the page keeps the file.
+
         Args:
             table: Fully qualified table name.
             where: SQL WHERE clause.
-            group_by: List of grouping specifications.
+            group_by: The grouping specification.  It is consumed twice with
+                two meanings, as the column list and as the totalize
+                specification; the callables in it are only for the second.
 
         Returns:
-            A tuple ``(store_bag, timing_dict)``.
-
-        Note:
-            SMELL: The ``group_by`` parameter is used both as a column
-            list (filtering out callables) and as a grouping spec passed
-            to ``selection.totalize()`` — overloaded semantics.
+            A tuple ``(store_bag, timings_dict)``.
         """
         t0 = time.time()
         page = self.page
-        tblobj = page.db.table(table)
-        columns = [x for x in group_by if not callable(x)]
-        selection = tblobj.query(where=where, columns=','.join(columns), **kwargs).selection()
+        handler = page.db.table(table).dbSelectHandler()
+        selection = handler.analyzeSelection(where=where, group_by=group_by,
+                                             **kwargs)
         explorer_id = page.getUuid()
-        freeze_path = page.site.getStaticPath('page:explorers', explorer_id)
         t1 = time.time()
-        totalizeBag = selection.totalize(group_by=group_by, collectIdx=False, keep=['pkey'])
+        totalizeBag = selection.totalize(group_by=group_by, collectIdx=False,
+                                         keep=['pkey'])
         t2 = time.time()
-        store = page.lazyBag(totalizeBag, name=explorer_id, location='page:explorer')()
+        store = page.lazyBag(totalizeBag, name=explorer_id,
+                             location='page:explorer')()
         t3 = time.time()
-        return store, dict(query_time=t1 - t0, totalize_time=t2 - t1, resolver_load_time=t3 - t2)
+        return store, dict(query_time=t1 - t0, totalize_time=t2 - t1,
+                           resolver_load_time=t3 - t2)
 
     def dbSelect_default(self, tblobj: Any, querycolumns: list[str],
                          querystring: str, resultcolumns: list[str],
@@ -256,12 +312,10 @@ class DbSelectMixin:
                          **kwargs: Any) -> Any:
         """Default implementation of the dbSelect search strategy.
 
-        Tries progressively broader searches:
-
-        1. ``contains`` on the first query column
-        2. ``startswith`` if too many results
-        3. Regex word-boundary matching on all columns
-        4. ``ILIKE`` fallback on all columns
+        The signature is a contract: it is the default value of the select
+        handler and a page ``selectmethod`` is called with exactly these
+        keywords.  *identifier* and *ignoreCase* are part of it and this
+        implementation does not read either.
 
         Args:
             tblobj: The table object.
@@ -269,67 +323,19 @@ class DbSelectMixin:
             querystring: Search text.
             resultcolumns: Columns to return.
             condition: Additional SQL condition.
-            exclude: Comma-separated pkeys to exclude.
+            exclude: Comma-separated pkeys to exclude, or an iterable.
             limit: Maximum results.
             order_by: SQL ORDER BY.
-            identifier: Key column name.
-            ignoreCase: Case-insensitive search.
+            identifier: The key column name.  Not read here.
+            ignoreCase: Case-insensitive search.  Not read here.
 
         Returns:
             A selection result.
         """
-        def getSelection(where: Optional[str], **searchargs: Any) -> Any:
-            whereargs = {}
-            whereargs.update(kwargs)
-            whereargs.update(searchargs)
-            if where and condition:
-                where = '( %s ) AND ( %s ) ' % (where, condition)
-            else:
-                where = where or condition
-            return tblobj.query(where=where, columns=','.join(resultcolumns), limit=limit,
-                                order_by=order_by or querycolumns[0], exclude_list=exclude_list,
-                                **whereargs).selection(_aggregateRows=True)
-
-        exclude_list = None
-        if exclude:
-            if isinstance(exclude, str):
-                exclude_list = [t.strip() for t in exclude.split(',')]
-            else:
-                exclude_list = [t for t in exclude if t]  # None values break the query
-            if exclude_list:
-                exclude_cond = 'NOT ($pkey IN :exclude_list )'
-                if condition:
-                    condition = '%s AND %s' % (condition, exclude_cond)
-                else:
-                    condition = exclude_cond
-
-        kwargs.pop('where', None)
-        srclist = querystring.split()
-
-        if not srclist:
-            return getSelection(None)
-        searchval = '%s%%' % ('%% '.join(srclist))
-        sqlArgs = dict()
-        cond = tblobj.opTranslate(querycolumns[0], 'contains', searchval, sqlArgs=sqlArgs)
-        result = getSelection(cond, **sqlArgs)
-        if len(result) >= (limit or 50):
-            cond = tblobj.opTranslate(querycolumns[0], 'startswith', searchval, sqlArgs=sqlArgs)
-            result = getSelection(cond, **sqlArgs)
-
-        columns_concat = " || ' ' || ".join(["CAST ( COALESCE(%s,'') AS TEXT ) " % c for c in querycolumns])
-        if len(result) == 0:
-            regsrc = [x for x in re.split(" ", ESCAPE_SPECIAL.sub('', querystring)) if x]
-            if regsrc:
-                whereargs = dict([('w%i' % i, '(^|\\W)%s' % w.strip()) for i, w in enumerate(regsrc)])
-                where = " AND ".join(["(%s)  ~* :w%i" % (columns_concat, i) for i, w in enumerate(regsrc)])
-                result = getSelection(where, **whereargs)
-
-        if len(result) == 0:
-            whereargs = dict([('w%i' % i, '%%%s%%' % w.strip()) for i, w in enumerate(srclist)])
-            where = " AND ".join(["(%s)  ILIKE :w%i" % (columns_concat, i) for i, w in enumerate(srclist)])
-            result = getSelection(where, **whereargs)
-
-        return result
+        return tblobj.dbSelectHandler().searchSelection(
+            querycolumns=querycolumns, querystring=querystring,
+            resultcolumns=resultcolumns, condition=condition, exclude=exclude,
+            limit=limit, order_by=order_by, **kwargs)
 
     @public_method
     def getValuesString(self, table: Optional[str] = None,
@@ -346,33 +352,32 @@ class DbSelectMixin:
         Returns:
             A string like ``"key1:caption1,key2:caption2,..."``.
         """
-        tblobj = self.db.table(table)
-        pkey = alt_pkey_field or tblobj.pkey
-        caption_field = caption_field or tblobj.attributes.get('caption_field') or tblobj.pkey
-        f = tblobj.query(columns='$%s,$%s' % (pkey, caption_field), **kwargs).fetch()
-        return ','.join(['%s:%s' % (r[pkey], (r[caption_field] or '').replace(',', ' ')) for r in f])
+        return self.db.table(table).dbSelectHandler().valuesString(
+            caption_field=caption_field, alt_pkey_field=alt_pkey_field,
+            **kwargs)
 
     @public_method
     def getMultiFetch(self, queries: Optional[Bag] = None) -> Bag:
         """Execute multiple queries in batch.
 
+        Each node of *queries* describes one query: ``table`` names the table
+        and is required, ``columns`` defaults to all of them, the ``dbenv_*``
+        attributes become a scoped database environment and everything else
+        goes to the query.  The caller's Bag is left as it was.
+
         Args:
-            queries: A :class:`Bag` where each node specifies a query
-                with ``table``, ``columns`` and additional parameters
-                as attributes.
+            queries: A :class:`Bag`, one node per query.
 
         Returns:
-            A :class:`Bag` with one key per query, each containing the
-            fetched results.
+            A :class:`Bag` with one entry per query, keyed by the node label.
         """
         result = Bag()
         for query in queries:
-            columns = query.attr.pop('columns', '*')
-            table = query.attr.pop('table')
-            tblobj = self.db.table(table)
-            columns = ','.join(tblobj.columnsFromString(columns))
             qattr = dict(query.attr)
+            columns = qattr.pop('columns', '*')
+            table = qattr.pop('table')
             dbenv_kw = dictExtract(qattr, 'dbenv_', True)
             with self.db.tempEnv(**dbenv_kw):
-                result[query.label] = tblobj.query(columns=columns, **qattr).fetchAsBag('pkey')
+                result[query.label] = self.db.table(table).dbSelectHandler(
+                ).fetchAsBag(columns=columns, **qattr)
         return result

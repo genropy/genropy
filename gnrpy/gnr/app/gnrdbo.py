@@ -16,6 +16,7 @@ from gnr.core.gnrdecorator import public_method,extract_kwargs
 from gnr.core.gnrdict import dictExtract
 
 from gnr.app import logger
+from gnr.app.gnrsqltable_proxy.db_select import DbSelectHandler
 from gnr.app.gnrsqltable_proxy.record import RecordHandler
 from gnr.app.gnrsqltable_proxy.selection import SelectionProxy
 
@@ -658,6 +659,19 @@ class TableBase(object):
         if handler is None:
             handler = RecordHandler(self)
             self._record_handler = handler
+        return handler
+
+    def dbSelectHandler(self):
+        """Return the dbSelect proxy of this table.
+
+        The proxy holds the table level part of the dbSelect, tableAnalyzeStore,
+        getValuesString and getMultiFetch flows.  It is a method and not a
+        property for the same reason ``selectionHandler`` is.
+        """
+        handler = getattr(self, '_dbselect_handler', None)
+        if handler is None:
+            handler = DbSelectHandler(self)
+            self._dbselect_handler = handler
         return handler
 
     def hasProtectionColumns(self):
