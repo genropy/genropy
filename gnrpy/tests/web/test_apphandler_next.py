@@ -6,6 +6,10 @@ refactoring, so every input must give the same output through both handlers:
 these tests run the same getSelection call twice, once per handler, and compare
 rows, columns and resultAttributes.
 
+The two handlers share no code: ``GnrWebAppHandlerNext`` is a full copy under
+``gnr.web.gnrwebpage_proxy.apphandler_next``, not a subclass, and the two tests
+at the end of this module are what keeps it so.
+
 The database is real: the ``test_invoice`` project on a temporary sqlite file,
 with the CSV data of projects/test_invoice/data/export imported by the same
 loader the sql suite uses.  Queries, selections and adm.userobject records are
@@ -16,6 +20,7 @@ locale, permissions, rpc method lookup) and nothing else.
 """
 
 import os
+import pathlib
 import shutil
 import tempfile
 
@@ -28,8 +33,9 @@ from gnr.app.gnrapp import GnrApp
 from gnr.core.gnrbag import Bag
 from gnr.web._gnrbasewebpage import GnrBaseWebPage
 from gnr.web.gnrwebpage import GnrWebPage
+from gnr.web.gnrwebpage_proxy import apphandler_next
 from gnr.web.gnrwebpage_proxy.apphandler import GnrWebAppHandler
-from gnr.web.gnrwebpage_proxy.apphandler.next import GnrWebAppHandlerNext
+from gnr.web.gnrwebpage_proxy.apphandler_next import GnrWebAppHandlerNext
 
 
 # ---------------------------------------------------------------------------
@@ -1124,3 +1130,33 @@ def test_saved_query_without_where(pg_handlers, db_postgres):
                            columns='$account_name', savedQuery=query_id,
                            order_by='$account_name', limit=5)
     assert len(rows) == 5
+
+
+# ---------------------------------------------------------------------------
+#  The two handlers share no code
+# ---------------------------------------------------------------------------
+
+_NEXT_PACKAGE = pathlib.Path(apphandler_next.__file__).parent
+
+_FROZEN_PACKAGE = 'gnr.web.gnrwebpage_proxy.apphandler'
+
+
+def test_next_handler_is_not_a_subclass_of_the_legacy_one():
+    """The copy is a copy: no inheritance, and no shared base but the proxy."""
+    assert not issubclass(GnrWebAppHandlerNext, GnrWebAppHandler)
+    assert not issubclass(GnrWebAppHandler, GnrWebAppHandlerNext)
+    shared = set(GnrWebAppHandlerNext.__mro__) & set(GnrWebAppHandler.__mro__)
+    assert {cls.__name__ for cls in shared} == {'GnrBaseProxy', 'object'}
+
+
+def test_no_module_of_the_next_package_imports_the_frozen_one():
+    """Nothing under ``apphandler_next`` may name the frozen package."""
+    offenders = []
+    for path in sorted(_NEXT_PACKAGE.glob('*.py')):
+        for number, line in enumerate(path.read_text(encoding='utf-8').splitlines(), 1):
+            stripped = line.strip()
+            if not (stripped.startswith('import ') or stripped.startswith('from ')):
+                continue
+            if _FROZEN_PACKAGE in stripped and '%s_next' % _FROZEN_PACKAGE not in stripped:
+                offenders.append('%s:%s: %s' % (path.name, number, stripped))
+    assert offenders == []

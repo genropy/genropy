@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # --------------------------------------------------------------------------
 # package           : GenroPy web - see LICENSE for details
-# module apphandler.next : app handler built on the table selection proxy
+# module apphandler_next.get_selection : Selection/query engine
 # Copyright (c)     : 2004 - 2026 Softwell sas - Milano
 # Written by    : Giovanni Porcari, Michele Bertoldi
 #                 Saverio Porcari, Francesco Porcari, Francesco Cavazzana
@@ -20,15 +20,18 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
-"""Alternative web application handler.
+"""Selection and query flow of :class:`GnrWebAppHandlerNext`.
 
-:class:`GnrWebAppHandlerNext` produces the same results as
-:class:`GnrWebAppHandler`, but the table level part of the ``getSelection``
-flow runs on the app level table proxy ``tblobj.selectionProxy()``
-(:class:`gnr.app.gnrsqltable_proxy.selection.SelectionProxy`) instead of on
-the handler.  What is left here is the page side: the page store, the frozen
-selections, the rpc method hooks, the locale and the permissions.  The long
-methods are split into helpers with one job each.
+This module is the copy that receives new work.  The module of the same name
+under ``gnr.web.gnrwebpage_proxy.apphandler`` is frozen and is never imported
+from here.
+
+The table level part of the flow runs on the app level table proxy
+``tblobj.selectionProxy()``
+(:class:`gnr.app.gnrsqltable_proxy.selection.SelectionProxy`).  What is left
+here is the page side: the page store, the frozen selections, the rpc method
+hooks, the locale and the permissions.  The long methods are split into
+helpers with one job each.
 
 Four results differ from the ones :class:`GnrWebAppHandler` produces, each of
 them a defect of the handler fixed here and covered by a test that asserts the
@@ -41,8 +44,9 @@ divergence.  They are listed in ``.subtasks/alt-apphandler/bugs.md``:
   frozen selection read again with a ``hardQueryLimit`` no longer raises;
 - a bracket group of columns ends at its closing bracket.
 
-It is selected by the instance configuration ``<db app_handler="next"/>``, read
-in the ``app`` property of :class:`gnr.web.gnrwebpage.GnrWebPage`.
+``_externalQueries``, ``_handleLinkedSelection`` and ``_columnsFromStruct`` are
+carried over unchanged from the frozen module; only ``_handleLinkedSelection``
+is still reached by this flow.
 """
 
 from __future__ import annotations
@@ -53,27 +57,16 @@ from typing import Any, Optional, Union
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdecorator import public_method
 from gnr.core.gnrstring import splitAndStrip
-from gnr.web.gnrwebpage_proxy.apphandler import GnrWebAppHandler
 
-__all__ = ['GnrWebAppHandlerNext']
+__all__ = ['GetSelectionMixin']
 
 
-class GnrWebAppHandlerNext(GnrWebAppHandler):
-    """Web application handler delegating the table work to the table proxy.
+class GetSelectionMixin:
+    """Mixin for the selection and query flow, on the table selection proxy.
 
-    Only the methods that delegate are overridden; everything else is
-    inherited from :class:`GnrWebAppHandler`.
+    ``_customSqlOpCallbacks`` and ``_decodeWhereBag``, which the rest of the
+    handler shares, live in the class body of the package ``__init__``.
     """
-
-    # ------------------------------------------------------------------
-    #  Page side services handed to the proxy
-    # ------------------------------------------------------------------
-
-    def _customSqlOpCallbacks(self) -> dict:
-        """Return the ``customSqlOp_*`` callbacks defined on the page."""
-        page = self.page
-        return dict([(x[12:], getattr(page, x)) for x in dir(page)
-                     if x.startswith('customSqlOp_')])
 
     # ------------------------------------------------------------------
     #  Record count
@@ -469,12 +462,6 @@ class GnrWebAppHandlerNext(GnrWebAppHandler):
     #  Where bag, join conditions, rpc query
     # ------------------------------------------------------------------
 
-    def _decodeWhereBag(self, tblobj: Any, where: Any,
-                        kwargs: dict[str, Any]) -> tuple[str, dict[str, Any]]:
-        """Delegate the where bag decoding to the table proxy."""
-        return tblobj.selectionProxy().decodeWhereBag(
-            where, kwargs, customOpCbDict=self._customSqlOpCallbacks())
-
     def _decodeJoinConditions(self, tblobj: Any, joinConditions: Any,
                               kwargs: dict) -> Union[dict, Any]:
         """Delegate the join condition decoding to the table proxy."""
@@ -605,3 +592,124 @@ class GnrWebAppHandlerNext(GnrWebAppHandler):
                 sortedBy = None
             filteringPkeys = filteringPkeys.output('pkeylist')
         return filteringPkeys, order_by, sortedBy
+
+    # ------------------------------------------------------------------
+    #  Carried over unchanged from the frozen module
+    # ------------------------------------------------------------------
+
+    def _externalQueries(self, selection: Any = None,
+                         external_queries: Optional[dict] = None) -> None:
+        """Execute queries on external stores and merge results.
+
+        When columns reference external stores (via ``:`` notation),
+        this method queries each external store and merges the results
+        back into the main selection.
+
+        Args:
+            selection: The main selection.
+            external_queries: Dict mapping relation keys to field lists.
+        """
+        storedict = dict()
+        for r in selection.data:
+            storedict.setdefault(r['_external_store'], []).append(r)
+        for store, subsel in storedict.items():
+            with self.db.tempEnv(storename=store):
+                for k, v in external_queries.items():
+                    ksplitted = k.split('.')
+                    tblobj = self.db.table('.'.join(ksplitted[:2]))
+                    relkey = ksplitted[-1]
+                    extfkeyname = '%s_fkey' % k.replace('.', '_')
+                    fkeys = [r[extfkeyname] for r in selection.data]
+                    columns = ','.join(v + ['$%s AS %s' % (relkey, extfkeyname)])
+                    resdict = tblobj.query(columns=columns, where='$%s IN :fkeys' % relkey,
+                                           fkeys=fkeys, addPkeyColumn=False).fetchAsDict(key=extfkeyname)
+                    for r in subsel:
+                        if r[extfkeyname] in resdict:
+                            r.update(resdict[r[extfkeyname]])
+
+    def _handleLinkedSelection(self, selectionName: Optional[str] = None) -> Optional[dict]:
+        """Handle master-slave linked selection subscriptions.
+
+        Manages subscribe/unsubscribe commands between linked grids
+        across pages, and returns the WHERE clause and pkeys needed
+        to filter the slave selection.
+
+        Args:
+            selectionName: Name of the selection.
+
+        Returns:
+            A dict with ``where`` and ``linkedPkeys`` keys, or ``None``
+            if no linked selection is active.
+        """
+        with self.page.pageStore() as slaveStore:
+            lsKey = 'linkedSelectionPars.%s' % selectionName
+            linkedSelectionPars = slaveStore.getItem(lsKey)
+            if not linkedSelectionPars:
+                return
+            linkedPkeys = linkedSelectionPars['pkeys']
+            command = linkedSelectionPars['command']
+            if command:
+                linkedSelectionPars['command'] = None
+                gridNodeId = linkedSelectionPars['gridNodeId']
+                if linkedSelectionPars['linkedPageId']:
+                    with self.page.pageStore(linkedSelectionPars['linkedPageId']) as masterStore:
+                        slavekey = 'slaveSelections.%(linkedSelectionName)s' % linkedSelectionPars
+                        slaveSelections = masterStore.getItem(slavekey) or Bag()
+                        grids = slaveSelections[self.page.page_id] or Bag()
+                        if command == 'subscribe':
+                            grids[gridNodeId] = True
+                        else:
+                            grids.popNode(gridNodeId)
+                        if grids:
+                            slaveSelections[self.page.page_id] = grids
+                        else:
+                            slaveSelections.popNode(self.page.page_id)
+                        if slaveSelections:
+                            masterStore.setItem(slavekey, slaveSelections)
+                        else:
+                            masterStore.popNode(slavekey)
+                if command == 'unsubscribe':
+                    for k in list(linkedSelectionPars.keys()):
+                        linkedSelectionPars[k] = None
+                slaveStore.setItem(lsKey, linkedSelectionPars)
+        if linkedSelectionPars['masterTable']:
+            if not linkedPkeys:
+                linkedPkeys = self.page.freezedPkeys(
+                    self.db.table(linkedSelectionPars['masterTable']),
+                    linkedSelectionPars['linkedSelectionName'],
+                    page_id=linkedSelectionPars['linkedPageId'])
+            where = ' OR '.join([" (%s IN :_masterPkeys) " % r for r in linkedSelectionPars['relationpath'].split(',')])
+            return dict(where=' ( %s ) ' % where,
+                        linkedPkeys=linkedPkeys.split(',') if isinstance(linkedPkeys, str) else linkedPkeys)
+
+    def _columnsFromStruct(self, viewbag: Bag,
+                           columns: Optional[list] = None) -> Optional[str]:
+        """Extract column names from a view structure :class:`Bag`.
+
+        Recursively walks the structure and collects field paths,
+        skipping formula columns.
+
+        Args:
+            viewbag: The view structure :class:`Bag`.
+            columns: Accumulator list (used in recursion).
+
+        Returns:
+            A comma-separated column string, or ``None`` if *viewbag*
+            is empty.
+        """
+        if columns is None:
+            columns = []
+        if not viewbag:
+            return
+
+        for node in viewbag:
+            fld = node.getAttr('field')
+            if node.getAttr('formula'):
+                continue
+            if fld:
+                if not (fld[0] in ('$', '@')):
+                    fld = '$' + fld
+                columns.append(fld)
+            if isinstance(node.value, Bag):
+                self._columnsFromStruct(node.value, columns)
+        return ','.join(columns)
