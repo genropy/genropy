@@ -16,6 +16,7 @@ from gnr.core.gnrdecorator import public_method,extract_kwargs
 from gnr.core.gnrdict import dictExtract
 
 from gnr.app import logger
+from gnr.app.gnrsqltable_proxy.record import RecordHandler
 from gnr.app.gnrsqltable_proxy.selection import SelectionProxy
 
 mimetypes.init() # Required for python 2.6 (fixes a multithread bug)
@@ -645,6 +646,19 @@ class TableBase(object):
             proxy = SelectionProxy(self)
             self._selection_proxy = proxy
         return proxy
+
+    def recordHandler(self):
+        """Return the record proxy of this table.
+
+        The proxy holds the table level part of the getRecord,
+        getRelatedRecord and getRelatedSelection flows.  It is a method and
+        not a property for the same reason ``selectionProxy`` is.
+        """
+        handler = getattr(self, '_record_handler', None)
+        if handler is None:
+            handler = RecordHandler(self)
+            self._record_handler = handler
+        return handler
 
     def hasProtectionColumns(self):
         result = False

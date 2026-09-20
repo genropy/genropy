@@ -10,233 +10,35 @@ The two handlers share no code: ``GnrWebAppHandlerNext`` is a full copy under
 ``gnr.web.gnrwebpage_proxy.apphandler_next``, not a subclass, and the two tests
 at the end of this module are what keeps it so.
 
-The database is real: the ``test_invoice`` project on a temporary sqlite file,
-with the CSV data of projects/test_invoice/data/export imported by the same
-loader the sql suite uses.  Queries, selections and adm.userobject records are
-real too.  Only the HTTP page context is replaced by a stand-in, because the
-suite has no infrastructure that produces a live GnrWebPage: the stand-in
-carries the page services the flow needs (page store, user store, freezing,
-locale, permissions, rpc method lookup) and nothing else.
+The database, the stand-in page and the two handlers built on it come from
+``apphandler_next_common``, shared with the other flow modules.
 """
 
-import os
 import pathlib
-import shutil
-import tempfile
 
 import pytest
 
-from core.common import BaseGnrTest
-from sql.conftest import _db_pg, _import_csv_data
-
-from gnr.app.gnrapp import GnrApp
 from gnr.core.gnrbag import Bag
-from gnr.web._gnrbasewebpage import GnrBaseWebPage
 from gnr.web.gnrwebpage import GnrWebPage
 from gnr.web.gnrwebpage_proxy import apphandler_next
 from gnr.web.gnrwebpage_proxy.apphandler import GnrWebAppHandler
 from gnr.web.gnrwebpage_proxy.apphandler_next import GnrWebAppHandlerNext
 
-
-# ---------------------------------------------------------------------------
-#  The stand-in page
-# ---------------------------------------------------------------------------
-
-class _MemoryStore:
-    """In memory replacement for the daemon backed page/user store."""
-
-    def __init__(self):
-        self.data = Bag()
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_value, tb):
-        return False
-
-    def getItem(self, path, default=None, **kwargs):
-        value = self.data[path]
-        return default if value is None else value
-
-    def setItem(self, path, value=None, **kwargs):
-        self.data.setItem(path, value)
-
-    def popNode(self, path, **kwargs):
-        return self.data.popNode(path)
-
-
-class _StandInRegister:
-    """Only the page ids added to ``live_pages`` are registered."""
-
-    def __init__(self):
-        self.live_pages = set()
-
-    def exists(self, page_id, register_name=None):
-        return page_id in self.live_pages
-
-
-class _StandInSite:
-    def __init__(self, gnrapp):
-        self.gnrapp = gnrapp
-        self.register = _StandInRegister()
-
-
-class _StandInPage:
-    """The page services of the getSelection flow, and nothing more.
-
-    Freezing is not reimplemented: the four freeze methods call the real
-    GnrBaseWebPage implementations unbound, as _gnrbasewebpage_test.py does.
-    """
-
-    def __init__(self, db, connectionFolder, page_id='test_page'):
-        self.db = db
-        self.connectionFolder = connectionFolder
-        self.page_id = page_id
-        self.locale = 'en'
-        self.user = 'admin'
-        self.avatar = None
-        self.site = _StandInSite(db.application)
-        self.rpc_methods = {}
-        self.published = []
-        self._event_subscribers = {}
-        self._page_store = _MemoryStore()
-        self._user_store = _MemoryStore()
-
-    # --- proxy machinery ---
-
-    def _subscribe_event(self, event, caller):
-        self._event_subscribers.setdefault(event, []).append(caller)
-
-    @property
-    def application(self):
-        return self.site.gnrapp
-
-    # --- page services ---
-
-    @property
-    def permissionPars(self):
-        return dict(user=self.user, user_group=None)
-
-    def pageStore(self, page_id=None, triggered=True):
-        return self._page_store
-
-    def userStore(self, user=None, triggered=True):
-        return self._user_store
-
-    def getPublicMethod(self, prefix, method):
-        if callable(method):
-            return method
-        return self.rpc_methods.get(method)
-
-    def clientPublish(self, topic, **kwargs):
-        self.published.append((topic, kwargs))
-
-    # --- freezing, on the real implementations ---
-
-    def pageLocalDocument(self, docname, page_id=None):
-        return GnrBaseWebPage.pageLocalDocument(self, docname, page_id=page_id)
-
-    def freezeSelection(self, selection, name, **kwargs):
-        return GnrBaseWebPage.freezeSelection(self, selection, name, **kwargs)
-
-    def freezeSelectionUpdate(self, selection):
-        return GnrBaseWebPage.freezeSelectionUpdate(self, selection)
-
-    def unfreezeSelection(self, dbtable=None, name=None, page_id=None):
-        return GnrBaseWebPage.unfreezeSelection(self, dbtable=dbtable, name=name,
-                                                page_id=page_id)
-
-    def freezedPkeys(self, dbtable=None, name=None, page_id=None):
-        return GnrBaseWebPage.freezedPkeys(self, dbtable=dbtable, name=name,
-                                           page_id=page_id)
-
-
-# ---------------------------------------------------------------------------
-#  Fixtures
-# ---------------------------------------------------------------------------
-
-@pytest.fixture(scope='module')
-def gnr_test_config():
-    """A genro configuration for the module, as tests/sql/conftest.py does."""
-    if os.environ.get('GENRO_GNRFOLDER'):
-        yield
-        return
-    BaseGnrTest.setup_class()
-    try:
-        yield
-    finally:
-        BaseGnrTest.teardown_class()
-
-
-@pytest.fixture(scope='module')
-def db(gnr_test_config):
-    """The test_invoice application on a temporary sqlite database."""
-    tmpdir = tempfile.mkdtemp()
-    app = None
-    try:
-        app = GnrApp('test_invoice', db_attrs=dict(
-            implementation='sqlite',
-            dbname=os.path.join(tmpdir, 'testing'),
-        ))
-        app.db.model.check(applyChanges=True)
-        _import_csv_data(app.db)
-        yield app.db
-    finally:
-        if app is not None:
-            app.db.closeConnection()
-        shutil.rmtree(tmpdir, ignore_errors=True)
-
-
-@pytest.fixture(scope='module')
-def db_postgres(request, gnr_test_config):
-    """The test_invoice application on postgres.
-
-    adm.userobject carries formula columns built on ``string_to_array``, which
-    sqlite does not have, so ``loadUserObject`` — and with it every saved query
-    and saved view — can only be exercised here.
-    """
-    yield from _db_pg(request, 'postgres')
-
-
-@pytest.fixture
-def make_handlers(tmp_path):
-    """Build one handler of each class on a given database."""
-    def build(db):
-        handlers = []
-        for name, handler_class in (('legacy', GnrWebAppHandler),
-                                    ('next', GnrWebAppHandlerNext)):
-            page = _StandInPage(db, str(tmp_path / name))
-            handler = handler_class(page)
-            # _prepareRpcQuery reaches the handler back through page.app
-            page.app = handler
-            handlers.append(handler)
-        return tuple(handlers)
-    return build
-
-
-@pytest.fixture
-def handlers(make_handlers, db):
-    return make_handlers(db)
-
-
-@pytest.fixture
-def pg_handlers(make_handlers, db_postgres):
-    return make_handlers(db_postgres)
+from apphandler_next_common import _StandInPage, normalized_attributes
+# pytest resolves fixtures by name in the module namespace, so the shared ones
+# are imported even though nothing in this file calls them.
+from apphandler_next_common import (gnr_test_config, db, db_postgres,  # noqa: F401
+                                    make_handlers, handlers, pg_handlers)
 
 
 # ---------------------------------------------------------------------------
 #  Comparison helpers
 # ---------------------------------------------------------------------------
 
-VOLATILE_ATTRIBUTES = ('servertime', 'newproc')
-
-
-def _normalized(result):
+def _normalized(result, ignore=()):
     data, attributes = result
     rows = [(node.label, dict(node.attr)) for node in data]
-    attributes = {k: v for k, v in attributes.items()
-                  if k not in VOLATILE_ATTRIBUTES}
-    return rows, attributes
+    return rows, normalized_attributes(attributes, ignore=ignore)
 
 
 def _run_both(handlers, **pars):
@@ -251,11 +53,8 @@ def _assert_same(handlers, _ignore=(), **pars):
     the rest of the case still proves equivalence.
     """
     legacy_result, next_result = _run_both(handlers, **pars)
-    legacy_rows, legacy_attrs = _normalized(legacy_result)
-    next_rows, next_attrs = _normalized(next_result)
-    if _ignore:
-        legacy_attrs = {k: v for k, v in legacy_attrs.items() if k not in _ignore}
-        next_attrs = {k: v for k, v in next_attrs.items() if k not in _ignore}
+    legacy_rows, legacy_attrs = _normalized(legacy_result, ignore=_ignore)
+    next_rows, next_attrs = _normalized(next_result, ignore=_ignore)
     assert next_rows == legacy_rows
     assert next_attrs == legacy_attrs
     return legacy_rows, legacy_attrs
