@@ -55,6 +55,7 @@ from gnr.web.gnrwebreqresp import GnrWebRequest, GnrWebResponse
 from gnr.web.gnrwebpage_proxy.gnrbaseproxy import GnrBaseProxy
 from gnr.web.gnrwebpage_proxy.menuproxy import GnrMenuProxy
 from gnr.web.gnrwebpage_proxy.apphandler import GnrWebAppHandler
+from gnr.web.gnrwebpage_proxy.apphandler.next import GnrWebAppHandlerNext
 from gnr.web.gnrwebpage_proxy.connection import GnrWebConnection
 from gnr.web.gnrwebpage_proxy.serverbatch import GnrWebBatch
 from gnr.web.gnrwebpage_proxy.rpc import GnrWebRpc
@@ -1709,9 +1710,17 @@ class GnrWebPage(GnrBaseWebPage):
         
     @property
     def app(self):
-        """TODO"""
+        """The web application handler of this page.
+
+        The instance configuration ``<db app_handler="next"/>`` selects
+        :class:`GnrWebAppHandlerNext`; any other value, or no value at all,
+        gives :class:`GnrWebAppHandler`.
+        """
         if not hasattr(self, '_app'):
-            self._app = GnrWebAppHandler(self)
+            handler_class = GnrWebAppHandler
+            if self.application.config['db?app_handler'] == 'next':
+                handler_class = GnrWebAppHandlerNext
+            self._app = handler_class(self)
         return self._app
         
     @property
