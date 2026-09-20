@@ -26,7 +26,8 @@
 ``gnr.app.gnrdbo.TableBase.selectionProxy``.  It holds the part of the
 ``getSelection`` flow that only needs the table and the database: column
 processing, WHERE bag decoding, join condition decoding, external store
-queries, saved queries and views, and the default query construction.
+queries, saved queries and views, the default query construction, the record
+count and the serialization of a query for the client.
 
 It never references a web page.  Everything the page provides — the
 ``customSqlOp_*`` callbacks, the resolved expression dictionary, the locale, the
@@ -36,6 +37,7 @@ as a parameter or as a callable.
 
 from __future__ import annotations
 
+import re
 from typing import Any, Callable, Optional, Union
 
 from gnr.core.gnrbag import Bag
@@ -94,6 +96,12 @@ class SelectionProxy:
         columns, expression substitution and the automatic protection and
         invalid columns.
 
+        A bracket group ``tbl[a,b]`` prefixes every column up to the closing
+        bracket and stops there.  The handler version of this code tests the
+        closing bracket after stripping it, so the group never ends and every
+        following column keeps the prefix; here the group end is remembered
+        before the bracket is removed.
+
         Args:
             columns: Raw column specification.
             expressions: Already resolved expression dictionary, ``{name: sql}``.
@@ -121,10 +129,11 @@ class SelectionProxy:
                 if '[' in col:
                     tbl, col = col.split('[')
                     maintable = [tbl]
-                if col.endswith(']'):
+                group_end = col.endswith(']')
+                if group_end:
                     col = col[:-1]
                 columns.append('.'.join(maintable + [col.rstrip(']')]))
-                if col.endswith(']'):
+                if group_end:
                     maintable = []
             columns = ','.join(columns)
         if expressions:
@@ -183,6 +192,114 @@ class SelectionProxy:
             sqlcondition, kwargs = self.tblobj.sqlWhereFromBag(jc['condition'], kwargs)
             result[jc['relation']] = dict(condition=sqlcondition, one_one=jc['one_one'])
         return result
+
+    def recordCount(self, where: Any = '', condition: Optional[str] = None,
+                    distinct: bool = False, columns: str = '',
+                    relationDict: Optional[dict] = None,
+                    sqlparams: Optional[dict] = None,
+                    customOpCbDict: Optional[dict] = None, **kwargs: Any) -> int:
+        """Count the records matching *where* and *condition*.
+
+        Args:
+            where: SQL WHERE clause or a :class:`Bag` to decode.
+            condition: Extra condition ANDed to *where*.
+            distinct: Use ``SELECT DISTINCT``.
+            columns: Column expression for the query.
+            relationDict: Symbolic relation names.
+            sqlparams: Additional SQL parameters.
+            customOpCbDict: Custom operator callbacks for the where bag.
+
+        Returns:
+            The record count.
+        """
+        if isinstance(where, Bag):
+            where, kwargs = self.decodeWhereBag(where, kwargs,
+                                                customOpCbDict=customOpCbDict)
+        if condition:
+            where = '( %s ) AND ( %s )' % (where, condition) if where else condition
+        return self.tblobj.query(columns=columns, distinct=distinct, where=where,
+                                 relationDict=relationDict, sqlparams=sqlparams,
+                                 **kwargs).count()
+
+    # ------------------------------------------------------------------
+    #  Query serialization
+    # ------------------------------------------------------------------
+
+    def rpcQuery(self, distinct: Optional[bool] = None,
+                 columns: Optional[str] = None,
+                 where: Optional[Bag] = None,
+                 condition: Optional[str] = None,
+                 order_by: Optional[str] = None,
+                 limit: Optional[int] = None,
+                 group_by: Optional[str] = None,
+                 having: Optional[str] = None,
+                 excludeLogicalDeleted: bool = True,
+                 excludeDraft: bool = True,
+                 customOpCbDict: Optional[dict] = None, **kwargs: Any) -> Bag:
+        """Serialize the query parameters so the client can store the query.
+
+        The parameters are split into the ones the WHERE bag names, the ones
+        the condition names, the ones read from the database environment and
+        the rest, and the generated SQL text is added.
+
+        Args:
+            where: The WHERE conditions, a :class:`Bag`.
+            customOpCbDict: Custom operator callbacks for the where bag.
+
+        Returns:
+            A :class:`Bag` with every query parameter and the SQL text.
+        """
+        query_pars = dict(distinct=distinct, condition=condition,
+                          columns=columns,
+                          order_by=order_by, limit=limit,
+                          group_by=group_by,
+                          having=having,
+                          excludeLogicalDeleted=excludeLogicalDeleted,
+                          excludeDraft=excludeDraft, **kwargs)
+        decoded_query_pars = dict(query_pars)
+        where_pars = {}
+        condition_pars = {}
+
+        def findPars(n: Any) -> None:
+            if n.attr.get('parname'):
+                where_pars[n.attr.get('parname')] = n.getValue()
+
+        textwhere, decoded_query_pars = self.decodeWhereBag(
+            where, decoded_query_pars, customOpCbDict=customOpCbDict)
+        where.walk(findPars)
+        if condition:
+            textwhere = '({}) AND ({})'.format(textwhere, condition)
+
+        q = self.tblobj.query(where=textwhere, **decoded_query_pars)
+        currenv = dict(self.db.currentEnv)
+        sqltext = q.sqltext
+        allpars = re.findall(r':(\S\w*)(\W|$)', q.sqltext)
+        env_pars = {k[4:]: currenv[k[4:]] for k, chunk in allpars if k[4:] in currenv}
+        if condition:
+            for par, chunk in re.findall(r':(\S\w*)(\W|$)', condition):
+                condition_pars[par] = query_pars[par]
+        if not where_pars:
+            for par, chunk in allpars:
+                if par in decoded_query_pars and par not in env_pars and par not in condition_pars:
+                    where_pars[par] = decoded_query_pars[par]
+        other_pars = {}
+        for k, v in query_pars.items():
+            if k not in where_pars and \
+                    k not in condition_pars and \
+                    k not in env_pars:
+                other_pars[k] = v
+        rpcquery = Bag()
+        rpcquery['columns'] = columns
+        rpcquery['query_where'] = where
+        rpcquery['query_condition'] = condition
+        rpcquery['query_pars'] = Bag(query_pars)
+        rpcquery['where_pars'] = Bag(where_pars)
+        rpcquery['condition_pars'] = Bag(condition_pars)
+        rpcquery['env_pars'] = Bag(env_pars)
+        rpcquery['other_pars'] = Bag(other_pars)
+        rpcquery['where_as_html'] = self.db.whereTranslator.toHtml(self.tblobj, where)
+        rpcquery['sqlquery'] = sqltext
+        return rpcquery
 
     # ------------------------------------------------------------------
     #  External stores
