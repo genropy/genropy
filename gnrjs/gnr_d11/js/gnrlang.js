@@ -919,7 +919,7 @@ function valueMapFormat(format_choice,value){
     if(label===null){
         return value;
     }
-    return label.replace(/%s/g,value);
+    return label.replace(/%s/g,function(){return value;});
 }
 
 function objectFromString(values,sep,mode){
@@ -1136,7 +1136,7 @@ var gnrformatter = {
         if(!mask || !formattedValue){
             return formattedValue;
         }
-        return mask.replace(/%s/g, formattedValue);
+        return mask.replace(/%s/g, function(){return formattedValue;});
 
     },
     format_P:function(value,format,formatKw){
