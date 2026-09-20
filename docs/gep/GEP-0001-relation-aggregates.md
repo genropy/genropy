@@ -6,7 +6,7 @@
 | **Status** | Draft |
 | **Author** | Giovanni Porcari |
 | **Created** | 2026-09-20 |
-| **Refs** | #1354, #623, #544, #496, #617 |
+| **Refs** | #1354, #623, #544, #496, #617, GEP 2 |
 | **Branch** | `feature/1354-relation-aggregates` (this document; implementation follows section 8) |
 
 ## 1. Abstract
@@ -466,9 +466,8 @@ be added later as its own function with the key named explicitly.
 
 No bracket filter and no `where=` argument. A filtered subset is a relation
 of its own in the model (`@invoices_prev.sum($total)`), declared on the
-one-side table with `manyRelation(name, '@relation', condition=...)`. That
-declaration is an ordinary change, delivered as its own PR, not part of this
-GEP. Query-time filters stay with the existing `joinConditions` /
+one-side table with `manyRelation(name, '@relation', condition=...)`, the
+subject of GEP 2. Query-time filters stay with the existing `joinConditions` /
 `setJoinCondition` mechanism.
 
 ### 9.8 Where does the grammar live — DECIDED: everywhere (2026-09-20)

@@ -6,7 +6,7 @@
 | **Status** | Draft |
 | **Author** | Giovanni Porcari |
 | **Created** | 2026-09-20 |
-| **Refs** | GEP 1 |
+| **Refs** | GEP 1, GEP 2 |
 
 ## 1. Abstract
 
@@ -81,3 +81,4 @@ are never reused.
 |---|---|---|---|
 | 0 | process | GenroPy Enhancement Proposals | Draft |
 | 1 | sql | Relation functions in the column grammar | Draft |
+| 2 | sql | `manyRelation`: filtered many-side relations declared on the one-side table | Draft |
