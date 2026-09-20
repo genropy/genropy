@@ -35,15 +35,37 @@ from gnr.web.gnrwebpage_proxy.apphandler_next import GnrWebAppHandlerNext
 # ---------------------------------------------------------------------------
 
 class _MemoryStore:
-    """In memory replacement for the daemon backed page/user store."""
+    """In memory replacement for the daemon backed page/user store.
 
-    def __init__(self):
+    One instance per store, so the page store of one page is not the page
+    store of another and the cross page writes of ``_handleLinkedSelection``
+    land where a real :class:`GnrWebPage` would put them.
+
+    ``__enter__`` and ``__exit__`` append to the shared *log* of the page
+    instead of locking a daemon, so a test can assert how many stores a flow
+    opens and in which order it nests them.
+
+    What it does not reproduce: ``getItem`` returns the live :class:`Bag`,
+    while the real ``ServerStore`` returns a detached one, so a mutation of a
+    fetched bag that is never written back with ``setItem`` persists here and
+    would be lost there.
+    """
+
+    def __init__(self, name, log):
+        self.name = name
+        self.log = log
         self.data = Bag()
+        self.enter_count = 0
+        self.exit_count = 0
 
     def __enter__(self):
+        self.enter_count += 1
+        self.log.append(('enter', self.name))
         return self
 
     def __exit__(self, exc_type, exc_value, tb):
+        self.exit_count += 1
+        self.log.append(('exit', self.name))
         return False
 
     def getItem(self, path, default=None, **kwargs):
@@ -93,8 +115,8 @@ class _StandInPage:
         self.eagers = {}
         self.maintable = None
         self._event_subscribers = {}
-        self._page_store = _MemoryStore()
-        self._user_store = _MemoryStore()
+        self.store_log = []
+        self._stores = {}
 
     # --- proxy machinery ---
 
@@ -111,11 +133,17 @@ class _StandInPage:
     def permissionPars(self):
         return dict(user=self.user, user_group=None)
 
+    def _store(self, name):
+        """The store called *name*, created on first use."""
+        if name not in self._stores:
+            self._stores[name] = _MemoryStore(name, self.store_log)
+        return self._stores[name]
+
     def pageStore(self, page_id=None, triggered=True):
-        return self._page_store
+        return self._store('page:%s' % (page_id or self.page_id))
 
     def userStore(self, user=None, triggered=True):
-        return self._user_store
+        return self._store('user:%s' % (user or self.user))
 
     def getPublicMethod(self, prefix, method):
         if callable(method):
@@ -186,6 +214,26 @@ def db(gnr_test_config):
 
 
 @pytest.fixture(scope='module')
+def db_with_external_store(db):
+    """The same database, also registered as the auxiliary store ``extstore``.
+
+    ``SelectionHandler.externalQueries`` opens ``db.tempEnv(storename=...)`` on
+    the store name the rows carry in their ``_external_store`` column, so its
+    body cannot run without a second registered store.  Registering the sqlite
+    file of the ``db`` fixture under a second name gives a real store, with its
+    own connection parameters and its own connection, and the data the
+    assertions need is already in it.
+    """
+    storename = 'extstore'
+    db.stores_handler.add_auxstore(storename, dbattr=dict(
+        dbname=db.dbname, implementation='sqlite'))
+    try:
+        yield db
+    finally:
+        db.auxstores.pop(storename, None)
+
+
+@pytest.fixture(scope='module')
 def db_postgres(request, gnr_test_config):
     """The test_invoice application on postgres.
 
@@ -220,6 +268,11 @@ def handlers(make_handlers, db):
 @pytest.fixture
 def pg_handlers(make_handlers, db_postgres):
     return make_handlers(db_postgres)
+
+
+@pytest.fixture
+def external_store_handlers(make_handlers, db_with_external_store):
+    return make_handlers(db_with_external_store)
 
 
 # ---------------------------------------------------------------------------

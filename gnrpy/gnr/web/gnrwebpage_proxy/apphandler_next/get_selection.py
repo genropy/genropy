@@ -44,9 +44,10 @@ divergence.  They are listed in ``.subtasks/alt-apphandler/bugs.md``:
   frozen selection read again with a ``hardQueryLimit`` no longer raises;
 - a bracket group of columns ends at its closing bracket.
 
-``_externalQueries``, ``_handleLinkedSelection`` and ``_columnsFromStruct`` are
-carried over unchanged from the frozen module; only ``_handleLinkedSelection``
-is still reached by this flow.
+``_handleLinkedSelection`` is carried over unchanged from the frozen module.
+``_externalQueries`` and ``_columnsFromStruct`` are not: the proxy owns that
+code, this flow calls it there, and no caller anywhere in ``gnrpy``,
+``projects``, ``resources`` or ``gnrjs`` names the handler copies.
 """
 
 from __future__ import annotations
@@ -83,9 +84,10 @@ class GetSelectionMixin:
                        **kwargs: Any) -> int:
         """Count records matching the given criteria, counting on the proxy.
 
-        See :meth:`GetSelectionMixin.getRecordCount` for the parameters.  The
-        page side is the resolution of a fully qualified *field* into the
-        table that owns it and the custom operator callbacks.
+        The parameters are the ones of the frozen
+        :meth:`gnr.web.gnrwebpage_proxy.apphandler.get_selection.GetSelectionMixin.getRecordCount`.
+        The page side is the resolution of a fully qualified *field* into the
+        table that owns it, and the custom operator callbacks.
         """
         if field:
             if not table:
@@ -96,7 +98,7 @@ class GetSelectionMixin:
         return self.db.table(table).selectionProxy().recordCount(
             where=where, condition=condition, distinct=distinct, columns=columns,
             relationDict=relationDict, sqlparams=sqlparams,
-            customOpCbDict=self._customSqlOpCallbacks(), **kwargs)
+            customOpCb=self._customSqlOpCallbacks, **kwargs)
 
     # ------------------------------------------------------------------
     #  getSelection: the prologue
@@ -105,10 +107,11 @@ class GetSelectionMixin:
     def _mergeQueryExtras(self, kwargs: dict, multiStores: Optional[str] = None,
                           queryExtraPars: Optional[Bag] = None,
                           formulaVariants: Optional[Bag] = None) -> dict:
-        """Merge the client side extras into the query keywords.
+        """Merge the store name, the extra parameters and the formula variants.
 
-        The store name, the extra parameter bag and the formula variants all
-        become plain query keywords.
+        The three are unrelated to each other and all three end up as plain
+        query keywords: *multiStores* as ``_storename``, *queryExtraPars* as one
+        keyword per entry, *formulaVariants* as one dict keyword per cell.
         """
         if multiStores:
             kwargs['_storename'] = multiStores
@@ -142,31 +145,39 @@ class GetSelectionMixin:
     #  getSelection: selection name and saved objects
     # ------------------------------------------------------------------
 
-    def _frozenSelection(self, tblobj: Any, selectionName: str,
-                         sortedBy: Optional[str]) -> tuple[str, Any]:
-        """Resolve the selection name and reuse the selection it names.
+    def _resolveSelectionName(self, selectionName: str) -> tuple[str, bool]:
+        """Resolve the name of the selection and say whether it may be reused.
 
         A name starting with ``'*'`` asks to freeze under that name and never
-        to reuse: ``'*'`` alone becomes the page id, ``'*name'`` becomes
-        ``'name'``.  Any other non empty name is looked up among the frozen
-        selections and, when found, re-sorted if the requested sorting
-        changed.
+        to reuse what is already frozen: ``'*'`` alone becomes the page id,
+        ``'*name'`` becomes ``'name'``.  Any other name is used as it is.
 
         Returns:
-            A ``(selectionName, selection)`` tuple, where the selection is
-            ``None`` when a new one has to be built.
+            A ``(selectionName, reusable)`` tuple.
         """
         if selectionName.startswith('*'):
             resolved = self.page.page_id if selectionName == '*' else selectionName[1:]
-            return resolved, None
-        if not selectionName:
-            return selectionName, None
+            return resolved, False
+        return selectionName, bool(selectionName)
+
+    def _unfreezeAndResortSelection(self, tblobj: Any, selectionName: str,
+                                    sortedBy: Optional[str]) -> Any:
+        """Unfreeze the named selection, re-sorting and re-freezing it.
+
+        The write is the point: when the caller asks for a sorting the frozen
+        selection does not have, the selection is sorted and written back
+        through ``freezeSelectionUpdate`` before it is returned.
+
+        Returns:
+            The frozen selection, or ``None`` when no selection is frozen
+            under that name and a new one has to be built.
+        """
         selection = self.page.unfreezeSelection(tblobj, selectionName)
         if selection is not None and sortedBy \
                 and ','.join(selection.sortedBy or []) != sortedBy:
             selection.sort(sortedBy)
             self.page.freezeSelectionUpdate(selection)
-        return selectionName, selection
+        return selection
 
     def _savedQueryPars(self, selectionProxy: Any, savedQuery: str,
                         limit: Optional[int] = None,
@@ -211,11 +222,15 @@ class GetSelectionMixin:
             'current.table.%s.last_selection_path' % table.replace('.', '_'),
             selectionPath)
 
-    def _selectionOutput(self, selection: Any, tblobj: Any, row_start: int = 0,
+    def _selectionResult(self, selection: Any, tblobj: Any, row_start: int = 0,
                          row_count: int = 0, formats: Optional[dict] = None,
                          recordResolver: bool = True, numberedRows: bool = True,
                          structure: bool = False) -> Bag:
-        """Turn the selection into the :class:`Bag` the grid reads."""
+        """Turn the selection into the :class:`Bag` the grid reads.
+
+        With *structure* the returned :class:`Bag` is not the data: it carries
+        the data under ``data`` and the grid structure under ``structure``.
+        """
         generator = selection.output(mode='generator', offset=row_start,
                                      limit=row_count, formats=formats)
         addClassesDict = dict([(k, v['_addClass'])
@@ -320,8 +335,9 @@ class GetSelectionMixin:
                      **kwargs: Any) -> tuple[Bag, dict]:
         """Load a selection of records for grid display.
 
-        See :meth:`GetSelectionMixin.getSelection` for the parameters.  The
-        flow is the same, split into helpers, with the table work on
+        The parameters are the ones of the frozen
+        :meth:`gnr.web.gnrwebpage_proxy.apphandler.get_selection.GetSelectionMixin.getSelection`.
+        The flow is the same, split into helpers, with the table work on
         ``tblobj.selectionProxy()``; the four divergences are listed in the
         module docstring.
 
@@ -351,7 +367,9 @@ class GetSelectionMixin:
         if checkPermissions is True:
             checkPermissions = self.page.permissionPars
         formats = self._popColumnFormats(kwargs)
-        selectionName, selection = self._frozenSelection(tblobj, selectionName, sortedBy)
+        selectionName, reusable = self._resolveSelectionName(selectionName)
+        selection = self._unfreezeAndResortSelection(tblobj, selectionName,
+                                                     sortedBy) if reusable else None
         newSelection = selection is None
         debug = 'fromDb' if newSelection else 'fromPickle'
         if newSelection:
@@ -420,13 +438,17 @@ class GetSelectionMixin:
             resultAttributes.update(table=table, method='app.getSelection',
                                     selectionName=selectionName, row_count=row_count,
                                     totalrows=len(selection))
-        result = self._selectionOutput(selection, tblobj, row_start=row_start,
+        result = self._selectionResult(selection, tblobj, row_start=row_start,
                                        row_count=row_count, formats=formats,
                                        recordResolver=recordResolver,
                                        numberedRows=numberedRows, structure=structure)
+        # 'newproc' is the constant 'no': the frozen handler reads the
+        # attribute named by the literal string 'self.newprocess', which
+        # nothing defines, and nothing in the tree sets 'newprocess' either
+        # (bugs.md E5).  The emitted value is the same.
         resultAttributes.update({'debug': debug,
                                  'servertime': int((time.time() - t) * 1000),
-                                 'newproc': getattr(self, 'self.newprocess', 'no')})
+                                 'newproc': 'no'})
         if totalRowCount:
             resultAttributes['totalRowCount'] = tblobj.query(
                 where=condition, excludeLogicalDeleted=excludeLogicalDeleted,
@@ -525,7 +547,7 @@ class GetSelectionMixin:
         where, kwargs = selectionProxy.selectionWhere(
             where=where, condition=condition, pkeys=pkeys,
             linkedSelectionKw=linkedSelectionKw,
-            customOpCbDict=self._customSqlOpCallbacks(), kwargs=kwargs)
+            customOpCb=self._customSqlOpCallbacks, kwargs=kwargs)
         if filteringPkeys and isinstance(filteringPkeys, str):
             filteringPkeys, order_by, sortedBy = self._resolveFilteringPkeys(
                 tblobj, filteringPkeys, where=where, relationDict=relationDict,
@@ -533,7 +555,7 @@ class GetSelectionMixin:
                 sortedBy=sortedBy, kwargs=kwargs)
             where, kwargs = selectionProxy.filteringWhere(where, filteringPkeys, kwargs)
         if countOnly:
-            return selectionProxy.countSelection(
+            return selectionProxy.countRows(
                 where=where, order_by=order_by, limit=limit, offset=offset,
                 having=having, relationDict=relationDict, sqlparams=sqlparams,
                 locale=self.page.locale, excludeLogicalDeleted=excludeLogicalDeleted,
@@ -561,13 +583,13 @@ class GetSelectionMixin:
         return selection
 
     def _resolveFilteringPkeys(self, tblobj: Any, filteringPkeys: str,
+                               kwargs: dict,
                                where: Any = None,
                                relationDict: Optional[dict] = None,
                                sqlparams: Optional[dict] = None,
                                limit: Optional[int] = None,
                                order_by: Optional[str] = None,
-                               sortedBy: Optional[str] = None,
-                               kwargs: Optional[dict] = None) -> tuple:
+                               sortedBy: Optional[str] = None) -> tuple:
         """Turn a *filteringPkeys* string into the list of pkeys it names.
 
         A comma separated string is the list itself.  Any other string is the
@@ -596,36 +618,6 @@ class GetSelectionMixin:
     # ------------------------------------------------------------------
     #  Carried over unchanged from the frozen module
     # ------------------------------------------------------------------
-
-    def _externalQueries(self, selection: Any = None,
-                         external_queries: Optional[dict] = None) -> None:
-        """Execute queries on external stores and merge results.
-
-        When columns reference external stores (via ``:`` notation),
-        this method queries each external store and merges the results
-        back into the main selection.
-
-        Args:
-            selection: The main selection.
-            external_queries: Dict mapping relation keys to field lists.
-        """
-        storedict = dict()
-        for r in selection.data:
-            storedict.setdefault(r['_external_store'], []).append(r)
-        for store, subsel in storedict.items():
-            with self.db.tempEnv(storename=store):
-                for k, v in external_queries.items():
-                    ksplitted = k.split('.')
-                    tblobj = self.db.table('.'.join(ksplitted[:2]))
-                    relkey = ksplitted[-1]
-                    extfkeyname = '%s_fkey' % k.replace('.', '_')
-                    fkeys = [r[extfkeyname] for r in selection.data]
-                    columns = ','.join(v + ['$%s AS %s' % (relkey, extfkeyname)])
-                    resdict = tblobj.query(columns=columns, where='$%s IN :fkeys' % relkey,
-                                           fkeys=fkeys, addPkeyColumn=False).fetchAsDict(key=extfkeyname)
-                    for r in subsel:
-                        if r[extfkeyname] in resdict:
-                            r.update(resdict[r[extfkeyname]])
 
     def _handleLinkedSelection(self, selectionName: Optional[str] = None) -> Optional[dict]:
         """Handle master-slave linked selection subscriptions.
@@ -681,35 +673,3 @@ class GetSelectionMixin:
             where = ' OR '.join([" (%s IN :_masterPkeys) " % r for r in linkedSelectionPars['relationpath'].split(',')])
             return dict(where=' ( %s ) ' % where,
                         linkedPkeys=linkedPkeys.split(',') if isinstance(linkedPkeys, str) else linkedPkeys)
-
-    def _columnsFromStruct(self, viewbag: Bag,
-                           columns: Optional[list] = None) -> Optional[str]:
-        """Extract column names from a view structure :class:`Bag`.
-
-        Recursively walks the structure and collects field paths,
-        skipping formula columns.
-
-        Args:
-            viewbag: The view structure :class:`Bag`.
-            columns: Accumulator list (used in recursion).
-
-        Returns:
-            A comma-separated column string, or ``None`` if *viewbag*
-            is empty.
-        """
-        if columns is None:
-            columns = []
-        if not viewbag:
-            return
-
-        for node in viewbag:
-            fld = node.getAttr('field')
-            if node.getAttr('formula'):
-                continue
-            if fld:
-                if not (fld[0] in ('$', '@')):
-                    fld = '$' + fld
-                columns.append(fld)
-            if isinstance(node.value, Bag):
-                self._columnsFromStruct(node.value, columns)
-        return ','.join(columns)

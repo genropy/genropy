@@ -33,6 +33,12 @@ It never references a web page.  Everything the page provides — the
 ``customSqlOp_*`` callbacks, the resolved expression dictionary, the locale, the
 pkeys of a frozen selection, the join conditions of a SQL context — is passed in
 as a parameter or as a callable.
+
+The custom operator callbacks arrive in two shapes, and the difference is not
+cosmetic: a method that always decodes a WHERE bag takes the dictionary
+(``customOpCbDict``), a method that decodes one only for some inputs takes a
+zero argument callable that returns it (``customOpCb``), so the caller does not
+scan the page for ``customSqlOp_*`` methods on every call that has no bag.
 """
 
 from __future__ import annotations
@@ -197,7 +203,7 @@ class SelectionProxy:
                     distinct: bool = False, columns: str = '',
                     relationDict: Optional[dict] = None,
                     sqlparams: Optional[dict] = None,
-                    customOpCbDict: Optional[dict] = None, **kwargs: Any) -> int:
+                    customOpCb: Callable = dict, **kwargs: Any) -> int:
         """Count the records matching *where* and *condition*.
 
         Args:
@@ -207,14 +213,16 @@ class SelectionProxy:
             columns: Column expression for the query.
             relationDict: Symbolic relation names.
             sqlparams: Additional SQL parameters.
-            customOpCbDict: Custom operator callbacks for the where bag.
+            customOpCb: Called, only when *where* is a :class:`Bag`, to get the
+                custom operator callbacks of the where bag.  The default
+                answers with no callback.
 
         Returns:
             The record count.
         """
         if isinstance(where, Bag):
             where, kwargs = self.decodeWhereBag(where, kwargs,
-                                                customOpCbDict=customOpCbDict)
+                                                customOpCbDict=customOpCb())
         if condition:
             where = '( %s ) AND ( %s )' % (where, condition) if where else condition
         return self.tblobj.query(columns=columns, distinct=distinct, where=where,
@@ -372,7 +380,7 @@ class SelectionProxy:
     def selectionWhere(self, where: Any = None, condition: Optional[str] = None,
                        pkeys: Optional[Any] = None,
                        linkedSelectionKw: Optional[dict] = None,
-                       customOpCbDict: Optional[dict] = None,
+                       customOpCb: Callable = dict,
                        kwargs: Optional[dict] = None) -> tuple[Any, dict]:
         """Build the WHERE clause of a default selection.
 
@@ -385,7 +393,10 @@ class SelectionProxy:
             pkeys: Explicit pkey list, or a comma separated string.
             linkedSelectionKw: The ``where``/``linkedPkeys`` pair of a linked
                 selection, as the page resolves it.
-            customOpCbDict: Custom operator callbacks for the where bag.
+            customOpCb: Called, only when *where* is a :class:`Bag` and neither
+                *linkedSelectionKw* nor *pkeys* replaces it, to get the custom
+                operator callbacks of the where bag.  The default answers with
+                no callback.
             kwargs: Query parameters, updated and returned.
 
         Returns:
@@ -399,9 +410,10 @@ class SelectionProxy:
         elif pkeys:
             if isinstance(pkeys, str):
                 pkeys = pkeys.strip(',').split(',')
-            if len(pkeys) == 0:
-                kwargs['limit'] = 0
-            elif len(pkeys) == 1:
+            # an empty pkeys list cannot reach this point: a falsy pkeys never
+            # enters the branch and a truthy string always yields at least one
+            # element (bugs.md D4)
+            if len(pkeys) == 1:
                 where = 't0.%s =:_pkey' % tblobj.pkey
                 kwargs['_pkey'] = pkeys[0]
             else:
@@ -409,7 +421,7 @@ class SelectionProxy:
                 kwargs['pkeys'] = pkeys
         elif isinstance(where, Bag):
             kwargs.pop('where_attr', None)
-            where, kwargs = self.decodeWhereBag(where, kwargs, customOpCbDict=customOpCbDict)
+            where, kwargs = self.decodeWhereBag(where, kwargs, customOpCbDict=customOpCb())
         if condition and not pkeys:
             where = ' ( %s ) AND ( %s ) ' % (where, condition) if where else condition
         return where, kwargs
@@ -438,15 +450,18 @@ class SelectionProxy:
         where = filteringWhere if not where else ' ( %s ) AND ( %s ) ' % (filteringWhere, where)
         return where, kwargs
 
-    def countSelection(self, where: Any = None, order_by: Optional[str] = None,
-                       limit: Optional[int] = None, offset: Optional[int] = None,
-                       having: Optional[str] = None,
-                       relationDict: Optional[dict] = None,
-                       sqlparams: Optional[dict] = None,
-                       locale: Optional[str] = None,
-                       excludeLogicalDeleted: Any = True,
-                       excludeDraft: bool = True, **kwargs: Any) -> int:
+    def countRows(self, where: Any = None, order_by: Optional[str] = None,
+                  limit: Optional[int] = None, offset: Optional[int] = None,
+                  having: Optional[str] = None,
+                  relationDict: Optional[dict] = None,
+                  sqlparams: Optional[dict] = None,
+                  locale: Optional[str] = None,
+                  excludeLogicalDeleted: Any = True,
+                  excludeDraft: bool = True, **kwargs: Any) -> int:
         """Count the distinct pkeys matching the query.
+
+        *limit*, *offset*, *order_by* and *having* are applied to the count
+        query, so a limited query counts at most *limit* rows.
 
         Returns:
             The number of rows.
@@ -527,13 +542,13 @@ class SelectionProxy:
             rpkeys = _qmpkeys.intersection(currentpkeys)
         else:
             rpkeys = _qmpkeys.difference(currentpkeys)
-        query = self.tblobj.query(columns=columns, distinct=distinct,
-                                  where='${} IN :_rpkeys'.format(self.tblobj.pkey),
-                                  _rpkeys=rpkeys,
-                                  order_by=order_by, limit=limit, offset=offset,
-                                  group_by=group_by, having=having,
-                                  relationDict=relationDict, sqlparams=sqlparams,
-                                  locale=locale,
-                                  excludeLogicalDeleted=excludeLogicalDeleted,
-                                  excludeDraft=excludeDraft, **kwargs)
-        return query.selection(sortedBy=sortedBy, _aggregateRows=_aggregateRows)
+        return self.buildSelection(columns=columns, distinct=distinct,
+                                   where='${} IN :_rpkeys'.format(self.tblobj.pkey),
+                                   _rpkeys=rpkeys,
+                                   order_by=order_by, limit=limit, offset=offset,
+                                   group_by=group_by, having=having,
+                                   relationDict=relationDict, sqlparams=sqlparams,
+                                   locale=locale,
+                                   excludeLogicalDeleted=excludeLogicalDeleted,
+                                   excludeDraft=excludeDraft, sortedBy=sortedBy,
+                                   _aggregateRows=_aggregateRows, **kwargs)

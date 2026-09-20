@@ -94,20 +94,10 @@ class GnrWebAppHandlerNext(
     def event_onEnd(self) -> None:
         """Handle proxy end-of-life event.
 
-        Closes the database connection.
-        """
-        self._finalize(self)
-
-    def _finalize(self, page: Any) -> None:
-        """Close the database connection.
-
-        Args:
-            page: Unused — kept for signature compatibility.
-
-        Note:
-            SMELL: The *page* parameter is accepted but never used;
-            the method always operates on ``self.db``.  The call site
-            passes ``self`` as *page* which is the proxy, not the page.
+        Closes the database connection.  The frozen handler goes through a
+        ``_finalize(page)`` method whose *page* parameter it ignores and whose
+        only caller passes the proxy, not a page; nothing else in ``gnrpy``,
+        ``projects`` or ``resources`` calls it, so the copy has no such method.
         """
         self.db.closeConnection()
 

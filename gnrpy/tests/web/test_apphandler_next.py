@@ -19,6 +19,7 @@ import pathlib
 import pytest
 
 from gnr.core.gnrbag import Bag
+from gnr.sql.gnrsql_exceptions import GnrSqlMissingField
 from gnr.web.gnrwebpage import GnrWebPage
 from gnr.web.gnrwebpage_proxy import apphandler_next
 from gnr.web.gnrwebpage_proxy.apphandler import GnrWebAppHandler
@@ -28,7 +29,9 @@ from apphandler_next_common import _StandInPage, normalized_attributes
 # pytest resolves fixtures by name in the module namespace, so the shared ones
 # are imported even though nothing in this file calls them.
 from apphandler_next_common import (gnr_test_config, db, db_postgres,  # noqa: F401
-                                    make_handlers, handlers, pg_handlers)
+                                    db_with_external_store, make_handlers,
+                                    handlers, pg_handlers,
+                                    external_store_handlers)
 
 
 # ---------------------------------------------------------------------------
@@ -36,8 +39,14 @@ from apphandler_next_common import (gnr_test_config, db, db_postgres,  # noqa: F
 # ---------------------------------------------------------------------------
 
 def _normalized(result, ignore=()):
+    """Rows as ``(label, value, attributes)`` and the stable attributes.
+
+    The node value is part of the comparison: ``gridSelectionData`` moves a
+    ``__value__`` attribute into the value of the node, so a row can differ on
+    the value alone.
+    """
     data, attributes = result
-    rows = [(node.label, dict(node.attr)) for node in data]
+    rows = [(node.label, node.value, dict(node.attr)) for node in data]
     return rows, normalized_attributes(attributes, ignore=ignore)
 
 
@@ -99,7 +108,7 @@ def test_columns_as_struct_bag(handlers):
                            columns=_customer_view_bag(),
                            order_by='$account_name', limit=5)
     assert rows
-    assert 'account_name' in rows[0][1]
+    assert 'account_name' in rows[0][2]
 
 
 def test_where_bag(handlers):
@@ -108,7 +117,7 @@ def test_where_bag(handlers):
                            where=_customer_where_bag(),
                            order_by='$account_name')
     assert rows
-    assert {row[1]['state'] for row in rows} == {'NSW'}
+    assert {row[2]['state'] for row in rows} == {'NSW'}
 
 
 def test_where_bag_whereasplaintext(handlers):
@@ -125,7 +134,7 @@ def test_condition_with_kwargs(handlers):
                            condition='$state = :wanted_state', wanted_state='VIC',
                            order_by='$account_name')
     assert rows
-    assert {row[1]['state'] for row in rows} == {'VIC'}
+    assert {row[2]['state'] for row in rows} == {'VIC'}
 
 
 def test_order_by_and_limit(handlers):
@@ -242,8 +251,8 @@ def test_saved_view(pg_handlers, db_postgres):
     rows, _ = _assert_same(pg_handlers, table='invc.customer', savedView=view_id,
                            order_by='$account_name', limit=5)
     assert rows
-    assert 'account_name' in rows[0][1]
-    assert 'state' in rows[0][1]
+    assert 'account_name' in rows[0][2]
+    assert 'state' in rows[0][2]
 
 
 def test_saved_query(pg_handlers, db_postgres):
@@ -258,7 +267,7 @@ def test_saved_query(pg_handlers, db_postgres):
                            columns='$account_name,$state',
                            savedQuery=query_id, order_by='$account_name')
     assert rows
-    assert {row[1]['state'] for row in rows} == {'NSW'}
+    assert {row[2]['state'] for row in rows} == {'NSW'}
 
 
 def test_saved_query_with_view(pg_handlers, db_postgres):
@@ -273,7 +282,7 @@ def test_saved_query_with_view(pg_handlers, db_postgres):
                            table='invc.customer', savedQuery=query_id,
                            order_by='$account_name')
     assert rows
-    assert 'account_name' in rows[0][1]
+    assert 'account_name' in rows[0][2]
 
 
 def test_join_conditions_bag(handlers):
@@ -425,7 +434,7 @@ def test_query_extra_pars_become_query_kwargs(handlers):
                            condition='$state = :wanted_state', queryExtraPars=extra,
                            order_by='$account_name')
     assert rows
-    assert {row[1]['state'] for row in rows} == {'VIC'}
+    assert {row[2]['state'] for row in rows} == {'VIC'}
 
 
 def test_hard_query_limit_applies_when_limit_is_none(handlers):
@@ -460,10 +469,29 @@ def test_save_rpc_query_returns_the_serialized_query(handlers):
 
 
 def test_check_permissions_true_uses_the_page_pars(handlers):
-    """A8 - the literal True is replaced by page.permissionPars."""
+    """A8 - the literal True is replaced by page.permissionPars.
+
+    A selectmethod captures what the query phase receives, so the case fails
+    if either handler forwards the literal True or drops the parameter.
+    """
+    received = {}
+
+    def make_capturing(name, handler):
+        def capturing(**pars):
+            received[name] = pars['checkPermissions']
+            return handler._default_getSelection(**pars)
+        return capturing
+
+    for name, handler in zip(('legacy', 'next'), handlers):
+        handler.page.rpc_methods['capturing_method'] = make_capturing(name, handler)
     rows, _ = _assert_same(handlers, table='invc.customer', columns='$account_name',
-                           order_by='$account_name', limit=2, checkPermissions=True)
+                           order_by='$account_name', limit=2, checkPermissions=True,
+                           selectmethod='capturing_method')
     assert len(rows) == 2
+    legacy, nxt = handlers
+    assert received['legacy'] == legacy.page.permissionPars
+    assert received['next'] == nxt.page.permissionPars
+    assert received['next'] is not True
 
 
 def test_format_kwarg_is_applied_only_by_next(handlers):
@@ -479,9 +507,9 @@ def test_format_kwarg_is_applied_only_by_next(handlers):
                 order_by='$inv_number', limit=1, format_total='#,###.00')
     legacy_rows, _ = _normalized(legacy.getSelection(**pars))
     next_rows, _ = _normalized(nxt.getSelection(**pars))
-    assert ',' not in legacy_rows[0][1]['total']
-    assert ',' in next_rows[0][1]['total']
-    assert next_rows[0][1]['total'].replace(',', '') == legacy_rows[0][1]['total']
+    assert ',' not in legacy_rows[0][2]['total']
+    assert ',' in next_rows[0][2]['total']
+    assert next_rows[0][2]['total'].replace(',', '') == legacy_rows[0][2]['total']
 
 
 # ---------------------------------------------------------------------------
@@ -540,7 +568,7 @@ def test_custom_order_by(handlers):
     rows, _ = _assert_same(handlers, table='invc.customer', columns='$account_name',
                            customOrderBy=_custom_order_by_bag('account_name', False),
                            limit=3)
-    names = [row[1]['account_name'] for row in rows]
+    names = [row[2]['account_name'] for row in rows]
     assert names == sorted(names, reverse=True)
 
 
@@ -643,15 +671,70 @@ def test_pkeys_with_only_commas_selects_nothing(handlers):
     assert rows == []
 
 
+def test_external_store_columns_are_merged_from_the_external_store(external_store_handlers):
+    """C13 - the success path of the external store queries, on a real store.
+
+    The column string is the one the client builds
+    (``gnr/web/gnrwebstruct/_helpers.py:166-170``): a ``:`` column naming the
+    relation, a ``_fkey`` alias and a literal store name aliased
+    ``_external_store``.  The store is the auxiliary store of the fixture, so
+    the store grouping, the ``tempEnv``, the fkey query and the row merge all
+    run against a real database.
+    """
+    columns = ("$inv_number,invc.customer.id:$account_name AS customer_name,"
+               "$customer_id AS invc_customer_id_fkey,'extstore' AS _external_store")
+    rows, _ = _assert_same(external_store_handlers, table='invc.invoice',
+                           columns=columns, order_by='$inv_number', limit=5)
+    assert len(rows) == 5
+    db = external_store_handlers[0].db
+    customer_tbl = db.table('invc.customer')
+    merged = 0
+    for _label, _value, attrs in rows:
+        assert attrs['_external_store'] == 'extstore'
+        fkey = attrs['invc_customer_id_fkey']
+        if not fkey:
+            continue
+        merged += 1
+        assert attrs['customer_name'] == customer_tbl.readColumns(pkey=fkey,
+                                                                  columns='$account_name')
+    assert merged
+
+
+def test_external_store_queries_on_the_proxy(db_with_external_store):
+    """The proxy merges the external rows into the selection it is given."""
+    tblobj = db_with_external_store.table('invc.invoice')
+    selection_handler = tblobj.selectionProxy()
+    columns, external_queries = selection_handler.selectionColumns(
+        "$inv_number,invc.customer.id:$account_name AS customer_name,"
+        "$customer_id AS invc_customer_id_fkey,'extstore' AS _external_store")
+    assert external_queries == {'invc.customer.id': ['$account_name AS customer_name']}
+    selection = tblobj.query(columns=columns, order_by='$inv_number',
+                             limit=5).selection()
+    assert all('customer_name' not in row for row in selection.data)
+    selection_handler.externalQueries(selection=selection,
+                                      external_queries=external_queries)
+    assert any(row.get('customer_name') for row in selection.data)
+
+
 # ---------------------------------------------------------------------------
 #  D. the default query executor
 # ---------------------------------------------------------------------------
 
 def test_sql_context_without_conditions(handlers):
-    """D1/D12 - an empty SQL context leaves the query untouched."""
-    rows, _ = _assert_same(handlers, table='invc.customer', columns='$account_name',
-                           order_by='$account_name', limit=2, sqlContextName='ctx_empty')
-    assert len(rows) == 2
+    """D1/D12 - an empty SQL context leaves the query untouched.
+
+    The context is checked to be empty first, then the call is compared with
+    the same call without *sqlContextName*: rows and attributes must match, so
+    a context that silently added a join condition would show.
+    """
+    for handler in handlers:
+        assert not handler._getSqlContextConditions('ctx_empty')
+    pars = dict(table='invc.customer', columns='$account_name',
+                order_by='$account_name', limit=2)
+    plain = _assert_same(handlers, **pars)
+    with_context = _assert_same(handlers, sqlContextName='ctx_empty', **pars)
+    assert with_context == plain
+    assert len(plain[0]) == 2
 
 
 def test_sql_context_join_condition(handlers):
@@ -706,8 +789,89 @@ def test_filtering_pkeys_rpc_forces_the_order_by(handlers, db):
         handler.page.rpc_methods['forced_filter'] = filter_method
     rows, _ = _assert_same(handlers, table='invc.customer', columns='$account_name',
                            filteringPkeys='forced_filter', order_by='$state')
-    names = [row[1]['account_name'] for row in rows]
+    names = [row[2]['account_name'] for row in rows]
     assert names == sorted(names)
+
+
+def _linked_selection_pars(command=None, linkedPageId=None, pkeys='',
+                           gridNodeId='grid_1'):
+    """The parameters the master grid writes in the store of the slave page."""
+    return Bag(dict(pkeys=pkeys, command=command, gridNodeId=gridNodeId,
+                    linkedPageId=linkedPageId, linkedSelectionName='master_sel',
+                    masterTable='invc.customer', relationpath='$id'))
+
+
+def test_linked_selection_subscribe_writes_in_the_master_page_store(handlers, db):
+    """D2 - subscribe registers the grid in the store of the *other* page."""
+    pkeys = _first_pkeys(db, 2)
+    for handler in handlers:
+        handler.page.pageStore().setItem(
+            'linkedSelectionPars.d2sub',
+            _linked_selection_pars(command='subscribe', linkedPageId='master_page',
+                                   pkeys=','.join(pkeys)))
+    rows, _ = _assert_same(handlers, table='invc.customer', columns='$account_name',
+                           selectionName='d2sub')
+    assert len(rows) == 2
+    for handler in handlers:
+        master_store = handler.page.pageStore('master_page')
+        assert master_store is not handler.page.pageStore()
+        assert master_store.getItem(
+            'slaveSelections.master_sel.test_page.grid_1') is True
+        assert handler.page.pageStore().getItem(
+            'linkedSelectionPars.d2sub.command') is None
+
+
+def test_linked_selection_unsubscribe_clears_both_stores(handlers, db):
+    """D2 - unsubscribe removes the grid from the master store and blanks the
+    parameters in the slave store, which drops the master filter."""
+    pkeys = _first_pkeys(db, 2)
+    for handler in handlers:
+        handler.page.pageStore().setItem(
+            'linkedSelectionPars.d2uns',
+            _linked_selection_pars(command='subscribe', linkedPageId='master_page',
+                                   pkeys=','.join(pkeys)))
+    # '*' prefixed: the selection is frozen under 'd2uns' and never reused, so
+    # the second call runs the query phase again and sees the new command
+    _assert_same(handlers, table='invc.customer', columns='$account_name',
+                 selectionName='*d2uns')
+    for handler in handlers:
+        assert handler.page.pageStore('master_page').getItem(
+            'slaveSelections.master_sel.test_page.grid_1') is True
+        handler.page.pageStore().setItem(
+            'linkedSelectionPars.d2uns',
+            _linked_selection_pars(command='unsubscribe', linkedPageId='master_page',
+                                   pkeys=','.join(pkeys)))
+    rows, _ = _assert_same(handlers, table='invc.customer', columns='$account_name',
+                           selectionName='*d2uns')
+    assert len(rows) > 2
+    for handler in handlers:
+        assert handler.page.pageStore('master_page').getItem(
+            'slaveSelections.master_sel') is None
+        cleared = handler.page.pageStore().getItem('linkedSelectionPars.d2uns')
+        assert [cleared[k] for k in cleared.keys()] == [None] * len(cleared)
+
+
+def test_linked_selection_opens_the_two_stores_nested(handlers, db):
+    """D2 - the slave store stays open while the master store is written.
+
+    The stand-in stores log every ``__enter__`` and ``__exit__``, so the case
+    fails if a handler stops opening one of the two, opens them in sequence
+    instead of nested, or leaves one open.
+    """
+    pkeys = _first_pkeys(db, 2)
+    for handler in handlers:
+        handler.page.pageStore().setItem(
+            'linkedSelectionPars.d2nest',
+            _linked_selection_pars(command='subscribe', linkedPageId='master_page',
+                                   pkeys=','.join(pkeys)))
+        del handler.page.store_log[:]
+    _assert_same(handlers, table='invc.customer', columns='$account_name',
+                 selectionName='d2nest')
+    for handler in handlers:
+        assert handler.page.store_log == [('enter', 'page:test_page'),
+                                          ('enter', 'page:master_page'),
+                                          ('exit', 'page:master_page'),
+                                          ('exit', 'page:test_page')]
 
 
 # ---------------------------------------------------------------------------
@@ -719,7 +883,7 @@ def test_add_classes_from_col_attrs(handlers):
     rows, _ = _assert_same(handlers, table='invc.customer',
                            columns='$account_name,$subtable_residential',
                            order_by='$account_name', limit=10)
-    assert any('subtable_residential' in (row[1].get('_customClasses') or '')
+    assert any('subtable_residential' in (row[2].get('_customClasses') or '')
                for row in rows)
 
 
@@ -821,11 +985,14 @@ def test_bracket_group_columns_query(handlers):
                                                columns='@state[name],$account_name',
                                                order_by='$account_name', limit=2))
     assert len(rows) == 2
-    assert 'account_name' in rows[0][1]
-    with pytest.raises(Exception):
+    assert 'account_name' in rows[0][2]
+    # legacy keeps the '@state' prefix on the column after the group, so
+    # '$account_name' is looked for on invc.state
+    with pytest.raises(GnrSqlMissingField) as err:
         legacy.getSelection(table='invc.customer',
                             columns='@state[name],$account_name',
                             order_by='$account_name', limit=2)
+    assert 'invc.state' in str(err.value)
 
 
 # ---------------------------------------------------------------------------
@@ -861,7 +1028,7 @@ def test_record_count_on_the_proxy(handlers, db):
     legacy, _ = handlers
     tblobj = db.table('invc.customer')
     assert tblobj.selectionProxy().recordCount(
-        where=_customer_where_bag(), customOpCbDict={}) == legacy.getRecordCount(
+        where=_customer_where_bag(), customOpCb=dict) == legacy.getRecordCount(
             table='invc.customer', where=_customer_where_bag())
 
 
@@ -929,6 +1096,62 @@ def test_saved_query_without_where(pg_handlers, db_postgres):
                            columns='$account_name', savedQuery=query_id,
                            order_by='$account_name', limit=5)
     assert len(rows) == 5
+
+
+def test_saved_query_plain_text_describes_the_saved_where(pg_handlers, db_postgres):
+    """#1359 - DIVERGENCE: a caller where AND a saved query carrying a WHERE.
+
+    Both handlers execute the saved WHERE and discard the caller's one.  Legacy
+    reports the caller's bag in ``whereAsPlainText``, because it derives the bag
+    before the saved query is loaded; Next reports the saved bag, which is the
+    filter the rows come from.
+    """
+    data = Bag()
+    data['where'] = _customer_where_bag()
+    data['queryLimit'] = 5
+    query_id = _new_userobject(db_postgres, 'test_wapt_both', 'query', data)
+    caller_where = Bag()
+    caller_where.setItem('c_1', 'VIC', column='state', op='equal')
+    legacy, nxt = pg_handlers
+    pars = dict(table='invc.customer', columns='$account_name,$state',
+                where=caller_where, savedQuery=query_id, order_by='$account_name')
+    legacy_rows, legacy_attrs = _normalized(legacy.getSelection(**pars))
+    next_rows, next_attrs = _normalized(nxt.getSelection(**pars))
+    assert next_rows == legacy_rows
+    assert {row[2]['state'] for row in next_rows} == {'NSW'}
+    tblobj = db_postgres.table('invc.customer')
+    assert legacy_attrs['whereAsPlainText'] == tblobj.whereTranslator.toHtml(
+        tblobj, caller_where)
+    assert next_attrs['whereAsPlainText'] == tblobj.whereTranslator.toHtml(
+        tblobj, data['where'])
+    assert next_attrs['whereAsPlainText'] != legacy_attrs['whereAsPlainText']
+
+
+def test_saved_query_without_where_drops_the_plain_text_in_next(pg_handlers,
+                                                                db_postgres):
+    """#1359 - DIVERGENCE: a caller where AND a saved query with no WHERE.
+
+    Neither handler filters: legacy hands the whole userobject record to the
+    where bag decoder, which finds no condition, and Next takes the empty saved
+    WHERE.  Legacy still reports the caller's bag in ``whereAsPlainText``,
+    describing a filter that never ran; Next emits no attribute at all.
+    """
+    data = Bag()
+    data['queryLimit'] = 3
+    query_id = _new_userobject(db_postgres, 'test_wapt_nowhere', 'query', data)
+    caller_where = _customer_where_bag()
+    legacy, nxt = pg_handlers
+    pars = dict(table='invc.customer', columns='$account_name,$state',
+                savedQuery=query_id, order_by='$account_name', limit=5)
+    unfiltered_rows, _ = _normalized(nxt.getSelection(**pars))
+    legacy_rows, legacy_attrs = _normalized(
+        legacy.getSelection(where=caller_where, **pars))
+    next_rows, next_attrs = _normalized(nxt.getSelection(where=caller_where, **pars))
+    assert next_rows == legacy_rows == unfiltered_rows
+    tblobj = db_postgres.table('invc.customer')
+    assert legacy_attrs['whereAsPlainText'] == tblobj.whereTranslator.toHtml(
+        tblobj, caller_where)
+    assert 'whereAsPlainText' not in next_attrs
 
 
 # ---------------------------------------------------------------------------
