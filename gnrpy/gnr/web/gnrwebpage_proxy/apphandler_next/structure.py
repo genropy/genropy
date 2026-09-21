@@ -56,16 +56,7 @@ class StructureMixin:
             A :class:`Bag` whose first-level keys are package identifiers
             and whose second-level keys are table identifiers.
         """
-        result = Bag()
-        for pkg, pkgobj in list(self.db.packages.items()):
-            if pkgobj.attributes.get('reserved', 'n').upper() != 'Y':
-                tblbag = Bag()
-                label = pkgobj.name_full.capitalize()
-                result.setItem(pkg, tblbag, label=label)
-                for tbl, tblobj in list(pkgobj.tables.items()):
-                    label = tblobj.name_full.capitalize()
-                    tblbag.setItem(tbl, None, label=label, tableid='%s.%s' % (pkg, tbl))
-        return result
+        return self.db.structureProxy().composeTablesTree()
 
     rpc_getTablesTree = getTablesTree
 
@@ -84,74 +75,6 @@ class StructureMixin:
             A :class:`Bag` whose nodes are either leaf values or JS
             resolver expressions for further lazy expansion.
         """
-        curr = self.db.packages
-        if path:
-            curr = curr[path]
-            path = path + '.'
-        return self._dbStructureInner(curr, path)
+        return self.db.structureProxy().composeStructure(path)
 
     rpc_dbStructure = dbStructure
-
-    def _dbStructureInner(self, where: Any, path: str) -> Bag:
-        """Recursively build the database structure :class:`Bag`.
-
-        Args:
-            where: The current node in the ORM model tree to expand.
-            path: The accumulated dot-path used to generate JS resolver
-                expressions.
-
-        Returns:
-            A :class:`Bag` with child nodes that are either leaf values
-            or JS remote-resolver strings.
-
-        Note:
-            SMELL: The method uses ``!=`` to compare with ``None``
-            (``elem.resolver != None``) instead of ``is not None``.
-            This works but violates PEP 8 recommendations.
-
-            SMELL: The JS resolver string is built via inline string
-            formatting rather than through a dedicated helper, making
-            it fragile to changes in the client-side API.
-        """
-        result = Bag()
-        for elem in where:
-            if hasattr(elem, 'resolver'):
-                attributes = {}
-                attributes.update(elem.getAttr())
-                if 'joiner' in attributes:
-                    joiner = attributes.pop('joiner')
-                    attributes.update(joiner or {})
-                label = elem.label
-                attributes['caption'] = attributes.get('name_long')
-                if elem.resolver != None:  # SMELL: should be ``is not None``
-                    result.setItem(label, "genro.rpc.remoteResolver('app.dbStructure',{path:'%s'})" % (path + label),
-                                   attributes, _T='JS')
-                else:
-                    value = elem.value
-                    if hasattr(value, '__len__'):
-                        if len(value):
-                            result.setItem(label,
-                                           "genro.rpc.remoteResolver('app.dbStructure',{path:'%s'})" % (path + label),
-                                           attributes, _T='JS')
-                        else:
-                            result.setItem(label, None)
-                    else:
-                        result.setItem(label, elem.value, attributes)
-            elif hasattr(where, '__getitem__'):
-                if isinstance(where, Bag):
-                    n = where.getNode(elem)
-                    value = n.value
-                    attributes = n.getAttr()
-                else:
-                    value = where[elem]
-                    attributes = getattr(value, 'attributes', {})
-                label = elem
-                attributes['caption'] = attributes.get('name_long')
-                if len(value):
-                    result.setItem(label, "genro.rpc.remoteResolver('app.dbStructure',{path:'%s'})" % (path + label),
-                                   attributes, _T='JS')
-                else:
-                    result.setItem(label, None, attributes)
-            else:
-                result.setItem(elem, None)
-        return result

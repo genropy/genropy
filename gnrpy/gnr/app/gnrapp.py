@@ -54,6 +54,7 @@ from gnr.utils import ssmtplib
 from gnr.app.pathresolver import PathResolver
 from gnr.app import logger
 from gnr.app.gnrlocalization import AppLocalizer
+from gnr.app.gnrsqltable_proxy.db_structure import DbStructureProxy
 from gnr.sql.gnrsql import GnrSqlDb
 from gnr.core.gnrstructures import GnrStructData
 
@@ -326,6 +327,20 @@ class GnrSqlAppDb(GnrSqlDb):
             handler = DbStoresHandler(self)
             self._stores_handler = handler
         return handler
+
+    def structureProxy(self):
+        """Return the structure proxy of this database.
+
+        The proxy holds the database level part of the getTablesTree and
+        dbStructure flows of the application handler.  It is a method, as the
+        four table proxies of ``TableBase`` are, so the two families read the
+        same way from the handler.
+        """
+        proxy = getattr(self, '_structure_proxy', None)
+        if proxy is None:
+            proxy = DbStructureProxy(self)
+            self._structure_proxy = proxy
+        return proxy
 
     @property
     def debug(self):
