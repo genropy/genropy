@@ -31,7 +31,7 @@ from gnr.core.gnrlang import GnrException
 from gnr.app import logger
 
 SAFEAUTOTRANSLATE = re.compile(r"""(\%(?:\((?:.*?)\))?(?:.*?)[s|d|e|E|f|g|G|o|x|X|c|i|\%])""")
-LOCREGEXP = re.compile(r"""("{3}|'|")\!\!(?:\[(?P<lang_emb>.{2})\])?(?:{(?P<key_emb>\w*)})?(?P<text_emb>.*?)\1|\[\!\!(?:\[(?P<lang>.{2})\])?(?:{(?P<key>\w*)})?(?P<text>.*?)\]|\b_T\(("{3}|'|")(?P<text_func>.*?)\8\)""")
+LOCREGEXP = re.compile(r"""("{3}|'|")\!\!(?:\[(?P<lang_emb>.{2})\])?(?:{(?P<key_emb>\w*)})?(?P<text_emb>.*?)\1|\[\!\!(?:\[(?P<lang>.{2})\])?(?:{(?P<key>\w*)})?(?P<text>.*?)\]|\b_T\(("{3}|'|")(?:\!\!)?(?:\[(?P<lang_func>.{2})\])?(?:{(?P<key_func>\w*)})?(?P<text_func>.*?)\8\)""")
 TRANSLATION = re.compile(r"^\!\!(?:\[(?P<lang>.{2})\])?(?:{(\w*)})?(?P<value>.*)$|(?:\[\!\!(?:\[(?P<lang_emb>.{2})\])?)(?:{(\w*)})?(?P<value_emb>.*?)\]")
 PACKAGERELPATH = re.compile(r".*/packages/(.*)")
 
@@ -239,9 +239,9 @@ class AppLocalizer(object):
             return
         moduleLocBag = Bag()
         def addToLocalizationBag(m):
-            lockey = m.group('key_emb') or m.group('key')
+            lockey = m.group('key_emb') or m.group('key') or m.group('key_func')
             loctext = m.group('text_emb') or  m.group('text') or m.group('text_func')
-            loclang = m.group('lang_emb') or m.group('lang') or 'en'
+            loclang = m.group('lang_emb') or m.group('lang') or m.group('lang_func') or 'en'
             if not loctext:
                 return
             if not lockey:

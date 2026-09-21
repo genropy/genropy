@@ -503,6 +503,13 @@
 				<en_mandatory base="Mandatory" de="Verpflichtend" en="Mandatory" fr="Obligatoire" it="Obbligatorio"/>
 		</privacy>
 		<tables>
+			<api_token>
+				<th_api_token path="resources/tables/api_token/th_api_token.py" ext="py">
+					<en_api_token_activated base="API Token Activated" it="Token API attivato"/>
+					<en_copy_to_clipboard base="Copy to clipboard" it="Copia negli appunti"/>
+					<en_copied_ base="Copied!" it="Copiato!"/>
+				</th_api_token>
+			</api_token>
 			<authorization>
 				<th_authorization path="resources/tables/authorization/th_authorization.py" ext="py">
 					<en_note fr="Note" de="Note" en="Note" it="Note" base="Note"/>

@@ -5166,7 +5166,8 @@ dojo.declare("gnr.widgets.UserObjectBar", gnr.widgets.gnrwdg, {
             sourceNode.attr._workspace = true;
         }
         var userObjectPars = objectExtract(kw,'table,flags,objtype');
-        gnrwdg.newcaption  = _T(objectPop(kw,'newcaption') ||  'New empty '+userObjectPars.objtype);
+        var newcaption = objectPop(kw,'newcaption');
+        gnrwdg.newcaption  = newcaption? _T(newcaption) : _T('!!New empty $objtype').replace('$objtype',userObjectPars.objtype);
         objectUpdate(userObjectPars,objectExtract(kw,'userobject_*'));
         gnrwdg.userObjectPars = userObjectPars;
         gnrwdg.startUserObjectIdOrCode = kw.userObjectId;
@@ -5322,7 +5323,7 @@ dojo.declare("gnr.widgets.UserObjectBar", gnr.widgets.gnrwdg, {
     gnrwdg_newFromCurrent:function(){
         var code = this.sourceNode.getRelativeData(`${this.metadataPath}.code`);
         this.sourceNode.setRelativeData(this.metadataPath,new gnr.GnrBag(this.userObjectPars));
-        genro.publish('floating_message',{message:_T(`New from ${code}`)});
+        genro.publish('floating_message',{message:_T('!!New from $code').replace('$code',code)});
     },
 
 });
@@ -5341,7 +5342,8 @@ dojo.declare("gnr.widgets.UserObjectLayout", gnr.widgets.gnrwdg, {
         }
         var userObjectPars = objectExtract(kw,'table,flags,objtype');
         userObjectPars.objtype = userObjectPars.objtype || this.objtype;
-        gnrwdg.newcaption  = _T(objectPop(kw,'newcaption') || this.newcaption ||  'New '+userObjectPars.objtype);
+        var newcaption = objectPop(kw,'newcaption') || this.newcaption;
+        gnrwdg.newcaption  = newcaption? _T(newcaption) : _T('!!New $objtype').replace('$objtype',userObjectPars.objtype);
         gnrwdg.table = userObjectPars.table;
         objectUpdate(userObjectPars,objectExtract(kw,'userobject_*'));
         gnrwdg.userObjectPars = userObjectPars;
