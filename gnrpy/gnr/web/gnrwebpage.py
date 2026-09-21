@@ -610,6 +610,8 @@ class GnrWebPage(GnrBaseWebPage):
         
         :param workdate: the :ref:`workdate`"""
         if workdate:
+            if not (self.rootenv or Bag())['can_set_workdate']:
+                raise GnrException('user %s may not set the workdate' % self.user)
             self.workdate = workdate
         return self.workdate
             
@@ -2619,7 +2621,11 @@ class GnrWebPage(GnrBaseWebPage):
             connectionStore = self.connectionStore()
             defaultRootenv = Bag(connectionStore.getItem('defaultRootenv'))
             if '_workdate' in self._call_kwargs:
-                defaultRootenv['workdate'] = self.catalog.fromText(self._call_kwargs['_workdate'],'D')
+                if defaultRootenv['can_set_workdate']:
+                    defaultRootenv['workdate'] = self.catalog.fromText(self._call_kwargs['_workdate'],'D')
+                else:
+                    logger.warning('user %s may not set the workdate: _workdate=%s ignored',
+                                   self.user, self._call_kwargs['_workdate'])
             return defaultRootenv
         return currenv
         
