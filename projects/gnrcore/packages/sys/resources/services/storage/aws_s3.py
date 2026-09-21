@@ -179,12 +179,14 @@ class Service(StorageService):
 
 
     def md5hash(self,*args):
-        bucket = self._head_object(*args)
-        if bucket:
-            etag = bucket['ETag'][1:-1]
-            if len(etag) == 32:
-                return etag
-        return None
+        head = self._head_object(*args)
+        if not head:
+            return None
+        etag = head['ETag'][1:-1]
+        if len(etag) == 32:
+            return etag
+        #multipart upload (smart_open always writes one): the ETag is not the content md5
+        return super().md5hash(*args)
 
     def exists(self, *args):
         return self.isfile(*args) or self.isdir(*args)
