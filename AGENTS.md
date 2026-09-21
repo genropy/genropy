@@ -71,7 +71,8 @@ Mocks should be used **only** to isolate external dependencies (network APIs, re
 ## Bag integration decisions
 
 Before changing Bag compatibility behavior, reconciling audit tests, or proposing
-an API decision, read `docs/bag-decision-register.md` and the referenced contracts.
+an API decision, read `notes/bag-integration/bag-decision-register.md` of the genropy_meta
+repository and the referenced contracts.
 A closed decision must not be reopened because an old parity test fails. Treat
 implementation gaps separately from undecided API design. Historical audit
 snapshots are not current requirements. Use decision/issue IDs in reports,
@@ -84,4 +85,5 @@ Run both `node --test gnrjs/tests/*.test.js` and
 `GNR_JS_BAG=genro-bag-js-mixin node --test gnrjs/tests/*.test.js` when reporting
 integration readiness. Default-mode skips are configuration-gated scenarios,
 not evidence of passing selected-mode behavior. See
-`docs/bag-verification-checkpoint.md` for the reconciled checkpoint and issues.
+`notes/bag-integration/bag-verification-checkpoint.md` of genropy_meta for the
+reconciled checkpoint and issues.

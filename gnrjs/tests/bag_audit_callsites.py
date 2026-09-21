@@ -1,11 +1,14 @@
 """Collect candidate uses of every legacy member, including embedded JS in Python."""
 import json
+import os
 from pathlib import Path
 import re
 import subprocess
 
 root = Path(__file__).resolve().parents[2]
-report_dir = root / 'docs' / 'bag-audit'
+# Output directory: GNR_BAG_AUDIT_DIR, else an ignored folder of this
+# checkout. The published snapshot lives in genropy_meta, audit/bag/.
+report_dir = Path(os.environ.get('GNR_BAG_AUDIT_DIR') or root / '.bag-audit')
 rows = json.loads((report_dir / 'surface.json').read_text())
 names = {row['member'] for row in rows} - {'constructor'}
 pattern = re.compile(r'\.\s*([A-Za-z_$][\w$]*)\s*\(|\[\s*[\'\"]([^\'\"]+)[\'\"]\s*\]\s*\(')

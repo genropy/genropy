@@ -56,3 +56,4 @@ gnrpy/tests/core/tmp_*/
 # The roadmap is documentation and stays.
 .phased/*
 !.phased/roadmap.md
+/.bag-audit/

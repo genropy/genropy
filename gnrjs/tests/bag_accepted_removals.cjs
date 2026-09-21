@@ -1,6 +1,8 @@
-// Decision register: docs/bag-decision-register.md, D05-D14.
+// Decision register: notes/bag-integration/bag-decision-register.md of
+// genropy_meta, D05-D14.
 // Accepted removals: see the standalone BREAKING_CHANGES.md and
-// docs/javascript-bag-breaking-changes.md. Do not add unexplained parity gaps.
+// notes/bag-integration/javascript-bag-breaking-changes.md of genropy_meta.
+// Do not add unexplained parity gaps.
 const bag = ['__str__', 'asObjList', 'merge', 'pathsplit', 'backrefOk',
     'formula', 'defineSymbol', 'defineFormula', 'set_modified', 'doWithItem',
     '__str2__', 'asString', 'newNode', 'setParent', 'setParentNode', 'set',
