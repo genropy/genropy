@@ -21,6 +21,7 @@
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
 
+import ast
 import sys
 import re
 import types
@@ -63,8 +64,9 @@ class GnrRestrictedAccessException(GnrException):
 
 
 class GnrUndeclaredPackageException(GnrException):
-    """Raised when a package required through ``Package.required_packages()`` is
-    not declared in the packages section of ``instanceconfig.xml``."""
+    """Raised by the strict check (``gnr app checkdep --strict``) when a package
+    reached through ``Package.required_packages()`` is not declared in the packages
+    section of ``instanceconfig.xml``."""
     code = 'GNRAPP-002'
     description = '!!Required package not declared in instanceconfig'
 
@@ -881,6 +883,7 @@ class GnrApp(object):
         self.packages = Bag()
         self.packagesIdByPath = {}
         self._declared_packages = None
+        self._package_closure = None
         self.config = self.load_instance_config()
         self.config_locale = self.config('default?server_locale')
         if self.config_locale :
@@ -1015,12 +1018,13 @@ class GnrApp(object):
         # check for packages python dependencies
         self.check_package_dependencies()
         if 'checkdepcli' in self.kwargs:
-            self.check_declared_packages()
             return
 
         # load the packages
         for pkgid,pkgattrs,pkgcontent in self.config['packages'].digest('#k,#a,#v'):
             self.addPackage(pkgid,pkgattrs=pkgattrs,pkgcontent=pkgcontent)
+        if self.undeclared_packages:
+            logger.warning(self.undeclared_packages_report())
 
         dbattrs = dict(self.config.getAttr('db') or {})
         dbattrs['implementation'] = dbattrs.get('implementation') or 'sqlite'
@@ -1080,34 +1084,88 @@ class GnrApp(object):
                                           for k in self.config['packages'].digest('#k'))
         return self._declared_packages
 
-    def assert_package_declared(self,pkgid,reqpkgid):
-        if reqpkgid.split(':')[-1] not in self.declared_packages:
-            raise GnrUndeclaredPackageException(
-                f"Package '{pkgid}' requires '{reqpkgid}', which is not declared "
-                f"in the packages section of instanceconfig.xml. Declare it there: "
-                f"its python dependencies are not checked otherwise.")
+    def _required_packages_from_source(self, main_path):
+        """The literal list returned by ``Package.required_packages()`` in *main_path*,
+        read without importing it: in a clean environment the module may not import
+        precisely because its dependencies are the ones still to install.
+        ``[]`` when the method is not defined, ``None`` when its body is not a literal."""
+        try:
+            with open(main_path, encoding='utf-8') as fp:
+                tree = ast.parse(fp.read())
+        except (OSError, SyntaxError):
+            return None
+        for node in ast.walk(tree):
+            if isinstance(node, ast.FunctionDef) and node.name == 'required_packages':
+                for sub in ast.walk(node):
+                    if isinstance(sub, ast.Return) and isinstance(sub.value, (ast.List, ast.Tuple)) \
+                            and all(isinstance(e, ast.Constant) and isinstance(e.value, str)
+                                    for e in sub.value.elts):
+                        return [e.value for e in sub.value.elts]
+                return None
+        return []
 
-    def check_declared_packages(self):
-        # init() returns in checkdepcli mode before the addPackage() loop, so
-        # the guard there is unreachable under `gnr app checkdep`: a build
-        # would complete on an instanceconfig whose requirements it cannot
-        # see. The same rule is applied here to the declared packages alone --
-        # once they declare their closure, the two sets are the same set.
-        for pkgid,pkgattrs in self.config['packages'].digest('#k,#a'):
-            project = None
-            if ':' in pkgid:
-                project,pkgid = pkgid.split(':')
-            attrs = dict(pkgattrs or {})
-            attrs['path'] = self.pkg_path_from_attrs(pkgid,attrs,project=project)
-            try:
-                apppkg = GnrPackage(pkgid,self,**attrs)
-            except GnrImportException:
-                # main.py can import the very dependency this check runs to
-                # find: reporting it beats aborting the check on it.
-                logger.warning("Cannot resolve the required packages of %s",pkgid)
-                continue
-            for reqpkgid in apppkg.required_packages():
-                self.assert_package_declared(pkgid,reqpkgid)
+    def _required_packages_of(self, entry):
+        required = self._required_packages_from_source(os.path.join(entry['folder'], 'main.py'))
+        if required is not None:
+            return required
+        try:
+            apppkg = GnrPackage(entry['pkgid'], self, path=entry['path'],
+                                filename=entry['filename'], project=entry['project'])
+        except GnrImportException:
+            logger.warning("Cannot resolve the required packages of %s: main.py does not import"
+                           " and required_packages() does not return a literal list", entry['code'])
+            return []
+        return apppkg.required_packages()
+
+    def package_closure(self):
+        """Every package the instance loads, keyed by package id: the ones declared in
+        the packages section of ``instanceconfig.xml`` and the ones reached through
+        ``Package.required_packages()``, each with the packages that require it."""
+        if self._package_closure is None:
+            closure = {}
+            todo = [(code, dict(attrs or {}), None)
+                    for code, attrs in self.config['packages'].digest('#k,#a')]
+            while todo:
+                code, attrs, required_by = todo.pop(0)
+                project, pkgid = code.split(':') if ':' in code else (None, code)
+                entry = closure.get(pkgid)
+                if entry:
+                    if required_by:
+                        entry['required_by'].add(required_by)
+                    continue
+                path = self.pkg_path_from_attrs(pkgid, attrs, project=project)
+                filename = attrs.get('filename') or pkgid
+                entry = dict(code=code, pkgid=pkgid, project=project, path=path, filename=filename,
+                             folder=os.path.join(path, filename),
+                             declared=pkgid in self.declared_packages,
+                             required_by=set([required_by]) if required_by else set())
+                closure[pkgid] = entry
+                for reqcode in self._required_packages_of(entry):
+                    todo.append((reqcode, {}, pkgid))
+            self._package_closure = closure
+        return self._package_closure
+
+    @property
+    def undeclared_packages(self):
+        """The closure entries loaded through ``required_packages()`` only, sorted by code."""
+        return sorted((e for e in self.package_closure().values() if not e['declared']),
+                      key=lambda e: e['code'])
+
+    def undeclared_packages_report(self):
+        lines = ['Packages loaded through required_packages() but not declared in the'
+                 ' packages section of instanceconfig.xml:']
+        for e in self.undeclared_packages:
+            lines.append('  %s (required by %s)' % (e['code'], ', '.join(sorted(e['required_by']))))
+        lines.append('Declare them there to have their python dependencies checked:')
+        for e in self.undeclared_packages:
+            lines.append('  <%s pkgcode="%s"/>' % (e['code'].replace(':', '_'), e['code']))
+        return '\n'.join(lines)
+
+    def assert_packages_declared(self):
+        """Raise when the packages section does not declare the whole closure: the
+        strict check for image builds and CI, where a boot refusal costs nothing."""
+        if self.undeclared_packages:
+            raise GnrUndeclaredPackageException(self.undeclared_packages_report())
 
     def addPackage(self,pkgid,pkgattrs=None,pkgcontent=None):
         if ':' in pkgid:
@@ -1122,7 +1180,6 @@ class GnrApp(object):
         apppkg.content = pkgcontent or Bag()
         readOnlyAttrs = {'readOnly':True} if attrs.get('readOnly') else dict()
         for reqpkgid in apppkg.required_packages():
-            self.assert_package_declared(pkgid,reqpkgid)
             self.addPackage(reqpkgid,pkgattrs=dict(readOnlyAttrs))
         self.packagesIdByPath[os.path.realpath(apppkg.packageFolder)] = pkgid
         self.packages[pkgid] = apppkg
@@ -1130,22 +1187,14 @@ class GnrApp(object):
     def check_package_dependencies(self):
         logger.debug("Checking python dependencies")
         instance_deps = defaultdict(list)
-        # find all packages deps
-        for package,pkgattrs,pkgcontent in self.config['packages'].digest('#k,#a,#v'):
-            if ":" in package:
-                project, package = package.split(":")
-            else:
-                project = None
-                
-            packageFolder = self.pkg_path_from_attrs(package, pkgattrs, project=project)
-            filename = (pkgattrs or {}).get('filename') or package
-            requirements_file = os.path.join(packageFolder, filename, "requirements.txt")
+        for entry in self.package_closure().values():
+            requirements_file = os.path.join(entry['folder'], "requirements.txt")
             if os.path.isfile(requirements_file):
                 with open(requirements_file) as fp:
                     for line in fp:
                         dep_name = line.strip()
                         if dep_name:
-                            instance_deps[dep_name].append(package)
+                            instance_deps[dep_name].append(entry['pkgid'])
 
         self.instance_packages_dependencies = instance_deps
 
