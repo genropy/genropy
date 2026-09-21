@@ -295,7 +295,7 @@ def db(gnr_test_config):
 def db_with_external_store(db):
     """The same database, also registered as the auxiliary store ``extstore``.
 
-    ``SelectionHandler.externalQueries`` opens ``db.tempEnv(storename=...)`` on
+    ``SelectionHandler.mergeExternalStoreColumns`` opens ``db.tempEnv(storename=...)`` on
     the store name the rows carry in their ``_external_store`` column, so its
     body cannot run without a second registered store.  Registering the sqlite
     file of the ``db`` fixture under a second name gives a real store, with its

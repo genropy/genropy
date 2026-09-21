@@ -20,22 +20,19 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
-"""Related record and selection mixin.
+"""Related record and selection mixin — the copy that receives new work.
 
 Provides :class:`RelatedMixin` — the ``getRelatedRecord`` and
-``getRelatedSelection`` public method flows.  Both serve the client side
-relation resolvers: ``relOneResolver`` calls the first, ``relManyResolver``
-the second (``gnrjs/gnr_d11/js/genro_rpc.js:880,962``).
+``getRelatedSelection`` public-method flows.  Both are called from
+the client-side resolver mechanism to load linked data.
 
-The table level part lives on the app level table proxy
-``tblobj.recordHandler()``: the pkey of a related record, the related query
-with its join condition re-application, and the rows Bag.  What stays here is
-the SQL context lookup, the applymethods and the result attributes, which are
-client protocol.
-
-This module is the copy that receives new work.  The module of the same name
-under ``gnr.web.gnrwebpage_proxy.apphandler`` is frozen and is never imported
-from here.
+The module of the same name under ``gnr.web.gnrwebpage_proxy.apphandler`` is
+frozen and is never imported from here.  The method bodies are the ones of
+that module; what differs is a block that needs only the table and the
+database, replaced by one call on the table proxy ``tblobj.recordHandler()``
+(:class:`gnr.app.gnrsqltable_proxy.record.RecordHandler`), a recorded defect
+fix marked in place with its ``bugs.md`` number, and the two helpers the two
+flows share, ``_splitTargetFld`` and ``_sqlContextJoinBag``.
 """
 
 from __future__ import annotations
@@ -49,6 +46,8 @@ from gnr.core.gnrdecorator import public_method
 from gnr.core.gnrstring import toJson
 
 logger = logging.getLogger('gnr.web.apphandler.related')
+
+__all__ = ['RelatedMixin']
 
 
 class RelatedMixin:
@@ -95,7 +94,7 @@ class RelatedMixin:
         Args:
             from_fld: Fully qualified source field (``"pkg.table.field"``).
             target_fld: Fully qualified target field (``"pkg.table.field"``).
-            pkg: Accepted and never read: the package comes from *target_fld*.
+            pkg: Package prefix.
             pkey: Explicit primary key of the related record.
             ignoreMissing: Silently return empty on missing record.
             ignoreDuplicate: Silently return first on duplicate.
@@ -108,19 +107,23 @@ class RelatedMixin:
             _storename: Alternate store name.
             resolver_kwargs: Extra parameters merged into loading params.
             loadingParameters: Extra parameters forwarded to ``getRecord``.
-            _debug_info: Accepted and never read.  The client sends it on
-                every ``relOneResolver`` call.
+            _debug_info: Optional debug annotation (unused in logic).
 
         Returns:
             A ``(record_bag, recInfo_dict)`` tuple (from ``getRecord``).
 
         Note:
-            A missing foreign key silently produces a blank record instead of
-            raising, which can mask a data integrity problem.
+            SMELL: The condition ``not related_field in kwargs`` uses
+            ``not x in y`` instead of the more readable ``x not in y``.
+
+            REVIEW: When *pkey* is ``None`` **and** the related field is
+            not in *kwargs*, the method forces ``pkey = '*newrecord*'``.
+            This means that any missing FK silently produces a blank
+            record instead of raising an error, which can mask data
+            integrity issues.
         """
         table, related_field = self._splitTargetFld(target_fld)
-        pkey = self.db.table(table).recordHandler().relatedRecordPkey(
-            pkey, related_field, kwargs)
+        pkey = self.db.table(table).recordHandler().resolveRelatedPkey(pkey, related_field, kwargs)
         loadingParameters = loadingParameters or dict()
         loadingParameters.update(resolver_kwargs or dict())
         record, recInfo = self.getRecord(table=table, from_fld=from_fld, target_fld=target_fld, pkey=pkey,
@@ -133,9 +136,8 @@ class RelatedMixin:
 
         joinBag = self._sqlContextJoinBag(sqlContextName, target_fld, from_fld)
         if joinBag and joinBag['applymethod']:
-            # the result is discarded here, unlike in getRelatedSelection
-            self.page.getPublicMethod('rpc', joinBag['applymethod'])(
-                record, **self._getApplyMethodPars(kwargs))
+            applyPars = self._getApplyMethodPars(kwargs)
+            self.page.getPublicMethod('rpc', joinBag['applymethod'])(record, **applyPars)
         return (record, recInfo)
 
     # ------------------------------------------------------------------
@@ -159,10 +161,9 @@ class RelatedMixin:
         Args:
             from_fld: Fully qualified source field.
             target_fld: Fully qualified target field (``"pkg.table.field"``).
-            relation_value: The FK value to filter on.  A falsy one gives an
-                empty selection, not an error.
-            columns: Accepted and never read — see the note.
-            query_columns: Same, plus an error in the log.
+            relation_value: The FK value to filter on.
+            columns: Columns to include.
+            query_columns: Deprecated alias for *columns*.
             condition: Additional WHERE clause.
             js_resolver_one: Client-side resolver for one-to-one.
             sqlContextName: Named SQL context for join conditions.
@@ -171,15 +172,20 @@ class RelatedMixin:
             A ``(result_bag, resultAttributes_dict)`` tuple.
 
         Note:
-            *columns* and *query_columns* have no effect: neither reaches
-            ``relatedQuery``, so the selection always carries the default
-            columns of the table.  Reproduced as it is, because what the
-            client expects to receive is not decided here; recorded as D19 in
-            ``.subtasks/alt-apphandler/bugs.md``.
+            bugs.md D2: the frozen module sets ``joinBag`` back to ``None``
+            after filling it, so its ``applymethod`` branch is dead code and
+            the applymethod of a SQL context join condition is silently
+            skipped on this side of the relation while the ``getRelatedRecord``
+            side runs it.  Here the join condition is read once and kept.
 
-            ``newproc`` is the constant ``'no'`` for the same reason as in the
-            getSelection flow: the attribute name is the literal dotted string
-            ``'self.newprocess'``.  Reproduced, recorded as D3.
+            bugs.md D19: *columns* and *query_columns* never reach
+            ``relatedQuery``, so the selection always carries the default
+            columns of the table.  The behaviour is reproduced; the three dead
+            assignments are dropped.
+
+            SMELL: ``getattr(self, 'self.newprocess', 'no')`` uses a dotted
+            string as an attribute name — it never matches a real attribute
+            and always returns ``'no'`` (bugs.md D3, reproduced).
         """
         if query_columns:
             logger.error('QUERY COLUMNS PARAMETER NOT EXPECTED!!')
@@ -189,42 +195,48 @@ class RelatedMixin:
         dbtable, related_field = self._splitTargetFld(target_fld)
         recordHandler = self.db.table(dbtable).recordHandler()
 
-        sel = recordHandler.relatedSelection(
-            related_field, from_fld, target_fld, relation_value=relation_value,
-            condition=condition, sqlContextName=sqlContextName,
-            queryCb=lambda query: self._joinConditionsFromContext(query, sqlContextName),
-            **kwargs)
+        sel = recordHandler.selectRelatedRecords(related_field, from_fld, target_fld,
+                                             relation_value=relation_value, condition=condition,
+                                             sqlContextName=sqlContextName,
+                                             queryCb=lambda query: self._joinConditionsFromContext(
+                                                 query, sqlContextName),
+                                             **kwargs)
         if joinBag and joinBag.get('applymethod'):
-            applyresult = self.page.getPublicMethod('rpc', joinBag['applymethod'])(
-                sel, **self._getApplyMethodPars(kwargs))
+            applyPars = self._getApplyMethodPars(kwargs)
+            applyresult = self.page.getPublicMethod('rpc', joinBag['applymethod'])(sel, **applyPars)
             if applyresult:
                 resultAttributes.update(applyresult)
 
-        result, relOneParams = recordHandler.relatedRowsBag(
-            sel, js_resolver_one, sqlContextName=sqlContextName)
+        result, relOneParams = recordHandler.relatedRecordsToBag(sel, js_resolver_one,
+                                                            sqlContextName=sqlContextName)
         resultAttributes.update(dbtable=dbtable, totalrows=len(sel))
         resultAttributes.update({
             'servertime': int((time.time() - t) * 1000),
-            'newproc': getattr(self, 'self.newprocess', 'no'),
+            'newproc': getattr(self, 'self.newprocess', 'no'),  # SMELL: dotted attr name — always 'no'
             'childResolverParams': '%s::JS' % toJson(relOneParams)
         })
 
         return (result, resultAttributes)
 
     # ------------------------------------------------------------------
-    # Shared helpers
+    # Blocks the two flows share
     # ------------------------------------------------------------------
 
     def _splitTargetFld(self, target_fld: str) -> tuple[str, str]:
-        """Split ``pkg.table.field`` into the table name and the field name."""
+        """Split ``pkg.table.field`` into the table name and the field name.
+
+        Called by :meth:`getRelatedRecord` and by :meth:`getRelatedSelection`.
+        """
         pkg, tbl, related_field = target_fld.split('.')
         return '%s.%s' % (pkg, tbl), related_field
 
     def _sqlContextJoinBag(self, sqlContextName: Optional[str],
                            target_fld: str, from_fld: str) -> Optional[Any]:
-        """The join condition of one relation inside a SQL context, or ``None``."""
+        """The join condition of one relation inside a SQL context, or ``None``.
+
+        Called by :meth:`getRelatedRecord` and by :meth:`getRelatedSelection`.
+        """
         if not sqlContextName:
             return None
-        return self._getSqlContextConditions(sqlContextName,
-                                             target_fld=target_fld,
+        return self._getSqlContextConditions(sqlContextName, target_fld=target_fld,
                                              from_fld=from_fld)

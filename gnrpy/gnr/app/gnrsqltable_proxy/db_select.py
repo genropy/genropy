@@ -73,21 +73,44 @@ class DbSelectHandler:
     #  Columns
     # ------------------------------------------------------------------
 
-    def searchColumns(self, columns: Optional[str] = None,
-                      rowcaption: Optional[str] = None,
-                      auxColumns: Optional[str] = None,
-                      hiddenColumns: Optional[str] = None,
-                      alternatePkey: Optional[str] = None
-                      ) -> tuple[list, list, list]:
-        """Return the three column lists the search needs.
-
-        The caption columns are the seed of all three: *querycolumns* are what
-        the search matches on, *showcolumns* what the dropdown displays,
-        *resultcolumns* what the query fetches.
+    def composeQueryColumns(self, columns: Optional[str] = None,
+                            rowcaption: Optional[str] = None) -> list:
+        """Return the columns the search matches the typed text on.
 
         Args:
             columns: The columns to search on.  When absent the table
                 queryfields are used, and failing those the caption columns.
+            rowcaption: A caption template overriding the table one.
+
+        Returns:
+            The query columns.
+        """
+        tblobj = self.tblobj
+        return tblobj.getQueryFields(columns,
+                                     tblobj.rowcaptionDecode(rowcaption)[0])
+
+    def composeShowColumns(self, rowcaption: Optional[str] = None,
+                           auxColumns: Optional[str] = None) -> list:
+        """Return the columns the dropdown displays.
+
+        Args:
+            rowcaption: A caption template overriding the table one.
+            auxColumns: Extra columns to display.
+
+        Returns:
+            The caption columns followed by the auxiliary ones.
+        """
+        tblobj = self.tblobj
+        return gnrlist.merge(tblobj.rowcaptionDecode(rowcaption)[0],
+                             tblobj.columnsFromString(auxColumns))
+
+    def composeResultColumns(self, rowcaption: Optional[str] = None,
+                             auxColumns: Optional[str] = None,
+                             hiddenColumns: Optional[str] = None,
+                             alternatePkey: Optional[str] = None) -> list:
+        """Return the columns the query fetches.
+
+        Args:
             rowcaption: A caption template overriding the table one.
             auxColumns: Extra columns to display.
             hiddenColumns: Extra columns to fetch without displaying them.
@@ -95,31 +118,30 @@ class DbSelectHandler:
                 result columns with a ``$`` prefix unless it has one.
 
         Returns:
-            A tuple ``(querycolumns, showcolumns, resultcolumns)``.
+            The displayed columns, the caption ones, the hidden ones and the
+            alternate pkey.
         """
         tblobj = self.tblobj
-        captioncolumns = tblobj.rowcaptionDecode(rowcaption)[0]
-        querycolumns = tblobj.getQueryFields(columns, captioncolumns)
-        showcolumns = gnrlist.merge(captioncolumns,
-                                    tblobj.columnsFromString(auxColumns))
-        resultcolumns = gnrlist.merge(showcolumns, captioncolumns,
-                                      tblobj.columnsFromString(hiddenColumns))
-        if alternatePkey and alternatePkey not in resultcolumns:
-            resultcolumns.append(alternatePkey if alternatePkey.startswith('$')
-                                 else '$%s' % alternatePkey)
-        return querycolumns, showcolumns, resultcolumns
+        result = gnrlist.merge(self.composeShowColumns(rowcaption=rowcaption,
+                                                       auxColumns=auxColumns),
+                               tblobj.rowcaptionDecode(rowcaption)[0],
+                               tblobj.columnsFromString(hiddenColumns))
+        if alternatePkey and alternatePkey not in result:
+            result.append(alternatePkey if alternatePkey.startswith('$')
+                          else '$%s' % alternatePkey)
+        return result
 
-    def searchResultColumns(self, resultcolumns: list,
-                            preferred: Optional[str] = None,
-                            invalidItemCondition: Optional[str] = None) -> list:
-        """Add the two flag columns the widget reads, when they are asked for.
+    def addSearchFlagColumns(self, resultcolumns: list,
+                             preferred: Optional[str] = None,
+                             invalidItemCondition: Optional[str] = None) -> list:
+        """Return the result columns with the two flag columns the widget reads.
 
         Both take a raw SQL expression from the caller and land under a fixed
         alias: ``_customclasses_preferred`` carries the CSS class of a row that
         is *not* preferred, ``_is_invalid_item`` a boolean.
 
         Args:
-            resultcolumns: The columns of :meth:`searchColumns`.
+            resultcolumns: The columns of :meth:`composeResultColumns`.
             preferred: A SQL expression true for the preferred rows.
             invalidItemCondition: A SQL expression true for the invalid ones.
 
@@ -133,9 +155,9 @@ class DbSelectHandler:
             result.append(INVALID_ITEM_COLUMN % invalidItemCondition)
         return result
 
-    def selectionHeaders(self, selection: Any, showcolumns: list,
-                         translate: Callable[[str], str]) -> tuple[str, str]:
-        """Return the displayed column aliases and their localized headers.
+    def composeColumnHeaders(self, selection: Any, showcolumns: list,
+                             translate: Callable[[str], str]) -> tuple[str, str]:
+        """Return the displayed column aliases and their localized headers, both comma separated.
 
         A column header is its ``name_short`` when it has one, its ``label``
         otherwise, and it goes through *translate* — the page localizer, passed
@@ -143,7 +165,7 @@ class DbSelectHandler:
 
         Args:
             selection: The selection the search produced.
-            showcolumns: The columns of :meth:`searchColumns`.
+            showcolumns: The columns of :meth:`composeShowColumns`.
             translate: The localizer, a one argument callable.
 
         Returns:
@@ -159,15 +181,15 @@ class DbSelectHandler:
     #  Table defaults of the search
     # ------------------------------------------------------------------
 
-    def searchPreferred(self, preferred: Optional[str] = None) -> Optional[str]:
-        """The preferred expression, from the table when the caller sends None.
+    def resolvePreferredExpression(self, preferred: Optional[str] = None) -> Optional[str]:
+        """Return the SQL expression that marks the preferred rows.
 
         An explicit falsy value from the caller wins: only ``None`` falls back.
         """
         return self.tblobj.attributes.get('preferred') if preferred is None else preferred
 
-    def searchWeakCondition(self, weakCondition: Any = False) -> Any:
-        """The weak condition, with the table attribute as a fallback.
+    def resolveWeakCondition(self, weakCondition: Any = False) -> Any:
+        """Return the weak condition, the table attribute when the caller sends none.
 
         The caller has already switched *weakCondition* off when a selectmethod
         is in play; the table attribute is read here, after that, so a table
@@ -176,9 +198,9 @@ class DbSelectHandler:
         """
         return weakCondition or self.tblobj.attributes.get('weakCondition')
 
-    def searchOrderBy(self, order_by: Optional[str], showcolumns: list,
-                      preferred: Optional[str] = None) -> str:
-        """Compose the ORDER BY of the search.
+    def composeSearchOrderBy(self, order_by: Optional[str], showcolumns: list,
+                             preferred: Optional[str] = None) -> str:
+        """Return the ORDER BY of the search, the preferred term first.
 
         The preferred rows come first when a preferred expression is given.
         The column ordering is the caller's *order_by*, failing that the table
@@ -187,8 +209,8 @@ class DbSelectHandler:
 
         Args:
             order_by: The caller's ordering, or ``None``.
-            showcolumns: The columns of :meth:`searchColumns`.
-            preferred: The expression of :meth:`searchPreferred`.
+            showcolumns: The columns of :meth:`composeShowColumns`.
+            preferred: The expression of :meth:`resolvePreferredExpression`.
 
         Returns:
             The comma separated ORDER BY.
@@ -204,13 +226,13 @@ class DbSelectHandler:
     #  Fetch by identifier
     # ------------------------------------------------------------------
 
-    def recordById(self, _id: str, resultcolumns: list,
-                   condition: Optional[str] = None,
-                   weakCondition: Any = False,
-                   alternatePkey: Optional[str] = None,
-                   excludeDraft: bool = True,
-                   **kwargs: Any) -> tuple[Any, list]:
-        """Fetch the single row the widget currently shows.
+    def selectRecordById(self, _id: str, resultcolumns: list,
+                         condition: Optional[str] = None,
+                         weakCondition: Any = False,
+                         alternatePkey: Optional[str] = None,
+                         excludeDraft: bool = True,
+                         **kwargs: Any) -> tuple[Any, list]:
+        """Return the single row the widget shows and the errors the fetch collected.
 
         The row wins over the condition: when a condition is given and the
         first fetch finds nothing, the same row is fetched again without it and
@@ -220,7 +242,7 @@ class DbSelectHandler:
 
         Args:
             _id: The value of the identifier column.
-            resultcolumns: The columns of :meth:`searchColumns`.
+            resultcolumns: The columns of :meth:`composeResultColumns`.
             condition: An extra SQL condition.
             weakCondition: ``True`` makes this fetch ignore *condition*
                 altogether.
@@ -254,13 +276,13 @@ class DbSelectHandler:
     #  The four stage search
     # ------------------------------------------------------------------
 
-    def searchSelection(self, querycolumns: list, querystring: str,
-                        resultcolumns: list, condition: Optional[str] = None,
-                        exclude: Optional[Any] = None,
-                        limit: Optional[int] = None,
-                        order_by: Optional[str] = None,
-                        **kwargs: Any) -> Any:
-        """Search *querystring*, widening the match until something is found.
+    def searchRecords(self, querycolumns: list, querystring: str,
+                      resultcolumns: list, condition: Optional[str] = None,
+                      exclude: Optional[Any] = None,
+                      limit: Optional[int] = None,
+                      order_by: Optional[str] = None,
+                      **kwargs: Any) -> Any:
+        """Return the selection of the matching records, widening the match until something is found.
 
         Four stages, each one run only if the previous left the result unusable:
 
@@ -276,22 +298,22 @@ class DbSelectHandler:
         removed, the ILIKE one splits it on whitespace.
 
         Args:
-            querycolumns: The columns of :meth:`searchColumns` to match on.
+            querycolumns: The columns of :meth:`composeQueryColumns`.
             querystring: What the user typed.
             resultcolumns: The columns to fetch.
             condition: An extra SQL condition, AND-ed with every stage.
             exclude: Primary keys to leave out, as a comma separated string or
                 as an iterable.
             limit: The page size; it is also the threshold of stage 2.
-            order_by: The ordering of :meth:`searchOrderBy`.
+            order_by: The ordering of :meth:`composeSearchOrderBy`.
             **kwargs: Forwarded to the query.  A ``where`` among them is
                 discarded: the stage owns the WHERE.
 
         Returns:
             The selection of the first stage that produced one.
         """
-        exclude_list = self.excludeList(exclude)
-        condition = self.excludeCondition(condition, exclude_list)
+        exclude_list = self.parseExcludeList(exclude)
+        condition = self.composeExcludeCondition(condition, exclude_list)
         kwargs.pop('where', None)
 
         def stageSelection(where: Optional[str], **searchargs: Any) -> Any:
@@ -350,8 +372,8 @@ class DbSelectHandler:
                               for i, w in enumerate(words)])
         return where, whereargs
 
-    def excludeList(self, exclude: Optional[Any] = None) -> Optional[list]:
-        """The primary keys to leave out, as a list.
+    def parseExcludeList(self, exclude: Optional[Any] = None) -> Optional[list]:
+        """Return the primary keys to leave out, as a list.
 
         A string is split on commas; an iterable keeps only its truthy entries,
         because a ``None`` among them breaks the query.
@@ -365,9 +387,9 @@ class DbSelectHandler:
             return [t.strip() for t in exclude.split(',')]
         return [t for t in exclude if t]
 
-    def excludeCondition(self, condition: Optional[str],
-                         exclude_list: Optional[list]) -> Optional[str]:
-        """AND the exclusion into *condition*, so that every stage carries it."""
+    def composeExcludeCondition(self, condition: Optional[str],
+                                exclude_list: Optional[list]) -> Optional[str]:
+        """Return *condition* with the exclusion ANDed in, so that every stage carries it."""
         if not exclude_list:
             return condition
         exclude_cond = 'NOT ($pkey IN :exclude_list )'
@@ -379,10 +401,10 @@ class DbSelectHandler:
     #  The other services of the mixin
     # ------------------------------------------------------------------
 
-    def analyzeSelection(self, where: Optional[str] = None,
-                         group_by: Optional[list] = None,
-                         **kwargs: Any) -> Any:
-        """The selection ``tableAnalyzeStore`` totalizes.
+    def selectRecordsToTotalize(self, where: Optional[str] = None,
+                                group_by: Optional[list] = None,
+                                **kwargs: Any) -> Any:
+        """Return the selection ``tableAnalyzeStore`` totalizes.
 
         *group_by* is consumed twice with two meanings, here as the column list
         and in ``totalize`` as the grouping specification, so the callables it
@@ -400,9 +422,9 @@ class DbSelectHandler:
         return self.tblobj.query(where=where, columns=','.join(columns),
                                  **kwargs).selection()
 
-    def valuesString(self, caption_field: Optional[str] = None,
-                     alt_pkey_field: Optional[str] = None,
-                     **kwargs: Any) -> str:
+    def composeValuesString(self, caption_field: Optional[str] = None,
+                            alt_pkey_field: Optional[str] = None,
+                            **kwargs: Any) -> str:
         """Return the rows as a ``key:caption`` comma separated string.
 
         The format is lossy on purpose: a comma inside a caption becomes a
@@ -426,8 +448,8 @@ class DbSelectHandler:
         return ','.join(['%s:%s' % (r[pkey], (r[caption_field] or '').replace(',', ' '))
                          for r in rows])
 
-    def fetchAsBag(self, columns: Optional[str] = None, **kwargs: Any) -> Any:
-        """One query of ``getMultiFetch``, as a Bag keyed by pkey.
+    def fetchRecordsAsBag(self, columns: Optional[str] = None, **kwargs: Any) -> Any:
+        """Return one query of ``getMultiFetch`` as a :class:`Bag` keyed by pkey.
 
         Args:
             columns: The columns to fetch; ``'*'`` and ``None`` both mean all

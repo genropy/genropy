@@ -91,7 +91,7 @@ class WriteHandler:
         return newrecord[tblobj.pkey]
 
     def updateRecord(self, pkey: str, record: Any, commit: bool = True) -> None:
-        """Write every item of *record* into the record *pkey*.
+        """Write every item of *record* into the record *pkey*; returns nothing.
 
         A value of ``None`` is written, unlike the insert branch of
         :meth:`saveRecord`.
@@ -108,7 +108,7 @@ class WriteHandler:
 
     def saveRecord(self, pkey: Optional[str], data: Any,
                    commit: bool = True) -> Optional[str]:
-        """Insert or update the record the form sent, and return its pkey.
+        """Insert or update the record the form sent, and return the pkey of what was saved.
 
         The literal ``'*newrecord*'`` selects the insert branch, which is the
         pkey the client sends for a record that does not exist yet.  On that
@@ -174,7 +174,7 @@ class WriteHandler:
 
     def unifyRecords(self, sourcePkey: str, destPkey: str,
                      commit: bool = True) -> None:
-        """Merge the record *sourcePkey* into *destPkey*.
+        """Merge the record *sourcePkey* into *destPkey*; returns nothing.
 
         Args:
             sourcePkey: the record that is merged away.
@@ -188,9 +188,9 @@ class WriteHandler:
     #  Batch updates
     # ------------------------------------------------------------------
 
-    def counterFieldChanges(self, counterField: str, changes: Iterable[dict],
-                            commit: bool = True) -> None:
-        """Write the new counter values *changes* carries.
+    def updateCounterField(self, counterField: str, changes: Iterable[dict],
+                           commit: bool = True) -> None:
+        """Write the new counter values *changes* carries into *counterField*; returns nothing.
 
         The update is raw — the triggers do not run — unless the counter column
         declares ``triggerOnUpdate``.  The draft rows are updated too.
@@ -213,8 +213,8 @@ class WriteHandler:
                            excludeDraft=False, _raw_update=raw_update)
         self._commit(commit)
 
-    def touchRows(self, pkeys: Iterable[str], commit: bool = True) -> None:
-        """Run the touch triggers on the records *pkeys*.
+    def touchRecords(self, pkeys: Iterable[str], commit: bool = True) -> None:
+        """Run the update triggers on the records *pkeys* with no user change; returns nothing.
 
         Args:
             pkeys: the pkeys to touch.
@@ -223,10 +223,10 @@ class WriteHandler:
         self.tblobj.touchRecords(_pkeys=pkeys)
         self._commit(commit)
 
-    def updateCheckboxPkeys(self, field: str, changesDict: dict,
-                            fields: Optional[list] = None,
-                            commit: bool = True) -> None:
-        """Write the checkbox values *changesDict* carries.
+    def updateCheckboxRecords(self, field: str, changesDict: dict,
+                              fields: Optional[list] = None,
+                              commit: bool = True) -> None:
+        """Write the checkbox values *changesDict* carries into the records; returns nothing.
 
         When *fields* names more than one column the semantic is a radio group:
         *field* takes the value the caller sent and every other column of
@@ -250,9 +250,9 @@ class WriteHandler:
                            pkeys=list(changesDict.keys()))
         self._commit(commit)
 
-    def applyEditedRows(self, updated: Optional[dict] = None,
-                        inserted: Optional[Any] = None) -> tuple[Bag, Bag]:
-        """Apply the updates and the inserts of a grid changeset.
+    def applyGridChangeset(self, updated: Optional[dict] = None,
+                           inserted: Optional[Any] = None) -> tuple[Bag, Bag]:
+        """Apply the updates and the inserts of a grid changeset and return the refused rows and the inserted pkeys.
 
         A field carrying a ``_loadedValue`` that no longer matches the value in
         the database abandons the **whole** row: the row is recorded in the
@@ -306,9 +306,9 @@ class WriteHandler:
     #  Deleting and archiving
     # ------------------------------------------------------------------
 
-    def rowsToDelete(self, pkeys: Iterable[str],
-                     subtable: Optional[str] = '*') -> list:
-        """Fetch and lock the rows *pkeys*, drafts and deleted ones included.
+    def fetchRowsToDelete(self, pkeys: Iterable[str],
+                          subtable: Optional[str] = '*') -> list:
+        """Return the rows *pkeys* names, fetched and locked, drafts and deleted ones included.
 
         Args:
             pkeys: the pkeys to fetch.
@@ -324,8 +324,8 @@ class WriteHandler:
                                  for_update=True, addPkeyColumn=False,
                                  excludeDraft=False, **kwargs).fetch()
 
-    def deleteLabelField(self, rows: list) -> str:
-        """The column the progress bar shows while *rows* are deleted.
+    def chooseDeleteLabelField(self, rows: list) -> str:
+        """Return the column the progress bar shows while *rows* are deleted.
 
         The caption field of the table when the fetched rows carry it, the table
         name otherwise.
@@ -344,7 +344,7 @@ class WriteHandler:
     def deleteRows(self, rows: Iterable[dict], unlinkfield: Optional[str] = None,
                    protectPkeys: Optional[Iterable[str]] = None,
                    commit: bool = True) -> None:
-        """Delete, unlink or logically delete every row of *rows*.
+        """Delete, unlink or logically delete every row of *rows*; returns nothing.
 
         With *unlinkfield* the row is kept and the field set to ``None``.  A
         pkey listed in *protectPkeys* is logically deleted instead of deleted,
@@ -378,7 +378,7 @@ class WriteHandler:
     def archiveRows(self, pkeys: Iterable[str], archiveDate: Any = None,
                     protectPkeys: Optional[Iterable[str]] = None,
                     commit: bool = True) -> None:
-        """Write *archiveDate* into the logical deletion field of *pkeys*.
+        """Write *archiveDate* into the logical deletion field of *pkeys*; returns nothing.
 
         An *archiveDate* of ``None`` writes ``None``, which un-archives the
         rows.  A pkey listed in *protectPkeys* is left alone — the opposite of
@@ -396,7 +396,7 @@ class WriteHandler:
                       archiveDate.day) if archiveDate else None
         protectPkeys = protectPkeys or []
         updated = False
-        for row in self.rowsToDelete(pkeys, subtable=None):
+        for row in self.fetchRowsToDelete(pkeys, subtable=None):
             if row[tblobj.pkey] in protectPkeys:
                 continue
             oldrow = dict(row)

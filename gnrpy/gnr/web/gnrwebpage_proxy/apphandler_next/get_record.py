@@ -20,32 +20,28 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
-"""Record loading mixin.
+"""Record loading mixin — the copy that receives new work.
 
-Provides :class:`GetRecordMixin` — the ``getRecord`` public method flow and
-its helpers.
+Provides :class:`GetRecordMixin` — the ``getRecord`` public-method flow
+and its private helpers for lock management, eager relation expansion
+and default value population.
 
-The table level part lives on the app level table proxy
-``tblobj.recordHandler()`` (:class:`gnr.app.gnrsqltable_proxy.record.RecordHandler`):
-the record query, the output mode, the pkey re-derivation, the protection
-flags, the table ``onLoading`` handlers, the default values, the status keys
-and the counters.  What stays here is what needs the page: the eager
-specification read from ``page.eagers``, the SQL context join conditions, the
-resolution of the page side ``onLoading`` handler, the applymethod, the
-``recInfo`` assembly and the eager relation expansion, which recurses into
-``getRelatedRecord``.
-
-This module is the copy that receives new work.  The module of the same name
-under ``gnr.web.gnrwebpage_proxy.apphandler`` is frozen and is never imported
-from here.
+The module of the same name under ``gnr.web.gnrwebpage_proxy.apphandler`` is
+frozen and is never imported from here.  The method bodies are the ones of
+that module; what differs is a block that needs only the table and the
+database, replaced by one call on the table proxy ``tblobj.recordHandler()``
+(:class:`gnr.app.gnrsqltable_proxy.record.RecordHandler`), and a recorded
+defect fix, marked in place with its ``bugs.md`` number.
 """
 
 from __future__ import annotations
 
 import time
-from typing import Any, Callable, Optional
+from typing import Any, Optional
 
 from gnr.core.gnrdecorator import public_method, extract_kwargs
+
+__all__ = ['GetRecordMixin']
 
 
 class GetRecordMixin:
@@ -78,17 +74,17 @@ class GetRecordMixin:
                 ``lockId`` and ``locking_*`` keys when locked.
 
         Note:
-            The whole body is inert and has been for as long as the history
-            goes back: the ``site.lockRecord`` call is commented out, so
-            ``locked`` is the literal ``False`` and ``aux`` the empty list,
-            and neither the early return nor the loop can run.  It is kept
-            because it is the only trace of the disabled record locking, and
-            removing it would remove that trace without changing anything.
-            Recorded in ``.subtasks/alt-apphandler/bugs.md``.
+            SMELL: The lock call is commented out and ``locked`` is
+            hard-coded to ``False``, meaning this method is effectively
+            a no-op.  The surrounding loop ``for f in aux`` iterates
+            over an empty list.  The entire locking mechanism appears
+            to be disabled.  The body is kept because it is the only
+            trace of the disabled record locking; removing it would
+            remove that trace without changing any behaviour.
         """
         # locked, aux = self.page.site.lockRecord(
         #     self.page, tblobj.fullname, record[tblobj.pkey])
-        locked = False
+        locked = False  # SMELL: lock disabled — always False
         aux = []
         if locked:
             recInfo['lockId'] = aux
@@ -153,16 +149,12 @@ class GetRecordMixin:
             js_resolver_one: Client-side resolver for one-to-one relations.
             js_resolver_many: Client-side resolver for one-to-many relations.
             loadingParameters: Extra parameters forwarded to ``onLoading``.
-                Mutated in place: the defaults are merged into it and its
-                ``method`` key is popped.
             default_kwargs: Default values for new records (extracted by
                 ``@extract_kwargs(default=True)``).
             eager: Eager-loading specification.
             virtual_columns: Comma-separated virtual columns to include.
             _storename: Alternate store name.
-            _resolver_kwargs: Accepted and never read.  The client sends it on
-                every ``relOneResolver`` call, and the named parameter keeps it
-                out of the keywords that reach the record query.
+            _resolver_kwargs: Extra resolver parameters.
             _eager_level: Current nesting depth for eager expansion.
             _eager_record_stack: Stack of parent records (cycle guard).
             onLoadingHandler: Explicit onLoading handler name.
@@ -174,14 +166,14 @@ class GetRecordMixin:
             A ``(record_bag, recInfo_dict)`` tuple.
 
         Note:
-            The ordering of three steps is load bearing and must not be
-            rearranged.  ``recInfo['table']`` holds the *logical* table while
-            every handler runs and becomes ``dbtable`` only afterwards, so the
-            handlers see one name and the client another.  The table
-            ``onLoading`` runs before the default values and the
-            ``onLoading_*`` ones after them.  The applymethod result is merged
-            before the status keys and the caption, so it cannot override
-            them.
+            SMELL: The method accepts ~30 parameters, many of which are
+            internal bookkeeping (``_eager_level``, ``_eager_record_stack``,
+            ``_resolver_kwargs``).  These should arguably travel via a
+            context object rather than explicit keyword arguments.
+
+            SMELL: ``_resolver_kwargs`` is accepted but never used inside
+            this method — it is consumed only by ``_handleEagerRelations``
+            indirectly through ``getRelatedRecord``.
         """
         t = time.time()
         dbtable = dbtable or table
@@ -189,132 +181,79 @@ class GetRecordMixin:
             dbtable = '%s.%s' % (pkg, dbtable)
         tblobj = self.db.table(dbtable)
         recordHandler = tblobj.recordHandler()
-        lock = bool(lock and pkey is not None)
+        if pkey is None and lock:
+            lock = False
         default_kwargs = default_kwargs or {}
-
-        rec = recordHandler.loadRecord(
-            pkey=pkey, lock=lock,
-            eager=eager or self.page.eagers.get(dbtable),
-            virtual_columns=virtual_columns, sqlContextName=sqlContextName,
-            _storename=_storename, ignoreMissing=ignoreMissing,
-            ignoreDuplicate=ignoreDuplicate, **kwargs)
+        rec = recordHandler.loadRecord(pkey=pkey, lock=lock,
+                                       eager=eager or self.page.eagers.get(dbtable),
+                                       ignoreMissing=ignoreMissing, ignoreDuplicate=ignoreDuplicate,
+                                       sqlContextName=sqlContextName, virtual_columns=virtual_columns,
+                                       _storename=_storename, **kwargs)
         if sqlContextName:
             self._joinConditionsFromContext(rec, sqlContextName)
-        record = recordHandler.outputRecord(rec, pkey, js_resolver_one,
-                                            js_resolver_many,
+        record = recordHandler.recordToBag(rec, pkey, js_resolver_one, js_resolver_many,
                                             sample_kwargs=sample_kwargs)
         if pkey == '*sample*':
             return record, dict(_pkey=pkey, caption='!!Sample data')
-
         pkey, newrecord = recordHandler.resolvePkey(record, pkey, default_kwargs)
+
         recInfo = dict(_pkey=pkey,
                        _newrecord=newrecord,
                        sqlContextName=sqlContextName, _storename=_storename,
                        from_fld=from_fld, ignoreReadOnly=ignoreReadOnly,
                        table=table)
         if not newrecord and not readOnly:
-            recInfo.update(recordHandler.protectionFlags(
-                record, ignoreReadOnly=ignoreReadOnly))
+            recInfo.update(recordHandler.readProtectionFlags(record, ignoreReadOnly=ignoreReadOnly))
             if lock:
                 self._getRecord_locked(tblobj, record, recInfo)
-
         loadingParameters = loadingParameters or {}
         loadingParameters.update(default_kwargs)
         if _eager_record_stack:
             loadingParameters['_eager_record_stack'] = _eager_record_stack
-        table_onLoading = recordHandler.tableOnLoading()
+        method = None
+        table_onLoading = recordHandler.findTableOnLoading()
         if table_onLoading:
             table_onLoading(record, newrecord, loadingParameters, recInfo)
-        table_handlers = recordHandler.tableLoadingHandlers()
-        handler = self._onLoadingHandler(dbtable, onLoadingHandler,
-                                         loadingParameters, sqlContextName)
-        self._applyLoadingHandlers(recordHandler, record, recInfo, handler,
-                                   table_handlers, newrecord=newrecord,
-                                   default_kwargs=default_kwargs,
-                                   loadingParameters=loadingParameters)
+        table_onloading_handlers = recordHandler.listTableLoadingHandlers()
+        onLoadingHandler = onLoadingHandler or loadingParameters.pop('method', None)
+        if onLoadingHandler:
+            handler = self.page.getPublicMethod('rpc', onLoadingHandler)
+        else:
+            if dbtable == self.page.maintable:
+                method = 'onLoading'  # TODO: fall back on the next case if onLoading is missing?
+            else:
+                method = self.page.onLoadingRelatedMethod(dbtable, sqlContextName=sqlContextName)
+            handler = getattr(self.page, method, None)
+
+        if handler or table_onloading_handlers:
+            if default_kwargs and newrecord:
+                self.setRecordDefaults(tblobj, record, default_kwargs)
+            for h in table_onloading_handlers:
+                h(record, newrecord, loadingParameters, recInfo)
+            if handler:
+                handler(record, newrecord, loadingParameters, recInfo)
+        elif newrecord and loadingParameters:
+            for k in default_kwargs:
+                if k not in record:
+                    record[k] = None
+            self.setRecordDefaults(tblobj, record, loadingParameters)
 
         if applymethod:
-            applyPars = self._getApplyMethodPars(kwargs, newrecord=newrecord,
-                                                 loadingParameters=loadingParameters,
+            applyPars = self._getApplyMethodPars(kwargs, newrecord=newrecord, loadingParameters=loadingParameters,
                                                  recInfo=recInfo, tblobj=tblobj)
             applyresult = self.page.getPublicMethod('rpc', applymethod)(record, **applyPars)
             if applyresult:
                 recInfo.update(applyresult)
 
         recInfo['servertime'] = int((time.time() - t) * 1000)
-        recInfo.update(recordHandler.recordStatus(record))
+        recInfo.update(recordHandler.readRecordStatus(record))
         recInfo['table'] = dbtable
         _eager_record_stack = _eager_record_stack or []
-        self._handleEagerRelations(record, _eager_level,
-                                   _eager_record_stack=_eager_record_stack)
+        self._handleEagerRelations(record, _eager_level, _eager_record_stack=_eager_record_stack)
         if newrecord and not recInfo.get('from_fld'):
             recordHandler.applyCounters(record, recInfo)
         recInfo['caption'] = tblobj.recordCaption(record, newrecord)
         return (record, recInfo)
-
-    # ------------------------------------------------------------------
-    # onLoading handlers and default values
-    # ------------------------------------------------------------------
-
-    def _onLoadingHandler(self, dbtable: str, onLoadingHandler: Optional[str],
-                          loadingParameters: dict,
-                          sqlContextName: Optional[str]) -> Optional[Callable]:
-        """Resolve the page side ``onLoading`` handler of a record.
-
-        An explicit handler name wins, and the ``method`` key of
-        *loadingParameters* is the fallback name — it is popped out of the
-        caller's dict, as the legacy flow does.  With no name at all the
-        maintable uses ``onLoading`` and every other table the name
-        ``page.onLoadingRelatedMethod`` builds.
-
-        Returns:
-            The bound page method, or ``None`` when the page has not got it.
-        """
-        onLoadingHandler = onLoadingHandler or loadingParameters.pop('method', None)
-        if onLoadingHandler:
-            return self.page.getPublicMethod('rpc', onLoadingHandler)
-        if dbtable == self.page.maintable:
-            # TODO: fall back on the next case if onLoading is missing?
-            method = 'onLoading'
-        else:
-            method = self.page.onLoadingRelatedMethod(dbtable,
-                                                      sqlContextName=sqlContextName)
-        return getattr(self.page, method, None)
-
-    def _applyLoadingHandlers(self, recordHandler: Any, record: Any,
-                              recInfo: dict, handler: Optional[Callable],
-                              table_handlers: list, newrecord: bool = False,
-                              default_kwargs: Optional[dict] = None,
-                              loadingParameters: Optional[dict] = None) -> None:
-        """Apply the default values and run the loading handlers.
-
-        The two branches use two different dictionaries on purpose.  With at
-        least one handler the defaults are the ``default_*`` keywords only,
-        and only for a new record; with no handler at all they are
-        *loadingParameters*, which already carries the ``default_*`` ones, and
-        every default key the record has not got is first seeded with ``None``
-        so that ``setRecordDefaults``, which skips absent keys, can write it.
-        """
-        if handler or table_handlers:
-            if default_kwargs and newrecord:
-                recordHandler.setRecordDefaults(record, default_kwargs)
-            for table_handler in table_handlers:
-                table_handler(record, newrecord, loadingParameters, recInfo)
-            if handler:
-                handler(record, newrecord, loadingParameters, recInfo)
-        elif newrecord and loadingParameters:
-            for key in default_kwargs:
-                if key not in record:
-                    record[key] = None
-            recordHandler.setRecordDefaults(record, loadingParameters)
-
-    def setRecordDefaults(self, tblobj: Any, record: Any,
-                          defaults: dict[str, Any]) -> None:
-        """Delegate the default values to the table proxy.
-
-        The name stays on the handler: it is the one the legacy flow exposes.
-        """
-        tblobj.recordHandler().setRecordDefaults(record, defaults)
 
     # ------------------------------------------------------------------
     # Eager relation expansion
@@ -328,11 +267,6 @@ class GetRecordMixin:
         an ``_eager_one`` attribute it replaces the lazy resolver with
         the fully loaded related record (via ``self.getRelatedRecord``).
 
-        The expansion stays on the handler because ``getRelatedRecord`` is a
-        ``@public_method`` a page may override, and because it mutates the
-        record in place: ``n._resolver`` is cleared, ``n.value`` becomes the
-        related record and ``n.attr['_resolvedInfo']`` its recInfo.
-
         Args:
             record: The record :class:`Bag` to scan.
             _eager_level: Current nesting depth (incremented on recursion).
@@ -340,6 +274,11 @@ class GetRecordMixin:
                 infinite cycles.
 
         Note:
+            SMELL: The method mutates the *record* in-place by setting
+            ``n._resolver = None`` to disable the lazy resolver and then
+            replacing ``n.value``.  This side-effect-heavy approach makes
+            the method hard to test in isolation.
+
             REVIEW: The ``_eager_one == 'weak'`` guard only fires at
             level 0.  It is unclear why level 1+ eager-weak relations
             should be skipped — this may prevent legitimate nested eager
@@ -351,8 +290,13 @@ class GetRecordMixin:
                 n._resolver = None
                 attr = n.attr
                 target_fld = str(attr['_target_fld'])
-                kwargs = {'resolver_kwargs': self._eagerResolverKwargs(
-                    record, attr.get('_resolver_kwargs'))}
+                kwargs = {}
+                resolver_kwargs = attr.get('_resolver_kwargs') or dict()
+                for k, v in list(resolver_kwargs.items()):
+                    if str(v).startswith('='):
+                        v = v[1:]
+                        resolver_kwargs[k] = record.get(v[1:]) if v.startswith('.') else None
+                kwargs['resolver_kwargs'] = resolver_kwargs
                 kwargs[target_fld.split('.')[2]] = record[attr['_auto_relation_value']]
                 relatedRecord, relatedInfo = self.getRelatedRecord(
                     from_fld=attr['_from_fld'], target_fld=target_fld,
@@ -364,19 +308,21 @@ class GetRecordMixin:
                 n.value = relatedRecord
                 n.attr['_resolvedInfo'] = relatedInfo
 
-    def _eagerResolverKwargs(self, record: Any,
-                             resolver_kwargs: Optional[dict]) -> dict:
-        """Resolve the ``=`` prefixed resolver parameters of an eager node.
+    # ------------------------------------------------------------------
+    # Default value population
+    # ------------------------------------------------------------------
 
-        ``'=.field'`` is read from the record being expanded.  ``'=path'``
-        without the dot is a client datastore path, which the server has not
-        got, so it becomes ``None`` — the client resolves that form itself.
-        Everything else passes through.  The dict of the node is updated in
-        place, as the legacy flow does.
+    def setRecordDefaults(self, tblobj: Any, record: Any,
+                          defaults: dict[str, Any]) -> None:
+        """Populate a new record with default values.
+
+        Only sets keys that already exist in the record schema.  After
+        explicit defaults are applied, ``tblobj.extendDefaultValues``
+        is called for model-level defaults.
+
+        Args:
+            tblobj: The table object.
+            record: The record :class:`Bag` to populate.
+            defaults: Mapping of field-name → default-value.
         """
-        resolver_kwargs = resolver_kwargs or dict()
-        for k, v in list(resolver_kwargs.items()):
-            if str(v).startswith('='):
-                v = v[1:]
-                resolver_kwargs[k] = record.get(v[1:]) if v.startswith('.') else None
-        return resolver_kwargs
+        tblobj.recordHandler().setRecordDefaults(record, defaults)

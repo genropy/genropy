@@ -361,7 +361,7 @@ def test_saved_query_loaded_by_the_proxy(pg_handlers, db_postgres):
     data['where'] = _customer_where_bag()
     data['queryLimit'] = 7
     query_id = _new_userobject(db_postgres, 'test_proxy_query', 'query', data)
-    loaded = db_postgres.table('invc.customer').selectionProxy().loadSavedQuery(query_id)
+    loaded = db_postgres.table('invc.customer').selectionProxy().loadSavedQueryRecord(query_id)
     assert loaded['queryLimit'] == 7
     assert loaded['where'].toXml() == data['where'].toXml()
 
@@ -369,7 +369,7 @@ def test_saved_query_loaded_by_the_proxy(pg_handlers, db_postgres):
 def test_saved_view_loaded_by_the_proxy(pg_handlers, db_postgres):
     viewbag = _customer_view_bag()
     view_id = _new_userobject(db_postgres, 'test_proxy_view', 'view', viewbag)
-    loaded = db_postgres.table('invc.customer').selectionProxy().loadSavedView(view_id)
+    loaded = db_postgres.table('invc.customer').selectionProxy().loadSavedViewColumns(view_id)
     assert loaded.toXml() == viewbag.toXml()
 
 
@@ -704,15 +704,15 @@ def test_external_store_queries_on_the_proxy(db_with_external_store):
     """The proxy merges the external rows into the selection it is given."""
     tblobj = db_with_external_store.table('invc.invoice')
     selection_handler = tblobj.selectionProxy()
-    columns, external_queries = selection_handler.selectionColumns(
+    columns, external_queries = selection_handler.composeSelectionColumns(
         "$inv_number,invc.customer.id:$account_name AS customer_name,"
         "$customer_id AS invc_customer_id_fkey,'extstore' AS _external_store")
     assert external_queries == {'invc.customer.id': ['$account_name AS customer_name']}
     selection = tblobj.query(columns=columns, order_by='$inv_number',
                              limit=5).selection()
     assert all('customer_name' not in row for row in selection.data)
-    selection_handler.externalQueries(selection=selection,
-                                      external_queries=external_queries)
+    selection_handler.mergeExternalStoreColumns(selection=selection,
+                                                external_queries=external_queries)
     assert any(row.get('customer_name') for row in selection.data)
 
 
@@ -1027,7 +1027,7 @@ def test_get_record_count_where_bag_and_condition(handlers):
 def test_record_count_on_the_proxy(handlers, db):
     legacy, _ = handlers
     tblobj = db.table('invc.customer')
-    assert tblobj.selectionProxy().recordCount(
+    assert tblobj.selectionProxy().countRecords(
         where=_customer_where_bag(), customOpCb=dict) == legacy.getRecordCount(
             table='invc.customer', where=_customer_where_bag())
 
@@ -1035,7 +1035,7 @@ def test_record_count_on_the_proxy(handlers, db):
 def test_rpc_query_on_the_proxy(handlers, db):
     legacy, _ = handlers
     tblobj = db.table('invc.customer')
-    proxy_query = tblobj.selectionProxy().rpcQuery(
+    proxy_query = tblobj.selectionProxy().serializeQuery(
         columns='$account_name', where=_customer_where_bag(), customOpCbDict={})
     legacy_query = legacy._prepareRpcQuery(tblobj=tblobj, columns='$account_name',
                                            where=_customer_where_bag())

@@ -59,8 +59,8 @@ class RecordHandler:
     #  Loading a record
     # ------------------------------------------------------------------
 
-    def virtualColumns(self, virtual_columns: Optional[str] = None) -> Optional[str]:
-        """Add the columns the caption and the protection flags need.
+    def composeVirtualColumns(self, virtual_columns: Optional[str] = None) -> Optional[str]:
+        """Return the virtual column string the caption and the protection flags need.
 
         The caption columns, the ``always`` virtual columns and, when the table
         has protection columns, ``__protecting_reasons`` and
@@ -95,7 +95,7 @@ class RecordHandler:
                    ignoreMissing: bool = True,
                    ignoreDuplicate: bool = True,
                    **kwargs: Any) -> Any:
-        """Build the record query and return the ``SqlRecord``.
+        """Return the ``SqlRecord`` of the record the caller asked for.
 
         *lock* must already be the effective one: the caller downgrades a lock
         asked without a pkey, and only a surviving lock adds ``for_update``.
@@ -121,13 +121,13 @@ class RecordHandler:
         return self.tblobj.record(eager=eager, ignoreMissing=ignoreMissing,
                                   ignoreDuplicate=ignoreDuplicate,
                                   sqlContextName=sqlContextName,
-                                  virtual_columns=self.virtualColumns(virtual_columns),
+                                  virtual_columns=self.composeVirtualColumns(virtual_columns),
                                   _storename=_storename, **kwargs)
 
-    def outputRecord(self, rec: Any, pkey: Optional[str],
-                     resolver_one: str, resolver_many: str,
-                     sample_kwargs: Optional[dict] = None) -> Bag:
-        """Turn the ``SqlRecord`` into the Bag the client expects.
+    def recordToBag(self, rec: Any, pkey: Optional[str],
+                    resolver_one: str, resolver_many: str,
+                    sample_kwargs: Optional[dict] = None) -> Bag:
+        """Return the record :class:`Bag` the client expects, in the output mode the pkey selects.
 
         The output mode comes from the pkey: ``*newrecord*`` and ``*sample*``
         have one of their own, everything else is a plain record Bag.
@@ -154,7 +154,7 @@ class RecordHandler:
 
     def resolvePkey(self, record: Bag, pkey: Optional[str],
                     default_kwargs: dict) -> tuple[str, bool]:
-        """Re-derive the pkey from the loaded record.
+        """Return the pkey the loaded record really has and whether it is a new one.
 
         An empty record means a new one, whatever the caller asked for: the
         serialized key it asked for becomes a set of default values, so a
@@ -179,9 +179,9 @@ class RecordHandler:
     #  Protection, handlers and defaults
     # ------------------------------------------------------------------
 
-    def protectionFlags(self, record: Bag,
-                        ignoreReadOnly: Optional[bool] = None) -> dict[str, bool]:
-        """The two write and delete protection flags of an existing record."""
+    def readProtectionFlags(self, record: Bag,
+                            ignoreReadOnly: Optional[bool] = None) -> dict[str, bool]:
+        """Return the write and delete protection flags of an existing record."""
         tblobj = self.tblobj
         return dict(
             _protect_write=(tblobj._islocked_write(record)
@@ -190,15 +190,15 @@ class RecordHandler:
             _protect_delete=(tblobj._islocked_delete(record)
                              or not tblobj.check_deletable(record)))
 
-    def tableOnLoading(self) -> Optional[Callable]:
-        """The ``onLoading`` method of the table, or ``None``.
+    def findTableOnLoading(self) -> Optional[Callable]:
+        """Return the ``onLoading`` method of the table, or ``None``.
 
         It runs before the default values, unlike the ``onLoading_*`` ones.
         """
         return getattr(self.tblobj, 'onLoading', None)
 
-    def tableLoadingHandlers(self) -> list:
-        """Every ``onLoading_*`` method of the table.
+    def listTableLoadingHandlers(self) -> list:
+        """Return every ``onLoading_*`` method of the table.
 
         They run after the default values, unlike ``onLoading``.
         """
@@ -207,7 +207,7 @@ class RecordHandler:
                 if name.startswith('onLoading_')]
 
     def setRecordDefaults(self, record: Bag, defaults: dict) -> None:
-        """Write the default values the record already has a place for.
+        """Write into the record the default values it has a place for; returns nothing.
 
         A key the record has not got is dropped, which is why the caller seeds
         the missing ones with ``None`` first when it wants them all.  The model
@@ -222,9 +222,8 @@ class RecordHandler:
     #  Record status and counters
     # ------------------------------------------------------------------
 
-    def recordStatus(self, record: Bag) -> dict[str, Any]:
-        """The status keys the client reads: timestamp, deletion, draft,
-        invalid fields.
+    def readRecordStatus(self, record: Bag) -> dict[str, Any]:
+        """Return the status keys the client reads: timestamp, deletion, draft, invalid fields.
 
         ``lastTS`` is produced with ``str()``, so a record with no timestamp
         gives the string ``'None'``.
@@ -243,7 +242,7 @@ class RecordHandler:
         return result
 
     def applyCounters(self, record: Bag, recInfo: dict) -> None:
-        """Write the promised counter values into a new record.
+        """Write the promised counter values into a new record; returns nothing.
 
         The values go into the *record*, not into *recInfo*; *recInfo* only
         receives the recycle messages and, when the counter table fails, the
@@ -260,9 +259,9 @@ class RecordHandler:
     #  Related record
     # ------------------------------------------------------------------
 
-    def relatedRecordPkey(self, pkey: Optional[str], related_field: str,
-                          kwargs: dict) -> Optional[str]:
-        """The pkey of a related record, taken out of *kwargs* when needed.
+    def resolveRelatedPkey(self, pkey: Optional[str], related_field: str,
+                           kwargs: dict) -> Optional[str]:
+        """Return the pkey of a related record, taken out of the query keywords when needed.
 
         With no explicit pkey the client sends the foreign key value under the
         name of this table's pkey, so it is popped from *kwargs*.  A missing
@@ -287,13 +286,13 @@ class RecordHandler:
     #  Related selection
     # ------------------------------------------------------------------
 
-    def relatedSelection(self, related_field: str, from_fld: str, target_fld: str,
-                         relation_value: Optional[Any] = None,
-                         condition: Optional[str] = None,
-                         sqlContextName: Optional[str] = None,
-                         queryCb: Optional[Callable] = None,
-                         **kwargs: Any) -> Any:
-        """The selection of the records related to *relation_value*.
+    def selectRelatedRecords(self, related_field: str, from_fld: str, target_fld: str,
+                             relation_value: Optional[Any] = None,
+                             condition: Optional[str] = None,
+                             sqlContextName: Optional[str] = None,
+                             queryCb: Optional[Callable] = None,
+                             **kwargs: Any) -> Any:
+        """Return the selection of the records related to *relation_value*.
 
         A falsy relation value does not skip the query: it forces ``limit=0``,
         so the caller still gets an empty selection with the column attributes.
@@ -338,9 +337,9 @@ class RecordHandler:
                                    condition=rootCond['condition'],
                                    one_one=rootCond['one_one'], **rootCond['params'])
 
-    def relatedRowsBag(self, sel: Any, js_resolver_one: str,
-                       sqlContextName: Optional[str] = None) -> tuple[Bag, dict]:
-        """The rows Bag of a related selection, and the child resolver params.
+    def relatedRecordsToBag(self, sel: Any, js_resolver_one: str,
+                            sqlContextName: Optional[str] = None) -> tuple[Bag, dict]:
+        """Return the rows :class:`Bag` of a related selection and the child resolver parameters.
 
         Each row becomes an empty node labelled with its pkey, carrying the
         columns as node attributes.  The returned parameters are the ones the

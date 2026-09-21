@@ -947,39 +947,38 @@ def test_grid_selection_struct(handlers, db):  # noqa: F811
     assert 'label' not in cells.getNode('inv_number').attr
 
 
-def test_grid_selection_struct_narrow_columns_agree(handlers, db):  # noqa: F811
+class _SizedSelection:
+    """A selection whose only job is to declare one column per size.
+
+    ``gridSelectionStruct`` reads two things off a selection, ``columns`` and
+    ``colAttrs``; this stand-in declares exactly those, so both handlers run
+    their real width block over every size the branch can see.
+    """
+
+    def __init__(self, sizes):
+        self.columns = ['c_%s' % i for i, _ in enumerate(sizes)]
+        self.colAttrs = dict([(name, dict(label=name, dataType='T', size=size))
+                              for name, size in zip(self.columns, sizes)])
+
+
+def test_grid_selection_struct_narrow_columns_agree(handlers):  # noqa: F811
     """D17: the missing elif of the frozen handler changes no width.
 
     For a size below three the frozen handler computes ``size * 1.1`` and then
     overwrites it with ``size``; the ``int()`` of the next line erases the
     difference, so the two readings give the same ``em`` for every size the
-    branch can see.
+    branch can see.  Both structures come out of the real
+    ``gridSelectionStruct`` of each handler.
     """
-    legacy, nxt = handlers
-    for size in range(0, 40):
-        assert nxt._gridCellWidth(size) == legacy_cell_width(size)
-    assert nxt._gridCellWidth('3:12') == legacy_cell_width(12)
-    assert nxt._gridCellWidth(None) is None
-
-
-def legacy_cell_width(size):
-    """The width block of the frozen handler, missing elif included."""
-    if not size:
-        return None
-    if isinstance(size, str) and ':' in size:
-        size = size.split(':')[1]
-    size = int(size)
-    if size < 3:
-        width = size * 1.1
-    if size < 6:  # noqa: the missing elif is the point of the case
-        width = size
-    elif size < 10:
-        width = size * .8
-    elif size < 20:
-        width = size * .7
-    else:
-        width = size * .6
-    return '%iem' % (1 + int(int(width) * .7))
+    sizes = list(range(0, 40)) + ['3:12', None]
+    structs = [handler.gridSelectionStruct(_SizedSelection(sizes))
+               for handler in handlers]
+    assert structs[0].toXml() == structs[1].toXml()
+    cells = structs[0]['view_0.row_0']
+    assert cells.getAttr('c_0', 'width') is None
+    assert cells.getAttr('c_1', 'width') == '%iem' % (1 + int(int(1) * .7))
+    assert cells.getAttr('c_40', 'width') == cells.getAttr('c_12', 'width')
+    assert cells.getAttr('c_41', 'width') is None
 
 
 def test_get_fieldcell_pars(handlers, db):  # noqa: F811
