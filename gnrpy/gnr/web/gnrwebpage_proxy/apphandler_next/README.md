@@ -83,7 +83,9 @@ correct behaviour is not decided by the code alone. Issues opened for them:
 `print_standard`, `rpc_pdfmaker`, `rpc_printStaticGridDownload`,
 `getPackages` and `rpc_getPackages`, `getTables` and `rpc_getTables`,
 `getTableFields` and `rpc_getTableFields`, `_columnsFromStruct`,
-`_externalQueries`.
+`_externalQueries`. Two of them, `rpc_batchDo` and `dbSelect_selection`, have
+callers in application repositories; #1369 decides their fate and that of the
+other seventeen.
 
 ## Tests (`gnrpy/tests/web/`)
 
