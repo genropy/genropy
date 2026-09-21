@@ -953,6 +953,16 @@ class SqlDbAdapter(object):
         """
         return f"string_agg({fieldpath},'{separator}')"
 
+    def inCsvColumn(self, fieldpath, value, separator=','):
+        """Return a SQL predicate that is true when value is one of the items of a
+        separator delimited column. The match is case insensitive and the predicate
+        is NULL when the column is NULL, which can be overridden if needed.
+
+        :param fieldpath: the column holding the delimited list, as SQL or as ``$name``
+        :param value: the item to look for, as SQL, as ``$name`` or as a ``:name`` placeholder
+        :param separator: the character delimiting the items"""
+        return f"{value} ILIKE ANY(string_to_array({fieldpath},'{separator}'))"
+
     def mask_field_sql(self, field, mode='2-4', placeholder='*'):
         """
         Returns a SQL expression for masking a field value for secure display.

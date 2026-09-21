@@ -394,6 +394,14 @@ class SqlDbAdapter(SqlDbBaseAdapter):
     def string_agg(self,fieldpath,separator):
         return f"group_concat({fieldpath},'{separator}')"
 
+    def inCsvColumn(self, fieldpath, value, separator=','):
+        """sqlite has neither string_to_array() nor the ANY(array) operator, so the
+        delimited column is wrapped in separators and searched with LIKE, which is
+        case insensitive on ascii. Concatenating a NULL column yields NULL, as the
+        postgres form does."""
+        return (f"('{separator}' || {fieldpath} || '{separator}') "
+                f"LIKE ('%{separator}' || {value} || '{separator}%')")
+
     def mask_field_sql(self, field, mode='2-4', placeholder='*'):
         """
         Returns a SQLite SQL expression for masking a field value.
