@@ -198,7 +198,7 @@ class RelatedMixin:
             kwargs['limit'] = 0
 
         query = self.db.table(dbtable).relatedQuery(field=related_field, value=relation_value, where=condition,
-                                                     sqlContextName=sqlContextName, **kwargs)
+                                                     columns=columns, sqlContextName=sqlContextName, **kwargs)
         joinBag = None  # BUG: overwrites joinBag — applymethod branch below is dead code
         if sqlContextName:
             self._joinConditionsFromContext(query, sqlContextName)
