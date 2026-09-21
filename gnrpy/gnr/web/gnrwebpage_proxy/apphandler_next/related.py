@@ -29,8 +29,8 @@ the client-side resolver mechanism to load linked data.
 The module of the same name under ``gnr.web.gnrwebpage_proxy.apphandler`` is
 frozen and is never imported from here.  The method bodies are the ones of
 that module; what differs is a block that needs only the table and the
-database, replaced by one call on the table proxy ``tblobj.recordHandler()``
-(:class:`gnr.app.gnrsqltable_proxy.record.RecordHandler`), a recorded defect
+database, replaced by one call on the table proxy ``tblobj.recordProxy()``
+(:class:`gnr.app.gnrsqltable_proxy.record.RecordProxy`), a recorded defect
 fix marked in place with its ``bugs.md`` number, and the two helpers the two
 flows share, ``_splitTargetFld`` and ``_sqlContextJoinBag``.
 """
@@ -123,7 +123,7 @@ class RelatedMixin:
             integrity issues.
         """
         table, related_field = self._splitTargetFld(target_fld)
-        pkey = self.db.table(table).recordHandler().resolveRelatedPkey(pkey, related_field, kwargs)
+        pkey = self.db.table(table).recordProxy().resolveRelatedPkey(pkey, related_field, kwargs)
         loadingParameters = loadingParameters or dict()
         loadingParameters.update(resolver_kwargs or dict())
         record, recInfo = self.getRecord(table=table, from_fld=from_fld, target_fld=target_fld, pkey=pkey,
@@ -193,9 +193,9 @@ class RelatedMixin:
         resultAttributes = dict()
         joinBag = self._sqlContextJoinBag(sqlContextName, target_fld, from_fld)
         dbtable, related_field = self._splitTargetFld(target_fld)
-        recordHandler = self.db.table(dbtable).recordHandler()
+        recordProxy = self.db.table(dbtable).recordProxy()
 
-        sel = recordHandler.selectRelatedRecords(related_field, from_fld, target_fld,
+        sel = recordProxy.selectRelatedRecords(related_field, from_fld, target_fld,
                                              relation_value=relation_value, condition=condition,
                                              sqlContextName=sqlContextName,
                                              queryCb=lambda query: self._joinConditionsFromContext(
@@ -207,7 +207,7 @@ class RelatedMixin:
             if applyresult:
                 resultAttributes.update(applyresult)
 
-        result, relOneParams = recordHandler.relatedRecordsToBag(sel, js_resolver_one,
+        result, relOneParams = recordProxy.relatedRecordsToBag(sel, js_resolver_one,
                                                             sqlContextName=sqlContextName)
         resultAttributes.update(dbtable=dbtable, totalrows=len(sel))
         resultAttributes.update({

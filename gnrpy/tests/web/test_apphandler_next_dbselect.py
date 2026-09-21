@@ -2,7 +2,7 @@
 
 ``GnrWebAppHandlerNext`` moves the table level part of ``dbSelect``,
 ``dbSelect_default``, ``tableAnalyzeStore``, ``getValuesString`` and
-``getMultiFetch`` onto an app level table proxy (``tblobj.dbSelectHandler()``).
+``getMultiFetch`` onto an app level table proxy (``tblobj.dbSelectProxy()``).
 It is a refactoring, so every input must give the same result Bag and the same
 result attributes through both handlers; the two declared divergences are the
 defect fixes of ``bugs_dbselect.md`` and each of them has a test that asserts
@@ -92,7 +92,7 @@ class _DbSelectPage(_StandInPage):
 
 
 @pytest.fixture
-def make_dbselect_handlers(tmp_path):
+def make_dbselect_proxys(tmp_path):
     """Build one handler of each class on a given database."""
     def build(database):
         built = []
@@ -109,13 +109,13 @@ def make_dbselect_handlers(tmp_path):
 
 
 @pytest.fixture
-def handlers(make_dbselect_handlers, db):
-    return make_dbselect_handlers(db)
+def handlers(make_dbselect_proxys, db):
+    return make_dbselect_proxys(db)
 
 
 @pytest.fixture
-def store_handlers(make_dbselect_handlers, db_with_external_store):
-    return make_dbselect_handlers(db_with_external_store)
+def store_handlers(make_dbselect_proxys, db_with_external_store):
+    return make_dbselect_proxys(db_with_external_store)
 
 
 @pytest.fixture

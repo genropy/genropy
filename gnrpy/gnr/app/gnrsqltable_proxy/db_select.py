@@ -22,11 +22,11 @@
 
 """Table level part of the ``db_select`` mixin.
 
-:class:`DbSelectHandler` is attached to every table of a ``GnrApp`` database by
-``gnr.app.gnrdbo.TableBase.dbSelectHandler``.  It is the third sibling of
-:class:`gnr.app.gnrsqltable_proxy.selection.SelectionHandler`, which serves the
+:class:`DbSelectProxy` is attached to every table of a ``GnrApp`` database by
+``gnr.app.gnrdbo.TableBase.dbSelectProxy``.  It is the third sibling of
+:class:`gnr.app.gnrsqltable_proxy.selection.SelectionProxy`, which serves the
 grid selection, and of
-:class:`gnr.app.gnrsqltable_proxy.record.RecordHandler`, which serves the
+:class:`gnr.app.gnrsqltable_proxy.record.RecordProxy`, which serves the
 record flows.
 
 It carries two groups of methods.  The first is the search of the ``dbSelect``
@@ -58,7 +58,7 @@ INVALID_ITEM_COLUMN = '(%s IS TRUE) AS _is_invalid_item'
 """The boolean column the widget reads to mark an invalid row."""
 
 
-class DbSelectHandler:
+class DbSelectProxy:
     """dbSelect proxy of a single table."""
 
     def __init__(self, tblobj: Any) -> None:

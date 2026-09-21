@@ -23,9 +23,9 @@
 """Table level part of the getRecord, getRelatedRecord and getRelatedSelection
 flows.
 
-:class:`RecordHandler` is attached to every table of a ``GnrApp`` database by
-``gnr.app.gnrdbo.TableBase.recordHandler``.  It is the sibling of
-:class:`gnr.app.gnrsqltable_proxy.selection.SelectionHandler`, which serves the
+:class:`RecordProxy` is attached to every table of a ``GnrApp`` database by
+``gnr.app.gnrdbo.TableBase.recordProxy``.  It is the sibling of
+:class:`gnr.app.gnrsqltable_proxy.selection.SelectionProxy`, which serves the
 getSelection flow: the two share nothing, because the record flows never touch
 a where bag, a saved query, a frozen selection or column processing.
 
@@ -44,7 +44,7 @@ from gnr.core.gnrstring import fromJson, toText
 from gnr.sql.gnrsql_exceptions import GnrSqlException
 
 
-class RecordHandler:
+class RecordProxy:
     """Record proxy of a single table."""
 
     def __init__(self, tblobj: Any) -> None:

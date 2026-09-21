@@ -29,8 +29,8 @@ against database tables for autocomplete/dropdown functionality.
 The module of the same name under ``gnr.web.gnrwebpage_proxy.apphandler`` is
 frozen and is never imported from here.  The method bodies are the ones of
 that module; what differs is a block that needs only the table and the
-database, replaced by one call on the table proxy ``tblobj.dbSelectHandler()``
-(:class:`gnr.app.gnrsqltable_proxy.db_select.DbSelectHandler`), and a recorded
+database, replaced by one call on the table proxy ``tblobj.dbSelectProxy()``
+(:class:`gnr.app.gnrsqltable_proxy.db_select.DbSelectProxy`), and a recorded
 defect fix, marked in place with its ``bugs_dbselect.md`` number.
 
 ``ESCAPE_SPECIAL`` is on the proxy, where the regex stage of the search is;
@@ -126,10 +126,10 @@ class DbSelectMixin:
         limit = int(limit)
         result = Bag()
         tblobj = self.db.table(dbtable)
-        dbSelectHandler = tblobj.dbSelectHandler()
-        querycolumns = dbSelectHandler.composeQueryColumns(columns=columns, rowcaption=rowcaption)
-        showcolumns = dbSelectHandler.composeShowColumns(rowcaption=rowcaption, auxColumns=auxColumns)
-        resultcolumns = dbSelectHandler.composeResultColumns(rowcaption=rowcaption, auxColumns=auxColumns,
+        dbSelectProxy = tblobj.dbSelectProxy()
+        querycolumns = dbSelectProxy.composeQueryColumns(columns=columns, rowcaption=rowcaption)
+        showcolumns = dbSelectProxy.composeShowColumns(rowcaption=rowcaption, auxColumns=auxColumns)
+        resultcolumns = dbSelectProxy.composeResultColumns(rowcaption=rowcaption, auxColumns=auxColumns,
                                                              hiddenColumns=hiddenColumns,
                                                              alternatePkey=alternatePkey)
         selection = None
@@ -137,7 +137,7 @@ class DbSelectMixin:
         resultAttrs = {}
         errors = []
         if _id:
-            selection, errors = dbSelectHandler.selectRecordById(_id, resultcolumns, condition=condition,
+            selection, errors = dbSelectProxy.selectRecordById(_id, resultcolumns, condition=condition,
                                                            weakCondition=weakCondition,
                                                            alternatePkey=alternatePkey,
                                                            excludeDraft=excludeDraft, **kwargs)
@@ -149,11 +149,11 @@ class DbSelectMixin:
                 selectHandler = self.page.getPublicMethod('rpc', selectmethod)
             else:
                 selectHandler = self.dbSelect_default
-            preferred = dbSelectHandler.resolvePreferredExpression(preferred)
-            weakCondition = dbSelectHandler.resolveWeakCondition(weakCondition)
-            resultcolumns = dbSelectHandler.addSearchFlagColumns(resultcolumns, preferred=preferred,
+            preferred = dbSelectProxy.resolvePreferredExpression(preferred)
+            weakCondition = dbSelectProxy.resolveWeakCondition(weakCondition)
+            resultcolumns = dbSelectProxy.addSearchFlagColumns(resultcolumns, preferred=preferred,
                                                                 invalidItemCondition=invalidItemCondition)
-            order_by = dbSelectHandler.composeSearchOrderBy(order_by, showcolumns, preferred=preferred)
+            order_by = dbSelectProxy.composeSearchOrderBy(order_by, showcolumns, preferred=preferred)
             cond = '(%s) AND (%s)' % (condition or 'TRUE', weakCondition) if isinstance(weakCondition, str) else condition
             selection = selectHandler(tblobj=tblobj, querycolumns=querycolumns, querystring=querystring,
                                       resultcolumns=resultcolumns, condition=cond, exclude=exclude,
@@ -171,7 +171,7 @@ class DbSelectMixin:
             applyresult = self.page.getPublicMethod('rpc', applymethod)(selection, **kwargs)
         if selection:
             result = selection.output('selection', locale=self.page.locale, caption=rowcaption or True)
-            showcols, colHeaders = dbSelectHandler.composeColumnHeaders(selection, showcolumns, self.page._)
+            showcols, colHeaders = dbSelectProxy.composeColumnHeaders(selection, showcolumns, self.page._)
             resultAttrs = {'columns': showcols, 'headers': colHeaders}
             if applyresult:
                 resultAttrs.update(applyresult)
@@ -209,7 +209,7 @@ class DbSelectMixin:
         """
         t0 = time.time()
         page = self.page
-        selection = page.db.table(table).dbSelectHandler().selectRecordsToTotalize(where=where, group_by=group_by,
+        selection = page.db.table(table).dbSelectProxy().selectRecordsToTotalize(where=where, group_by=group_by,
                                                                             **kwargs)
         explorer_id = page.getUuid()
         t1 = time.time()
@@ -262,7 +262,7 @@ class DbSelectMixin:
             dict between the ``contains`` and the ``startswith`` stages, so the
             second one carries the bind parameter of the first.
         """
-        return tblobj.dbSelectHandler().searchRecords(querycolumns=querycolumns, querystring=querystring,
+        return tblobj.dbSelectProxy().searchRecords(querycolumns=querycolumns, querystring=querystring,
                                                         resultcolumns=resultcolumns, condition=condition,
                                                         exclude=exclude, limit=limit, order_by=order_by,
                                                         **kwargs)
@@ -282,7 +282,7 @@ class DbSelectMixin:
         Returns:
             A string like ``"key1:caption1,key2:caption2,..."``.
         """
-        return self.db.table(table).dbSelectHandler().composeValuesString(caption_field=caption_field,
+        return self.db.table(table).dbSelectProxy().composeValuesString(caption_field=caption_field,
                                                                    alt_pkey_field=alt_pkey_field,
                                                                    **kwargs)
 
@@ -315,6 +315,6 @@ class DbSelectMixin:
             table = qattr.pop('table')
             dbenv_kw = dictExtract(qattr, 'dbenv_', True)
             with self.db.tempEnv(**dbenv_kw):
-                result[query.label] = self.db.table(table).dbSelectHandler().fetchRecordsAsBag(columns=columns,
+                result[query.label] = self.db.table(table).dbSelectProxy().fetchRecordsAsBag(columns=columns,
                                                                                         **qattr)
         return result

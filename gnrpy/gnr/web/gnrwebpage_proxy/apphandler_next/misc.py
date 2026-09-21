@@ -34,8 +34,8 @@ The module of the same name under ``gnr.web.gnrwebpage_proxy.apphandler`` is
 frozen and is never imported from here.  The method bodies are the ones of
 that module; what differs is a block that needs only the table and the
 database, replaced by one call on the app level write proxy
-``tblobj.writeHandler()``
-(:class:`gnr.app.gnrsqltable_proxy.write.WriteHandler`), and a recorded defect
+``tblobj.writeProxy()``
+(:class:`gnr.app.gnrsqltable_proxy.write.WriteProxy`), and a recorded defect
 fix, marked in place with its ``bugs_misc.md`` number.
 
 ``rpc_getRecordForm`` and ``formAuto`` have no caller anywhere in the tree and
@@ -133,7 +133,7 @@ class MiscMixin:
             counterField: Name of the counter field to update.
             changes: List of dicts with ``_pkey`` and ``new`` keys.
         """
-        self.db.table(table).writeHandler().updateCounterField(counterField, changes)
+        self.db.table(table).writeProxy().updateCounterField(counterField, changes)
 
     @public_method
     def deleteFileRows(self, files: Optional[Union[str, list]] = None,
@@ -180,7 +180,7 @@ class MiscMixin:
             updated = dict(updated.digest('#a._pkey,#v'))
         deletedNode = changeset.popNode('deleted')
         result = Bag()
-        wrongUpdates, insertedRecords = self.db.table(table).writeHandler().applyGridChangeset(
+        wrongUpdates, insertedRecords = self.db.table(table).writeProxy().applyGridChangeset(
             updated=updated, inserted=inserted)
         if deletedNode:
             deleted = deletedNode.value
@@ -218,7 +218,7 @@ class MiscMixin:
             commits (bugs_misc.md B25, reproduced).
         """
         self._checkTableWritePermission(table, 'readonly,ins', 'Duplicate')
-        return self.db.table(table).writeHandler().duplicateRecords(pkeys, **kwargs)
+        return self.db.table(table).writeProxy().duplicateRecords(pkeys, **kwargs)
 
     @public_method
     def deleteDbRows(self, table: str, pkeys: Optional[list] = None,
@@ -252,7 +252,7 @@ class MiscMixin:
         """
         self._checkTableWritePermission(table, 'readonly,del', 'Delete')
         try:
-            writer = self.db.table(table).writeHandler()
+            writer = self.db.table(table).writeProxy()
             rows = writer.fetchRowsToDelete(pkeys)
             if not rows:
                 return
@@ -289,7 +289,7 @@ class MiscMixin:
             on failure.
         """
         try:
-            self.db.table(table).writeHandler().archiveRows(pkeys, archiveDate=archiveDate,
+            self.db.table(table).writeProxy().archiveRows(pkeys, archiveDate=archiveDate,
                                                             protectPkeys=protectPkeys,
                                                             commit=commit)
         except GnrSqlDeleteException as e:
@@ -313,7 +313,7 @@ class MiscMixin:
             ``newrecord`` computed, so a sysfield or a unique column the client
             sent wins over the table (bugs_misc.md A3, reproduced).
         """
-        return self.db.table(table).writeHandler().insertRecord(record)
+        return self.db.table(table).writeProxy().insertRecord(record)
 
     @public_method
     def duplicateRecord(self, pkey: Optional[str] = None,
@@ -328,7 +328,7 @@ class MiscMixin:
         Returns:
             The primary key of the new record.
         """
-        return self.db.table(table).writeHandler().duplicateRecord(pkey, **kwargs)
+        return self.db.table(table).writeProxy().duplicateRecord(pkey, **kwargs)
 
     @public_method
     def unifyRecords(self, sourcePkey: Optional[str] = None,
@@ -342,7 +342,7 @@ class MiscMixin:
             destPkey: Primary key of the destination (to keep).
             table: Fully qualified table name.
         """
-        self.db.table(table).writeHandler().unifyRecords(sourcePkey, destPkey)
+        self.db.table(table).writeProxy().unifyRecords(sourcePkey, destPkey)
 
     @public_method
     def updateRecord(self, table: Optional[str] = None,
@@ -361,7 +361,7 @@ class MiscMixin:
             insert branch of ``saveRecord`` drops it instead (bugs_misc.md
             A13 vs A9, both reproduced).
         """
-        self.db.table(table).writeHandler().updateRecord(pkey, record)
+        self.db.table(table).writeProxy().updateRecord(pkey, record)
 
     @public_method
     def saveRecord(self, table=None, pkey=None, data=None, **kwargs):
@@ -374,7 +374,7 @@ class MiscMixin:
             keeps ``*newrecord*`` as its current pkey.  Here the insert branch
             returns the pkey the insert wrote.
         """
-        return dict(pkey=self.db.table(table).writeHandler().saveRecord(pkey, data))
+        return dict(pkey=self.db.table(table).writeProxy().saveRecord(pkey, data))
 
     @public_method
     def newRowsData(self, table: Optional[str] = None,
@@ -409,7 +409,7 @@ class MiscMixin:
             table: Fully qualified table name.
             pkeys: List of primary keys to touch.
         """
-        self.db.table(table).writeHandler().touchRecords(pkeys)
+        self.db.table(table).writeProxy().touchRecords(pkeys)
 
     @public_method
     def updateCheckboxPkeys(self, table: Optional[str] = None,
@@ -427,7 +427,7 @@ class MiscMixin:
         if not changesDict:
             return
         fields = changesDict.pop('_fields', None)
-        self.db.table(table).writeHandler().updateCheckboxRecords(field, changesDict, fields=fields)
+        self.db.table(table).writeProxy().updateCheckboxRecords(field, changesDict, fields=fields)
 
     # -----------------------------------------------------------------------
     #  Grid rendering

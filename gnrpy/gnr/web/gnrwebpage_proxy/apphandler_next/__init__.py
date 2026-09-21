@@ -32,7 +32,7 @@ The instance configuration ``<db app_handler="next"/>`` selects this handler,
 read in the ``app`` property of :class:`gnr.web.gnrwebpage.GnrWebPage`.
 
 The ``getSelection`` flow is the one of phase 2, on the app level table proxy
-``tblobj.selectionHandler()``; the other flows are still the copied ones and
+``tblobj.selectionProxy()``; the other flows are still the copied ones and
 are refactored one phase at a time.  The 17 methods that had no caller
 anywhere in the tree are not part of the copy; they are listed in
 ``.subtasks/alt-apphandler/bugs.md``.
@@ -200,5 +200,5 @@ class GnrWebAppHandlerNext(
         ``_decodeWhereBag`` here.  Four call sites outside this package use it
         as public API.
         """
-        return tblobj.selectionHandler().decodeWhereBag(
+        return tblobj.selectionProxy().decodeWhereBag(
             where, kwargs, customOpCbDict=self._customSqlOpCallbacks())

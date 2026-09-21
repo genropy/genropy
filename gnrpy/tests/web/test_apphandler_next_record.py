@@ -2,7 +2,7 @@
 
 ``GnrWebAppHandlerNext`` moves the table level part of ``getRecord``,
 ``getRelatedRecord`` and ``getRelatedSelection`` onto an app level table proxy
-(``tblobj.recordHandler()``).  It is a refactoring, so every input must give
+(``tblobj.recordProxy()``).  It is a refactoring, so every input must give
 the same record Bag and the same recInfo through both handlers; the few
 declared divergences are the defect fixes of ``bugs.md`` and each of them has
 a test that asserts the divergence instead of the equality.

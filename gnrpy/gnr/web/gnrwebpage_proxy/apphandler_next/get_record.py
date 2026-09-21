@@ -29,8 +29,8 @@ and default value population.
 The module of the same name under ``gnr.web.gnrwebpage_proxy.apphandler`` is
 frozen and is never imported from here.  The method bodies are the ones of
 that module; what differs is a block that needs only the table and the
-database, replaced by one call on the table proxy ``tblobj.recordHandler()``
-(:class:`gnr.app.gnrsqltable_proxy.record.RecordHandler`), and a recorded
+database, replaced by one call on the table proxy ``tblobj.recordProxy()``
+(:class:`gnr.app.gnrsqltable_proxy.record.RecordProxy`), and a recorded
 defect fix, marked in place with its ``bugs.md`` number.
 """
 
@@ -180,22 +180,22 @@ class GetRecordMixin:
         if pkg:
             dbtable = '%s.%s' % (pkg, dbtable)
         tblobj = self.db.table(dbtable)
-        recordHandler = tblobj.recordHandler()
+        recordProxy = tblobj.recordProxy()
         if pkey is None and lock:
             lock = False
         default_kwargs = default_kwargs or {}
-        rec = recordHandler.loadRecord(pkey=pkey, lock=lock,
+        rec = recordProxy.loadRecord(pkey=pkey, lock=lock,
                                        eager=eager or self.page.eagers.get(dbtable),
                                        ignoreMissing=ignoreMissing, ignoreDuplicate=ignoreDuplicate,
                                        sqlContextName=sqlContextName, virtual_columns=virtual_columns,
                                        _storename=_storename, **kwargs)
         if sqlContextName:
             self._joinConditionsFromContext(rec, sqlContextName)
-        record = recordHandler.recordToBag(rec, pkey, js_resolver_one, js_resolver_many,
+        record = recordProxy.recordToBag(rec, pkey, js_resolver_one, js_resolver_many,
                                             sample_kwargs=sample_kwargs)
         if pkey == '*sample*':
             return record, dict(_pkey=pkey, caption='!!Sample data')
-        pkey, newrecord = recordHandler.resolvePkey(record, pkey, default_kwargs)
+        pkey, newrecord = recordProxy.resolvePkey(record, pkey, default_kwargs)
 
         recInfo = dict(_pkey=pkey,
                        _newrecord=newrecord,
@@ -203,7 +203,7 @@ class GetRecordMixin:
                        from_fld=from_fld, ignoreReadOnly=ignoreReadOnly,
                        table=table)
         if not newrecord and not readOnly:
-            recInfo.update(recordHandler.readProtectionFlags(record, ignoreReadOnly=ignoreReadOnly))
+            recInfo.update(recordProxy.readProtectionFlags(record, ignoreReadOnly=ignoreReadOnly))
             if lock:
                 self._getRecord_locked(tblobj, record, recInfo)
         loadingParameters = loadingParameters or {}
@@ -211,10 +211,10 @@ class GetRecordMixin:
         if _eager_record_stack:
             loadingParameters['_eager_record_stack'] = _eager_record_stack
         method = None
-        table_onLoading = recordHandler.findTableOnLoading()
+        table_onLoading = recordProxy.findTableOnLoading()
         if table_onLoading:
             table_onLoading(record, newrecord, loadingParameters, recInfo)
-        table_onloading_handlers = recordHandler.listTableLoadingHandlers()
+        table_onloading_handlers = recordProxy.listTableLoadingHandlers()
         onLoadingHandler = onLoadingHandler or loadingParameters.pop('method', None)
         if onLoadingHandler:
             handler = self.page.getPublicMethod('rpc', onLoadingHandler)
@@ -246,12 +246,12 @@ class GetRecordMixin:
                 recInfo.update(applyresult)
 
         recInfo['servertime'] = int((time.time() - t) * 1000)
-        recInfo.update(recordHandler.readRecordStatus(record))
+        recInfo.update(recordProxy.readRecordStatus(record))
         recInfo['table'] = dbtable
         _eager_record_stack = _eager_record_stack or []
         self._handleEagerRelations(record, _eager_level, _eager_record_stack=_eager_record_stack)
         if newrecord and not recInfo.get('from_fld'):
-            recordHandler.applyCounters(record, recInfo)
+            recordProxy.applyCounters(record, recInfo)
         recInfo['caption'] = tblobj.recordCaption(record, newrecord)
         return (record, recInfo)
 
@@ -325,4 +325,4 @@ class GetRecordMixin:
             record: The record :class:`Bag` to populate.
             defaults: Mapping of field-name → default-value.
         """
-        tblobj.recordHandler().setRecordDefaults(record, defaults)
+        tblobj.recordProxy().setRecordDefaults(record, defaults)

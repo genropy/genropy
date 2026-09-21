@@ -22,10 +22,10 @@
 
 """Table level part of the record write flows of the application handler.
 
-:class:`WriteHandler` is attached to every table of a ``GnrApp`` database by
-``gnr.app.gnrdbo.TableBase.writeHandler``.  It is the third table proxy, next to
-:class:`gnr.app.gnrsqltable_proxy.selection.SelectionHandler`, which serves the
-getSelection flow, and :class:`gnr.app.gnrsqltable_proxy.record.RecordHandler`,
+:class:`WriteProxy` is attached to every table of a ``GnrApp`` database by
+``gnr.app.gnrdbo.TableBase.writeProxy``.  It is the third table proxy, next to
+:class:`gnr.app.gnrsqltable_proxy.selection.SelectionProxy`, which serves the
+getSelection flow, and :class:`gnr.app.gnrsqltable_proxy.record.RecordProxy`,
 which serves the read side of the record flows.  This one holds the write side:
 insert, update, duplicate, unify, delete, archive, and the two batch updates the
 grid sends.
@@ -48,7 +48,7 @@ from typing import Any, Iterable, Optional
 from gnr.core.gnrbag import Bag
 
 
-class WriteHandler:
+class WriteProxy:
     """Write proxy of a single table."""
 
     def __init__(self, tblobj: Any) -> None:

@@ -1,7 +1,7 @@
 """Equivalence between the misc flows of the two handlers.
 
 ``GnrWebAppHandlerNext`` moves the table level part of the record writes and of
-the row operations onto an app level table proxy (``tblobj.writeHandler()``) and
+the row operations onto an app level table proxy (``tblobj.writeProxy()``) and
 decomposes the rest — frozen selections, grid rendering, file system — into
 helpers on the handler.  It is a refactoring, so the same input must leave the
 same rows in the database and give the same result through both handlers; the
