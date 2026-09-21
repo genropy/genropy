@@ -10,3 +10,8 @@ def config(root,application=None):
     invc.thpage('!!Product types',table='invc.product_type')
     invc.thpage('!!Postcodes',table='invc.postcode')
     invc.lookups('Lookup tables',lookup_manager='invc')
+
+    gramlot = root.branch('GramlotPages')
+    gramlot.webpage('Hello World', filepath='/invc/gramlot_hello')
+    gramlot.webpage('Customer selection', filepath='/invc/gramlot_customer_select')
+    gramlot.webpage('States', filepath='/invc/gramlot_states')

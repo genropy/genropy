@@ -1,3 +1,8 @@
+Release 26.09.18
+================
+
+Hotfix release: Configurable captions for the notification dialog (#1332)
+
 Release 26.09.07
 ================
 

@@ -161,13 +161,6 @@ class SqlDbAdapter(SqlDbBaseAdapter):
     def createTableAs(self, sqltable, query, sqlparams):
         self.dbroot.execute("CREATE TABLE %s WITH OIDS AS %s;" % (sqltable, query), sqlparams)
 
-    def vacuum(self, table='', full=False): #TODO: TEST IT, SEEMS TO LOCK SUBSEQUENT TRANSACTIONS!!!
-        """Perform analyze routines on the db"""
-        if full:
-            self.dbroot.execute('VACUUM FULL ANALYZE %s;' % table)
-        else:
-            self.dbroot.execute('VACUUM ANALYZE %s;' % table)
-
     def listen(self, msg, timeout=10, onNotify=None, onTimeout=None):
         """Listen for message 'msg' on the current connection using the Postgres LISTEN - NOTIFY method.
         onTimeout callbacks are executed on every timeout, onNotify on messages.

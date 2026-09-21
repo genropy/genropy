@@ -610,6 +610,8 @@ class GnrWebPage(GnrBaseWebPage):
         
         :param workdate: the :ref:`workdate`"""
         if workdate:
+            if not (self.rootenv or Bag())['can_set_workdate']:
+                raise GnrException('user %s may not set the workdate' % self.user)
             self.workdate = workdate
         return self.workdate
             
@@ -642,8 +644,11 @@ class GnrWebPage(GnrBaseWebPage):
         self._lastUserEventTs = kwargs.pop('_lastUserEventTs', None)
         self._lastRpc = kwargs.pop('_lastRpc', None)
         self._pageProfilers = kwargs.pop('_pageProfilers', None)
-        if _serverstore_changes:
-            self.site.register.set_serverstore_changes(self.page_id, _serverstore_changes)
+        if _serverstore_changes and not self.site.register.set_serverstore_changes(
+                self.page_id, _serverstore_changes):
+            # the page passed _check_page_id in __init__, so this is the cleanup race
+            logger.warning('page %s vanished from the register: serverstore changes discarded (%s)',
+                           self.page_id, ','.join(sorted(_serverstore_changes)))
         auth = AUTH_OK
         if method not in ('doLogin', 'onClosePage'):
             auth = self._checkAuth(method=method, **kwargs)
@@ -2616,7 +2621,11 @@ class GnrWebPage(GnrBaseWebPage):
             connectionStore = self.connectionStore()
             defaultRootenv = Bag(connectionStore.getItem('defaultRootenv'))
             if '_workdate' in self._call_kwargs:
-                defaultRootenv['workdate'] = self.catalog.fromText(self._call_kwargs['_workdate'],'D')
+                if defaultRootenv['can_set_workdate']:
+                    defaultRootenv['workdate'] = self.catalog.fromText(self._call_kwargs['_workdate'],'D')
+                else:
+                    logger.warning('user %s may not set the workdate: _workdate=%s ignored',
+                                   self.user, self._call_kwargs['_workdate'])
             return defaultRootenv
         return currenv
         
