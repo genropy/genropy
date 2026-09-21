@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Area** | sql |
-| **Status** | Draft |
+| **Status** | Discussion |
 | **Author** | Giovanni Porcari |
 | **Created** | 2026-09-20 |
 | **Refs** | GEP 1, #1354 |

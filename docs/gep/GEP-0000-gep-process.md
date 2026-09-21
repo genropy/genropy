@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Area** | process |
-| **Status** | Draft |
+| **Status** | Discussion |
 | **Author** | Giovanni Porcari |
 | **Created** | 2026-09-20 |
 | **Refs** | GEP 1, GEP 2 |
@@ -58,17 +58,22 @@ the other paths were not taken.
 
 | status | meaning |
 |---|---|
-| Draft | being written; may change at any time |
-| Discussion | open PR on `develop`; comments on the PR are the discussion |
-| Accepted | merged into `develop`; the plan is the reference for implementation PRs |
+| Draft | being written by the author, on a branch; not yet in `develop` |
+| Discussion | in `develop`; the substance is discussed in issues that name the GEP and changed by pull requests on the document |
+| Accepted | the discussion is closed; the plan is the reference for implementation PRs |
 | Implemented | the code is in `develop`; the GEP stays as documentation of the choice |
-| Rejected | merged with the reasons for rejection recorded, so the question is not reopened |
+| Rejected | the discussion closed against it; the reasons stay recorded, so the question is not reopened |
 | Superseded | replaced by a later GEP, named in the header |
 
-A GEP is discussed and merged through an ordinary pull request that
-contains only the document. Implementation follows in separate PRs that
-reference the GEP. The document is updated by further PRs when the
-implementation departs from it.
+The author decides when the document is ready, sets its status to
+Discussion and opens a pull request on `develop` that contains only the
+document. The review of that pull request is on the form: clarity of the
+concepts, structure, verifiable data. It may refuse or ask for changes, but
+it is not the discussion of the substance. The merge puts the document in
+the corpus as its version 0. From then on every change is a pull request on
+the document and the substance is discussed in issues. A pull request sets
+Accepted or Rejected when the discussion closes, and Implemented when the
+code is in `develop`.
 
 ## 5. Numbering
 
@@ -79,6 +84,6 @@ are never reused.
 
 | GEP | area | title | status |
 |---|---|---|---|
-| 0 | process | GenroPy Enhancement Proposals | Draft |
-| 1 | sql | Relation functions in the column grammar | Draft |
-| 2 | sql | `manyRelation`: filtered many-side relations declared on the one-side table | Draft |
+| 0 | process | GenroPy Enhancement Proposals | Discussion |
+| 1 | sql | Relation functions in the column grammar | Discussion |
+| 2 | sql | `manyRelation`: filtered many-side relations declared on the one-side table | Discussion |

@@ -3,10 +3,10 @@
 | | |
 |---|---|
 | **Area** | sql |
-| **Status** | Draft |
+| **Status** | Discussion |
 | **Author** | Giovanni Porcari |
 | **Created** | 2026-09-20 |
-| **Refs** | #1354, #623, #544, #496, #617, GEP 2 |
+| **Refs** | #1354, #623, #544, #496, #617 |
 | **Branch** | `feature/1354-relation-aggregates` (this document; implementation follows section 8) |
 
 ## 1. Abstract
@@ -107,6 +107,20 @@ read as `@invoices.sum` (unknown column) followed by `(total)`.
 ## 4. Proposal — core grammar
 
 ### 4.0 Rule
+
+A function in a field expression operates either on one row or on a set of
+rows, and the form says which (decided 2026-09-21):
+
+| form | operates on | example |
+|---|---|---|
+| `function(args)` | the row of the main table | `sum($name, ' ', $surname)` |
+| `@one.function(args)` | the related row of a one-side relation | `@customer_id.sum($name, ' ', $surname)` |
+| `@many.function(args)` | the set of rows of a many-side relation | `@invoices.sum($number, '/')` |
+
+The compiler tells the last two apart from the cardinality of the relation
+in the model (`joiner.mode`, `one_one`). One name can belong to both
+families: `sum` is `+` on one row and SUM or string aggregation over many
+rows. Section 5 has the row functions, 4.1-4.4 the aggregating ones.
 
 A many-side relation in a path always requires an aggregating function with
 explicit arguments (decided 2026-09-20). `sum`, `count`, `avg`, `min`, `max`
@@ -214,7 +228,31 @@ The mechanical `colToAs` (`\W` → `_`) is not used: it would give
   does no parsing of the path (it already uses `fieldname` in the
   `formulaVariant` flow).
 
-## 5. Proposal — `template(...)`
+## 5. Proposal — row functions: `sum`, `template`, `sql`
+
+A row function computes one value from the fields of one row: the row of
+the main table (`function(args)`) or the related row of a one-side relation
+(`@customer_id.function(args)`). Three are in this GEP (decided 2026-09-21).
+Every argument follows the general field grammar (decision 9.2), so an
+aggregating function of section 4 is a valid argument: the aggregates are
+computed first, the row function combines their results.
+
+### 5.1 `sum` — `+` by dtype
+
+`sum(a, b, ...)` adds numbers and concatenates text. Constants are operands
+like the fields.
+
+| expression | SQL |
+|---|---|
+| `sum($name, ' ', $surname)` | `t0.name || ' ' || t0.surname` |
+| `@customer_id.sum($name, ' ', $surname)` | the same, on the joined customer row |
+| `sum(@invoices.sum($total), @credit_notes.sum($total))` | the two correlated subqueries, added |
+
+Non-text values in a text `sum` are CAST to text (`||` on a number fails on
+PostgreSQL). One-side columns reached by path are ordinary operands:
+`sum(@customer_id.name, ' ', @customer_id.surname)`.
+
+### 5.2 `template` — placeholders
 
 `template` is a **row-level** function: it formats one row with a `$name`
 template (the convention of `gnrstring.templateReplace`, already used by the
@@ -245,13 +283,28 @@ relation functions are allowed. Non-text values are CAST
 to text before concatenation (`||` on a number fails on PostgreSQL).
 
 On a many-side relation `template` alone is an error: one string per related
-row cannot become one value without an aggregate. Text aggregation over a
-many-side relation (`string_agg` / `group_concat`, separator, order) is a
-separate function, not part of this GEP; see 9.4.
+row cannot become one value without an aggregate. The form is
+`@invoices.sum(template(...))` (9.4).
 
 Prior art: `variantColumn_captions` (`columns.py`) builds such a string with
 `array_to_string(ARRAY(select ...), sep)`; `fieldAggregate` joins unique text
 values with `','`.
+
+### 5.3 `sql` — the expression of the dialect
+
+`sql('<expression>')` hands the compiler an SQL expression of the database in
+use, with `$field` placeholders resolved as in the `sql_formula` of a
+`formulaColumn`. It covers what no named function does (CAST, COALESCE, CASE):
+
+```
+@customer_id.sql("CAST($code AS text) || COALESCE($vat_number, '--')")
+```
+
+The text is SQL of the dialect, not grammar of this GEP. A form with one text
+per dialect, `sql(postgres='...', sqlite='...')`, is possible and not
+decided; today `sql_formula` has no per-dialect variant, the only route being
+`sql_formula=True` delegating to a `sql_formula_<field>` method of the table
+(`compiler.py:397`).
 
 ## 6. Proposal — declaring aggregable columns in the model
 
@@ -417,10 +470,11 @@ The argument shape tells them apart (`$col` vs `@path`), so no extra rule.
 | **A. flat set** (proposed) | sum over all rows reachable | one subquery with inner joins |
 | B. nested, explicit | `@invoices.avg(@rows.sum($quantity))` | subquery in subquery, verified (section 4.3); A and B coexist because the argument shape differs (column vs relation function); B needs the argument grammar to accept a path |
 
-### 9.4 Text aggregation on many side — DECIDED: `sum` overloaded by dtype (2026-09-20)
+### 9.4 Text aggregation on many side — DECIDED: `sum` (2026-09-20)
 
-No new function name. `sum` on a text argument is the text aggregate, with an
-optional second argument as separator:
+`sum` is `+` for every dtype: on numbers it adds, on text it concatenates.
+Over a many-side relation `sum` on a text argument is the text aggregate,
+with an optional second argument as separator:
 
 ```
 @invoices.sum($number)          -- separator from the model (aggregate='/'), else ','
@@ -430,9 +484,15 @@ optional second argument as separator:
 
 The compiler knows the dtype of the argument (column attribute, or text for
 `template`), so it maps `sum` to `string_agg` (PostgreSQL) or `group_concat`
-(SQLite) in the adapter. `concat` was considered as an alias and not adopted.
+(SQLite) in the adapter.
 Row order inside the string: the `order_by` attribute of the related table,
 else its pkey (`string_agg(... ORDER BY ...)`; SQLite does not guarantee it).
+
+Names considered for the aggregate and not adopted: `join` (the operation of
+Python's `str.join`, but JOIN means something else in a query), `concat` (a
+row function in SQL, an array function elsewhere), `string_agg` (the
+PostgreSQL name, hard to read in a fields tree). `to_array` and `to_json`
+(9.6) are different operations, not other names for concatenation.
 
 ### 9.5 Model parameter — DECIDED: `aggregate=` on the column (2026-09-20)
 
@@ -464,11 +524,8 @@ be added later as its own function with the key named explicitly.
 
 ### 9.7 Filtering the aggregated set — DECIDED: no filter syntax (2026-09-20)
 
-No bracket filter and no `where=` argument. A filtered subset is a relation
-of its own in the model (`@invoices_prev.sum($total)`), declared on the
-one-side table with `manyRelation(name, '@relation', condition=...)`, the
-subject of GEP 2. Query-time filters stay with the existing `joinConditions` /
-`setJoinCondition` mechanism.
+No bracket filter and no `where=` argument. `@rel.function(...)` applies to
+the whole relation: every related record, no filter.
 
 ### 9.8 Where does the grammar live — DECIDED: everywhere (2026-09-20)
 
