@@ -62,6 +62,13 @@ class GnrRestrictedAccessException(GnrException):
     description = '!!User not allowed'
 
 
+class GnrUndeclaredPackageException(GnrException):
+    """Raised when a package required through ``Package.required_packages()`` is
+    not declared in the packages section of ``instanceconfig.xml``."""
+    code = 'GNRAPP-002'
+    description = '!!Required package not declared in instanceconfig'
+
+
 class NullLoader(object):
     """TODO"""
 
@@ -872,6 +879,7 @@ class GnrApp(object):
         self.kwargs = kwargs
         self.packages = Bag()
         self.packagesIdByPath = {}
+        self._declared_packages = None
         self.config = self.load_instance_config()
         self.config_locale = self.config('default?server_locale')
         if self.config_locale :
@@ -1006,6 +1014,7 @@ class GnrApp(object):
         # check for packages python dependencies
         self.check_package_dependencies()
         if 'checkdepcli' in self.kwargs:
+            self.check_declared_packages()
             return
 
         # load the packages
@@ -1061,6 +1070,44 @@ class GnrApp(object):
         self.localizer = AppLocalizer(self)
         self.onInited()
 
+    @property
+    def declared_packages(self):
+        """The package ids declared in the packages section of ``instanceconfig.xml``,
+        without their project prefix."""
+        if self._declared_packages is None:
+            self._declared_packages = set(k.split(':')[-1]
+                                          for k in self.config['packages'].digest('#k'))
+        return self._declared_packages
+
+    def assert_package_declared(self,pkgid,reqpkgid):
+        if reqpkgid.split(':')[-1] not in self.declared_packages:
+            raise GnrUndeclaredPackageException(
+                f"Package '{pkgid}' requires '{reqpkgid}', which is not declared "
+                f"in the packages section of instanceconfig.xml. Declare it there: "
+                f"its python dependencies are not checked otherwise.")
+
+    def check_declared_packages(self):
+        # init() returns in checkdepcli mode before the addPackage() loop, so
+        # the guard there is unreachable under `gnr app checkdep`: a build
+        # would complete on an instanceconfig whose requirements it cannot
+        # see. The same rule is applied here to the declared packages alone --
+        # once they declare their closure, the two sets are the same set.
+        for pkgid,pkgattrs in self.config['packages'].digest('#k,#a'):
+            project = None
+            if ':' in pkgid:
+                project,pkgid = pkgid.split(':')
+            attrs = dict(pkgattrs or {})
+            attrs['path'] = self.pkg_path_from_attrs(pkgid,attrs,project=project)
+            try:
+                apppkg = GnrPackage(pkgid,self,**attrs)
+            except GnrImportException:
+                # main.py can import the very dependency this check runs to
+                # find: reporting it beats aborting the check on it.
+                logger.warning("Cannot resolve the required packages of %s",pkgid)
+                continue
+            for reqpkgid in apppkg.required_packages():
+                self.assert_package_declared(pkgid,reqpkgid)
+
     def addPackage(self,pkgid,pkgattrs=None,pkgcontent=None):
         if ':' in pkgid:
             project,pkgid=pkgid.split(':')
@@ -1074,6 +1121,7 @@ class GnrApp(object):
         apppkg.content = pkgcontent or Bag()
         readOnlyAttrs = {'readOnly':True} if attrs.get('readOnly') else dict()
         for reqpkgid in apppkg.required_packages():
+            self.assert_package_declared(pkgid,reqpkgid)
             self.addPackage(reqpkgid,pkgattrs=dict(readOnlyAttrs))
         self.packagesIdByPath[os.path.realpath(apppkg.packageFolder)] = pkgid
         self.packages[pkgid] = apppkg

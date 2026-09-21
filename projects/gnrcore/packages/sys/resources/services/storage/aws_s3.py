@@ -179,12 +179,14 @@ class Service(StorageService):
 
 
     def md5hash(self,*args):
-        bucket = self._head_object(*args)
-        if bucket:
-            etag = bucket['ETag'][1:-1]
-            if len(etag) == 32:
-                return etag
-        return None
+        head = self._head_object(*args)
+        if not head:
+            return None
+        etag = head['ETag'][1:-1]
+        if len(etag) == 32:
+            return etag
+        #multipart upload (smart_open always writes one): the ETag is not the content md5
+        return super().md5hash(*args)
 
     def exists(self, *args):
         return self.isfile(*args) or self.isdir(*args)
@@ -322,10 +324,10 @@ class Service(StorageService):
 
     def url(self, *args , **kwargs):
         kwargs = kwargs or {}
-        _content_disposition = kwargs.get('_content_disposition') or 'inline'
-        _download = kwargs.get('_download')
-        if _download:
-            kwargs['_content_disposition'] = "attachment; filename=%s" % self.basename(*args)
+        if kwargs.get('_download') or kwargs.get('download'):
+            _content_disposition = "attachment; filename=%s" % self.basename(*args)
+        else:
+            _content_disposition = kwargs.get('_content_disposition') or 'inline'
         internal_path = self.internal_path(*args)
         _content_type = mimetypes.guess_type(internal_path)[0]
         expiration = kwargs.pop('expiration', self.url_expiration)
