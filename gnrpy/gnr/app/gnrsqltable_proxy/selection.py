@@ -22,8 +22,8 @@
 
 """Table level part of the getSelection flow.
 
-:class:`SelectionHandler` is attached to every table of a ``GnrApp`` database by
-``gnr.app.gnrdbo.TableBase.selectionHandler``.  It holds the part of the
+:class:`SelectionProxy` is attached to every table of a ``GnrApp`` database by
+``gnr.app.gnrdbo.TableBase.selectionProxy``.  It holds the part of the
 ``getSelection`` flow that only needs the table and the database: column
 processing, WHERE bag decoding, join condition decoding, external store
 queries, saved queries and views, and the default query construction.
@@ -42,7 +42,7 @@ from gnr.core.gnrbag import Bag
 from gnr.core.gnrstring import templateReplace
 
 
-class SelectionHandler:
+class SelectionProxy:
     """Selection proxy of a single table."""
 
     def __init__(self, tblobj: Any) -> None:

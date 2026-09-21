@@ -1,7 +1,7 @@
 """Equivalence between GnrWebAppHandler and GnrWebAppHandlerNext.
 
 GnrWebAppHandlerNext moves the table level part of the getSelection flow onto
-an app level table proxy (``tblobj.selectionHandler()``).  It is a pure
+an app level table proxy (``tblobj.selectionProxy()``).  It is a pure
 refactoring, so every input must give the same output through both handlers:
 these tests run the same getSelection call twice, once per handler, and compare
 rows, columns and resultAttributes.
@@ -526,7 +526,7 @@ def test_saved_query_loaded_by_the_proxy(pg_handlers, db_postgres):
     data['where'] = _customer_where_bag()
     data['queryLimit'] = 7
     query_id = _new_userobject(db_postgres, 'test_proxy_query', 'query', data)
-    loaded = db_postgres.table('invc.customer').selectionHandler().loadSavedQuery(query_id)
+    loaded = db_postgres.table('invc.customer').selectionProxy().loadSavedQuery(query_id)
     assert loaded['queryLimit'] == 7
     assert loaded['where'].toXml() == data['where'].toXml()
 
@@ -534,15 +534,15 @@ def test_saved_query_loaded_by_the_proxy(pg_handlers, db_postgres):
 def test_saved_view_loaded_by_the_proxy(pg_handlers, db_postgres):
     viewbag = _customer_view_bag()
     view_id = _new_userobject(db_postgres, 'test_proxy_view', 'view', viewbag)
-    loaded = db_postgres.table('invc.customer').selectionHandler().loadSavedView(view_id)
+    loaded = db_postgres.table('invc.customer').selectionProxy().loadSavedView(view_id)
     assert loaded.toXml() == viewbag.toXml()
 
 
-def test_selection_handler_is_cached(db):
+def test_selection_proxy_is_cached(db):
     tblobj = db.table('invc.customer')
-    assert tblobj.selectionHandler() is tblobj.selectionHandler()
+    assert tblobj.selectionProxy() is tblobj.selectionProxy()
 
 
-def test_selection_handler_knows_its_table(db):
+def test_selection_proxy_knows_its_table(db):
     tblobj = db.table('invc.customer')
-    assert tblobj.selectionHandler().tblobj is tblobj
+    assert tblobj.selectionProxy().tblobj is tblobj
