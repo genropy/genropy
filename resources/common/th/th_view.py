@@ -305,8 +305,11 @@ class TableHandlerView(BaseComponent):
             if permissions.get('user_forbidden'):
                 continue
             fldattr = fieldobj.attributes
+            tag = fkw.pop('tag','textbox')
             fkw.setdefault('lbl',fldattr.get('name_short') or fldattr.get('name_long'))
-            fb.child(fkw.pop('tag','textbox'),value='^.c_%s' %i,attr_column=field,attr_column_dtype=fldattr.get('dtype','T'),
+            if tag.lower()=='checkbox' and not fkw.get('label'):
+                fkw['label'] = fkw.pop('lbl')
+            fb.child(tag,value='^.c_%s' %i,attr_column=field,attr_column_dtype=fldattr.get('dtype','T'),
                         attr_op=fkw.pop('op',None),
                         **fkw)
 
