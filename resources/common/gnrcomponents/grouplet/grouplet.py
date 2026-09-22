@@ -376,9 +376,9 @@ class GroupletHandler(BaseComponent):
                           saveMainFormOnComplete=None,
                           grouplets_root=None,grouplet_kwargs=True, **kwargs):
         frameCode = frameCode or 'grplt_wizard'
-        completeLabel = completeLabel or 'Confirm'
-        closeLabel = closeLabel or 'Close'
-        backLabel = backLabel or 'Back'
+        completeLabel = completeLabel or '!![en]Confirm'
+        closeLabel = closeLabel or '!![en]Close'
+        backLabel = backLabel or '!![en]Back'
         root_info = self._getGroupletsRootInfo(table=table, topic=topic,
                                                grouplets_root=grouplets_root)
         summary_template = root_info.get('summary_template')
