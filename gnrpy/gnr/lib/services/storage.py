@@ -389,6 +389,10 @@ class StorageNode(object):
 
     def serve(self, environ, start_response, **kwargs):
         """Serves the file content"""
+        if kwargs.pop('_download', None):
+            # internal_url() marks a download with _download, which arrives here
+            # as a query kwarg; every service implementation reads 'download'.
+            kwargs['download'] = True
         return self.service.serve(self.path, environ, start_response, **kwargs)
 
     def local_path(self, mode=None, keep=False):
@@ -432,8 +436,15 @@ class StorageService(GnrBaseService):
         pass
 
     def md5hash(self,*args):
-        """Returns the md5 hash of a given path"""
-        pass
+        """Returns the md5 hash of the content at the given path"""
+        BLOCKSIZE = 65536
+        hasher = hashlib.new('md5', usedforsecurity=False)
+        with self.open(*args, mode='rb') as afile:
+            buf = afile.read(BLOCKSIZE)
+            while len(buf) > 0:
+                hasher.update(buf)
+                buf = afile.read(BLOCKSIZE)
+        return hasher.hexdigest()
 
     def versions(self,*args):
         return []
@@ -803,16 +814,6 @@ class BaseLocalService(StorageService):
     def isfile(self, *args):
         return os.path.isfile(self.internal_path(*args))
     
-    def md5hash(self,*args):
-        BLOCKSIZE = 65536
-        hasher = hashlib.md5()
-        with self.open(*args, mode='rb') as afile:
-            buf = afile.read(BLOCKSIZE)
-            while len(buf) > 0:
-                hasher.update(buf)
-                buf = afile.read(BLOCKSIZE)
-        return hasher.hexdigest()
-
     def renameNode(self, sourceNode=None, destNode=None):
         destNode.service.autocreate(destNode.path, autocreate=-1)
         shutil.move(sourceNode.internal_path, destNode.internal_path)
