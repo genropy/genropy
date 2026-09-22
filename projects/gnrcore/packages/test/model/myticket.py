@@ -10,3 +10,4 @@ class Table(object):
         tbl.column('ticket_date', dtype='D', name_long='Date')
         tbl.column('status', name_long='Status')
         tbl.column('extra_data', dtype='X', name_long='Extra Data')
+        tbl.column('wizard_step', name_long='Wizard step')

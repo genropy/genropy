@@ -72,8 +72,8 @@ class FormWizard(BaseComponent):
 
 
 class FormWizardResume(FormWizard):
-    """The wizard writes the step into extra_data.wizard_step as the user
-    moves: a saved ticket reopens on the step it was left on."""
+    """resumeStepField: the step reaches the column only inside a save, and
+    a saved ticket reopens on the step it was saved on."""
 
     def th_form(self, form):
         form.center.contentPane().groupletWizard(
@@ -81,5 +81,5 @@ class FormWizardResume(FormWizard):
             value='^.record',
             frameCode='ticket_wizard_resume',
             grouplets_root='wizard_grouplets',
-            resumeStep='.record.extra_data.wizard_step',
+            resumeStepField='wizard_step',
             completeLabel='Complete Ticket')
