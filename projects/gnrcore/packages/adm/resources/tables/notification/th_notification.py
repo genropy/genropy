@@ -26,6 +26,7 @@ class View(BaseComponent):
 
 
 class Form(BaseComponent):
+    js_requires = 'adm_notification'
 
     def th_form(self, form):
         bc = form.center.borderContainer()
@@ -134,7 +135,22 @@ class Form(BaseComponent):
         return self.db.whereTranslator.toHtml(self.db.table('adm.user'),query)
     
     def connectedUser(self,pane):
-        th = pane.plainTableHandler(relation='@notification_users',viewResource='ViewFromNotification',delrow=True,picker='user_id')
+        """The recipients of the notification, each one a preview of it.
+
+        The rows have no form of their own to open: an adm.user_notification
+        is a delivery, not something to edit here. What is worth seeing on a
+        recipient is the notification as it reaches them -- the template is
+        rendered against their own user record -- so a double click builds
+        the very dialog the login shows, in preview mode: the buttons are the
+        ones the user will be given, and neither of them touches the row."""
+        th = pane.plainTableHandler(relation='@notification_users',viewResource='ViewFromNotification',
+                                    delrow=True,picker='user_id',
+                                    view_grid_connect_onRowDblClick="""
+                                        var pkey = this.widget.rowIdByIndex($1.rowIndex);
+                                        if(pkey){
+                                            notificationDialog.open(pkey,true);
+                                        }
+                                        """)
         th.view.top.bar.replaceSlots('vtitle','parentStackButtons')
 
     @public_method
