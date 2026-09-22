@@ -58,7 +58,8 @@ class GnrCustomWebPage(object):
         """No-summary wizard (wizard_grouplets root) on myticket.
         Reopen a SAVED ticket, move to step 2, save from the toolbar:
         the wizard must NOT reposition to step 1 on the reload that
-        follows the save. A NEW record must still open on step 1.
+        follows the save. A NEW record must still open on step 1, and
+        so must ANOTHER saved ticket opened while on step 2.
         Step 2 hosts a groupletGrid whose editors carry
         validate_notnull: emptying product or qty must mark the form
         invalid (no console noise)."""
