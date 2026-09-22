@@ -429,11 +429,26 @@ class GroupletHandler(BaseComponent):
             item.div(mnode.attr.get('grouplet_caption'),
                      _class='wizard_caption')
         step_form_id = f'{frameCode}_step_form'
+        # A different record restarts the wizard; the reload of the record just
+        # saved (onSaved publishes before it) keeps the current step. Already on
+        # the first step nothing is rebuilt, and the step form, aborted by its
+        # parent's new pkey right after this handler, must be loaded again.
         on_loaded_js = """
-            if(this.form.isNewRecord()){
+            var pkey = this.form.getCurrentPkey();
+            if(this.form.isNewRecord() || pkey != _loaded_pkey){
+                if(_current_resource == first_resource){
+                    genro.callAfter(function(){
+                        var stepForm = genro.formById(innerFormId);
+                        if(stepForm){ stepForm.load(); }
+                    }, 1);
+                }
                 FIRE .step_index = 0;
             }
+            SET .wizard_loaded_pkey = pkey;
         """
+        if not has_summary:
+            pane.dataController("SET .wizard_loaded_pkey = $1.pkey;",
+                                formsubscribe_onSaved=True)
         if has_summary:
             on_loaded_js = """
                 SET .wizard_showing_summary = false;
@@ -447,6 +462,9 @@ class GroupletHandler(BaseComponent):
         pane.dataController(on_loaded_js,
                             innerFormId=step_form_id,
                             frameCode=frameCode,
+                            _loaded_pkey='=.wizard_loaded_pkey',
+                            _current_resource='=.current_resource',
+                            first_resource=first_node.attr.get('resource') if first_node else None,
                             formsubscribe_onLoaded=True)
         grouplet_kwargs.update(resource='^#ANCHOR.current_resource',
                            value=value,
