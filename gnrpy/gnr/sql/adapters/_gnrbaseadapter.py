@@ -1583,6 +1583,10 @@ class GnrWhereTranslator(object):
         "!!In"
         if isinstance(value, str):
             value = value.split(',')
+        elif value is None:
+            # an IN over nothing: the empty collection is already neutralised
+            # downstream, a None reached the driver as NULL (issue #1385)
+            value = []
         values_string = self.storeArgs(value, dtype, sqlArgs, parname=parname)
         return '%s IN :%s' % (column, values_string)
 
