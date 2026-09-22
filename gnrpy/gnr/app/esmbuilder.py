@@ -167,7 +167,13 @@ class EsmBuilder:
         if data_filter is not None:
             tf.extractall(dest, filter=data_filter)
             return
+        self._extractall_manual_filter(tf, dest)
 
+    def _extractall_manual_filter(self, tf, dest):
+        """Same safety guarantee as _extractall's 'data' filter, applied by
+        hand for interpreters old enough to lack tarfile's filter support
+        entirely (so the trailing extractall() call below must not pass a
+        filter= argument: that parameter doesn't exist there)."""
         abs_dest = os.path.abspath(dest)
         for member in tf.getmembers():
             if member.issym() or member.islnk():

@@ -624,9 +624,14 @@ class TestExtractAllSafety(BaseGnrAppTest):
         finally:
             tf.close()
 
-    def test_fallback_filter_rejects_traversal_when_data_filter_unavailable(self, monkeypatch):
-        monkeypatch.setattr(tarfile, 'data_filter', None, raising=False)
+    # These exercise _extractall_manual_filter directly rather than through
+    # _extractall (which picks this path only when tarfile.data_filter is
+    # truly absent, i.e. a genuinely old interpreter). Forcing that branch
+    # selection by deleting tarfile.data_filter would also break Python
+    # 3.14's own tarfile internals, which use that same module-level name
+    # as their own implicit default filter.
 
+    def test_fallback_filter_rejects_traversal_when_data_filter_unavailable(self):
         def add(tf):
             evil = tarfile.TarInfo(name='../evil.txt')
             data = b'pwned'
@@ -637,13 +642,11 @@ class TestExtractAllSafety(BaseGnrAppTest):
         try:
             with tempfile.TemporaryDirectory() as dest:
                 with pytest.raises(RuntimeError, match='outside destination'):
-                    self.builder._extractall(tf, dest)
+                    self.builder._extractall_manual_filter(tf, dest)
         finally:
             tf.close()
 
-    def test_fallback_filter_rejects_symlink_when_data_filter_unavailable(self, monkeypatch):
-        monkeypatch.setattr(tarfile, 'data_filter', None, raising=False)
-
+    def test_fallback_filter_rejects_symlink_when_data_filter_unavailable(self):
         def add(tf):
             link = tarfile.TarInfo(name='package/evil-link')
             link.type = tarfile.SYMTYPE
@@ -654,16 +657,15 @@ class TestExtractAllSafety(BaseGnrAppTest):
         try:
             with tempfile.TemporaryDirectory() as dest:
                 with pytest.raises(RuntimeError, match='link member'):
-                    self.builder._extractall(tf, dest)
+                    self.builder._extractall_manual_filter(tf, dest)
         finally:
             tf.close()
 
-    def test_fallback_filter_extracts_safe_members(self, monkeypatch):
-        monkeypatch.setattr(tarfile, 'data_filter', None, raising=False)
+    def test_fallback_filter_extracts_safe_members(self):
         tf = self._open_tar_with_member(lambda tf: None)
         try:
             with tempfile.TemporaryDirectory() as dest:
-                self.builder._extractall(tf, dest)
+                self.builder._extractall_manual_filter(tf, dest)
                 assert os.path.isfile(os.path.join(dest, 'package', 'package.json'))
         finally:
             tf.close()
