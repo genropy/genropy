@@ -19,7 +19,6 @@ import pathlib
 import pytest
 
 from gnr.core.gnrbag import Bag
-from gnr.sql.gnrsql_exceptions import GnrSqlMissingField
 from gnr.web.gnrwebpage import GnrWebPage
 from gnr.web.gnrwebpage_proxy import apphandler_next
 from gnr.web.gnrwebpage_proxy.apphandler import GnrWebAppHandler
@@ -494,22 +493,18 @@ def test_check_permissions_true_uses_the_page_pars(handlers):
     assert received['next'] is not True
 
 
-def test_format_kwarg_is_applied_only_by_next(handlers):
-    """A9 - DIVERGENCE: legacy stores the format under a slice object.
+def test_format_kwarg_is_applied_by_both(handlers):
+    """A9 - EQUIVALENCE since the frozen handler was fixed.
 
-    ``formats[7:] = kwargs.pop(k)`` writes under the key ``slice(7, None)``
-    instead of under the column name, so the requested format is never
-    applied; the dict is non empty though, so every value is still converted
-    to text.  Next writes under ``k[7:]`` and the column is formatted.
+    ``formats[7:] = kwargs.pop(k)`` put the value under a slice instead of
+    under the column name, so the requested format never reached its column.
+    Both handlers now key it by the column, and the format is applied.
     """
-    legacy, nxt = handlers
     pars = dict(table='invc.invoice', columns='$inv_number,$total',
-                order_by='$inv_number', limit=1, format_total='#,###.00')
-    legacy_rows, _ = _normalized(legacy.getSelection(**pars))
-    next_rows, _ = _normalized(nxt.getSelection(**pars))
-    assert ',' not in legacy_rows[0][2]['total']
-    assert ',' in next_rows[0][2]['total']
-    assert next_rows[0][2]['total'].replace(',', '') == legacy_rows[0][2]['total']
+                order_by='$inv_number', limit=1)
+    plain, _ = _assert_same(handlers, **pars)
+    formatted, _ = _assert_same(handlers, format_total='#,###.00', **pars)
+    assert formatted[0][2]['total'] != plain[0][2]['total']
 
 
 # ---------------------------------------------------------------------------
@@ -913,21 +908,17 @@ def test_prev_selected_idx(handlers, db):
     assert attrs['prevSelectedIdx'] == [0]
 
 
-def test_hard_query_limit_over_on_a_frozen_selection_diverges(handlers):
-    """E10 - DIVERGENCE: the fromPickle path has no 'totalrows' attribute.
+def test_hard_query_limit_over_on_a_frozen_selection(handlers):
+    """E10 - EQUIVALENCE since the frozen handler was fixed.
 
-    Legacy reads ``resultAttributes['totalrows']``, which the frozen path
-    never sets, and raises KeyError as soon as hardQueryLimit is truthy.
-    Next computes the comparison from the length of the selection.
+    ``resultAttributes['totalrows']`` is written on the new selection path
+    only, so reading it back raised KeyError on a selection replayed from its
+    pickle. Both handlers now take the count from the selection itself.
     """
     _assert_same(handlers, table='invc.customer', columns='$account_name',
                  order_by='$account_name', limit=3, selectionName='*e10')
-    legacy, nxt = handlers
-    with pytest.raises(KeyError):
-        legacy.getSelection(table='invc.customer', selectionName='e10',
-                            hardQueryLimit=3)
-    _, attrs = nxt.getSelection(table='invc.customer', selectionName='e10',
-                                hardQueryLimit=3)
+    _, attrs = _assert_same(handlers, table='invc.customer',
+                            selectionName='e10', hardQueryLimit=3)
     assert attrs['hardQueryLimitOver'] is True
 
 
@@ -962,37 +953,28 @@ def test_slave_selection_of_a_live_page_is_notified(handlers):
 #  F. columns
 # ---------------------------------------------------------------------------
 
-def test_bracket_group_columns_diverge(handlers):
-    """F4 - DIVERGENCE: legacy never closes a bracket group.
+def test_bracket_group_columns(handlers):
+    """F4 - EQUIVALENCE since the frozen handler was fixed.
 
-    ``col`` has already lost its ']' when the closing test runs, so
-    ``maintable`` is never reset and every following column keeps the prefix
-    of the group.  Next remembers the group end before stripping it.
+    ``col`` had already lost its ']' when the closing test ran, so
+    ``maintable`` was never reset and every column after the group kept the
+    prefix of the group. Both handlers now remember the end before stripping.
     """
     legacy, nxt = handlers
     tblobj = legacy.db.table('invc.customer')
     spec = '@state[name,code],$account_name'
     legacy_columns, _ = legacy._getSelection_columns(tblobj, spec)
     next_columns, _ = nxt._getSelection_columns(tblobj, spec)
-    assert legacy_columns == '@state.name,@state.code,@state.$account_name'
-    assert next_columns == '@state.name,@state.code,$account_name'
+    assert next_columns == legacy_columns == '@state.name,@state.code,$account_name'
 
 
 def test_bracket_group_columns_query(handlers):
-    """F4 - the fixed column list is a query the database accepts."""
-    legacy, nxt = handlers
-    rows, attrs = _normalized(nxt.getSelection(table='invc.customer',
-                                               columns='@state[name],$account_name',
-                                               order_by='$account_name', limit=2))
+    """F4 - the column list the group produces is one the database accepts."""
+    rows, _ = _assert_same(handlers, table='invc.customer',
+                           columns='@state[name],$account_name',
+                           order_by='$account_name', limit=2)
     assert len(rows) == 2
     assert 'account_name' in rows[0][2]
-    # legacy keeps the '@state' prefix on the column after the group, so
-    # '$account_name' is looked for on invc.state
-    with pytest.raises(GnrSqlMissingField) as err:
-        legacy.getSelection(table='invc.customer',
-                            columns='@state[name],$account_name',
-                            order_by='$account_name', limit=2)
-    assert 'invc.state' in str(err.value)
 
 
 # ---------------------------------------------------------------------------

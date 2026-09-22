@@ -56,27 +56,25 @@ they stay copies of the legacy minus the dead methods.
 
 | id | where | legacy | copy |
 |---|---|---|---|
-| A9 | getSelection | `formats[7:] = value` writes under a slice key, so a `format_<col>` kwarg never reaches its column | keyed by the column name |
-| E10 | getSelection | reading a frozen selection with `hardQueryLimit` raises `KeyError: 'totalrows'` | computed from `len(selection)` |
-| F4 | getSelection | the closing bracket of a column group is stripped before it is tested, so every later column keeps the group prefix | the group end is remembered first |
 | C1 | getSelection | a saved record without `where` hands the whole userobject record to the where decoder | an empty saved where means no filter |
 | D2 | getRelatedSelection | the SQL context join condition is destroyed right after it is read, so its applymethod never runs | called once, result merged |
-| DS5 | dbSelect | the `contains` and `startswith` stages share one `sqlArgs` dict and the second binds the wrong label | one dict per stage |
-| DS6 | getMultiFetch | `columns` and `table` are popped off the caller's Bag node | popped off a copy |
-| DS7 | getMultiFetch | the documented default `columns='*'` becomes `$*` and the database rejects it | `'*'` reaches the query unchanged |
-| D4 | deleteDbRows, duplicateDbRows | the denial message has `'% f'`, so the formatting raises `TypeError` before the exception is built | one message, the page `generic` exception |
-| D7 | saveRecord | on `*newrecord*` returns the pkey the client sent, which is none | returns the pkey the insert wrote |
-| D8 | gridSelectionStruct | a missing `elif` overwrites the width computed for `size < 3` | one `if/elif` chain |
-| D9 | freezedSelectionPkeys | `caption_field` is read as a literal key | read from the column it names |
 
 Two defects this copy had fixed on its own, #1359 a and #1359 b on
-`getSelection`, were fixed in the legacy handler too by #1375 (`cfdc5bdb8a`),
-so they are no longer a divergence and have left the table above. Their cases
-in `test_apphandler_next.py` now assert the equivalence.
+`getSelection`, were fixed in the legacy handler too by #1375 (`cfdc5bdb8a`).
+Ten more followed the same route: #1388 took D4, D7, DS6, DS7 and E10, #1391
+took A9, D9, F4, DS5 and D8. All twelve are gone from the table above, and
+their cases assert the equivalence rather than the divergence.
 
-Every other proven defect of the legacy handler is reproduced, because the
-correct behaviour is not decided by the code alone. Issues opened for them:
-#1363, #1364, #1365.
+What this leaves is the point of the exercise: with the frozen handler
+repaired, the copy is a refactoring and nothing else on every flow but the two
+in the table above, so turning the switch on changes no behaviour a user can
+see.
+
+The two that remain need a decision rather than a patch. D2 restarts an
+applymethod that has not run in a long time, so the risk is in the fix. C1 is
+latent, because the where decoder finds no condition in the userobject record
+and returns an empty WHERE. Issues open on the reproduced ones: #1363, #1364,
+#1365.
 
 ## Dead code not ported
 

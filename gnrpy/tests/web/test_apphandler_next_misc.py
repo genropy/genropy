@@ -185,23 +185,22 @@ def test_update_record_writes_the_empty_values(handlers, db, notes, an_invoice):
     assert note_row(db, pkeys[0])['note_text'] is None
 
 
-def test_save_record_new_returns_the_inserted_pkey_only_in_next(handlers, db, an_invoice):  # noqa: F811,E501
-    """A16, defect D7: the frozen handler returns the pkey the client sent.
+def test_save_record_new_returns_the_inserted_pkey(handlers, db, an_invoice):  # noqa: F811,E501
+    """A16, defect D7: EQUIVALENCE since the frozen handler was fixed.
 
-    Both handlers insert the row; only the copy tells the caller where it is.
-    ``genro_frm.js:2861`` falls back to the current pkey when the answer has
-    none, so the form of the frozen handler keeps ``*newrecord*``.
+    The frozen handler returned the pkey the client sent, which for a new
+    record is none, so ``genro_frm.js:2861`` fell back and the form kept
+    ``*newrecord*``. Both handlers now answer with the pkey the insert wrote.
     """
-    legacy, nxt = handlers
     results = []
-    for handler in (legacy, nxt):
+    for handler in handlers:
         data = Bag(dict(invoice_id=an_invoice, note_type='SAVE',
                         note_text='saved', priority=2))
         results.append(handler.saveRecord(table=NOTE_TABLE, pkey='*newrecord*',
                                           data=data))
-    assert results[0] == dict(pkey=None)
-    assert results[1]['pkey']
-    assert note_row(db, results[1]['pkey'])['note_text'] == 'saved'
+    for result in results:
+        assert result['pkey']
+        assert note_row(db, result['pkey'])['note_text'] == 'saved'
     inserted = db.table(NOTE_TABLE).query(columns='$id', where='$note_text=:t',
                                           t='saved').fetch()
     assert len(inserted) == 2, 'both handlers must insert the row'
@@ -472,43 +471,39 @@ def test_delete_db_rows_uses_the_caption_field_as_label(handlers, db):  # noqa: 
         assert handler.page.utils.thermo_calls[0]['labelfield'] == 'account_name'
 
 
-def test_delete_db_rows_permission_denied_diverges(handlers, db, notes, an_invoice):  # noqa: F811,E501
-    """B2, defect D4: the frozen handler raises TypeError, the copy the error.
+def test_delete_db_rows_permission_denied(handlers, db, notes, an_invoice):  # noqa: F811,E501
+    """B2, defect D4: EQUIVALENCE since the frozen handler was fixed.
 
     ``'in table % for user %s'`` is a float conversion with the space flag, so
-    the message formatting blows up before ``page.exception`` is built and the
-    caller never sees the permission error.
+    the message formatting blew up before ``page.exception`` was built and the
+    caller never saw the permission error. Both handlers now build it.
     """
-    legacy, nxt = handlers
     pkey = notes.take(1)[0]
     for handler in handlers:
         handler.page.forbidden_permissions = {'del'}
     try:
-        with pytest.raises(TypeError) as legacy_error:
-            legacy.deleteDbRows(NOTE_TABLE, pkeys=[pkey])
-        assert 'must be real number' in str(legacy_error.value)
-        with pytest.raises(GnrException) as next_error:
-            nxt.deleteDbRows(NOTE_TABLE, pkeys=[pkey])
-        assert NOTE_TABLE in next_error.value.description
-        assert 'admin' in next_error.value.description
+        for handler in handlers:
+            with pytest.raises(GnrException) as denial:
+                handler.deleteDbRows(NOTE_TABLE, pkeys=[pkey])
+            assert NOTE_TABLE in denial.value.description
+            assert 'admin' in denial.value.description
     finally:
         for handler in handlers:
             handler.page.forbidden_permissions = set()
     assert note_row(db, pkey) is not None, 'neither handler may delete the row'
 
 
-def test_duplicate_db_rows_permission_denied_diverges(handlers, db, notes):  # noqa: F811
-    """B23, defect D4: the same divergence on the duplication permission."""
-    legacy, nxt = handlers
+def test_duplicate_db_rows_permission_denied(handlers, db, notes):  # noqa: F811
+    """B23, defect D4: the same case on the duplication permission."""
     pkey = notes.take(1)[0]
     for handler in handlers:
         handler.page.forbidden_permissions = {'ins'}
     try:
-        with pytest.raises(TypeError):
-            legacy.duplicateDbRows(NOTE_TABLE, pkeys=[pkey])
-        with pytest.raises(GnrException) as next_error:
-            nxt.duplicateDbRows(NOTE_TABLE, pkeys=[pkey])
-        assert next_error.value.description.startswith('Duplicate is not allowed')
+        for handler in handlers:
+            with pytest.raises(GnrException) as denial:
+                handler.duplicateDbRows(NOTE_TABLE, pkeys=[pkey])
+            assert 'is not allowed' in denial.value.description
+            assert NOTE_TABLE in denial.value.description
     finally:
         for handler in handlers:
             handler.page.forbidden_permissions = set()
@@ -704,26 +699,21 @@ def test_freezed_selection_pkeys(handlers, db):  # noqa: F811
                                              selectionName='fs_plain') == expected
 
 
-def test_freezed_selection_pkeys_caption_diverges(handlers, db):  # noqa: F811
-    """C4, defect D9: the frozen handler reads the literal key 'caption_field'.
+def test_freezed_selection_pkeys_caption(handlers, db):  # noqa: F811
+    """C4, defect D9: EQUIVALENCE since the frozen handler was fixed.
 
     The parameter names the column the caption comes from; the frozen handler
-    uses it as a truthiness switch only and then looks up a column literally
-    called ``caption_field``, which no table has.
+    used it as a truthiness switch and then looked up a column literally
+    called ``caption_field``, which no table has, so it raised KeyError.
     """
-    legacy, nxt = handlers
     selection = freeze_on_both(handlers, db, 'fs_caption',
                                columns='$note_text', limit=3, order_by='$id')
-    with pytest.raises(KeyError) as error:
-        legacy.freezedSelectionPkeys(table=NOTE_TABLE, selectionName='fs_caption',
-                                     caption_field='note_text')
-    assert error.value.args[0] == 'caption_field'
-    result = nxt.freezedSelectionPkeys(table=NOTE_TABLE,
-                                       selectionName='fs_caption',
-                                       caption_field='note_text')
     expected = [dict(pkey=r['pkey'], caption=r['note_text'])
                 for r in selection.output('dictlist')]
-    assert result == expected
+    for handler in handlers:
+        assert handler.freezedSelectionPkeys(
+            table=NOTE_TABLE, selectionName='fs_caption',
+            caption_field='note_text') == expected
 
 
 def test_sum_on_freezed_selection(handlers, db):  # noqa: F811

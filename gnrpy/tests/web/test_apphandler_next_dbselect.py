@@ -780,7 +780,12 @@ def test_a_where_keyword_is_discarded(handlers, db):
 
 def test_the_search_stages_no_longer_share_the_sqlargs(
         handlers, db, optranslate_spy):
-    """E6 - the startswith stage gets a clean sqlArgs dict in Next (DS5)."""
+    """E6 - EQUIVALENCE since the frozen handler was fixed (DS5).
+
+    One sqlArgs dict was handed to both stages, so the second bound its value
+    next to the label of a condition no longer being run. Each stage now gets
+    a dict of its own in both handlers.
+    """
     calls = optranslate_spy(CUSTOMER)
     legacy, nxt = handlers
     _search(legacy, db, 'Archer', limit=5)
@@ -790,9 +795,8 @@ def test_the_search_stages_no_longer_share_the_sqlargs(
     next_calls = list(calls)
     assert [op for op, _ in legacy_calls] == ['contains', 'startswith']
     assert [op for op, _ in next_calls] == ['contains', 'startswith']
-    assert legacy_calls[0][1] == {}
-    assert sorted(legacy_calls[1][1]) == ['v_0']
-    assert next_calls[1][1] == {}
+    assert legacy_calls[0][1] == next_calls[0][1] == {}
+    assert legacy_calls[1][1] == next_calls[1][1] == {}
 
 
 def test_search_condition_is_anded_with_the_stage(handlers, db):
@@ -912,46 +916,39 @@ def test_multi_fetch_rows(handlers):
     assert [label for label, _ in shapes[0]] == ['first', 'second']
 
 
-def test_multi_fetch_default_columns_diverges(handlers):
-    """H3 - the documented '*' default is broken in legacy and works in Next (DS7).
+@pytest.mark.parametrize('columns', [None, '*'])
+def test_multi_fetch_star_columns(handlers, columns):
+    """H3 - EQUIVALENCE since the frozen handler was fixed (DS7).
 
-    ``columnsFromString('*')`` returns ``['$*']``, which reaches the SELECT
-    verbatim and sqlite rejects, so a node without a ``columns`` attribute has
-    never worked.
+    ``columnsFromString('*')`` returns ``['$*']``, which reached the SELECT
+    verbatim and the database rejected, so the documented default never
+    worked, whether it was spelled out or left out. Both handlers now let
+    ``'*'`` through unchanged.
     """
     def build():
         bag = Bag()
-        bag.setItem('all', None, table='invc.region', limit=1)
+        attrs = dict(table='invc.region', limit=1)
+        if columns:
+            attrs['columns'] = columns
+        bag.setItem('all', None, **attrs)
         return bag
     legacy, nxt = handlers
-    with pytest.raises(Exception):
-        legacy.getMultiFetch(queries=build())
-    result = nxt.getMultiFetch(queries=build())
-    assert 'name' in result['all'].getNode('#0').attr
-
-
-def test_multi_fetch_explicit_star_diverges(handlers):
-    """H3 - an explicit '*' is the same case as the default one (DS7)."""
-    def build():
-        bag = Bag()
-        bag.setItem('all', None, table='invc.region', columns='*', limit=1)
-        return bag
-    legacy, nxt = handlers
-    with pytest.raises(Exception):
-        legacy.getMultiFetch(queries=build())
-    result = nxt.getMultiFetch(queries=build())
-    assert 'name' in result['all'].getNode('#0').attr
+    legacy_result = legacy.getMultiFetch(queries=build())
+    next_result = nxt.getMultiFetch(queries=build())
+    for result in (legacy_result, next_result):
+        assert 'name' in result['all'].getNode('#0').attr
 
 
 def test_multi_fetch_leaves_the_caller_bag_alone(handlers):
-    """H1 - legacy strips table and columns off the caller's Bag, Next does not (DS6)."""
-    legacy, nxt = handlers
-    legacy_bag = _queries()
-    legacy.getMultiFetch(queries=legacy_bag)
-    assert sorted(legacy_bag.getNode('first').attr) == ['where']
-    next_bag = _queries()
-    nxt.getMultiFetch(queries=next_bag)
-    assert sorted(next_bag.getNode('first').attr) == ['columns', 'table', 'where']
+    """H1 - EQUIVALENCE since the frozen handler was fixed (DS6).
+
+    ``columns`` and ``table`` were popped off the caller's own node, so the
+    caller got its Bag back stripped. Both handlers now take the copy first.
+    """
+    for handler in handlers:
+        bag = _queries()
+        handler.getMultiFetch(queries=bag)
+        assert sorted(bag.getNode('first').attr) == ['columns', 'table', 'where']
 
 
 def test_multi_fetch_without_a_table_raises(handlers):
