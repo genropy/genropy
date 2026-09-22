@@ -16,6 +16,7 @@ from gnr.core.gnrdecorator import public_method,extract_kwargs
 from gnr.core.gnrdict import dictExtract
 
 from gnr.app import logger
+from gnr.app.gnrsqltable_proxy.selection import SelectionProxy
 
 mimetypes.init() # Required for python 2.6 (fixes a multithread bug)
 
@@ -631,6 +632,19 @@ class TableBase(object):
     def sysFields_extra(self,tbl,**kwargs):
         for m in [k for k in dir(self) if k.startswith('sysFields_extra_') and not k[-1]=='_']:
             getattr(self,m)(tbl,**kwargs)
+
+    def selectionProxy(self):
+        """Return the selection proxy of this table.
+
+        The proxy holds the table level part of the getSelection flow. It is a
+        method and not a property because ``instanceMixin`` copies only
+        callables onto the table instance.
+        """
+        proxy = getattr(self, '_selection_proxy', None)
+        if proxy is None:
+            proxy = SelectionProxy(self)
+            self._selection_proxy = proxy
+        return proxy
 
     def hasProtectionColumns(self):
         result = False

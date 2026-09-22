@@ -1365,6 +1365,14 @@ class GnrWsgiSite(object):
                 logger.exception(str(exc))
                 raise
 
+            if getattr(page, '__gramlot_page__', False):
+                from gnr.web.gramlotpage import GramlotPage
+                if isinstance(page, GramlotPage):
+                    try:
+                        return page.serve(request, response)(environ, start_response)
+                    finally:
+                        self.cleanup()
+
             if not (page and page._call_handler):
                 return self.not_found_exception(environ, start_response)
             self.currentPage = page

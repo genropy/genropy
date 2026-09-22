@@ -1176,9 +1176,19 @@ class SqlQueryCompiler(object):
         self.cpl.columns = ',\n       '.join(self.fieldlist)
         self.cpl.for_update = for_update
 
-        # Resolve any field references that appeared in join conditions
+        # Resolve any field references that appeared in join conditions.
+        # relationDict carries the placeholders emitted for relations declared
+        # on a virtual column, which have no physical column to join on.
+        joindict.update(self.cpl.relationDict)
         for key, value in list(joindict.items()):
+            self._currColKey = key
             colPars[key] = self.getFieldAlias(value)
+        missingKeys = set(self.cpl.relationDict).difference(colPars)
+        while missingKeys:
+            for key in missingKeys:
+                self._currColKey = key
+                colPars[key] = self.getFieldAlias(self.cpl.relationDict[key])
+            missingKeys = set(self.cpl.relationDict).difference(colPars)
         self.cpl.joins = [gnrstring.templateReplace(j, colPars) for j in self.cpl.joins]
 
         return self.cpl
