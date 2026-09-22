@@ -220,6 +220,9 @@ class GetSelectionMixin:
         formats = {}
         if queryExtraPars:
             kwargs.update(queryExtraPars.asDict(ascii=True))
+        where, columns, limit, customOrderBy = self._loadSavedSelection(
+            tblobj, savedQuery=savedQuery, savedView=savedView, where=where,
+            columns=columns, limit=limit, customOrderBy=customOrderBy)
         if limit is None and hardQueryLimit is not None:
             limit = hardQueryLimit
         wherebag = where if isinstance(where, Bag) else None
@@ -255,19 +258,6 @@ class GetSelectionMixin:
                 newSelection = False
         if newSelection:
             debug = 'fromDb'
-            if savedQuery:
-                userobject_tbl = self.db.table('adm.userobject')
-                where = userobject_tbl.loadUserObject(userObjectIdOrCode=savedQuery,
-                                                      objtype='query', tbl=tblobj.fullname)[0]
-                if where['where']:
-                    limit = where['queryLimit']
-                    savedView = savedView or where['currViewPath']
-                    customOrderBy = customOrderBy or where['customOrderBy']
-                    where = where['where']
-            if savedView:
-                userobject_tbl = self.db.table('adm.userobject')
-                columns = userobject_tbl.loadUserObject(userObjectIdOrCode=savedView,
-                                                        objtype='view', tbl=tblobj.fullname)[0]
             if selectmethod:
                 selecthandler = self.page.getPublicMethod('rpc', selectmethod)
             else:
@@ -376,6 +366,46 @@ class GetSelectionMixin:
     # -----------------------------------------------------------------------
     #  Private methods of the getSelection flow
     # -----------------------------------------------------------------------
+
+    def _loadSavedSelection(self, tblobj: Any, savedQuery: Optional[str] = None,
+                            savedView: Optional[str] = None,
+                            where: Union[str, Bag] = '',
+                            columns: Union[str, Bag] = '',
+                            limit: Optional[int] = None,
+                            customOrderBy: Optional[Bag] = None
+                            ) -> tuple[Any, Any, Optional[int], Optional[Bag]]:
+        """Resolve a saved query and a saved view into query parameters.
+
+        A saved query supplies the WHERE :class:`Bag`, the row limit, the
+        custom ordering and, when it carries one, the saved view whose
+        columns replace the incoming ones.
+
+        Args:
+            tblobj: The table object.
+            savedQuery: Saved query identifier or code.
+            savedView: Saved view identifier or code.
+            where: Incoming WHERE clause.
+            columns: Incoming column specification.
+            limit: Incoming row limit.
+            customOrderBy: Incoming custom ordering :class:`Bag`.
+
+        Returns:
+            A tuple ``(where, columns, limit, customOrderBy)``.
+        """
+        if savedQuery:
+            userobject_tbl = self.db.table('adm.userobject')
+            where = userobject_tbl.loadUserObject(userObjectIdOrCode=savedQuery,
+                                                  objtype='query', tbl=tblobj.fullname)[0]
+            if where['where']:
+                limit = where['queryLimit']
+                savedView = savedView or where['currViewPath']
+                customOrderBy = customOrderBy or where['customOrderBy']
+                where = where['where']
+        if savedView:
+            userobject_tbl = self.db.table('adm.userobject')
+            columns = userobject_tbl.loadUserObject(userObjectIdOrCode=savedView,
+                                                    objtype='view', tbl=tblobj.fullname)[0]
+        return where, columns, limit, customOrderBy
 
     def _getSelection_columns(self, tblobj: Any, columns: Union[str, Bag],
                               expressions: Optional[str] = None) -> tuple[str, dict]:

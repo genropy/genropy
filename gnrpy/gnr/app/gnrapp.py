@@ -21,6 +21,7 @@
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
 
+import ast
 import sys
 import re
 import types
@@ -60,6 +61,14 @@ class GnrRestrictedAccessException(GnrException):
     """GnrRestrictedAccessException"""
     code = 'GNRAPP-001'
     description = '!!User not allowed'
+
+
+class GnrUndeclaredPackageException(GnrException):
+    """Raised by the strict check (``gnr app checkdep --strict``) when a package
+    reached through ``Package.required_packages()`` is not declared in the packages
+    section of ``instanceconfig.xml``."""
+    code = 'GNRAPP-002'
+    description = '!!Required package not declared in instanceconfig'
 
 
 class NullLoader(object):
@@ -693,7 +702,8 @@ class GnrPackage(object):
         #modelfolder=os.path.join(folder,'model')
         
         if os.path.isdir(modelfolder):
-            tbldict.update(dict([(x[:-3], None) for x in os.listdir(modelfolder) if x.endswith('.py')]))
+            tbldict.update(dict([(x[:-3], None) for x in os.listdir(modelfolder)
+                                 if x.endswith('.py') and x != '__init__.py']))
         tblkeys = list(tbldict.keys())
         tblkeys.sort()
         for tbl in tblkeys:
@@ -872,6 +882,8 @@ class GnrApp(object):
         self.kwargs = kwargs
         self.packages = Bag()
         self.packagesIdByPath = {}
+        self._declared_packages = None
+        self._package_closure = None
         self.config = self.load_instance_config()
         self.config_locale = self.config('default?server_locale')
         if self.config_locale :
@@ -1011,6 +1023,8 @@ class GnrApp(object):
         # load the packages
         for pkgid,pkgattrs,pkgcontent in self.config['packages'].digest('#k,#a,#v'):
             self.addPackage(pkgid,pkgattrs=pkgattrs,pkgcontent=pkgcontent)
+        if self.undeclared_packages:
+            logger.warning(self.undeclared_packages_report())
 
         dbattrs = dict(self.config.getAttr('db') or {})
         dbattrs['implementation'] = dbattrs.get('implementation') or 'sqlite'
@@ -1061,6 +1075,98 @@ class GnrApp(object):
         self.localizer = AppLocalizer(self)
         self.onInited()
 
+    @property
+    def declared_packages(self):
+        """The package ids declared in the packages section of ``instanceconfig.xml``,
+        without their project prefix."""
+        if self._declared_packages is None:
+            self._declared_packages = set(k.split(':')[-1]
+                                          for k in self.config['packages'].digest('#k'))
+        return self._declared_packages
+
+    def _required_packages_from_source(self, main_path):
+        """The literal list returned by ``Package.required_packages()`` in *main_path*,
+        read without importing it: in a clean environment the module may not import
+        precisely because its dependencies are the ones still to install.
+        ``[]`` when the method is not defined, ``None`` when its body is not a literal."""
+        try:
+            with open(main_path, encoding='utf-8') as fp:
+                tree = ast.parse(fp.read())
+        except (OSError, SyntaxError):
+            return None
+        for node in ast.walk(tree):
+            if isinstance(node, ast.FunctionDef) and node.name == 'required_packages':
+                for sub in ast.walk(node):
+                    if isinstance(sub, ast.Return) and isinstance(sub.value, (ast.List, ast.Tuple)) \
+                            and all(isinstance(e, ast.Constant) and isinstance(e.value, str)
+                                    for e in sub.value.elts):
+                        return [e.value for e in sub.value.elts]
+                return None
+        return []
+
+    def _required_packages_of(self, entry):
+        required = self._required_packages_from_source(os.path.join(entry['folder'], 'main.py'))
+        if required is not None:
+            return required
+        try:
+            apppkg = GnrPackage(entry['pkgid'], self, path=entry['path'],
+                                filename=entry['filename'], project=entry['project'])
+        except GnrImportException:
+            logger.warning("Cannot resolve the required packages of %s: main.py does not import"
+                           " and required_packages() does not return a literal list", entry['code'])
+            return []
+        return apppkg.required_packages()
+
+    def package_closure(self):
+        """Every package the instance loads, keyed by package id: the ones declared in
+        the packages section of ``instanceconfig.xml`` and the ones reached through
+        ``Package.required_packages()``, each with the packages that require it."""
+        if self._package_closure is None:
+            closure = {}
+            todo = [(code, dict(attrs or {}), None)
+                    for code, attrs in self.config['packages'].digest('#k,#a')]
+            while todo:
+                code, attrs, required_by = todo.pop(0)
+                project, pkgid = code.split(':') if ':' in code else (None, code)
+                entry = closure.get(pkgid)
+                if entry:
+                    if required_by:
+                        entry['required_by'].add(required_by)
+                    continue
+                path = self.pkg_path_from_attrs(pkgid, attrs, project=project)
+                filename = attrs.get('filename') or pkgid
+                entry = dict(code=code, pkgid=pkgid, project=project, path=path, filename=filename,
+                             folder=os.path.join(path, filename),
+                             declared=pkgid in self.declared_packages,
+                             required_by=set([required_by]) if required_by else set())
+                closure[pkgid] = entry
+                for reqcode in self._required_packages_of(entry):
+                    todo.append((reqcode, {}, pkgid))
+            self._package_closure = closure
+        return self._package_closure
+
+    @property
+    def undeclared_packages(self):
+        """The closure entries loaded through ``required_packages()`` only, sorted by code."""
+        return sorted((e for e in self.package_closure().values() if not e['declared']),
+                      key=lambda e: e['code'])
+
+    def undeclared_packages_report(self):
+        lines = ['Packages loaded through required_packages() but not declared in the'
+                 ' packages section of instanceconfig.xml:']
+        for e in self.undeclared_packages:
+            lines.append('  %s (required by %s)' % (e['code'], ', '.join(sorted(e['required_by']))))
+        lines.append('Declare them there to have their python dependencies checked:')
+        for e in self.undeclared_packages:
+            lines.append('  <%s pkgcode="%s"/>' % (e['code'].replace(':', '_'), e['code']))
+        return '\n'.join(lines)
+
+    def assert_packages_declared(self):
+        """Raise when the packages section does not declare the whole closure: the
+        strict check for image builds and CI, where a boot refusal costs nothing."""
+        if self.undeclared_packages:
+            raise GnrUndeclaredPackageException(self.undeclared_packages_report())
+
     def addPackage(self,pkgid,pkgattrs=None,pkgcontent=None):
         if ':' in pkgid:
             project,pkgid=pkgid.split(':')
@@ -1081,22 +1187,14 @@ class GnrApp(object):
     def check_package_dependencies(self):
         logger.debug("Checking python dependencies")
         instance_deps = defaultdict(list)
-        # find all packages deps
-        for package,pkgattrs,pkgcontent in self.config['packages'].digest('#k,#a,#v'):
-            if ":" in package:
-                project, package = package.split(":")
-            else:
-                project = None
-                
-            packageFolder = self.pkg_path_from_attrs(package, pkgattrs, project=project)
-            filename = (pkgattrs or {}).get('filename') or package
-            requirements_file = os.path.join(packageFolder, filename, "requirements.txt")
+        for entry in self.package_closure().values():
+            requirements_file = os.path.join(entry['folder'], "requirements.txt")
             if os.path.isfile(requirements_file):
                 with open(requirements_file) as fp:
                     for line in fp:
                         dep_name = line.strip()
                         if dep_name:
-                            instance_deps[dep_name].append(package)
+                            instance_deps[dep_name].append(entry['pkgid'])
 
         self.instance_packages_dependencies = instance_deps
 
@@ -1485,7 +1583,7 @@ class GnrApp(object):
             elif user_record_tags:
                 tags = tags.split(',')
                 tags.extend(user_record_tags.split(','))
-                tags = ','.join(list(set(tags)))
+                tags = ','.join(sorted(set(tags)))
             return self.makeAvatar(user=user, user_name=user_name, user_id=user_id, tags=tags,
                                    login_pwd=password, authenticate=authenticate,
                                    external_user=external_user,
@@ -1543,7 +1641,7 @@ class GnrApp(object):
         :param pwd: the password
         :param tags: TODO"""
         if defaultTags:
-            tags = ','.join(makeSet(defaultTags, tags or ''))
+            tags = ','.join(sorted(makeSet(defaultTags, tags or '')))
         if authenticate:
             valid = self.validatePassword(login_pwd, pwd)
             if valid and not self.checkAllowedIp(allowed_ip):

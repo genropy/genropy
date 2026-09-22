@@ -78,18 +78,67 @@ class Table(object):
     
 
     def get_all_tags(self, record=None):
-        group_code = self.db.currentEnv.get('current_group_code') or record['group_code']
-        alltags = self.db.table('adm.user_tag').query(where='($user_id=:uid OR $group_code=:gc) AND ($require_2fa IS NOT TRUE OR :secret_2fa IS NOT NULL) ',
-                                                            uid=record['id'],
-                                                            secret_2fa=record['avatar_secret_2fa'],
-                                                            gc=group_code,
-                                                            columns='$tag_code',distinct=True).fetch()
-        tag_list = [r['tag_code'] for r in alltags]
-        if group_code:
-            tag_list.append(f'grp_{group_code}')
-        return ','.join(tag_list)
-    
-    
+        return self.allTagsByUser([record])[record['id']]
+
+    def allTagsByUser(self, records):
+        """Return the effective tags of several users as ``{user_id: tags}``.
+
+        `get_all_tags` delegates here so that the rule stays written once.
+        Resolving the tags through the `all_tags` pyColumn costs one query
+        per user, and that is affordable for the single record an avatar is
+        built from but not for the bulk audience of a notification, which
+        evaluates the rule over the whole population.
+
+        The records must carry `id`, `group_code` and `avatar_secret_2fa`:
+        a tag is granted either directly or through the user's group, and a
+        tag flagged `require_2fa` counts only for a user who has a 2fa
+        secret of their own."""
+        current_group_code = self.db.currentEnv.get('current_group_code')
+        group_code_by_user = {r['id']: (current_group_code or r['group_code'])
+                              for r in records}
+        group_codes = {g for g in group_code_by_user.values() if g}
+        where = []
+        selection_kwargs = {}
+        if group_code_by_user:
+            where.append('$user_id IN :user_ids')
+            selection_kwargs['user_ids'] = list(group_code_by_user)
+        if group_codes:
+            where.append('$group_code IN :group_codes')
+            selection_kwargs['group_codes'] = list(group_codes)
+        if not where:
+            return {}
+        rows = self.db.table('adm.user_tag').query(
+                        where=' OR '.join(where),
+                        columns='$user_id,$group_code,$tag_code,$require_2fa',
+                        **selection_kwargs).fetch()
+        # A row can be reached by both branches of the OR -- it carries a
+        # user_id and a group_code at once -- so it is indexed under both:
+        # it grants its tag to that user and to every member of that group,
+        # exactly as the per-user query did.
+        tags_by_user = {}
+        tags_by_group = {}
+        for row in rows:
+            tag = (row['tag_code'], row['require_2fa'])
+            if row['user_id']:
+                tags_by_user.setdefault(row['user_id'], []).append(tag)
+            if row['group_code']:
+                tags_by_group.setdefault(row['group_code'], []).append(tag)
+        result = {}
+        for record in records:
+            user_id = record['id']
+            group_code = group_code_by_user[user_id]
+            has_2fa_secret = bool(record['avatar_secret_2fa'])
+            tag_list = []
+            for tag_code, require_2fa in (tags_by_user.get(user_id, [])
+                                          + tags_by_group.get(group_code, [])):
+                if (require_2fa and not has_2fa_secret) or tag_code in tag_list:
+                    continue
+                tag_list.append(tag_code)
+            if group_code:
+                tag_list.append(f'grp_{group_code}')
+            result[user_id] = ','.join(tag_list)
+        return result
+
     def partitionioning_pkeys(self):
         return None
         

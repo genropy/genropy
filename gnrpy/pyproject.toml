@@ -41,7 +41,7 @@ dependencies = [
 	     "packaging",
 	     "paramiko", # gnr.core.gnrssh
 	     "psutil",
-	     "pymupdf",
+	     "pymupdf>=1.24.3", # the pymupdf module name, fitz only before it
 	     "pypdftk",
 	     "PyPDF2",
 	     "pyro4",
@@ -141,6 +141,7 @@ packages = [
 	    'gnr.app',
 	    'gnr.app.api_engine',
 	    'gnr.app.cli',
+	    'gnr.app.gnrsqltable_proxy',
 	    'gnr.core',
 	    'gnr.core.cli',
     	    'gnr.core.loghandlers',
