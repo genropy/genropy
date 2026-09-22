@@ -288,7 +288,10 @@ class TableHandlerView(BaseComponent):
             SET .query.where = where;
         """,queryBySample='^.queryBySample',currentQuery='^.query.currentQuery',
                             _if='currentQuery=="__querybysample__"')
-        fb = bar.fb.formbuilder(onEnter='genro.nodeById(this.getInheritedAttributes().target).publish("runbtn",{"modifiers":null});',
+        tray = bar.fb.div(_class='th_querysample_tray')
+        tray.div(_class='th_querysample_close',tip='!!Plain query',
+                 connect_onclick="SET .query.queryEditor=false; SET .query.currentQuery='__basequery__';")
+        fb = tray.formbuilder(onEnter='genro.nodeById(this.getInheritedAttributes().target).publish("runbtn",{"modifiers":null});',
                                 **pars)
         bar.dataController("""genro.dom.toggleVisible(bar,currentQuery=="__querybysample__");
                             view.widget.resize();""", currentQuery='^.query.currentQuery',

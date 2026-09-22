@@ -80,7 +80,7 @@
     padding-left: 0.5em;
     padding-right: 1.5em;
     cursor: pointer;
-    background-color: var(--text-muted);
+    background-color: var(--gray-500);
     color: whitesmoke;
     border-right: 1px solid var(--border-color);
 }
@@ -256,4 +256,29 @@
 
 .th_querysampleform .gnrfieldlabel{
     padding-left:1em;
+}
+
+.slotbar .slotbar_cell>.th_querysample_tray{
+    position: relative;
+    margin: 4px 2px;
+    padding: 6px 18px 6px 6px;
+    background: var(--querysample-tray-bg);
+    box-shadow: var(--querysample-tray-shadow);
+    border-radius: var(--querysample-tray-radius);
+}
+
+.th_querysample_close{
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    width: 9px;
+    height: 9px;
+    cursor: pointer;
+    background-color: var(--gray-500);
+    -webkit-mask: var(--icon-wnd-close) no-repeat center / contain;
+    mask: var(--icon-wnd-close) no-repeat center / contain;
+}
+
+.th_querysample_close:hover{
+    background-color: var(--text-color);
 }
