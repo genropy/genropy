@@ -69,3 +69,17 @@ class FormWizard(BaseComponent):
 
     def th_options(self):
         return dict(dialog_height='420px', dialog_width='700px')
+
+
+class FormWizardResume(FormWizard):
+    """The wizard writes the step into extra_data.wizard_step as the user
+    moves: a saved ticket reopens on the step it was left on."""
+
+    def th_form(self, form):
+        form.center.contentPane().groupletWizard(
+            table='test.myticket',
+            value='^.record',
+            frameCode='ticket_wizard_resume',
+            grouplets_root='wizard_grouplets',
+            resumeStep='.record.extra_data.wizard_step',
+            completeLabel='Complete Ticket')

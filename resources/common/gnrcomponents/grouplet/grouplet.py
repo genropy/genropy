@@ -373,12 +373,13 @@ class GroupletHandler(BaseComponent):
     def gr_groupletWizard(self, pane, table=None, topic=None, value=None,
                           frameCode=None, completeLabel=None,
                           closeLabel=None, backLabel=None,
-                          saveMainFormOnComplete=None,
+                          saveMainFormOnComplete=None, resumeStep='*first*',
                           grouplets_root=None,grouplet_kwargs=True, **kwargs):
         frameCode = frameCode or 'grplt_wizard'
         completeLabel = completeLabel or '!![en]Confirm'
         closeLabel = closeLabel or '!![en]Close'
         backLabel = backLabel or '!![en]Back'
+        resumeStep = resumeStep or '*first*'
         root_info = self._getGroupletsRootInfo(table=table, topic=topic,
                                                grouplets_root=grouplets_root)
         summary_template = root_info.get('summary_template')
@@ -400,6 +401,20 @@ class GroupletHandler(BaseComponent):
             frame.data('.summary_editable', summary_editable)
         menu_nodes = menu.getNodes()
         first_node = menu_nodes[0] if menu_nodes else None
+        existing_idx = 0
+        step_path = None
+        if resumeStep.startswith('*') and resumeStep.endswith('*'):
+            labels = [n.label for n in menu_nodes]
+            step_name = resumeStep.strip('*')
+            if step_name == 'last':
+                existing_idx = max(total_steps - 1, 0)
+            elif step_name in labels:
+                existing_idx = labels.index(step_name)
+            elif step_name != 'first':
+                raise ValueError(f'groupletWizard: no step {step_name!r}')
+        else:
+            step_path = resumeStep
+            frame.data('.wizard_step_path', step_path)
         if first_node:
             frame.data('.current_resource', first_node.attr.get('resource'))
             frame.data('.next_label',
@@ -429,20 +444,31 @@ class GroupletHandler(BaseComponent):
             item.div(mnode.attr.get('grouplet_caption'),
                      _class='wizard_caption')
         step_form_id = f'{frameCode}_step_form'
-        # A different record restarts the wizard; the reload of the record just
-        # saved (onSaved publishes before it) keeps the current step. Already on
-        # the first step nothing is rebuilt, and the step form, aborted by its
-        # parent's new pkey right after this handler, must be loaded again.
+        # A different record opens on step 0 when new, on resumeStep
+        # when saved: '*first*', '*last*', '*<step name>*', or the path the
+        # wizard writes the step name into as the user moves. The reload of the record just saved
+        # (onSaved publishes before it) keeps the current step. SET, not FIRE:
+        # FIRE leaves step_index null and the next advance would restart from 0.
+        # Already on the target step nothing is rebuilt, and the step form,
+        # aborted by its parent's new pkey right after this handler, must be
+        # loaded again.
         on_loaded_js = """
             var pkey = this.form.getCurrentPkey();
-            if(this.form.isNewRecord() || pkey != _loaded_pkey){
-                if(_current_resource == first_resource){
+            var isNew = this.form.isNewRecord();
+            if(isNew || pkey != _loaded_pkey){
+                var nodes = _steps.getNodes();
+                var target = isNew ? 0 : existing_idx;
+                if(!isNew && step_path){
+                    var stored = this.getRelativeData(step_path);
+                    target = Math.max(nodes.findIndex(function(n){return n.label == stored;}), 0);
+                }
+                if(nodes[target] && _current_resource == nodes[target].attr.resource){
                     genro.callAfter(function(){
                         var stepForm = genro.formById(innerFormId);
                         if(stepForm){ stepForm.load(); }
                     }, 1);
                 }
-                FIRE .step_index = 0;
+                SET .step_index = target;
             }
             SET .wizard_loaded_pkey = pkey;
         """
@@ -464,7 +490,9 @@ class GroupletHandler(BaseComponent):
                             frameCode=frameCode,
                             _loaded_pkey='=.wizard_loaded_pkey',
                             _current_resource='=.current_resource',
-                            first_resource=first_node.attr.get('resource') if first_node else None,
+                            _steps='=.wizard_steps',
+                            existing_idx=existing_idx,
+                            step_path=step_path,
                             formsubscribe_onLoaded=True)
         grouplet_kwargs.update(resource='^#ANCHOR.current_resource',
                            value=value,
