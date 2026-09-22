@@ -4,6 +4,7 @@ import time
 
 import pytest
 
+from gnr.core.gnrlang import GnrException
 from gnr.lib.services import BaseServiceType
 
 SERVICE_MODULE = """
@@ -43,29 +44,85 @@ def service_type(tmp_path):
         (implementations_dir / ('%s.py' % name)).write_text(SERVICE_MODULE)
     (implementations_dir / 'broken.py').write_text('import _no_such_module_gnrservices_test\n')
     (implementations_dir / 'noclass.py').write_text('X = 1\n')
+    (implementations_dir / 'exploding.py').write_text('raise ValueError("boom at import")\n')
     site = FakeSite([str(tmp_path)])
     return BaseServiceType(site=site, service_type='dummytype')
+
+
+@pytest.fixture
+def single_service_type(tmp_path):
+    """A service type with exactly one working implementation."""
+    implementations_dir = tmp_path / 'services' / 'lonelytype'
+    implementations_dir.mkdir(parents=True)
+    (implementations_dir / 'only.py').write_text(SERVICE_MODULE)
+    return BaseServiceType(site=FakeSite([str(tmp_path)]), service_type='lonelytype')
 
 
 def test_implementations_registry(service_type):
     implementations = service_type.implementations
     assert set(implementations) == {'alpha', 'beta'}
     assert all(callable(f) for f in implementations.values())
-    assert service_type.baseImplementation in ('alpha', 'beta')
+
+
+def test_broken_implementation_does_not_take_down_its_siblings(service_type):
+    """exploding.py raises a ValueError, not an ImportError, at import time."""
+    assert set(service_type.implementations) == {'alpha', 'beta'}
+    assert set(service_type._implementation_failures) == {'broken', 'noclass', 'exploding'}
 
 
 def test_get_implementations_compat(service_type):
-    implementations, baseImplementation = service_type.getImplementations()
+    implementations, defaultImplementation = service_type.getImplementations()
     assert implementations is service_type.implementations
-    assert baseImplementation == service_type.baseImplementation
+    assert defaultImplementation == service_type.defaultImplementation
 
 
-def test_get_service_factory(service_type):
-    alpha = service_type.getServiceFactory('alpha')
-    assert alpha is service_type.implementations['alpha']
-    base = service_type.implementations[service_type.baseImplementation]
-    assert service_type.getServiceFactory('missing') is base
-    assert service_type.getServiceFactory() is base
+def test_get_service_factory_resolves_a_named_implementation(service_type):
+    assert service_type.getServiceFactory('alpha') is service_type.implementations['alpha']
+
+
+def test_get_service_factory_never_substitutes_a_named_implementation(service_type):
+    """A named implementation resolves or fails: it is never replaced by another one."""
+    assert service_type.getServiceFactory('missing') is None
+    assert service_type.getServiceFactory('broken') is None
+    assert service_type.getServiceFactory('noclass') is None
+
+
+def test_get_service_factory_without_a_name_needs_a_declared_default(service_type):
+    """Two implementations and no defaultImplementation: nothing is picked."""
+    assert service_type.getServiceFactory() is None
+    service_type.defaultImplementation = 'beta'
+    assert service_type.getServiceFactory() is service_type.implementations['beta']
+
+
+def test_get_service_factory_without_a_name_takes_the_only_one(single_service_type):
+    assert single_service_type.getServiceFactory() is single_service_type.implementations['only']
+
+
+def test_add_service_names_the_reason_a_named_implementation_failed(service_type):
+    with pytest.raises(GnrException) as excinfo:
+        service_type.addService('svc', implementation='broken')
+    message = str(excinfo.value)
+    assert 'broken' in message
+    assert '_no_such_module_gnrservices_test' in message
+    assert isinstance(excinfo.value.__cause__, ImportError)
+
+
+def test_add_service_reports_an_unknown_implementation(service_type):
+    with pytest.raises(GnrException, match='missing'):
+        service_type.addService('svc', implementation='missing')
+
+
+def test_add_service_reports_a_missing_default(service_type):
+    """A configuration naming no implementation, on a type with more than one."""
+    with pytest.raises(GnrException, match='defaultImplementation'):
+        service_type.addService('svc', foo='bar')
+
+
+def test_add_service_uses_the_declared_default(service_type):
+    service_type.defaultImplementation = 'beta'
+    service = service_type.addService('svc', foo='bar')
+    assert service is not None
+    assert type(service) is service_type.implementations['beta']
 
 
 def test_add_service_creates_instance(service_type):
