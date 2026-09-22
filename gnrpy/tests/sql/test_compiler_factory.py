@@ -15,8 +15,6 @@ Two things are checked here.
    exactly when the corpus has to keep the legacy behaviour honest.
 """
 
-from contextlib import contextmanager
-
 import pytest
 
 from gnr.core.gnrbag import Bag
@@ -25,17 +23,7 @@ from gnr.sql.gnrsqldata.compiler import SqlQueryCompiler
 from gnr.sql.gnrsqldata.compiler_factory import queryCompilerClass
 from gnr.sql.gnrsqldata.compiler_next import SqlQueryCompilerNext
 
-
-@contextmanager
-def sql_compiler_setting(db, value):
-    """Set ``<db sql_compiler="..."/>`` on the application config, then restore it."""
-    config = db.application.config
-    previous = config['db?sql_compiler']
-    config.setAttr('db', sql_compiler=value)
-    try:
-        yield
-    finally:
-        config.setAttr('db', sql_compiler=previous)
+from .common import sql_compiler_setting
 
 
 # ===================================================================

@@ -3,6 +3,7 @@ import sys
 import os
 import os.path
 import weakref
+from contextlib import contextmanager
 import pytest
 from testing.postgresql import Postgresql
 
@@ -116,6 +117,18 @@ def get_pg_config():
         ), None
     pg_instance = _start_pg_instance()
     return pg_instance.dsn(), pg_instance
+
+
+@contextmanager
+def sql_compiler_setting(db, value):
+    """Set ``<db sql_compiler="..."/>`` on the application config, then restore it."""
+    config = db.application.config
+    previous = config['db?sql_compiler']
+    config.setAttr('db', sql_compiler=value)
+    try:
+        yield
+    finally:
+        config.setAttr('db', sql_compiler=previous)
 
 
 @excludewin32
