@@ -14,8 +14,11 @@ var gnr_grouplet = {
             });
             return;
         }
-        // always: an unchanged step still carries defaults to write back
-        form.save({always: true, onReload: function() {
+        if (!form.changed) {
+            this.wizardStepForward(frameCode);
+            return;
+        }
+        form.save({onReload: function() {
             that.wizardStepForward(frameCode);
         }});
     },
@@ -27,8 +30,12 @@ var gnr_grouplet = {
         var nodes = steps.getNodes();
         var currentNode = nodes[idx];
         var isLast = idx >= nodes.length - 1;
+        // Next is an edit: a locked main form would refuse every save.
+        if (frameNode.form && frameNode.form.locked) {
+            frameNode.form.setLocked(false);
+        }
         if (!isLast) {
-            this._wizardStoreStep(frameNode, idx + 1);
+            this._wizardSetStepName(frameNode, idx + 1, true);
         }
         if (currentNode) {
             genro.publish(frameCode + '_step_complete',
@@ -59,17 +66,22 @@ var gnr_grouplet = {
                     form.save();
                 }
             }
-            this._wizardStoreStep(frameNode, targetIdx);
+            this._wizardSetStepName(frameNode, targetIdx);
             frameNode.setRelativeData('.step_index', targetIdx);
         }
     },
 
-    _wizardStoreStep: function(frameNode, idx) {
-        var path = frameNode.getRelativeData('.wizard_step_path');
-        if (!path) { return; }
-        var node = frameNode.getRelativeData('.wizard_steps').getNodes()[idx];
-        if (node) {
-            frameNode.setRelativeData(path, node.label);
+    _wizardSetStepName: function(frameNode, idx, advancing) {
+        var nodes = frameNode.getRelativeData('.wizard_steps').getNodes();
+        var node = nodes[idx];
+        frameNode.setRelativeData('.wizard_step_name', node ? node.label : null);
+        var field = frameNode.getRelativeData('.wizard_step_field');
+        if (!(advancing && field && node && frameNode.form)) { return; }
+        var record = frameNode.form.getFormData();
+        var stored = record.getItem(field);
+        var storedIdx = nodes.findIndex(function(n) { return n.label == stored; });
+        if (idx > storedIdx) {
+            record.setItem(field, node.label);
         }
     },
 
