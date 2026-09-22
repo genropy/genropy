@@ -1,3 +1,4 @@
+import logging
 import os
 import threading
 import time
@@ -5,7 +6,7 @@ import time
 import pytest
 
 from gnr.core.gnrlang import GnrException
-from gnr.lib.services import BaseServiceType
+from gnr.lib.services import BaseServiceType, GnrUnresolvedService
 
 SERVICE_MODULE = """
 class Service(object):
@@ -94,8 +95,9 @@ def test_get_service_factory_without_a_name_takes_the_only_one(single_service_ty
 
 
 def test_add_service_names_the_reason_a_named_implementation_failed(service_type):
+    service = service_type.addService('svc', implementation='broken')
     with pytest.raises(GnrException) as excinfo:
-        service_type.addService('svc', implementation='broken')
+        service.send()
     message = str(excinfo.value)
     assert 'broken' in message
     assert '_no_such_module_gnrservices_test' in message
@@ -103,14 +105,58 @@ def test_add_service_names_the_reason_a_named_implementation_failed(service_type
 
 
 def test_add_service_reports_an_unknown_implementation(service_type):
+    service = service_type.addService('svc', implementation='missing')
     with pytest.raises(GnrException, match='missing'):
-        service_type.addService('svc', implementation='missing')
+        service.send()
 
 
 def test_add_service_reports_a_missing_default(service_type):
     """A configuration naming no implementation, on a type with more than one."""
+    service = service_type.addService('svc', foo='bar')
     with pytest.raises(GnrException, match='defaultImplementation'):
-        service_type.addService('svc', foo='bar')
+        service.send()
+
+
+def test_unresolved_service_does_not_stop_registration(service_type):
+    """A configuration that no longer resolves must not take down the site."""
+    service = service_type.addService('svc', implementation='missing')
+    assert isinstance(service, GnrUnresolvedService)
+    assert service_type.service_instances['svc'] is service
+    # the name that was asked for is reported, never a substitute
+    assert service.service_implementation == 'missing'
+    assert service.service_name == 'svc'
+    assert service.service_type == 'dummytype'
+
+
+def test_unresolved_service_raises_on_every_use(service_type):
+    service = service_type.addService('svc', implementation='missing')
+    with pytest.raises(GnrException, match='no implementation'):
+        service.anything
+    with pytest.raises(GnrException, match='no implementation'):
+        service()
+    with pytest.raises(GnrException, match='no implementation'):
+        service.send('a message')
+
+
+def test_unresolved_service_answers_protocol_lookups(service_type):
+    """hasattr() must return False rather than raise, or copy and pickle break."""
+    service = service_type.addService('svc', implementation='missing')
+    assert hasattr(service, '__deepcopy__') is False
+    assert service.unresolved_reason is service_type.service_instances['svc']._error
+
+
+def test_unresolved_service_is_logged_at_registration(service_type, caplog):
+    with caplog.at_level(logging.ERROR):
+        service_type.addService('svc', implementation='missing')
+    assert any('missing' in record.getMessage() for record in caplog.records)
+
+
+def test_working_service_is_unaffected_by_a_broken_sibling(service_type):
+    """The site keeps every service whose implementation does resolve."""
+    service_type.addService('bad', implementation='missing')
+    good = service_type.addService('good', implementation='alpha')
+    assert not isinstance(good, GnrUnresolvedService)
+    assert type(good) is service_type.implementations['alpha']
 
 
 def test_add_service_uses_the_declared_default(service_type):

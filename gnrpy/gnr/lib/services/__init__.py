@@ -100,7 +100,7 @@ class BaseServiceType(object):
         implementation = service_conf.pop('implementation',None) or service_conf.pop('resource',None) #resource is the oldname for implementation
         service_factory = self.getServiceFactory(implementation)
         if service_factory is None:
-            self._raiseUnresolvedImplementation(implementation, service_name)
+            return self._addUnresolvedService(implementation, service_name)
         service_conf = self.filterServiceConf(service_factory, service_conf or {},
                                               service_name=service_name, implementation=implementation)
         service = service_factory(self.site, **service_conf)
@@ -244,24 +244,43 @@ class BaseServiceType(object):
             return list(implementations.values())[0]
         return implementations.get(self.defaultImplementation)
 
-    def _raiseUnresolvedImplementation(self, implementation, service_name):
+    def _unresolvedImplementationError(self, implementation, service_name):
         available = ', '.join(sorted(self.implementations)) or 'none'
+        reason = None
         if implementation is not None:
             reason = self._implementation_failures.get(implementation)
             if reason is not None:
-                raise GnrException(
+                error = GnrException(
                     'implementation %r of service type %r could not be loaded: %s (service %r)'
-                    % (implementation, self.service_type, reason, service_name)) from reason
-            raise GnrException(
-                'no implementation %r for service type %r (service %r). Available: %s'
-                % (implementation, self.service_type, service_name, available))
-        if len(self.implementations) > 1:
-            raise GnrException(
+                    % (implementation, self.service_type, reason, service_name))
+            else:
+                error = GnrException(
+                    'no implementation %r for service type %r (service %r). Available: %s'
+                    % (implementation, self.service_type, service_name, available))
+        elif len(self.implementations) > 1:
+            error = GnrException(
                 'service type %r declares no defaultImplementation and none was requested '
                 '(service %r). Available: %s'
                 % (self.service_type, service_name, available))
-        raise GnrException('no implementation available for service type %r (service %r)'
-                           % (self.service_type, service_name))
+        else:
+            error = GnrException('no implementation available for service type %r (service %r)'
+                                 % (self.service_type, service_name))
+        error.__cause__ = reason
+        return error
+
+    def _addUnresolvedService(self, implementation, service_name, config_from_db=False):
+        # A configuration that no longer resolves must not stop a site that never
+        # touches the service: registering raises nothing and logs instead, and the
+        # error is raised by the first use. Substituting another implementation is
+        # what issue #1386 forbids, so the placeholder is what takes its place.
+        error = self._unresolvedImplementationError(implementation, service_name)
+        logger.error('Service %s/%s is unusable: %s', self.service_type, service_name, error)
+        service = GnrUnresolvedService(error=error, service_name=service_name,
+                                       service_type=self.service_type,
+                                       implementation=implementation,
+                                       config_from_db=config_from_db)
+        self.service_instances[service_name] = service
+        return service
 
     @property
     def default_service_name(self):
@@ -277,6 +296,40 @@ class BaseServiceType(object):
             service = self.addService(service_name, **kwargs)
         return service
 
+
+
+class GnrUnresolvedService(object):
+    """Stands in for a service whose implementation did not resolve.
+
+    Every attribute access and every call raises the error the registration
+    logged, so the misconfiguration surfaces where the service is used, naming
+    the implementation and the reason, instead of at startup or as another
+    implementation quietly taking its place.
+    """
+
+    def __init__(self, error=None, service_name=None, service_type=None,
+                 implementation=None, config_from_db=False):
+        self._error = error
+        self.service_name = service_name
+        self.service_type = service_type
+        self.service_implementation = implementation
+        self._service_creation_ts = datetime.now()
+        self._config_from_db = config_from_db
+
+    @property
+    def unresolved_reason(self):
+        return self._error
+
+    def __getattr__(self, name):
+        # protocol lookups (copy, pickle, pytest introspection) must keep
+        # answering AttributeError, or a plain hasattr() raises instead of
+        # returning False
+        if name.startswith('__') and name.endswith('__'):
+            raise AttributeError(name)
+        raise self._error
+
+    def __call__(self, *args, **kwargs):
+        raise self._error
 
 
 class GnrBaseService(object):
