@@ -21,16 +21,6 @@ import pytest
 from gnr.sql.gnrsqltable import GnrSqlBusinessLogicException
 from gnr.sql.gnrsqltable.helpers import prepare_batch_selection
 
-from core.common import BaseGnrTest
-
-
-def setup_module(module):
-    BaseGnrTest.setup_class()
-
-
-def teardown_module(module):
-    BaseGnrTest.teardown_class()
-
 
 @pytest.fixture(params=['db_sqlite', 'db_pg'])
 def db(request):

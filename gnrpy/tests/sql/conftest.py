@@ -30,15 +30,8 @@ def gnr_test_config():
     """Make sure every module in this package runs with a genro configuration.
 
     pytest does not call setup_module/teardown_module defined in conftest.py
-    for test modules.  Every module that needs a configuration therefore
-    repeats the call itself -- and
-    test_db_notify and test_gnrlistener do not, so on a machine without a
-    ~/.gnr of its own, CI included, their fixtures died with
-    'Missing genro configuration'.  Modules that already set one up keep it.
+    for test modules, so this autouse fixture fills that role instead.
     """
-    if os.environ.get('GENRO_GNRFOLDER'):
-        yield
-        return
     BaseGnrTest.setup_class()
     try:
         yield

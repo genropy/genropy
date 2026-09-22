@@ -35,12 +35,7 @@ def gnr_test_config():
 
     pytest does not call setup_module/teardown_module defined in conftest.py
     for test modules, so this autouse fixture fills that role instead.
-    Modules that already provide their own GENRO_GNRFOLDER (via a
-    setup_module of their own) are detected and left alone.
     """
-    if os.environ.get('GENRO_GNRFOLDER'):
-        yield
-        return
     BaseGnrTest.setup_class()
     try:
         yield

@@ -22,16 +22,6 @@ so they run on a real database without needing PostgreSQL.
 
 from gnr.core.gnrstring import encode36
 
-from core.common import BaseGnrTest
-
-
-def setup_module(module):
-    BaseGnrTest.setup_class()
-
-
-def teardown_module(module):
-    BaseGnrTest.teardown_class()
-
 
 def _fetch_one(tbl, where, **kwargs):
     rows = tbl.query(where=where, subtable='*', addPkeyColumn=False, **kwargs).fetch()

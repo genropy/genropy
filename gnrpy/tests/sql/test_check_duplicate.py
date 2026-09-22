@@ -13,16 +13,6 @@ import datetime
 
 import pytest
 
-from core.common import BaseGnrTest
-
-
-def setup_module(module):
-    BaseGnrTest.setup_class()
-
-
-def teardown_module(module):
-    BaseGnrTest.teardown_class()
-
 
 def _archive(tbl, pkey):
     """Logically delete a record by setting its __del_ts."""
