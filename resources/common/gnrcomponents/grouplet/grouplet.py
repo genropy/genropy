@@ -372,12 +372,13 @@ class GroupletHandler(BaseComponent):
     @struct_method
     def gr_groupletWizard(self, pane, table=None, topic=None, value=None,
                           frameCode=None, completeLabel=None,
-                          closeLabel=None,
+                          closeLabel=None, backLabel=None,
                           saveMainFormOnComplete=None,
                           grouplets_root=None,grouplet_kwargs=True, **kwargs):
         frameCode = frameCode or 'grplt_wizard'
-        completeLabel = completeLabel or 'Confirm'
-        closeLabel = closeLabel or 'Close'
+        completeLabel = completeLabel or '!![en]Confirm'
+        closeLabel = closeLabel or '!![en]Close'
+        backLabel = backLabel or '!![en]Back'
         root_info = self._getGroupletsRootInfo(table=table, topic=topic,
                                                grouplets_root=grouplets_root)
         summary_template = root_info.get('summary_template')
@@ -472,6 +473,15 @@ class GroupletHandler(BaseComponent):
                                      _class='wizard_step_pane').GroupletForm(
                 **grouplet_kwargs)
         bottom = frame.bottom.div(_class='wizard_bottom_bar')
+        back_kwargs = dict(_class='wizard_back_btn',
+                           action="gnr_grouplet.wizardGoTo(this, _idx-1, _frameCode);",
+                           _idx='^.step_index', _frameCode=frameCode)
+        if has_summary:
+            back_kwargs['hidden'] = '==_idx==0 || _showing'
+            back_kwargs['_showing'] = '^.wizard_showing_summary'
+        else:
+            back_kwargs['hidden'] = '==_idx==0'
+        bottom.lightButton(backLabel, **back_kwargs)
         if has_summary:
             bottom.lightButton('^.next_label',
                                _class='wizard_next_btn',
