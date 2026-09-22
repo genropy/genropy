@@ -1,6 +1,7 @@
 import logging
 import os
 import threading
+import traceback
 import time
 
 import pytest
@@ -130,12 +131,37 @@ def test_unresolved_service_does_not_stop_registration(service_type):
 
 def test_unresolved_service_raises_on_every_use(service_type):
     service = service_type.addService('svc', implementation='missing')
-    with pytest.raises(GnrException, match='no implementation'):
+    with pytest.raises(GnrException, match='no implementation') as first:
         service.anything
     with pytest.raises(GnrException, match='no implementation'):
         service()
-    with pytest.raises(GnrException, match='no implementation'):
+    with pytest.raises(GnrException, match='no implementation') as last:
         service.send('a message')
+    # a new exception each time, never the recorded one: re-raising one instance
+    # appends to the traceback it already carries
+    assert first.value is not service.unresolved_reason
+    assert last.value is not first.value
+
+
+def test_unresolved_service_traceback_does_not_grow(service_type):
+    """Re-raising one instance would pin every caller frame for the worker's life."""
+    service = service_type.addService('svc', implementation='missing')
+    depths = []
+    for _ in range(5):
+        try:
+            service.send('a message')
+        except GnrException as err:
+            depths.append(len(traceback.extract_tb(err.__traceback__)))
+    assert len(set(depths)) == 1, depths
+    assert service.unresolved_reason.__traceback__ is None
+
+
+def test_unresolved_service_keeps_the_original_reason_chained(service_type):
+    service = service_type.addService('svc', implementation='broken')
+    with pytest.raises(GnrException) as excinfo:
+        service.send('a message')
+    assert isinstance(excinfo.value.__cause__, ImportError)
+    assert '_no_such_module_gnrservices_test' in str(excinfo.value)
 
 
 def test_unresolved_service_answers_protocol_lookups(service_type):

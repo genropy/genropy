@@ -265,7 +265,8 @@ class BaseServiceType(object):
         else:
             error = GnrException('no implementation available for service type %r (service %r)'
                                  % (self.service_type, service_name))
-        error.__cause__ = reason
+        if reason is not None:
+            error.__cause__ = reason
         return error
 
     def _addUnresolvedService(self, implementation, service_name, config_from_db=False):
@@ -305,6 +306,10 @@ class GnrUnresolvedService(object):
     logged, so the misconfiguration surfaces where the service is used, naming
     the implementation and the reason, instead of at startup or as another
     implementation quietly taking its place.
+
+    Only dunder lookups answer AttributeError: hasattr(service, 'send') raises
+    like the call it precedes, rather than returning False, so this object is
+    never a safe probe for whether a service works.
     """
 
     def __init__(self, error=None, service_name=None, service_type=None,
@@ -320,16 +325,23 @@ class GnrUnresolvedService(object):
     def unresolved_reason(self):
         return self._error
 
+    def _raise(self):
+        # a new exception every time: re-raising one instance appends the new
+        # frames to the traceback it already carries, so the chain -- and every
+        # frame's locals, page and request included -- would grow and stay alive
+        # for as long as this placeholder does, which is the life of the worker
+        raise GnrException(self._error.description) from self._error.__cause__
+
     def __getattr__(self, name):
         # protocol lookups (copy, pickle, pytest introspection) must keep
-        # answering AttributeError, or a plain hasattr() raises instead of
-        # returning False
+        # answering AttributeError, or copying this object raises instead of
+        # falling back to the default behaviour
         if name.startswith('__') and name.endswith('__'):
             raise AttributeError(name)
-        raise self._error
+        self._raise()
 
     def __call__(self, *args, **kwargs):
-        raise self._error
+        self._raise()
 
 
 class GnrBaseService(object):
