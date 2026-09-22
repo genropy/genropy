@@ -1046,10 +1046,14 @@ def test_rpc_query_on_the_proxy(handlers, db):
 #  Saved queries: the three divergences of #1359 (postgres only)
 # ---------------------------------------------------------------------------
 
-def test_saved_query_where_as_plain_text_only_in_next(pg_handlers, db_postgres):
-    """#1359 - DIVERGENCE: legacy derives ``wherebag`` from the caller's where
-    before the saved query is loaded, so a saved query never gets the
-    whereAsPlainText attribute.  Next derives it after the saved query."""
+def test_saved_query_produces_the_plain_text_in_both(pg_handlers, db_postgres):
+    """#1359 - EQUIVALENCE since #1375 (`cfdc5bdb8a`).
+
+    Legacy used to derive ``wherebag`` from the caller's where before the saved
+    query was loaded, so a saved query never got the whereAsPlainText attribute.
+    #1375 moved the load before that derivation, which is what Next already did:
+    both handlers now produce the attribute and produce the same one.
+    """
     data = Bag()
     data['where'] = _customer_where_bag()
     data['queryLimit'] = 5
@@ -1060,14 +1064,17 @@ def test_saved_query_where_as_plain_text_only_in_next(pg_handlers, db_postgres):
     legacy_rows, legacy_attrs = _normalized(legacy.getSelection(**pars))
     next_rows, next_attrs = _normalized(nxt.getSelection(**pars))
     assert next_rows == legacy_rows
-    assert 'whereAsPlainText' not in legacy_attrs
     assert next_attrs['whereAsPlainText']
+    assert next_attrs['whereAsPlainText'] == legacy_attrs['whereAsPlainText']
 
 
-def test_saved_query_empty_limit_falls_back_only_in_next(pg_handlers, db_postgres):
-    """#1359 - DIVERGENCE: a saved query with no queryLimit overwrites the
-    hardQueryLimit fallback in legacy, so the hard limit is bypassed.  Next
-    applies the fallback again after the saved query."""
+def test_saved_query_empty_limit_falls_back_in_both(pg_handlers, db_postgres):
+    """#1359 - EQUIVALENCE since #1375 (`cfdc5bdb8a`).
+
+    A saved query with no queryLimit used to overwrite the hardQueryLimit
+    fallback in legacy, so the hard limit was bypassed.  Both handlers now
+    apply the fallback after the saved query is loaded.
+    """
     data = Bag()
     data['where'] = _customer_where_bag()
     query_id = _new_userobject(db_postgres, 'test_nolimit_query', 'query', data)
@@ -1076,8 +1083,8 @@ def test_saved_query_empty_limit_falls_back_only_in_next(pg_handlers, db_postgre
                 savedQuery=query_id, order_by='$account_name', hardQueryLimit=2)
     legacy_rows, _ = _normalized(legacy.getSelection(**pars))
     next_rows, _ = _normalized(nxt.getSelection(**pars))
-    assert len(legacy_rows) > 2
     assert len(next_rows) == 2
+    assert len(legacy_rows) == 2
 
 
 def test_saved_query_without_where(pg_handlers, db_postgres):
@@ -1088,23 +1095,38 @@ def test_saved_query_without_where(pg_handlers, db_postgres):
     node in it and returns an empty WHERE, so the defect stays latent for
     every record shape adm.userobject produces.  Next reads the saved where
     whatever it contains, which gives the same rows by the intended route.
+
+    #1375 (`cfdc5bdb8a`) did not touch this one: it moved the load of the saved
+    query earlier, so legacy now derives its where bag from that userobject
+    record and reports an empty ``whereAsPlainText`` where Next reports none.
+    The rows are the same; the attribute is the visible trace of C1.
     """
     data = Bag()
     data['queryLimit'] = 3
     query_id = _new_userobject(db_postgres, 'test_nowhere_query', 'query', data)
     rows, _ = _assert_same(pg_handlers, table='invc.customer',
                            columns='$account_name', savedQuery=query_id,
-                           order_by='$account_name', limit=5)
+                           order_by='$account_name', limit=5,
+                           _ignore=('whereAsPlainText',))
     assert len(rows) == 5
+    legacy, nxt = pg_handlers
+    pars = dict(table='invc.customer', columns='$account_name',
+                savedQuery=query_id, order_by='$account_name', limit=5)
+    _, legacy_attrs = _normalized(legacy.getSelection(**pars))
+    _, next_attrs = _normalized(nxt.getSelection(**pars))
+    assert legacy_attrs['whereAsPlainText'] == ''
+    assert 'whereAsPlainText' not in next_attrs
 
 
 def test_saved_query_plain_text_describes_the_saved_where(pg_handlers, db_postgres):
     """#1359 - DIVERGENCE: a caller where AND a saved query carrying a WHERE.
 
+    #1359 - EQUIVALENCE since #1375 (`cfdc5bdb8a`).
+
     Both handlers execute the saved WHERE and discard the caller's one.  Legacy
-    reports the caller's bag in ``whereAsPlainText``, because it derives the bag
-    before the saved query is loaded; Next reports the saved bag, which is the
-    filter the rows come from.
+    used to report the caller's bag in ``whereAsPlainText``, because it derived
+    the bag before the saved query was loaded; both now report the saved bag,
+    which is the filter the rows come from.
     """
     data = Bag()
     data['where'] = _customer_where_bag()
@@ -1120,11 +1142,9 @@ def test_saved_query_plain_text_describes_the_saved_where(pg_handlers, db_postgr
     assert next_rows == legacy_rows
     assert {row[2]['state'] for row in next_rows} == {'NSW'}
     tblobj = db_postgres.table('invc.customer')
-    assert legacy_attrs['whereAsPlainText'] == tblobj.whereTranslator.toHtml(
-        tblobj, caller_where)
-    assert next_attrs['whereAsPlainText'] == tblobj.whereTranslator.toHtml(
-        tblobj, data['where'])
-    assert next_attrs['whereAsPlainText'] != legacy_attrs['whereAsPlainText']
+    saved_plain_text = tblobj.whereTranslator.toHtml(tblobj, data['where'])
+    assert next_attrs['whereAsPlainText'] == saved_plain_text
+    assert legacy_attrs['whereAsPlainText'] == saved_plain_text
 
 
 def test_saved_query_without_where_drops_the_plain_text_in_next(pg_handlers,
@@ -1133,8 +1153,9 @@ def test_saved_query_without_where_drops_the_plain_text_in_next(pg_handlers,
 
     Neither handler filters: legacy hands the whole userobject record to the
     where bag decoder, which finds no condition, and Next takes the empty saved
-    WHERE.  Legacy still reports the caller's bag in ``whereAsPlainText``,
-    describing a filter that never ran; Next emits no attribute at all.
+    WHERE.  Since #1375 (`cfdc5bdb8a`) legacy derives its bag from that record
+    rather than from the caller's, so it reports an empty ``whereAsPlainText``
+    instead of a filter that never ran; Next emits no attribute at all.
     """
     data = Bag()
     data['queryLimit'] = 3
@@ -1148,9 +1169,7 @@ def test_saved_query_without_where_drops_the_plain_text_in_next(pg_handlers,
         legacy.getSelection(where=caller_where, **pars))
     next_rows, next_attrs = _normalized(nxt.getSelection(where=caller_where, **pars))
     assert next_rows == legacy_rows == unfiltered_rows
-    tblobj = db_postgres.table('invc.customer')
-    assert legacy_attrs['whereAsPlainText'] == tblobj.whereTranslator.toHtml(
-        tblobj, caller_where)
+    assert legacy_attrs['whereAsPlainText'] == ''
     assert 'whereAsPlainText' not in next_attrs
 
 

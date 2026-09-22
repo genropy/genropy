@@ -57,8 +57,6 @@ they stay copies of the legacy minus the dead methods.
 | id | where | legacy | copy |
 |---|---|---|---|
 | A9 | getSelection | `formats[7:] = value` writes under a slice key, so a `format_<col>` kwarg never reaches its column | keyed by the column name |
-| #1359 a | getSelection | `whereAsPlainText` describes the caller's where, not the saved query that ran | describes the filter that was executed |
-| #1359 b | getSelection | a saved query with an empty `queryLimit` bypasses `hardQueryLimit` | the fallback is applied after the saved query |
 | E10 | getSelection | reading a frozen selection with `hardQueryLimit` raises `KeyError: 'totalrows'` | computed from `len(selection)` |
 | F4 | getSelection | the closing bracket of a column group is stripped before it is tested, so every later column keeps the group prefix | the group end is remembered first |
 | C1 | getSelection | a saved record without `where` hands the whole userobject record to the where decoder | an empty saved where means no filter |
@@ -71,9 +69,14 @@ they stay copies of the legacy minus the dead methods.
 | D8 | gridSelectionStruct | a missing `elif` overwrites the width computed for `size < 3` | one `if/elif` chain |
 | D9 | freezedSelectionPkeys | `caption_field` is read as a literal key | read from the column it names |
 
+Two defects this copy had fixed on its own, #1359 a and #1359 b on
+`getSelection`, were fixed in the legacy handler too by #1375 (`cfdc5bdb8a`),
+so they are no longer a divergence and have left the table above. Their cases
+in `test_apphandler_next.py` now assert the equivalence.
+
 Every other proven defect of the legacy handler is reproduced, because the
 correct behaviour is not decided by the code alone. Issues opened for them:
-#1359, #1363, #1364, #1365.
+#1363, #1364, #1365.
 
 ## Dead code not ported
 
