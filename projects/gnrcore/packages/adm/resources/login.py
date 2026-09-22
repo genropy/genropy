@@ -239,7 +239,7 @@ class LoginComponent(BaseComponent):
         rootenv['xgroup'] = getattr(self.avatar,'xgroup',None)
         rootenv['workdate'] = rootenv['workdate'] or self.workdate
         rootenv['login_date'] = date.today()
-        rootenv['custom_workdate'] = rootenv['workdate']!=rootenv['login_date']
+        self.login_enforceWorkdate(rootenv)
         rootenv['language'] = rootenv['language'] or self.language
         self.connectionStore().setItem('defaultRootenv',rootenv) #no need to be locked because it's just one set
         return self.login_newWindow(rootenv=rootenv)
@@ -300,11 +300,24 @@ class LoginComponent(BaseComponent):
         elif avatar.extra_kwargs.get('main_group_code'):
             data['all_groups'] = [avatar.main_group_code]
         self.callPackageHooks('onUserSelected',avatar,data)
-        canBeChanged = self.application.checkResourcePermission(self.pageAuthTags(method='workdate'),avatar.user_tags)
-        default_workdate = self.clientDatetime(serverTimeDelta=serverTimeDelta).date()
+        canBeChanged = self.login_canSetWorkdate(avatar)
+        default_workdate = self.clientDatetime(serverTimeDelta=serverTimeDelta).date() if canBeChanged else date.today()
         data.setItem('workdate',default_workdate, hidden= not canBeChanged)
         result['rootenv'] = data
         return result
+
+    def login_canSetWorkdate(self, avatar):
+        return self.application.checkResourcePermission(self.pageAuthTags(method='workdate'), avatar.user_tags)
+
+    def login_enforceWorkdate(self, rootenv):
+        """The rootenv comes from the client: the capability is recomputed from the
+        avatar and, without it, the workdate is the server's today whatever was sent."""
+        can_set_workdate = self.login_canSetWorkdate(self.avatar)
+        rootenv['can_set_workdate'] = can_set_workdate
+        if not can_set_workdate:
+            rootenv['workdate'] = date.today()
+            rootenv['login_date'] = rootenv['workdate']
+        rootenv['custom_workdate'] = rootenv['workdate'] != rootenv['login_date']
 
     def loginboxPars(self):
         return dict(_class='index_loginbox')
@@ -540,7 +553,7 @@ class LoginComponent(BaseComponent):
         err = [err for err in errdict.values() if err is not None]
         with self.pageStore() as ps:
             rootenv['new_window_context'] = True
-            rootenv['custom_workdate'] = rootenv['workdate']!=rootenv['login_date']
+            self.login_enforceWorkdate(rootenv)
             ps.setItem('rootenv',rootenv)
         self.db.workdate = rootenv['workdate']
         self.setInClientData('gnr.rootenv', rootenv)
