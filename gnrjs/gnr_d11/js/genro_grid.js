@@ -1578,8 +1578,8 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
                 selection.select(idx);
             }
         }
-        if(scrollTo===true && typeof(idx)=='number' && idx>=0){
-            scrollTo = idx;
+        if(scrollTo===true){
+            scrollTo = (typeof(idx)=='number' && idx>=0) ? idx : false;
         }
         if(scrollTo){
             this.scrollToRow(scrollTo);
@@ -2877,6 +2877,14 @@ dojo.declare("gnr.widgets.VirtualStaticGrid", gnr.widgets.DojoGrid, {
                 that.restoreSelectedRows();
             },delay,'refreshContent'
         )
+    },
+
+    mixin_setSelectedId: function(pkey) {
+        if (this.rowCount == 0 || isNullOrBlank(pkey)) {
+            this.selection.unselectAll();
+        } else {
+            this.selectByRowAttr(this.rowIdentifier(), pkey, null, true);
+        }
     },
 
     mixin_newDataStore:function() {
@@ -4207,7 +4215,7 @@ dojo.declare("gnr.widgets.IncludedView", gnr.widgets.VirtualStaticGrid, {
             celldata['action_delay'] = typeof(kw.remoteUpdate)=='number'?kw.remoteUpdate:1000;
         }
         celldata['format_onclick'] = "this.widget.onCheckedColumn(kw.rowIndex,'"+fieldname+"',e)";
-        if((celldata.checkBox || celldata.radioButton) && typeof(celldata.assignedValue)=='string'){
+        if(celldata.checkBox && typeof(celldata.assignedValue)=='string'){
             celldata._customGetter=function(rowdata,rowidx){
                 return rowdata[this.checkBox]? rowdata[this.checkBox].split(',').includes(this.assignedValue):false;
             }
@@ -4454,8 +4462,10 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
             if (idx >= nrow) {
                 idx = nrow - 1;
             }
-            this.selection.select(idx);
-            this.scrollToRow(idx);
+            if (idx >= 0) {
+                this.selection.select(idx);
+                this.scrollToRow(idx);
+            }
         }
     },
 

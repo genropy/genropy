@@ -32,7 +32,7 @@ class TableHandlerForm(BaseComponent):
             grid =  pane.view.grid
             linkTo = grid
         #context_dbstore = pane.getInheritedAttributes().get('context_dbstore')
-        remoteForm = options.pop('remote',None) or (self.getPreference('experimental.remoteForm',pkg='sys'))
+        remoteForm = options.pop('remote',None) or self.application.experimentalValue('page', 'remoteForm')
         if formInIframe:
             remoteForm = False
         remotePars = dict()
@@ -216,7 +216,7 @@ class TableHandlerForm(BaseComponent):
         draftIfInvalid= options.pop('draftIfInvalid',False)
         allowSaveInvalid= options.pop('allowSaveInvalid',draftIfInvalid)
         avoidFloatingMessage= options.pop('avoidFloatingMessage',draftIfInvalid)
-        draftMarker = options.pop('draftMarker', False)
+        draftMarker = options.pop('draftMarker', 'bar')
         formCaption_kwargs = dictExtract(options,'formCaption_',pop=True) 
         formCaption = options.pop('formCaption',formCaption_kwargs)
 

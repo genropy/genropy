@@ -488,7 +488,7 @@ class GnrSqliteCursor(pysqlite.Cursor):
     index = property(_get_index)
 
     def execute(self, sql, params=None, *args, **kwargs):
-        if params:
+        if params is not None:
             if isinstance(params, str):
                 params = str(params)
             elif isinstance(params, list):

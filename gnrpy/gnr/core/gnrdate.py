@@ -20,17 +20,17 @@
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
-import sys
 import functools
 import re
 import datetime
 import calendar
 import copy
 import bisect
+import zoneinfo
 from dateutil import rrule
 
 from babel import dates
-import pytz
+import tzlocal
 
 from gnr.core import gnrlocale
 from gnr.core.gnrstring import splitAndStrip, anyWordIn, wordSplit, toText
@@ -38,21 +38,12 @@ from gnr.core.gnrstring import splitAndStrip, anyWordIn, wordSplit, toText
 def cmp(x, y):
         return (x > y) - (x < y)
 
-def toDHZ(date,time,timezone=None):
-    ts = datetime.datetime.combine(date,time)
+def toDHZ(date, time, timezone=None):
     if timezone == 'LOCAL':
-        if sys.platform == "win32":
-            from tzlocal.win32 import get_localzone_name
-            timezone = get_localzone_name()
-        else:
-            from pytz import reference as pytzref
-            localtz = pytzref.LocalTimezone()
-            timezone = localtz.tzname(ts)
-    timezone = timezone or 'UTC'
-    tz = pytz.timezone(timezone)
-    #result =  tz.localize(ts) 
-    result = ts.replace(tzinfo=tz)
-    return result
+        zone = tzlocal.get_localzone()
+    else:
+        zone = zoneinfo.ZoneInfo(timezone or 'UTC')
+    return datetime.datetime.combine(date, time, tzinfo=zone)
 
 def checkDateKeywords(keywords,datestr,locale):
     return anyWordIn(gnrlocale.getDateKeywords(keywords, locale), datestr) or anyWordIn(

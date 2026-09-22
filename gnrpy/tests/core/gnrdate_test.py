@@ -3,6 +3,7 @@
 
 import pytest
 import datetime
+import tzlocal
 
 from gnr.core import gnrdate
 
@@ -310,20 +311,37 @@ def test_toDHZ():
     d = datetime.date(2024,1,2)
     t = datetime.time(10,30)
 
-    # this can't actually be tests, being
-    # tied to the machine where the tests
-    # are being executed. We just run
-    # with "LOCAL" for coverage pourposes
+    # LOCAL, winter: proves the machine-local path still works
     res = gnrdate.toDHZ(d, t, "LOCAL")
+    expected = datetime.datetime.combine(d, t, tzinfo=tzlocal.get_localzone())
+    assert res.utcoffset() == expected.utcoffset()
 
-    
+    # LOCAL, summer: the regression test. Fails on the old code with
+    # pytz.exceptions.UnknownTimeZoneError: 'CEST' (or any other DST
+    # abbreviation the local zone reports in summer).
+    d_summer = datetime.date(2024,7,2)
+    res = gnrdate.toDHZ(d_summer, t, "LOCAL")
+    expected_summer = datetime.datetime.combine(d_summer, t, tzinfo=tzlocal.get_localzone())
+    assert res.utcoffset() == expected_summer.utcoffset()
+
+    # Explicit zone, DST round-trip: catches the LMT-offset defect, where
+    # both dates used to resolve to the zone's first historical offset
+    # instead of the offset actually in force on that date.
     res = gnrdate.toDHZ(d, t, "Europe/Rome")
-    assert res.tzinfo.zone == "Europe/Rome"
+    assert res.tzinfo.key == "Europe/Rome"
+    assert res.utcoffset() == datetime.timedelta(hours=1)
+    res = gnrdate.toDHZ(d_summer, t, "Europe/Rome")
+    assert res.tzinfo.key == "Europe/Rome"
+    assert res.utcoffset() == datetime.timedelta(hours=2)
+
+    # Default UTC, unchanged
     res = gnrdate.toDHZ(d, t, "UTC")
-    assert res.tzinfo.zone == "UTC"
+    assert res.tzinfo.key == "UTC"
+    assert res.utcoffset() == datetime.timedelta(0)
     res = gnrdate.toDHZ(d, t)
-    assert res.tzinfo.zone == "UTC"
-    
+    assert res.tzinfo.key == "UTC"
+    assert res.utcoffset() == datetime.timedelta(0)
+
 
 def test_nextMonth():
     d = datetime.date(2024,1,2)

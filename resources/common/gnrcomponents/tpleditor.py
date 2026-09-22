@@ -665,9 +665,11 @@ class PaletteTemplateEditor(TemplateEditor):
 class ChunkEditor(PaletteTemplateEditor):
     @public_method
     def te_chunkEditorPane(self,pane,table=None,resource_mode=None,paletteId=None,
-                            datasourcepath=None,showLetterhead=False,editorConstrain=None,plainText=False,emailChunk=False,**kwargs):
+                            datasourcepath=None,showLetterhead=False,showParameters=False,
+                            editorConstrain=None,plainText=False,emailChunk=False,**kwargs):
         sc = self._te_mainstack(pane,table=table)
-        self._te_frameChunkInfo(sc.framePane(title='!!Metadata',pageName='info',childname='info'),table=table,datasourcepath=datasourcepath)
+        self._te_frameChunkInfo(sc.framePane(title='!!Metadata',pageName='info',childname='info'),table=table,
+                                datasourcepath=datasourcepath,showParameters=showParameters)
         bar = sc.info.top.bar
         if table:
             bar.replaceSlots('#','#,customres,menutemplates,savetpl,5')
@@ -716,14 +718,16 @@ class ChunkEditor(PaletteTemplateEditor):
 
         
         
-    def _te_frameChunkInfo(self,frame,table=None,datasourcepath=None):
+    def _te_frameChunkInfo(self,frame,table=None,datasourcepath=None,showParameters=False):
         frame.top.slotToolbar('5,parentStackButtons,*',parentStackButtons_font_size='8pt')
         bc = frame.center.borderContainer()
-        self._te_info_vars(bc,table=table,region='center',
+        vars_layout = dict(region='bottom',height='60%') if showParameters else dict(region='center')
+        self._te_info_vars(bc,table=table,
                             datasourcepath=datasourcepath,
                             fieldsTree_currRecordPath=datasourcepath,
-                            fieldsTree_explorerPath='#ANCHOR.dbexplorer')
-        #self._te_info_parameters(bc,region='center')
+                            fieldsTree_explorerPath='#ANCHOR.dbexplorer',**vars_layout)
+        if showParameters:
+            self._te_info_parameters(bc,region='center')
     
     def _te_framePreviewChunk(self,frame,table=None,datasourcepath=None):
         bar = frame.top.slotToolbar('5,parentStackButtons,10,fb,*',parentStackButtons_font_size='8pt')                   
@@ -752,7 +756,7 @@ class ChunkEditor(PaletteTemplateEditor):
                             email_meta='=.data.metadata.email',
                             content_css='=.data.content_css',
                             letterhead_id='=.preview.letterhead_id',
-                            vb='=.data.varsbag',pb='=.data.parametersbag',data='=.data')
+                            vb='=.data.varsbag',pb='=.data.parameters',data='=.data')
         
     
         

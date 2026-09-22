@@ -1241,7 +1241,7 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         return abspath;
     },
 
-    _stableSymbolicStart: function(path) {
+    _stableSymbolicStart: function(path, fromChain) {
         // #FORM/#ANCHOR resolve on an ancestor node: when that ancestor
         // rebuilds, this whole subtree re-registers, so the resolution is as
         // stable as the ancestor datapath chain. Any other symbolic head
@@ -1258,7 +1258,16 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         } else {
             return false;
         }
-        return target ? target._stableDatapathChain() : false;
+        if (!target) {
+            return false;
+        }
+        if (fromChain && target === this) {
+            // symbolic datapath resolving onto its own node: resolving it would
+            // recurse forever, here and in absDatapath
+            console.error('self referencing symbolic datapath ' + path + ' on ' + this.getFullpath());
+            return false;
+        }
+        return target._stableDatapathChain();
     },
 
     _stableDatapathChain: function() {
@@ -1273,7 +1282,7 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
                     if (datapath.indexOf('#parent') >= 0) {
                         return false;
                     }
-                    return curr._stableSymbolicStart(datapath);
+                    return curr._stableSymbolicStart(datapath, true);
                 }
                 if (datapath.charAt(0) != '.') {
                     return true; //absolute datapath shields the upper chain
