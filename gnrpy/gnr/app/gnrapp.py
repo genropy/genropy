@@ -1199,7 +1199,7 @@ class GnrApp(object):
 
         self.instance_packages_dependencies = instance_deps
 
-        if not 'checkdepcli' in self.kwargs:
+        if 'checkdepcli' not in self.kwargs:
             missing, wrong = self.check_package_missing_dependencies()
             if missing:
                 logger.error(f"ERROR: missing dependencies: {', '.join(missing)}")
@@ -1207,13 +1207,19 @@ class GnrApp(object):
                 logger.error("ERROR: wrong dependencies:")
                 for requested, installed in wrong:
                     logger.error(f"{requested} is requested, but {installed} found")
+            # ESM bundling touches the network and runs an external binary: it is
+            # only performed explicitly (checkdepcli), never during ordinary app
+            # startup, so a registry hiccup can never take down a web worker.
+            return
 
         logger.debug("Checking javascript dependencies")
-        bundler = GnrInstanceEsmBundler(self)
-        output_dir, results = bundler.run()
-        logger.debug("Bundle in %s: %s", output_dir, results)
-        
-        
+        try:
+            bundler = GnrInstanceEsmBundler(self)
+            output_dir, results = bundler.run()
+            logger.debug("Bundle in %s: %s", output_dir, results)
+        except Exception:
+            logger.exception("ESM bundling failed")
+
     def check_package_missing_dependencies(self):
         missing = []
         wrong = []

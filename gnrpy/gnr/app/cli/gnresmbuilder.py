@@ -31,7 +31,7 @@ def main():
 
     try:
         output_dir, results = bundler.run(force=options.force, output=options.output)
-    except RuntimeError as e:
+    except (RuntimeError, ValueError) as e:
         print(f'Error: {e}', file=sys.stderr)
         sys.exit(1)
 
