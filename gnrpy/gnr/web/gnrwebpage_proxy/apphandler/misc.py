@@ -564,7 +564,7 @@ class MiscMixin:
                     size = int(size)
                     if size < 3:
                         width = size * 1.1
-                    if size < 6:  # BUG: should be ``elif`` — when size < 3 both branches execute
+                    elif size < 6:
                         width = size
                     elif size < 10:
                         width = size * .8
@@ -597,7 +597,9 @@ class MiscMixin:
         """
         selection = self.page.unfreezeSelection(dbtable=table, name=selectionName)
         l = selection.output('dictlist')
-        return [dict(pkey=r['pkey'], caption=r['caption_field']) if caption_field else r['pkey'] for r in l]
+        # the caption comes from the column caption_field names, not from a
+        # column literally called 'caption_field', which no row ever has
+        return [dict(pkey=r['pkey'], caption=r[caption_field]) if caption_field else r['pkey'] for r in l]
 
     @public_method
     def sumOnFreezedSelection(self, selectionName: Optional[str] = None,

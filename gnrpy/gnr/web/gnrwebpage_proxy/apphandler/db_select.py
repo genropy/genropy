@@ -333,6 +333,9 @@ class DbSelectMixin:
         cond = tblobj.opTranslate(querycolumns[0], 'contains', searchval, sqlArgs=sqlArgs)
         result = getSelection(cond, **sqlArgs)
         if len(result) >= (limit or 50):
+            # a dict of its own: sharing one with the stage above left the
+            # label of the first condition bound next to the second one
+            sqlArgs = dict()
             cond = tblobj.opTranslate(querycolumns[0], 'startswith', searchval, sqlArgs=sqlArgs)
             result = getSelection(cond, **sqlArgs)
 

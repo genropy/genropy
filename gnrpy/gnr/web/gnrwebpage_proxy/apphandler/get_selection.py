@@ -199,12 +199,6 @@ class GetSelectionMixin:
         Returns:
             A tuple ``(data_bag, attributes_dict)``.
 
-        Note:
-            BUG: At line 785 in original, ``formats[7:]`` should be
-            ``formats[k[7:]]`` — the slice ``7:`` on the dict key is
-            used as a dict key assignment, but the code writes
-            ``formats[7:] = ...`` which raises ``TypeError`` since
-            dicts don't support slice assignment.
 
             SMELL: The method has ~40 parameters — a strong indicator
             that it should be decomposed into smaller units or use a
@@ -242,7 +236,9 @@ class GetSelectionMixin:
             checkPermissions = self.page.permissionPars
         for k in list(kwargs.keys()):
             if k.startswith('format_'):
-                formats[7:] = kwargs.pop(k)  # BUG: slice assignment on dict — should be ``formats[k[7:]] = ...``
+                # the key is the column name, what follows 'format_': the slice
+                # belongs to k, not to the dict being written
+                formats[k[7:]] = kwargs.pop(k)
         if selectionName.startswith('*'):
             if selectionName == '*':
                 selectionName = self.page.page_id
@@ -443,10 +439,14 @@ class GetSelectionMixin:
                 if '[' in col:
                     tbl, col = col.split('[')
                     maintable = [tbl]
-                if col.endswith(']'):
+                # the bracket is what closes the group, so the end has to be
+                # remembered before it is stripped: testing col again below
+                # never fired, and every later column kept the group prefix
+                group_end = col.endswith(']')
+                if group_end:
                     col = col[:-1]
                 columns.append('.'.join(maintable + [col.rstrip(']')]))
-                if col.endswith(']'):
+                if group_end:
                     maintable = []
             columns = ','.join(columns)
         if expressions:
