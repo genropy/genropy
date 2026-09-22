@@ -349,7 +349,9 @@ class GetSelectionMixin:
             resultAttributes['prevSelectedIdx'] = [m['rowidx'] for m in [r for r in selection.data if r['pkey'] in keys]]
         if wherebag:
             resultAttributes['whereAsPlainText'] = tblobj.whereTranslator.toHtml(tblobj, wherebag)
-        resultAttributes['hardQueryLimitOver'] = hardQueryLimit and resultAttributes['totalrows'] == hardQueryLimit
+        # totalrows is written only on the new selection path, so reading it
+        # back here raised KeyError on a selection replayed from its pickle
+        resultAttributes['hardQueryLimitOver'] = hardQueryLimit and len(selection) == hardQueryLimit
         if self.page.pageStore().getItem('slaveSelections.%s' % selectionName):
             with self.page.pageStore() as store:
                 slaveSelections = store.getItem('slaveSelections.%s' % selectionName)

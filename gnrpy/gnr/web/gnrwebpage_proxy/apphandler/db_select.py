@@ -387,11 +387,19 @@ class DbSelectMixin:
         """
         result = Bag()
         for query in queries:
-            columns = query.attr.pop('columns', '*')
-            table = query.attr.pop('table')
-            tblobj = self.db.table(table)
-            columns = ','.join(tblobj.columnsFromString(columns))
+            # the copy is taken first: popping off query.attr would hand the
+            # caller back its own Bag stripped of columns and table
             qattr = dict(query.attr)
+            columns = qattr.pop('columns', '*')
+            table = qattr.pop('table')
+            tblobj = self.db.table(table)
+            # '*' is the documented default and means every column: it has to
+            # reach the query as it is, because columnsFromString turns it into
+            # '$*', which no database accepts
+            if columns and columns != '*':
+                columns = ','.join(tblobj.columnsFromString(columns))
+            else:
+                columns = '*'
             dbenv_kw = dictExtract(qattr, 'dbenv_', True)
             with self.db.tempEnv(**dbenv_kw):
                 result[query.label] = tblobj.query(columns=columns, **qattr).fetchAsBag('pkey')
