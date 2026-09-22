@@ -398,7 +398,12 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         """sqlite has neither string_to_array() nor the ANY(array) operator, so the
         delimited column is wrapped in separators and searched with LIKE, which is
         case insensitive on ascii. Concatenating a NULL column yields NULL, as the
-        postgres form does."""
+        postgres form does.
+
+        There is no ESCAPE clause, and the arguments are interpolated rather than
+        bound, so they are expected to be SQL-safe: a ``%`` or ``_`` in ``value``
+        is a wildcard here, where on postgres it is a ``%`` in the stored data
+        that is one."""
         return (f"('{separator}' || {fieldpath} || '{separator}') "
                 f"LIKE ('%{separator}' || {value} || '{separator}%')")
 

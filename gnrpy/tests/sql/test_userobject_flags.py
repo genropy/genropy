@@ -1,11 +1,12 @@
-"""adm.userobject flag columns must be readable on SQLite too (bug #1360).
+"""The adapter helper behind adm.userobject's flag columns must answer the same
+on both dialects (bug #1360).
 
-is_mail/is_row/is_print are static virtual columns, so the compiler adds them to
-every record query on the table: the postgres only string_to_array()/ANY() they
-used to carry made any read of adm.userobject fail on SQLite with
-``no such function: string_to_array``, loadUserObject included.
-
-The tests run the real model on both dialects and compare the results.
+is_mail/is_row/is_print are static virtual columns built on inCsvColumn, so the
+postgres only string_to_array()/ANY() they used to carry made any read of
+adm.userobject fail on SQLite. What is checked here is the parity of the two
+dialects, which needs the db_pg fixture of this package; the SQLite reads of
+adm.userobject itself live with their package, in
+projects/gnrcore/packages/adm/tests/test_userobject_flags.py.
 """
 
 MARKER = '__userobject_flags_test__'
@@ -49,53 +50,6 @@ def _insert_cases(db):
 def _populated(db):
     _cleanup(db)
     _insert_cases(db)
-
-
-class TestUserObjectFlagsSqlite:
-    """Every read of adm.userobject used to raise OperationalError on SQLite."""
-
-    def test_record_reads_flags(self, db_sqlite):
-        _populated(db_sqlite)
-        try:
-            tbl = db_sqlite.table('adm.userobject')
-            for code, _flags, expected in CASES:
-                record = tbl.record(where='$code = :code', code=code).output('dict')
-                assert _flags_of(record) == expected, code
-        finally:
-            _cleanup(db_sqlite)
-
-    def test_query_reads_flags(self, db_sqlite):
-        _populated(db_sqlite)
-        try:
-            tbl = db_sqlite.table('adm.userobject')
-            rows = tbl.query(columns='$code,$is_mail,$is_row,$is_print',
-                             where='$description = :marker', marker=MARKER).fetch()
-            found = {r['code']: _flags_of(r) for r in rows}
-            assert found == {code: expected for code, _flags, expected in CASES}
-        finally:
-            _cleanup(db_sqlite)
-
-    def test_filter_on_flag(self, db_sqlite):
-        _populated(db_sqlite)
-        try:
-            tbl = db_sqlite.table('adm.userobject')
-            rows = tbl.query(columns='$code',
-                             where='$description = :marker AND $is_row IS TRUE',
-                             marker=MARKER).fetch()
-            assert [r['code'] for r in rows] == ['UOFLAGS_ROWPRINT']
-        finally:
-            _cleanup(db_sqlite)
-
-    def test_load_user_object(self, db_sqlite):
-        _populated(db_sqlite)
-        try:
-            tbl = db_sqlite.table('adm.userobject')
-            _data, metadata = tbl.loadUserObject(userObjectIdOrCode='UOFLAGS_ROWPRINT',
-                                                 objtype='query', table='invc.customer')
-            assert metadata['code'] == 'UOFLAGS_ROWPRINT'
-            assert metadata['flags'] == 'is_row,is_print'
-        finally:
-            _cleanup(db_sqlite)
 
 
 class TestUserObjectFlagsPgVsSqlite:
