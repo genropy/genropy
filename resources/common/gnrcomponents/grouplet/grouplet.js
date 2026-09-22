@@ -26,11 +26,15 @@ var gnr_grouplet = {
         var steps = frameNode.getRelativeData('.wizard_steps');
         var nodes = steps.getNodes();
         var currentNode = nodes[idx];
+        var isLast = idx >= nodes.length - 1;
+        if (!isLast) {
+            this._wizardStoreStep(frameNode, idx + 1);
+        }
         if (currentNode) {
             genro.publish(frameCode + '_step_complete',
                 {step_code: currentNode.attr.code});
         }
-        if (idx >= nodes.length - 1) {
+        if (isLast) {
             genro.publish(frameCode + '_complete');
         } else {
             frameNode.setRelativeData('.step_index', idx + 1);
@@ -55,7 +59,17 @@ var gnr_grouplet = {
                     form.save();
                 }
             }
+            this._wizardStoreStep(frameNode, targetIdx);
             frameNode.setRelativeData('.step_index', targetIdx);
+        }
+    },
+
+    _wizardStoreStep: function(frameNode, idx) {
+        var path = frameNode.getRelativeData('.wizard_step_path');
+        if (!path) { return; }
+        var node = frameNode.getRelativeData('.wizard_steps').getNodes()[idx];
+        if (node) {
+            frameNode.setRelativeData(path, node.label);
         }
     },
 
