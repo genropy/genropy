@@ -58,10 +58,17 @@ def test_get_service_factory_finds_real_implementation():
 
 
 def test_add_service_missing_implementation_raises_clear_error():
-    """No implementations for the service type: a clear error, not a bare TypeError."""
+    """No implementations for the service type: a clear error, not a bare TypeError.
+
+    The error is raised by the use rather than by the registration, so a site
+    that never touches the service still starts; what issue #1386 asked for is
+    that whoever does touch it reads the service type and the reason.
+    """
     handler = BaseServiceType(site=make_site(), service_type='faketype')
+    service = handler.addService('x', implementation='any')
+    assert service is not None
     with pytest.raises(GnrException, match='faketype'):
-        handler.addService('x', implementation='any')
+        service.anymethod()
 
 
 def test_add_service_ignores_parameters_the_factory_does_not_accept(caplog):
