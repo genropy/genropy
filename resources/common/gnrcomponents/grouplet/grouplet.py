@@ -368,13 +368,14 @@ class GroupletHandler(BaseComponent):
             center.grouplet(**grouplet_kwargs)
         return bc
 
-    @extract_kwargs(grouplet=dict(slice_prefix=False, pop=True))
+    @extract_kwargs(grouplet=dict(slice_prefix=False, pop=True), remote=True)
     @struct_method
     def gr_groupletWizard(self, pane, table=None, topic=None, value=None,
                           frameCode=None, completeLabel=None,
                           closeLabel=None, backLabel=None,
-                          saveMainFormOnComplete=None, resumeStepField=None,
-                          grouplets_root=None,grouplet_kwargs=True, **kwargs):
+                          saveMainFormOnComplete=None, saveOnNext=None, resumeStepField=None,
+                          grouplets_root=None, grouplet_kwargs=True, remote_kwargs=None,
+                          **kwargs):
         frameCode = frameCode or 'grplt_wizard'
         completeLabel = completeLabel or '!![en]Confirm'
         closeLabel = closeLabel or '!![en]Close'
@@ -384,6 +385,9 @@ class GroupletHandler(BaseComponent):
         summary_template = root_info.get('summary_template')
         summary_editable = root_info.get('summary_editable', False)
         has_summary = bool(summary_template)
+        step_remote = {}
+        for key in [k for k in kwargs if '_remote_' in k]:
+            step_remote[tuple(key.split('_remote_', 1))] = kwargs.pop(key)
         frame = pane.framePane(frameCode=frameCode, _anchor=True, **kwargs)
         menu = self.gr_getGroupletMenu(table=table, topic=topic,
                                        grouplets_root=grouplets_root)
@@ -433,9 +437,8 @@ class GroupletHandler(BaseComponent):
         # on the step stored in that column. The reload of the record just
         # saved (onSaved publishes before it) keeps the current step. SET, not
         # FIRE: FIRE leaves step_index null and the next advance would restart
-        # from 0. Already on the target step nothing is rebuilt, and the step
-        # form, aborted by its parent's new pkey right after this handler, must
-        # be loaded again.
+        # from 0. Already on the target step, wizard_build rebuilds it: its
+        # content and its step form still hold the previous record.
         on_loaded_js = """
             var pkey = this.form.getCurrentPkey();
             var isNew = this.form.isNewRecord();
@@ -447,16 +450,16 @@ class GroupletHandler(BaseComponent):
                     target = Math.max(nodes.findIndex(function(n){return n.label == stored;}), 0);
                 }
                 if(nodes[target] && _current_resource == nodes[target].attr.resource){
-                    genro.callAfter(function(){
-                        var stepForm = genro.formById(innerFormId);
-                        if(stepForm){ stepForm.load(); }
-                    }, 1);
+                    gnr_grouplet.wizardResolveRemote(this, nodes[target].label);
+                    FIRE .wizard_build;
                 }
                 SET .step_index = target;
                 SET .wizard_step_name = nodes[target] ? nodes[target].label : null;
             }
             SET .wizard_loaded_pkey = pkey;
         """
+        if saveOnNext:
+            frame.data('.wizard_save_on_next', True)
         # The current step lives in the wizard's own data and reaches the
         # record inside a save the form is already making. The one move that
         # writes it on its own is an advance past the stored step: progress is
@@ -488,7 +491,6 @@ class GroupletHandler(BaseComponent):
                 }
             """
         pane.dataController(on_loaded_js,
-                            innerFormId=step_form_id,
                             frameCode=frameCode,
                             _loaded_pkey='=.wizard_loaded_pkey',
                             _current_resource='=.current_resource',
@@ -498,8 +500,30 @@ class GroupletHandler(BaseComponent):
         grouplet_kwargs.update(resource='^#ANCHOR.current_resource',
                            value=value,
                            loadOnBuilt=True, formId=step_form_id,
-                           form_modalForm=True)
+                           form_modalForm=True,
+                           grouplet_remote__wizard_build='^#ANCHOR.wizard_build')
         grouplet_kwargs['rootTag'] = 'contentPane'
+        # remote_<name> reaches every step, <step>_remote_<name> only that one.
+        # Both resolve where they are written, not inside the step (where #FORM
+        # and relative paths would mean the step form): the wizard reads them
+        # in its own context before each build (wizardResolveRemote).
+        step_labels = [n.label for n in menu_nodes]
+        remote_specs = Bag()
+        specs = [(None, name, v) for name, v in (remote_kwargs or {}).items()]
+        for (step, name), v in step_remote.items():
+            if step not in step_labels:
+                raise ValueError(f'groupletWizard: no step {step!r} for {step}_remote_{name}')
+            specs.append((step, name, v))
+        for step, name, remote_value in specs:
+            spec = dict(name=name, step=step)
+            if isinstance(remote_value, str) and remote_value[:1] in ('=', '^'):
+                spec['path'] = remote_value[1:]
+            else:
+                spec['value'] = remote_value
+            remote_specs.setItem(f'r_{len(remote_specs)}', None, **spec)
+            grouplet_kwargs[f'grouplet_remote_{name}'] = f'=#ANCHOR.wizard_remote.{name}'
+        if remote_specs:
+            frame.data('.wizard_remote_specs', remote_specs)
         if table:
             grouplet_kwargs['table'] = table
         if grouplets_root:
@@ -580,6 +604,27 @@ class GroupletHandler(BaseComponent):
                 SET .wizard_showing_summary = true;
             """, **{f'subscribe_{frameCode}_show_summary': True})
         return frame
+
+    @struct_method
+    def gr_groupletWizardForm(self, form, pane=None, frameCode=None,
+                              saveOnNext=True, **kwargs):
+        """The wizard as the mode of a th form, called from th_form: no toolbar,
+        no padlock, a save on every advance, and the last step saves and closes."""
+        # Emptied, not removed: later builds still insert into the slot.
+        top = form.getNode('top')
+        if top is not None:
+            for label in list(top.value.keys()):
+                top.value.popNode(label)
+        form.attributes['form_parentLock'] = False
+        form.dataController("if(this.form.locked){ this.form.setLocked(false); }",
+                            formsubscribe_onLoaded=True)
+        frameCode = frameCode or f"{form.attributes['formId']}_wizard"
+        form.dataController("this.form.save({destPkey:'*dismiss*', always:true});",
+                            **{f'subscribe_{frameCode}_complete': True})
+        pane = pane if pane is not None else form.center.contentPane()
+        return pane.groupletWizard(table=form.attributes.get('table'),
+                                   value='^.record', frameCode=frameCode,
+                                   saveOnNext=saveOnNext, **kwargs)
 
     def _getGroupletResources(self, table=None, topic=None,
                               grouplets_root=None):
