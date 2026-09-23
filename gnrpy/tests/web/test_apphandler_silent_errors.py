@@ -1,9 +1,10 @@
-"""Five defects of GnrWebAppHandler that give a wrong answer without saying so.
+"""Five defects of GnrWebAppHandler that do not raise on every runtime.
 
-Unlike the ones in ``test_apphandler_hard_errors.py`` these do not raise on
-every runtime: the call returns, and what it returns is wrong. They were found
-while building the handler copy of #1387 and are recorded there as A9, D9, F4,
-DS5 and D8.
+Unlike the ones in ``test_apphandler_hard_errors.py`` the call returns. They
+were found while building the handler copy of #1387 and are recorded there as
+A9, D9, F4, DS5 and D8. Three of them give a wrong answer: A9, D9 and F4. DS5
+and D8 change no result: the code was wrong and is now right, and their tests
+pin what it does.
 
 Two of them do raise, but only on part of the matrix or only on part of the
 signature, which is why they were read as silent: A9 raises on Python 3.11 and
@@ -22,6 +23,7 @@ from sql.conftest import db_sqlite, sqlite_temp_dir        # noqa: F401  (fixtur
 from apphandler_legacy_common import _StandInPage
 
 from gnr.web.gnrwebpage_proxy.apphandler import GnrWebAppHandler
+from gnr.web.gnrwebpage_proxy.apphandler.next import GnrWebAppHandlerNext
 
 
 def setup_module(module):
@@ -43,6 +45,13 @@ def page(db_sqlite, tmp_path):                              # noqa: F811
 @pytest.fixture
 def handler(page):
     return GnrWebAppHandler(page)
+
+
+@pytest.fixture(params=[GnrWebAppHandler, GnrWebAppHandlerNext],
+                ids=['legacy', 'next'])
+def either_handler(request, page):
+    """Both handlers, where the fix has to hold in each of them."""
+    return request.param(page)
 
 
 # ---------------------------------------------------------------------------
@@ -110,7 +119,7 @@ def test_freezed_selection_pkeys_without_a_caption_returns_plain_pkeys(handler):
 #  F4 - the end of a bracket column group
 # ---------------------------------------------------------------------------
 
-def test_bracket_group_closes_on_its_last_column(handler):
+def test_bracket_group_closes_on_its_last_column(either_handler):
     """F4 - the group end was tested after the bracket had been stripped.
 
     ``col`` has already lost its ``]`` when the closing test runs, so
@@ -118,16 +127,16 @@ def test_bracket_group_closes_on_its_last_column(handler):
     prefix of the group: ``$account_name`` became ``@state.$account_name`` and
     the query looked for it on the related table.
     """
-    tblobj = handler.db.table('invc.customer')
-    columns, _ = handler._getSelection_columns(tblobj, '@state[name,code],$account_name')
+    tblobj = either_handler.db.table('invc.customer')
+    columns, _ = either_handler._getSelection_columns(tblobj, '@state[name,code],$account_name')
     assert columns == '@state.name,@state.code,$account_name'
 
 
-def test_bracket_group_query_runs(handler):
+def test_bracket_group_query_runs(either_handler):
     """The column list the group produces is one the database accepts."""
-    rows, _ = handler.getSelection(table='invc.customer',
-                                   columns='@state[name],$account_name',
-                                   order_by='$account_name', limit=2)
+    rows, _ = either_handler.getSelection(table='invc.customer',
+                                          columns='@state[name],$account_name',
+                                          order_by='$account_name', limit=2)
     rows = list(rows)
     assert len(rows) == 2
     assert rows[0].attr['account_name'] is not None
@@ -145,12 +154,14 @@ def test_columns_without_a_group_are_unchanged(handler):
 # ---------------------------------------------------------------------------
 
 def test_search_stages_do_not_share_their_sqlargs(handler, db_sqlite):  # noqa: F811
-    """DS5 - one dict was handed to both ``contains`` and ``startswith``.
+    """DS5 - one dict was handed to both ``contains`` and ``startswith``. A pin.
 
-    The second stage received the dict the first had already filled, so it
-    bound its value next to a label that belonged to the condition no longer
-    being run. The spy lets the real method run and records only the state of
-    the dict it was handed.
+    The second stage received the dict the first had already filled. That
+    changed no answer: the second stage takes its own label from the length of
+    the dict (``storeArgs``), so its condition binds ``:v_1`` and the leftover
+    ``v_0`` is an unused parameter. This pins the dict each stage is handed,
+    not a result. The spy lets the real method run and records only the state
+    of the dict.
     """
     calls = []
     tblobj = db_sqlite.table('invc.customer')

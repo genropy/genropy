@@ -199,7 +199,7 @@ class GetSelectionMixin:
         Returns:
             A tuple ``(data_bag, attributes_dict)``.
 
-
+        Note:
             SMELL: The method has ~40 parameters — a strong indicator
             that it should be decomposed into smaller units or use a
             parameter object.
@@ -439,9 +439,8 @@ class GetSelectionMixin:
                 if '[' in col:
                     tbl, col = col.split('[')
                     maintable = [tbl]
-                # the bracket is what closes the group, so the end has to be
-                # remembered before it is stripped: testing col again below
-                # never fired, and every later column kept the group prefix
+                # the bracket closes the group: its end is read before the
+                # bracket is stripped, so the next column starts without the prefix
                 group_end = col.endswith(']')
                 if group_end:
                     col = col[:-1]
