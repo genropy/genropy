@@ -181,10 +181,13 @@ class GnrCustomWebPage(object):
             view_store__onStart=True)
 
     def test_11_wizard_resume(self, pane):
-        """resumeStepField: move a saved ticket to step 3 and save, open
-        another ticket, reopen the first: it opens on step 3. Moving back
-        without editing and closing asks nothing. A NEW record opens on
-        step 1."""
+        """groupletWizardForm with resumeStepField: no toolbar, no padlock.
+        Move a saved ticket to step 3 and save, open another ticket, reopen
+        the first: it opens on step 3. Moving back without editing and
+        closing asks nothing. A NEW record opens on step 1. The recap shows
+        the subject (recap_remote_subject, that step only) and the note
+        (remote_ticket_note, every step); reopening another ticket on the
+        recap shows its subject, not the previous one."""
         pane.borderContainer(height='500px').contentPane(
             region='center').dialogTableHandler(
             table='test.myticket',

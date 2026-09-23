@@ -72,14 +72,14 @@ class FormWizard(BaseComponent):
 
 
 class FormWizardResume(FormWizard):
-    """resumeStepField: the step reaches the column only inside a save, and
-    a saved ticket reopens on the step it was saved on."""
+    """groupletWizardForm: the wizard owns the form (no toolbar, no padlock,
+    a save on every advance) and a saved ticket reopens on its step."""
 
     def th_form(self, form):
-        form.center.contentPane().groupletWizard(
-            table='test.myticket',
-            value='^.record',
+        form.groupletWizardForm(
             frameCode='ticket_wizard_resume',
             grouplets_root='wizard_grouplets',
             resumeStepField='wizard_step',
+            remote_ticket_note='resume test',
+            recap_remote_subject='=#FORM.record.subject',
             completeLabel='Complete Ticket')
