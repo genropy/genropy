@@ -33,10 +33,14 @@ var gnr_grouplet = {
         if (!isLast) {
             this._wizardSetStepName(frameNode, idx + 1, true);
         }
-        // lazySave: a silent save, no 'saved' toast on every page.
-        if (!isLast && frameNode.form &&
-                frameNode.getRelativeData('.wizard_save_on_next')) {
-            frameNode.form.lazySave();
+        // lazySave: a silent save, no 'saved' toast on every page. On a saved
+        // record it reloads nothing, so no load consumes wizard_saved_pkey.
+        var mainForm = frameNode.form;
+        if (!isLast && mainForm && frameNode.getRelativeData('.wizard_save_on_next')) {
+            var clearMark = mainForm.isNewRecord() ? null : function() {
+                frameNode.setRelativeData('.wizard_saved_pkey', null);
+            };
+            mainForm.lazySave(clearMark);
         }
         if (currentNode) {
             genro.publish(frameCode + '_step_complete',
@@ -49,8 +53,34 @@ var gnr_grouplet = {
         }
     },
 
+    wizardConfirm: function(frameCode) {
+        var mainForm = genro.getFrameNode(frameCode).form;
+        var stepForm = genro.formById(frameCode + '_step_form');
+        var confirm = function() {
+            mainForm.setDraft(false);
+            mainForm.sourceNode.setRelativeData('.wizard_confirming', true);
+            if (typeof mainForm.save({always: true}) == 'string') {
+                mainForm.sourceNode.setRelativeData('.wizard_confirming', false);
+                mainForm.setDraft(true);
+            }
+        };
+        if (stepForm && !stepForm.isValid()) {
+            genro.publish('floating_message', {
+                message: _T('!!Please complete required fields'),
+                messageType: 'warning'
+            });
+            return;
+        }
+        if (stepForm && stepForm.changed) {
+            stepForm.save({onReload: confirm});
+        } else {
+            confirm();
+        }
+    },
+
     wizardGoTo: function(sourceNode, targetIdx, frameCode) {
         var frameNode = genro.getFrameNode(frameCode);
+        if (frameNode.getRelativeData('.wizard_readonly')) { return; }
         var idx = frameNode.getRelativeData('.step_index');
         var showingSummary = frameNode.getRelativeData('.wizard_showing_summary');
         if (showingSummary) {

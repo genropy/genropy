@@ -375,7 +375,9 @@ class GroupletHandler(BaseComponent):
                           closeLabel=None, backLabel=None,
                           saveMainFormOnComplete=None, saveOnNext=None, resumeStepField=None,
                           grouplets_root=None, grouplet_kwargs=True, remote_kwargs=None,
-                          **kwargs):
+                          stepperPosition=None,
+                          _confirmedReadOnly=False, _bottomCb=None,
+                          _confirmOnLast=False, **kwargs):
         frameCode = frameCode or 'grplt_wizard'
         completeLabel = completeLabel or '!![en]Confirm'
         closeLabel = closeLabel or '!![en]Close'
@@ -388,6 +390,11 @@ class GroupletHandler(BaseComponent):
         step_remote = {}
         for key in [k for k in kwargs if '_remote_' in k]:
             step_remote[tuple(key.split('_remote_', 1))] = kwargs.pop(key)
+        vertical = stepperPosition == 'left'
+        if vertical:
+            # the rail runs the full height, the footer sits under the step only
+            kwargs.setdefault('design', 'sidebar')
+            kwargs['_class'] = ' '.join(filter(None, [kwargs.get('_class'), 'wizard_vertical']))
         frame = pane.framePane(frameCode=frameCode, _anchor=True, **kwargs)
         menu = self.gr_getGroupletMenu(table=table, topic=topic,
                                        grouplets_root=grouplets_root)
@@ -400,6 +407,7 @@ class GroupletHandler(BaseComponent):
         total_steps = len(menu)
         frame.data('.wizard_steps', menu)
         frame.data('.step_index', 0)
+        frame.data('.wizard_last_index', total_steps - 1)
         if has_summary:
             frame.data('.summary_editable', summary_editable)
         menu_nodes = menu.getNodes()
@@ -409,7 +417,10 @@ class GroupletHandler(BaseComponent):
             frame.data('.next_label',
                        menu_nodes[1].attr.get('grouplet_caption')
                        if total_steps > 1 else completeLabel)
-        stepper_bar = frame.top.div(_class='wizard_stepper_bar')
+        if vertical:
+            stepper_bar = frame.left.div(_class='wizard_stepper_bar wizard_stepper_vertical')
+        else:
+            stepper_bar = frame.top.div(_class='wizard_stepper_bar')
         if has_summary:
             summary_caption = root_info.get('summary_caption', 'Summary')
             stepper_bar.div(summary_caption,
@@ -433,19 +444,42 @@ class GroupletHandler(BaseComponent):
             item.div(mnode.attr.get('grouplet_caption'),
                      _class='wizard_caption')
         step_form_id = f'{frameCode}_step_form'
-        # A different record opens on the first step, or, with resumeStepField,
-        # on the step stored in that column. The reload of the record just
-        # saved (onSaved publishes before it) keeps the current step. SET, not
-        # FIRE: FIRE leaves step_index null and the next advance would restart
-        # from 0. Already on the target step, wizard_build rebuilds it: its
-        # content and its step form still hold the previous record.
+        # The reload that follows the wizard's own save (onSaved sets
+        # wizard_saved_pkey before it, this load consumes it) changes nothing,
+        # unless it switched read-only (a confirm). Another load of the same
+        # record (a reload after an rpc) stays on the step and rebuilds it,
+        # unless it switched read-only. A different or
+        # new record repositions: first step, the step stored in
+        # resumeStepField, or the last one when read-only. SET, not FIRE: FIRE
+        # leaves step_index null and the next advance would restart from 0.
+        # Already on the target step, wizard_build rebuilds it: its content
+        # still shows the record as it was.
         on_loaded_js = """
             var pkey = this.form.getCurrentPkey();
             var isNew = this.form.isNewRecord();
-            if(isNew || pkey != _loaded_pkey){
+            var ownSave = !isNew && pkey == _saved_pkey;
+            SET .wizard_saved_pkey = null;
+            var confirmed = !isNew && !this.form.isDraft();
+            var readOnly = confirmed_ro && !isNew
+                           && (confirmed || this.form.isProtectWrite());
+            var sameMode = !readOnly == !_was_readonly;
+            var sameRecord = !isNew && pkey == _loaded_pkey && sameMode;
+            SET .wizard_readonly = readOnly;
+            SET .wizard_confirmed = confirmed;
+            SET .wizard_loaded_pkey = pkey;
+            if(ownSave && sameMode){
+                return;
+            }
+            if(sameRecord){
+                var current = _steps.getNodes()[_step_index];
+                gnr_grouplet.wizardResolveRemote(this, current ? current.label : null);
+                FIRE .wizard_build;
+            }else{
                 var nodes = _steps.getNodes();
                 var target = 0;
-                if(!isNew && step_field){
+                if(readOnly){
+                    target = nodes.length - 1;
+                }else if(!isNew && step_field){
                     var stored = this.form.getFormData().getItem(step_field);
                     target = Math.max(nodes.findIndex(function(n){return n.label == stored;}), 0);
                 }
@@ -456,7 +490,6 @@ class GroupletHandler(BaseComponent):
                 SET .step_index = target;
                 SET .wizard_step_name = nodes[target] ? nodes[target].label : null;
             }
-            SET .wizard_loaded_pkey = pkey;
         """
         if saveOnNext:
             frame.data('.wizard_save_on_next', True)
@@ -474,11 +507,10 @@ class GroupletHandler(BaseComponent):
             """, _fired='^#FORM.controller.saving', step_name='=.wizard_step_name',
                 step_field=resumeStepField)
         if not has_summary:
-            pane.dataController("SET .wizard_loaded_pkey = $1.pkey;",
+            pane.dataController("SET .wizard_saved_pkey = $1.pkey;",
                                 formsubscribe_onSaved=True)
-            # A dismiss clears the pkey without a load: reopening the same
-            # record is a new visit, not the reload of a save.
-            pane.dataController("SET .wizard_loaded_pkey = null;",
+            # a save followed by no load (a dismiss) must not mark the next one
+            pane.dataController("SET .wizard_saved_pkey = null; SET .wizard_loaded_pkey = null;",
                                 formsubscribe_onDismissed=True)
         if has_summary:
             on_loaded_js = """
@@ -492,10 +524,14 @@ class GroupletHandler(BaseComponent):
             """
         pane.dataController(on_loaded_js,
                             frameCode=frameCode,
+                            _saved_pkey='=.wizard_saved_pkey',
                             _loaded_pkey='=.wizard_loaded_pkey',
+                            _was_readonly='=.wizard_readonly',
+                            _step_index='=.step_index',
                             _current_resource='=.current_resource',
                             _steps='=.wizard_steps',
                             step_field=resumeStepField,
+                            confirmed_ro=_confirmedReadOnly,
                             formsubscribe_onLoaded=True)
         grouplet_kwargs.update(resource='^#ANCHOR.current_resource',
                            value=value,
@@ -551,8 +587,11 @@ class GroupletHandler(BaseComponent):
             back_kwargs['hidden'] = '==_idx==0 || _showing'
             back_kwargs['_showing'] = '^.wizard_showing_summary'
         else:
-            back_kwargs['hidden'] = '==_idx==0'
+            back_kwargs['hidden'] = '==_idx==0 || _readonly'
+            back_kwargs['_readonly'] = '^.wizard_readonly'
         bottom.lightButton(backLabel, **back_kwargs)
+        if _bottomCb:
+            _bottomCb(bottom)
         if has_summary:
             bottom.lightButton('^.next_label',
                                _class='wizard_next_btn',
@@ -566,10 +605,14 @@ class GroupletHandler(BaseComponent):
                                hidden='==!_showing',
                                _showing='^.wizard_showing_summary')
         else:
+            # with _confirmOnLast the last step's buttons come from _bottomCb
             bottom.lightButton('^.next_label',
                                _class='wizard_next_btn',
                                action="gnr_grouplet.wizardNext(this, _frameCode);",
-                               _frameCode=frameCode)
+                               _frameCode=frameCode,
+                               hidden='==_ro || (_col && _idx==_last)',
+                               _ro='^.wizard_readonly', _col=_confirmOnLast,
+                               _idx='^.step_index', _last='^.wizard_last_index')
         frame.dataController(
             "gnr_grouplet.wizardUpdateStep(this, idx, _completeLabel, _frameCode);",
             idx='^.step_index',
@@ -607,24 +650,117 @@ class GroupletHandler(BaseComponent):
 
     @struct_method
     def gr_groupletWizardForm(self, form, pane=None, frameCode=None,
-                              saveOnNext=True, **kwargs):
+                              saveOnNext=True, confirmedReadOnly=False,
+                              draftConfirm=False, backToDraft=None,
+                              saveDraftLabel=None, backToDraftLabel=None,
+                              confirmAsk=None, backToDraftAsk=None, **kwargs):
         """The wizard as the mode of a th form, called from th_form: no toolbar,
-        no padlock, a save on every advance, and the last step saves and closes."""
+        no padlock, a save on every advance, and the last step saves and closes.
+        On a draftField table, confirmedReadOnly opens a confirmed (or
+        protect_write) record on the last step, locked and without navigation:
+        new records must start as drafts. draftConfirm (implies
+        confirmedReadOnly) splits a draft's last step into Save draft (saves
+        and closes) and completeLabel (confirms, saves and reloads read-only);
+        a confirmed record gets Back to draft in place of Back, if backToDraft
+        allows it (True: everyone, a string: the user tags)."""
+        confirmedReadOnly = confirmedReadOnly or draftConfirm
         # Emptied, not removed: later builds still insert into the slot.
         top = form.getNode('top')
         if top is not None:
             for label in list(top.value.keys()):
                 top.value.popNode(label)
         form.attributes['form_parentLock'] = False
-        form.dataController("if(this.form.locked){ this.form.setLocked(false); }",
-                            formsubscribe_onLoaded=True)
+        form.dataController("""
+            var readOnly = confirmed_ro && !this.form.isNewRecord()
+                           && (!this.form.isDraft() || this.form.isProtectWrite());
+            if(!!this.form.locked != readOnly){ this.form.setLocked(readOnly); }
+        """, confirmed_ro=confirmedReadOnly, formsubscribe_onLoaded=True)
         frameCode = frameCode or f"{form.attributes['formId']}_wizard"
         form.dataController("this.form.save({destPkey:'*dismiss*', always:true});",
                             **{f'subscribe_{frameCode}_complete': True})
-        pane = pane if pane is not None else form.center.contentPane()
+        bottomCb = None
+        if draftConfirm:
+            bottomCb = self._wizardDraftButtons(form, frameCode=frameCode,
+                                                backToDraft=backToDraft,
+                                                completeLabel=kwargs.get('completeLabel'),
+                                                saveDraftLabel=saveDraftLabel,
+                                                backToDraftLabel=backToDraftLabel,
+                                                confirmAsk=confirmAsk,
+                                                backToDraftAsk=backToDraftAsk)
+        if pane is None:
+            # a border region: a plain contentPane does not pass a dialog's
+            # resize down to the wizard's frame, which then stays 0 high
+            pane = form.center.borderContainer().contentPane(region='center')
         return pane.groupletWizard(table=form.attributes.get('table'),
                                    value='^.record', frameCode=frameCode,
-                                   saveOnNext=saveOnNext, **kwargs)
+                                   saveOnNext=saveOnNext,
+                                   _confirmedReadOnly=confirmedReadOnly,
+                                   _confirmOnLast=draftConfirm,
+                                   _bottomCb=bottomCb, **kwargs)
+
+    def _wizardDraftButtons(self, form, frameCode=None, backToDraft=None,
+                            completeLabel=None, saveDraftLabel=None,
+                            backToDraftLabel=None, confirmAsk=None,
+                            backToDraftAsk=None):
+        completeLabel = completeLabel or '!![en]Confirm'
+        backToDraftLabel = backToDraftLabel or '!![en]Back to draft'
+        back_tags = None if backToDraft is True else backToDraft
+        can_back = bool(backToDraft) and self.application.checkResourcePermission(
+            back_tags, self.userTags)
+        if backToDraft:
+            # the rpc reads its permission from here, never from the client
+            with self.pageStore() as store:
+                store.setItem(f'grouplet_wizard.{frameCode}.back_to_draft_table',
+                              form.attributes.get('table'))
+                store.setItem(f'grouplet_wizard.{frameCode}.back_to_draft_tags', back_tags)
+        form.dataController(f"gnr_grouplet.wizardConfirm('{frameCode}');",
+                            _ask=confirmAsk or '!![en]Once confirmed, the record can no longer be edited.',
+                            _ask_title=completeLabel,
+                            **{f'subscribe_{frameCode}_confirm': True})
+        form.dataController("SET .wizard_confirming = false;", formsubscribe_onSaved=True)
+        # a refused confirm must not leave the record flagged for the next save
+        form.dataController("""
+            if(!confirming){ return; }
+            SET .wizard_confirming = false;
+            this.form.setDraft(true);
+        """, confirming='=.wizard_confirming', formsubscribe_onSaveFailed=True)
+        if can_back:
+            # the method object, not its name: it carries the mixin path, so the
+            # rpc finds it also on a page that got the component through a th resource
+            form.dataRpc(None, self.grouplet_wizardBackToDraft,
+                         frameCode=frameCode, pkey='=#FORM.pkey',
+                         _onResult='this.form.reload();',
+                         _ask=backToDraftAsk or '!![en]The record goes back to draft and can be edited again.',
+                         _ask_title=backToDraftLabel,
+                         **{f'subscribe_{frameCode}_back_to_draft': True})
+
+        def bottomCb(bottom):
+            if can_back:
+                bottom.lightButton(backToDraftLabel, _class='wizard_back_btn',
+                                   action="genro.publish(_fc + '_back_to_draft');",
+                                   _fc=frameCode,
+                                   hidden='==!(_ro && _c)', _ro='^.wizard_readonly',
+                                   _c='^.wizard_confirmed')
+            last_kw = dict(hidden='==_ro || _idx!=_last', _ro='^.wizard_readonly',
+                           _idx='^.step_index', _last='^.wizard_last_index',
+                           _fc=frameCode)
+            bottom.lightButton(saveDraftLabel or '!![en]Save draft',
+                               _class='wizard_save_draft_btn',
+                               action="gnr_grouplet.wizardNext(this, _fc);", **last_kw)
+            bottom.lightButton(completeLabel, _class='wizard_next_btn',
+                               action="genro.publish(_fc + '_confirm');", **last_kw)
+        return bottomCb
+
+    @public_method
+    def grouplet_wizardBackToDraft(self, frameCode=None, pkey=None):
+        store = self.pageStore()
+        table = store.getItem(f'grouplet_wizard.{frameCode}.back_to_draft_table')
+        tags = store.getItem(f'grouplet_wizard.{frameCode}.back_to_draft_tags')
+        if not (table and pkey) or not self.application.checkResourcePermission(tags, self.userTags):
+            raise self.exception('generic', msg='!![en]Not allowed to take this record back to draft')
+        with self.db.table(table).recordToUpdate(pkey) as record:
+            record['__is_draft'] = True
+        self.db.commit()
 
     def _getGroupletResources(self, table=None, topic=None,
                               grouplets_root=None):

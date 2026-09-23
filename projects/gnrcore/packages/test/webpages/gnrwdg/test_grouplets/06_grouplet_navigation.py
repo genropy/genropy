@@ -187,11 +187,25 @@ class GnrCustomWebPage(object):
         closing asks nothing. A NEW record opens on step 1. The recap shows
         the subject (recap_remote_subject, that step only) and the note
         (remote_ticket_note, every step); reopening another ticket on the
-        recap shows its subject, not the previous one."""
+        recap shows its subject, not the previous one. draftConfirm: a ticket
+        that is not a draft opens on the recap, locked, with only Back to
+        draft (backToDraft); a draft's recap has Save draft (saves and closes)
+        and Complete Ticket (asks, confirms, reloads read-only)."""
         pane.borderContainer(height='500px').contentPane(
             region='center').dialogTableHandler(
             table='test.myticket',
             datapath='.ticket_wizard_resume',
             viewResource='ViewWizard',
             formResource='FormWizardResume',
+            view_store__onStart=True)
+
+    def test_12_wizard_left(self, pane):
+        """test_11 with stepperPosition='left': the steps in a rail on the
+        left, full height, the footer under the step only."""
+        pane.borderContainer(height='500px').contentPane(
+            region='center').dialogTableHandler(
+            table='test.myticket',
+            datapath='.ticket_wizard_left',
+            viewResource='ViewWizard',
+            formResource='FormWizardLeft',
             view_store__onStart=True)
