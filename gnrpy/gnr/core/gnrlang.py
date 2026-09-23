@@ -248,8 +248,15 @@ def gnrImport(source, importAs=None, avoidDup=False, silent=True,avoid_module_ca
         if not silent:
             raise
         module = None
-    sys.modules[modkey] = module
-    return module
+    if avoid_module_cache:
+        # The caller explicitly asked for a fresh re-import: it must win over
+        # (and replace) any previously cached module.
+        sys.modules[modkey] = module
+        return module
+    # First-wins publication: two threads racing on the same not-yet-cached
+    # file may both exec it; converging on the first published module keeps a
+    # single class identity per module (isinstance checks depend on it).
+    return sys.modules.setdefault(modkey, module)
 
 class GnrException(Exception):
     """Standard Gnr Exception"""

@@ -24,10 +24,12 @@
 #Copyright (c) 2007 Softwell. All rights reserved.
 
 
+import inspect
 import os
+import threading
 from datetime import datetime
 
-from gnr.core.gnrlang import  gnrImport
+from gnr.core.gnrlang import  gnrImport, GnrException
 from gnr.core.gnrbag import Bag
 from gnr.lib import logger
 
@@ -77,20 +79,30 @@ class ServiceHandler(object):
         return self.service_types[service_type]
 
 class BaseServiceType(object):
-    
+
+    # A service type with more than one implementation must name its default
+    # here: resolution never picks one on its own (see issue #1386)
+    defaultImplementation = None
+
     def __init__(self, site=None, service_type=None, domain=None, **kwargs):
         self.site = site
         self.service_type = service_type
         self.domain = domain
-        self.service_instances = {}   
-        
+        self.service_instances = {}
+        self._implementations = None
+        self._implementation_failures = {}
+        self._implementations_lock = threading.RLock()
+
     def addService(self, service_name=None, **kwargs):
         service_conf = kwargs or self.getConfiguration(service_name)
         if not service_conf:
             return
         implementation = service_conf.pop('implementation',None) or service_conf.pop('resource',None) #resource is the oldname for implementation
         service_factory = self.getServiceFactory(implementation)
-        service_conf = service_conf or {}
+        if service_factory is None:
+            return self._addUnresolvedService(implementation, service_name)
+        service_conf = self.filterServiceConf(service_factory, service_conf or {},
+                                              service_name=service_name, implementation=implementation)
         service = service_factory(self.site, **service_conf)
         service.service_name = service_name
         service.service_type = self.service_type
@@ -98,6 +110,21 @@ class BaseServiceType(object):
         service._service_creation_ts = datetime.now()
         self.service_instances[service_name] = service
         return service
+
+    def filterServiceConf(self, service_factory, service_conf, service_name=None, implementation=None):
+        # The parameters bag is shared by every implementation of every service type,
+        # so it can carry keys a given factory never declared (see issue #1181).
+        try:
+            parameters = inspect.signature(service_factory).parameters
+        except (TypeError, ValueError):
+            return service_conf
+        if any(p.kind is p.VAR_KEYWORD for p in parameters.values()):
+            return service_conf
+        unknown = sorted(k for k in service_conf if k not in parameters)
+        if unknown:
+            logger.warning("Service %s/%s: implementation %s does not accept parameters %s: ignored",
+                           self.service_type, service_name, implementation, ', '.join(unknown))
+        return {k: v for k, v in service_conf.items() if k in parameters}
 
     def getConfiguration(self, service_name):
         return self.getServiceConfigurationFromDb(service_name) or \
@@ -161,68 +188,101 @@ class BaseServiceType(object):
             conf = self.site.config.getAttr('services.%s.%s' % (self.service_type, service_name))
         return dict(conf) if conf else {}
 
-    @property
-    def implementations(self):
-        if not hasattr(self,'_implementations'):
-            self._implementations = {}
-            dirs = self.site.resource_loader.getResourceList(self.site.resources_dirs, 'services/%s' %(self.service_type))
-            dirs.reverse()
-            self.baseImplementation = None
-            for d in dirs:
-                for impl in os.listdir(d):
-                    implname,implext = os.path.splitext(impl)
-                    impl = os.path.join(d,impl)
-                    if os.path.isdir(impl):
-                        impl = os.path.join(d, impl, 'service.py')
-                        if not os.path.exists(impl):
-                            continue
-                        implext = '.py'
-                    if implext!='.py':
-                        continue
-                    try:
-                        module = gnrImport(impl,avoidDup=True)
-                        service_class = getattr(module, 'Service',None) or getattr(module, 'Main', None) #backward compatibility
-                        self._implementations[implname] =  service_class
-                    except ImportError as imperr:
-                        logger.exception("Could not import %s", impl)
-                        logger.exception(str(imperr))
-                    
-                    if not self.baseImplementation:
-                        self.baseImplementation = implname
-
-        return self._implementations
-
-    def getImplementations(self):
+    def _buildImplementations(self):
         result = {}
+        failures = {}
         dirs = self.site.resource_loader.getResourceList(self.site.resources_dirs, 'services/%s' % (self.service_type))
         dirs.reverse()
-        baseImplementation = None
         for d in dirs:
             for impl in os.listdir(d):
                 implname,implext = os.path.splitext(impl)
-                impl = os.path.join(d,impl)
-                if os.path.isdir(impl):
-                    impl = os.path.join(d,impl,'service.py')
-                    if not os.path.exists(impl):
+                implpath = os.path.join(d,impl)
+                if os.path.isdir(implpath):
+                    implpath = os.path.join(implpath,'service.py')
+                    if not os.path.exists(implpath):
                         continue
                     implext = '.py'
                 if implext!='.py':
                     continue
                 try:
-                    module = gnrImport(impl, avoidDup=True)
-                    service_class = getattr(module, 'Service', None) or getattr(module, 'Main', None) #backward compatibility
-                    result[implname] =  service_class
-                except ImportError as imperr:
-                    logger.exception("Could not import %s", impl)
-                    logger.exception(str(imperr))
-                if not baseImplementation:
-                    baseImplementation = implname
-        return result, baseImplementation
+                    module = gnrImport(implpath, avoidDup=True)
+                except Exception as err:
+                    # a broken implementation must not take down its siblings,
+                    # and the reason has to outlive the log line (issue #1386)
+                    logger.exception("Could not import %s", implpath)
+                    failures[implname] = err
+                    continue
+                service_class = getattr(module, 'Service', None) or getattr(module, 'Main', None) #backward compatibility
+                if service_class is None:
+                    logger.warning("No Service class found in %s", implpath)
+                    failures[implname] = GnrException('neither Service nor Main is defined in %s' % implpath)
+                    continue
+                result[implname] = service_class
+                failures.pop(implname, None)
+        return result, failures
+
+    @property
+    def implementations(self):
+        # Built atomically under lock: concurrent first accesses must never
+        # see a partially populated registry (factory would resolve to None)
+        if self._implementations is None:
+            with self._implementations_lock:
+                if self._implementations is None:
+                    implementations, failures = self._buildImplementations()
+                    self._implementation_failures = failures
+                    self._implementations = implementations
+        return self._implementations
+
+    def getImplementations(self):
+        return self.implementations, self.defaultImplementation
 
     def getServiceFactory(self, implementation=None):
-        implementations, baseImplementation = self.getImplementations()
-        return implementations.get(implementation) or implementations.get(baseImplementation)
-    
+        implementations = self.implementations
+        if implementation is not None:
+            return implementations.get(implementation)
+        if len(implementations) == 1:
+            return list(implementations.values())[0]
+        return implementations.get(self.defaultImplementation)
+
+    def _unresolvedImplementationError(self, implementation, service_name):
+        available = ', '.join(sorted(self.implementations)) or 'none'
+        reason = None
+        if implementation is not None:
+            reason = self._implementation_failures.get(implementation)
+            if reason is not None:
+                error = GnrException(
+                    'implementation %r of service type %r could not be loaded: %s (service %r)'
+                    % (implementation, self.service_type, reason, service_name))
+            else:
+                error = GnrException(
+                    'no implementation %r for service type %r (service %r). Available: %s'
+                    % (implementation, self.service_type, service_name, available))
+        elif len(self.implementations) > 1:
+            error = GnrException(
+                'service type %r declares no defaultImplementation and none was requested '
+                '(service %r). Available: %s'
+                % (self.service_type, service_name, available))
+        else:
+            error = GnrException('no implementation available for service type %r (service %r)'
+                                 % (self.service_type, service_name))
+        if reason is not None:
+            error.__cause__ = reason
+        return error
+
+    def _addUnresolvedService(self, implementation, service_name, config_from_db=False):
+        # A configuration that no longer resolves must not stop a site that never
+        # touches the service: registering raises nothing and logs instead, and the
+        # error is raised by the first use. Substituting another implementation is
+        # what issue #1386 forbids, so the placeholder is what takes its place.
+        error = self._unresolvedImplementationError(implementation, service_name)
+        logger.error('Service %s/%s is unusable: %s', self.service_type, service_name, error)
+        service = GnrUnresolvedService(error=error, service_name=service_name,
+                                       service_type=self.service_type,
+                                       implementation=implementation,
+                                       config_from_db=config_from_db)
+        self.service_instances[service_name] = service
+        return service
+
     @property
     def default_service_name(self):
         return self.service_type
@@ -237,6 +297,51 @@ class BaseServiceType(object):
             service = self.addService(service_name, **kwargs)
         return service
 
+
+
+class GnrUnresolvedService(object):
+    """Stands in for a service whose implementation did not resolve.
+
+    Every attribute access and every call raises the error the registration
+    logged, so the misconfiguration surfaces where the service is used, naming
+    the implementation and the reason, instead of at startup or as another
+    implementation quietly taking its place.
+
+    Only dunder lookups answer AttributeError: hasattr(service, 'send') raises
+    like the call it precedes, rather than returning False, so this object is
+    never a safe probe for whether a service works.
+    """
+
+    def __init__(self, error=None, service_name=None, service_type=None,
+                 implementation=None, config_from_db=False):
+        self._error = error
+        self.service_name = service_name
+        self.service_type = service_type
+        self.service_implementation = implementation
+        self._service_creation_ts = datetime.now()
+        self._config_from_db = config_from_db
+
+    @property
+    def unresolved_reason(self):
+        return self._error
+
+    def _raise(self):
+        # a new exception every time: re-raising one instance appends the new
+        # frames to the traceback it already carries, so the chain -- and every
+        # frame's locals, page and request included -- would grow and stay alive
+        # for as long as this placeholder does, which is the life of the worker
+        raise GnrException(self._error.description) from self._error.__cause__
+
+    def __getattr__(self, name):
+        # protocol lookups (copy, pickle, pytest introspection) must keep
+        # answering AttributeError, or copying this object raises instead of
+        # falling back to the default behaviour
+        if name.startswith('__') and name.endswith('__'):
+            raise AttributeError(name)
+        self._raise()
+
+    def __call__(self, *args, **kwargs):
+        self._raise()
 
 
 class GnrBaseService(object):
