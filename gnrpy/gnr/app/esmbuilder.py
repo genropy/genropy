@@ -101,6 +101,137 @@ def _semver_tuple(version_str):
         return None
 
 
+_EXACT_VERSION_RE = re.compile(r'^v?\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$')
+_DIST_TAG_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9_-]*$')
+_HYPHEN_RANGE_RE = re.compile(r'^(\S+)\s+-\s+(\S+)$')
+_COMPARATOR_RE = re.compile(r'^(\^|~>?|>=|<=|>|<|=)?(.*)$')
+_PARTIAL_RE = re.compile(
+    r'^v?(\d+|[xX*])?(?:\.(\d+|[xX*]))?(?:\.(\d+|[xX*]))?(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$'
+)
+
+
+def _is_exact_version(version):
+    return bool(_EXACT_VERSION_RE.match(version))
+
+
+def _is_dist_tag(version):
+    # 'x' / 'X' look like a tag but are the X-range wildcard
+    return bool(_DIST_TAG_RE.match(version)) and version not in ('x', 'X')
+
+
+def _parse_partial(text):
+    """'1.2.3' -> (1, 2, 3); '1.x' / '1' -> (1,); '*' / 'x' / '' -> ().
+    Components after the first wildcard are ignored, as node-semver does."""
+    m = _PARTIAL_RE.match(text)
+    if not m:
+        raise ValueError(text)
+    parts = []
+    for group in m.groups():
+        if group is None or group in ('x', 'X', '*'):
+            break
+        parts.append(int(group))
+    return tuple(parts)
+
+
+def _pad(parts):
+    return tuple(parts) + (0,) * (3 - len(parts))
+
+
+def _bump(parts, index):
+    """Increment component `index` of a (possibly partial) version, zeroing the rest."""
+    padded = _pad(parts)
+    return tuple(list(padded[:index]) + [padded[index] + 1] + [0] * (2 - index))
+
+
+def _comparator(op, parts):
+    """Desugar one node-semver comparator into a predicate on (major, minor, patch)."""
+    n = len(parts)
+    if n == 0:
+        # '*', 'x', '' and friends: '<*' / '>*' match nothing, everything else matches all
+        return (lambda t: False) if op in ('<', '>') else (lambda t: True)
+    floor = _pad(parts)
+    if op in ('', '='):
+        if n == 3:
+            return lambda t: t == floor
+        ceiling = _bump(parts, n - 1)
+        return lambda t: floor <= t < ceiling
+    if op == '^':
+        if parts[0] > 0 or n == 1:
+            ceiling = _bump(parts, 0)
+        elif parts[1] > 0 or n == 2:
+            ceiling = _bump(parts, 1)
+        else:
+            ceiling = _bump(parts, 2)
+        return lambda t: floor <= t < ceiling
+    if op in ('~', '~>'):
+        ceiling = _bump(parts, 0 if n == 1 else 1)
+        return lambda t: floor <= t < ceiling
+    if op == '>=':
+        return lambda t: t >= floor
+    if op == '<':
+        return lambda t: t < floor
+    if op == '>':
+        if n == 3:
+            return lambda t: t > floor
+        ceiling = _bump(parts, n - 1)
+        return lambda t: t >= ceiling
+    if op == '<=':
+        if n == 3:
+            return lambda t: t <= floor
+        ceiling = _bump(parts, n - 1)
+        return lambda t: t < ceiling
+    raise ValueError(op)
+
+
+def _hyphen_range(low, high):
+    low_parts, high_parts = _parse_partial(low), _parse_partial(high)
+    lower = _comparator('>=', low_parts)
+    upper = _comparator('<=', high_parts)
+    return lambda t: lower(t) and upper(t)
+
+
+def _range_predicate(spec):
+    """Compile an npm semver range into a predicate on (major, minor, patch).
+
+    Covers the node-semver range grammar: '||' unions, whitespace-separated
+    comparator sets (all must hold), hyphen ranges ('1.0.0 - 1.5.0'), X-ranges
+    ('*', '1.x', '>=17.x'), and the '^', '~', '>=', '>', '<=', '<', '='
+    operators. Pre-release tags inside the range are ignored: only stable
+    versions are ever candidates. Raises ValueError on anything else.
+    """
+    alternatives = []
+    for alternative in spec.split('||'):
+        alternative = alternative.strip()
+        hyphen = _HYPHEN_RANGE_RE.match(alternative)
+        if hyphen:
+            alternatives.append(_hyphen_range(*hyphen.groups()))
+            continue
+        # node-semver tolerates whitespace between an operator and its version
+        alternative = re.sub(r'(\^|~>?|>=|<=|>|<|=)\s+', r'\1', alternative)
+        comparators = []
+        for token in alternative.split() or ['*']:
+            op, version = _COMPARATOR_RE.match(token).groups()
+            comparators.append(_comparator(op or '', _parse_partial(version)))
+        alternatives.append(lambda t, cs=comparators: all(c(t) for c in cs))
+    return lambda t: any(a(t) for a in alternatives)
+
+
+def _satisfies(version, spec):
+    """True when an exact version satisfies an npm range, exact version or dist-tag
+    (a dist-tag is satisfied by any version: it cannot be checked offline)."""
+    if _is_dist_tag(spec):
+        return True
+    if _is_exact_version(spec):
+        return _semver_tuple(spec.lstrip('v')) == _semver_tuple(version)
+    nums = _semver_tuple(version)
+    if nums is None or len(nums) != 3:
+        return False
+    try:
+        return _range_predicate(spec)(nums)
+    except ValueError:
+        return False
+
+
 class EsmBuilder:
     """Download npm packages and bundle them as ESM modules using esbuild."""
 
@@ -188,8 +319,11 @@ class EsmBuilder:
         if self._esbuild and os.path.isfile(self._esbuild):
             return self._esbuild
 
-        bin_name = 'esbuild.exe' if sys.platform == 'win32' else 'esbuild'
-        cached = os.path.join(self.cache_dir, bin_name)
+        # The version is part of the cached name so that bumping _ESBUILD_VERSION
+        # (or a binary left behind by an older, unpinned download) never keeps
+        # serving a stale esbuild from a warm cache.
+        suffix = '.exe' if sys.platform == 'win32' else ''
+        cached = os.path.join(self.cache_dir, f'esbuild-{_ESBUILD_VERSION}{suffix}')
         if os.path.isfile(cached) and os.access(cached, os.X_OK):
             self._esbuild = cached
             return cached
@@ -286,75 +420,38 @@ class EsmBuilder:
 
     def _needs_resolution(self, version):
         """Return True when version is a semver range rather than an exact version or dist-tag."""
-        if re.match(r'^\d+\.\d+\.\d+', version):
-            return False  # exact: 18.2.0 or 18.2.0-rc.0
-        if re.match(r'^[a-zA-Z][a-zA-Z0-9_-]*$', version):
-            return False  # dist-tag: latest, next, beta
-        return True  # partial or range: 18, ^18.0.0, ~18.2, >=18
+        return not (_is_exact_version(version) or _is_dist_tag(version))
 
     def _resolve_version(self, name, spec):
-        """Resolve a partial/range version spec to an exact version string.
+        """Resolve a range version spec to an exact version string.
 
         Fetches the full package manifest from the npm registry and picks the
-        highest stable version that satisfies the spec.  Operator semantics
-        follow node-semver:
-          ^major.minor.patch -> >=major.minor.patch, <(major+1).0.0
-                                 (or narrower once major is 0, per semver)
-          ~major.minor.patch -> >=major.minor.patch, <major.(minor+1).0
-          >=, >, <=, <, =     -> ordinary numeric comparison
-          bare digits         -> lock as many parts as given (18 -> major=18)
+        highest stable version that satisfies the spec, with range semantics
+        following node-semver (see _range_predicate).
         """
         logger.info(f'Resolving {spec!r} for {name}')
+        satisfies = None
+        if not _is_dist_tag(spec):
+            try:
+                satisfies = _range_predicate(spec)
+            except ValueError:
+                raise RuntimeError(f'Unparseable version spec {spec!r} for {name}') from None
+
         meta = self._fetch_json(_npm_url(name))
 
         dist_tags = meta.get('dist-tags', {})
         if spec in dist_tags:
             return dist_tags[spec]
+        if satisfies is None:
+            raise RuntimeError(f'Unknown dist-tag {spec!r} for {name}')
 
         # Stable versions only (skip pre-releases like 18.0.0-rc.3)
         versions = [v for v in meta.get('versions', {})
                     if '-' not in v.split('+')[0]]
 
-        m = re.match(r'^(\^|~|>=|<=|>|<|=)?\s*(.*)$', spec)
-        op = m.group(1) or ''
-        clean = m.group(2)
-
-        nums = _semver_tuple(clean)
-        if nums is None or not nums:
-            raise RuntimeError(f'Unparseable version spec {spec!r} for {name}')
-
-        floor = nums + (0,) * (3 - len(nums))
-
-        def _bump(t, index):
-            return tuple(list(t[:index]) + [t[index] + 1] + [0] * (2 - index))
-
-        if op == '^':
-            if floor[0] > 0:
-                ceiling = _bump(floor, 0)
-            elif floor[1] > 0:
-                ceiling = _bump(floor, 1)
-            else:
-                ceiling = _bump(floor, 2)
-            satisfies = lambda t: floor <= t < ceiling  # noqa: E731
-        elif op == '~':
-            ceiling = _bump(floor, 1) if len(nums) >= 2 else _bump(floor, 0)
-            satisfies = lambda t: floor <= t < ceiling  # noqa: E731
-        elif op == '>=':
-            satisfies = lambda t: t >= floor  # noqa: E731
-        elif op == '>':
-            satisfies = lambda t: t > floor  # noqa: E731
-        elif op == '<=':
-            satisfies = lambda t: t <= floor  # noqa: E731
-        elif op == '<':
-            satisfies = lambda t: t < floor  # noqa: E731
-        elif op == '=':
-            satisfies = lambda t: t == floor  # noqa: E731
-        else:
-            # bare X-range: lock exactly the components given (18 -> major=18)
-            satisfies = lambda t: t[:len(nums)] == nums  # noqa: E731
-
         matching = [v for v in versions
-                    if (_semver_tuple(v) is not None and satisfies(_semver_tuple(v)))]
+                    if (_semver_tuple(v) is not None and len(_semver_tuple(v)) == 3
+                        and satisfies(_semver_tuple(v)))]
         if not matching:
             raise RuntimeError(f'No stable version matching {spec!r} found for {name}')
 
@@ -366,7 +463,9 @@ class EsmBuilder:
         Returns (pkg_dir, name, resolved_version).
         """
         name, version = self._parse_spec(spec)
+        return self._fetch_package(name, version, force=force)
 
+    def _fetch_package(self, name, version, force=False):
         if self._needs_resolution(version):
             version = self._resolve_version(name, version)
 
@@ -424,11 +523,38 @@ class EsmBuilder:
         if not os.path.exists(link_path):
             os.symlink(pkg_src, link_path)
 
-    def _download_all(self, specs, force=False, max_workers=8):
+    def _download_target(self, name, version_spec, pinned):
+        """Return (registry_name, version) to fetch for a dependency installed as
+        `name` with the given package.json version spec.
+
+        'npm:other@range' aliases fetch `other` but install it under `name`.
+        Non-registry sources (git, tarball URLs, file:, github shorthand) are
+        rejected. A pinned version (from a lock file) replaces the range
+        whenever it still satisfies it, so a rebuild reproduces the locked tree.
+        """
+        registry_name = name
+        if version_spec.startswith('npm:'):
+            registry_name, version_spec = self._parse_spec(version_spec[len('npm:'):])
+        elif ':' in version_spec or '/' in version_spec:
+            raise RuntimeError(
+                f'Unsupported dependency source {version_spec!r} for {name}: '
+                'only npm registry versions and ranges can be bundled'
+            )
+        version_spec = version_spec.strip()
+        pin = pinned.get(name)
+        if pin and _satisfies(pin, version_spec):
+            return registry_name, pin
+        return registry_name, version_spec
+
+    def _download_all(self, specs, force=False, max_workers=8, pinned=None):
         """Download all packages and their transitive dependencies in parallel.
+
+        pinned: optional {name: exact_version} (e.g. a lock file's dependencies)
+            used in place of a range whenever the pinned version satisfies it.
 
         Returns {name: (pkg_dir, version)} for every package in the full tree.
         """
+        pinned = pinned or {}
         downloaded = {}  # name -> (pkg_dir, version) | None (in-progress)
         lock = Lock()
         idle = Event()
@@ -437,19 +563,21 @@ class EsmBuilder:
 
         executor = ThreadPoolExecutor(max_workers=max_workers)
 
-        def submit_if_new(spec):
-            name, _ = self._parse_spec(spec)
+        def submit_if_new(name, version_spec):
+            _validate_pkg_name(name)
             with lock:
                 if name in downloaded:
                     return
                 downloaded[name] = None
                 pending[0] += 1
-            executor.submit(do_download, spec)
+            executor.submit(do_download, name, version_spec)
 
-        def do_download(spec):
-            name, _ = self._parse_spec(spec)
+        def do_download(name, version_spec):
             try:
-                pkg_dir, name, version = self.download_package(spec, force=force)
+                registry_name, version = self._download_target(name, version_spec, pinned)
+                pkg_dir, _registry_name, version = self._fetch_package(
+                    registry_name, version, force=force
+                )
 
                 pkg_json_path = os.path.join(pkg_dir, 'package', 'package.json')
                 with open(pkg_json_path) as f:
@@ -472,7 +600,7 @@ class EsmBuilder:
                     downloaded[name] = (pkg_dir, version)
 
                 for dep_name, dep_spec in all_deps.items():
-                    submit_if_new(f'{dep_name}@{dep_spec}')
+                    submit_if_new(dep_name, dep_spec)
 
             except Exception as e:
                 with lock:
@@ -490,7 +618,7 @@ class EsmBuilder:
 
         try:
             for spec in specs:
-                submit_if_new(spec)
+                submit_if_new(*self._parse_spec(spec))
         except Exception as e:
             # e.g. an invalid package name in one of the top-level specs:
             # record it like any other download failure so already-submitted
@@ -654,13 +782,16 @@ class EsmBuilder:
             for alias, _ in items
         ]
 
-    def bundle(self, items, output_dir, force=False, locked=None):
+    def bundle(self, items, output_dir, force=False, locked=None, pinned=None):
         """Download and bundle packages with esbuild into output_dir.
 
         items: list of (alias, spec) tuples as returned by parse_requirements().
         locked: optional {alias: 'name@exact_version'} overriding the spec used
             to actually resolve/download a given alias (e.g. from a lock file),
             while `items` keeps identifying cache validity by the declared spec.
+        pinned: optional {name: exact_version} for the whole dependency tree
+            (a lock file's dependencies), used for every package, transitive
+            ones included, whose requested range the pinned version satisfies.
 
         Always produces:
           - <alias>.js per package (others marked --external to avoid duplication)
@@ -689,7 +820,8 @@ class EsmBuilder:
             os.makedirs(node_modules_dir)
 
             downloaded = self._download_all(
-                [locked.get(alias, spec) for alias, spec in items], force=force
+                [locked.get(alias, spec) for alias, spec in items], force=force,
+                pinned=pinned,
             )
             for name, info in downloaded.items():
                 if info and info[0]:
@@ -774,7 +906,13 @@ class GnrInstanceEsmBundler:
     directory resolution, requirement deduplication across packages, and
     per-package lock files (esm_requirements.lock, sitting next to
     esm_requirements.txt) so repeated builds resolve the same exact
-    versions instead of re-resolving semver ranges against npm each time.
+    versions, transitive dependencies included, instead of re-resolving
+    semver ranges against npm each time.
+
+    Packages are read from the instance's package closure
+    (GnrApp.package_closure), the same walk the python dependency check
+    uses: packages reached only through required_packages() are included,
+    and each package folder honours the filename attribute.
     """
 
     _LOCK_FILENAME = 'esm_requirements.lock'
@@ -783,21 +921,24 @@ class GnrInstanceEsmBundler:
         self.app = app
         self.builder = EsmBuilder(verbose=verbose)
         self._package_locks = {}
+        self._pinned = {}
 
     def collect_requirements(self):
         """Return {alias: {'spec': str, 'effective_spec': str, 'packages': [str]}}
-        from all instance packages, substituting locked exact versions where
-        a package's lock file is present and still matches its declared spec.
+        from every package in the instance closure, substituting locked exact
+        versions where a package's lock file is present and still matches its
+        declared spec.
+
+        As a side effect, gathers the locked dependency tree of every package
+        whose lock is current into self._pinned ({name: version}), which the
+        build then uses for transitive dependencies too.
         """
         all_items = {}
         self._package_locks = {}
-        for package, _pkgattrs, _pkgcontent in self.app.config['packages'].digest('#k,#a,#v'):
-            if ':' in package:
-                project, package = package.split(':')
-            else:
-                project = None
-            package_folder = self.app.pkg_path_from_attrs(package, _pkgattrs, project)
-            pkg_dir = os.path.join(package_folder, package)
+        self._pinned = {}
+        for entry in self.app.package_closure().values():
+            package = entry['pkgid']
+            pkg_dir = entry['folder']
             esm_req = os.path.join(pkg_dir, 'esm_requirements.txt')
             if not os.path.isfile(esm_req):
                 continue
@@ -805,8 +946,10 @@ class GnrInstanceEsmBundler:
             lock_path = os.path.join(pkg_dir, self._LOCK_FILENAME)
             lock = self.builder.load_lock(lock_path)
             self._package_locks[package] = lock_path
+            requirements = self.builder.parse_requirements(esm_req)
+            self._collect_pins(lock, requirements)
 
-            for alias, spec in self.builder.parse_requirements(esm_req):
+            for alias, spec in requirements:
                 if alias in all_items and all_items[alias]['spec'] != spec:
                     raise RuntimeError(
                         f"Conflicting esm_requirements for alias '{alias}': "
@@ -826,6 +969,27 @@ class GnrInstanceEsmBundler:
                     }
                 all_items[alias]['packages'].append(package)
         return all_items
+
+    def _collect_pins(self, lock, requirements):
+        """Add a lock's dependency tree to self._pinned, but only when the lock
+        was produced from exactly the requirements the package declares now:
+        a stale lock must not hold back a spec that has since been changed."""
+        if not lock:
+            return
+        locked_specs = {alias: info.get('spec') for alias, info in lock.get('aliases', {}).items()}
+        if locked_specs != dict(requirements):
+            return
+        for name, version in lock.get('dependencies', {}).items():
+            self._pinned.setdefault(name, version)
+
+    def is_up_to_date(self, output=None):
+        """Network-free check: True when there is nothing to bundle, or when the
+        bundle manifest matches every declared spec and all its files exist."""
+        all_items = self.collect_requirements()
+        if not all_items:
+            return True
+        items = [(alias, info['spec']) for alias, info in all_items.items()]
+        return self.builder._is_up_to_date(items, self.resolve_output_dir(output))
 
     def resolve_output_dir(self, output=None):
         """Return the output directory: explicit override, site _static, or instance fallback."""
@@ -871,7 +1035,8 @@ class GnrInstanceEsmBundler:
             for alias, info in all_items.items()
             if info['effective_spec'] != info['spec']
         }
-        results = self.builder.bundle(bundle_items, output_dir, force=force, locked=locked)
+        results = self.builder.bundle(bundle_items, output_dir, force=force,
+                                      locked=locked, pinned=self._pinned)
 
         dependencies = self.builder._load_dependencies(output_dir)
         self._update_package_locks(all_items, results, dependencies)

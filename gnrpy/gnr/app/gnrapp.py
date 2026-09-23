@@ -1207,18 +1207,28 @@ class GnrApp(object):
                 logger.error("ERROR: wrong dependencies:")
                 for requested, installed in wrong:
                     logger.error(f"{requested} is requested, but {installed} found")
-            # ESM bundling touches the network and runs an external binary: it is
-            # only performed explicitly (checkdepcli), never during ordinary app
-            # startup, so a registry hiccup can never take down a web worker.
-            return
+            self.check_esm_bundles()
 
+    def check_esm_bundles(self):
+        """Network-free startup check: log when the ESM bundles are missing or
+        do not match the specs declared in the packages' esm_requirements.txt.
+        Building them touches the network and runs an external binary, so it
+        is left to ``gnr app checkdep`` (see build_esm_bundles)."""
         logger.debug("Checking javascript dependencies")
         try:
-            bundler = GnrInstanceEsmBundler(self)
-            output_dir, results = bundler.run()
-            logger.debug("Bundle in %s: %s", output_dir, results)
-        except Exception:
-            logger.exception("ESM bundling failed")
+            up_to_date = GnrInstanceEsmBundler(self).is_up_to_date()
+        except Exception as e:
+            logger.warning("Cannot check the ESM bundles: %s", e)
+            return
+        if not up_to_date:
+            logger.warning("ESM bundles are missing or do not match esm_requirements.txt:"
+                           " run 'gnr app checkdep %s' to build them", self.instanceName)
+
+    def build_esm_bundles(self, force=False, output=None):
+        """Download and bundle the ESM requirements of every package in the
+        closure. Raises on any failure; returns (output_dir, results), or
+        (None, None) when no package declares ESM requirements."""
+        return GnrInstanceEsmBundler(self).run(force=force, output=output)
 
     def check_package_missing_dependencies(self):
         missing = []

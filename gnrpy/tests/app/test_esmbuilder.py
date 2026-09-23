@@ -2,26 +2,35 @@ import base64
 import hashlib
 import io
 import json
+import logging
 import os
 import platform
+import shutil
 import sys
 import tarfile
 import tempfile
 import time
+import urllib.parse
 
 import pytest
 
+import gnr.app.esmbuilder as esmbuilder
 from gnr.app.esmbuilder import (
     EsmBuilder,
     GnrInstanceEsmBundler,
+    _ESBUILD_VERSION,
     _default_alias,
     _npm_url,
+    _range_predicate,
     _safe_pkg_name,
+    _satisfies,
     _semver_tuple,
     _validate_alias,
     NPM_REGISTRY,
 )
+from gnr.app.gnrapp import GnrApp
 from common import BaseGnrAppTest
+from core.common import BaseGnrTest
 
 
 def _make_tarball(dest_path, files):
@@ -76,27 +85,61 @@ def _write_fake_esbuild(path):
     return path
 
 
-class _FakePackagesBag:
-    def __init__(self, entries):
-        self._entries = entries
-
-    def digest(self, spec):
-        return self._entries
-
-
 class _FakeApp:
     """Minimal stand-in for GnrApp, exposing only what GnrInstanceEsmBundler
-    reads: the package list and how to turn a package id into its folder."""
+    reads: the package closure. The real closure walk is exercised against a
+    real GnrApp in TestInstanceClosureCollection."""
 
     def __init__(self, package_dirs):
-        entries = [(pkgid, {}, None) for pkgid in package_dirs]
-        self.config = {'packages': _FakePackagesBag(entries)}
         self._package_dirs = package_dirs
         self.instanceName = 'test'
         self.instanceFolder = tempfile.mkdtemp()
 
-    def pkg_path_from_attrs(self, package, attrs, project):
-        return self._package_dirs[package]
+    def package_closure(self):
+        return {
+            pkgid: {'pkgid': pkgid, 'folder': os.path.join(parent, pkgid)}
+            for pkgid, parent in self._package_dirs.items()
+        }
+
+
+class _FakeRegistry:
+    """A local stand-in for the npm registry, serving real tarballs.
+
+    Answers the two endpoints EsmBuilder uses: '<name>' (the packument, with
+    every published version and dist-tags) and '<name>/<version>' (one
+    version's metadata, whose dist points at a real tarball via file://).
+    Every requested URL is recorded in `calls`."""
+
+    def __init__(self, work):
+        self.work = work
+        self.packages = {}  # name -> {version: meta}
+        self.calls = []
+
+    def publish(self, name, version, deps=None, peer_deps=None, license_text='MIT license text'):
+        pkg_json = {'name': name, 'version': version, 'license': 'MIT'}
+        if deps:
+            pkg_json['dependencies'] = deps
+        if peer_deps:
+            pkg_json['peerDependencies'] = peer_deps
+        files = {'package.json': json.dumps(pkg_json), 'index.js': 'export default 1;\n'}
+        if license_text:
+            files['LICENSE'] = license_text
+        tgz = os.path.join(self.work, f'{_safe_pkg_name(name)}-{version}.tgz')
+        _make_tarball(tgz, files)
+        self.packages.setdefault(name, {})[version] = {'version': version, 'dist': _dist_for(tgz)}
+
+    def __call__(self, url):
+        self.calls.append(url)
+        parts = url[len(NPM_REGISTRY) + 1:].split('/')
+        name = urllib.parse.unquote(parts[0])
+        versions = self.packages[name]
+        if len(parts) == 1:
+            latest = max(versions, key=_semver_tuple)
+            return {'versions': {v: {} for v in versions}, 'dist-tags': {'latest': latest}}
+        return versions[parts[1]]
+
+    def packument_calls(self, name):
+        return [c for c in self.calls if c == _npm_url(name)]
 
 
 class TestNpmUrl(BaseGnrAppTest):
@@ -1059,3 +1102,324 @@ class TestInstanceBundlerLocking(BaseGnrAppTest):
         app = _FakeApp({})
         bundler = GnrInstanceEsmBundler(app)
         assert bundler.run(output=self.output_dir) == (None, None)
+
+
+class TestRangePredicate(BaseGnrAppTest):
+    """node-semver range forms common in real package.json files."""
+
+    @pytest.mark.parametrize('spec, matching, not_matching', [
+        ('^16.8.0 || ^17.0.0 || ^18.0.0', ['16.8.0', '17.0.2', '18.3.1'], ['16.7.0', '19.0.0']),
+        ('*', ['0.0.1', '99.0.0'], []),
+        ('', ['0.0.1', '99.0.0'], []),
+        ('x', ['1.2.3'], []),
+        ('1.x', ['1.0.0', '1.9.9'], ['0.9.0', '2.0.0']),
+        ('1.2.x', ['1.2.0', '1.2.9'], ['1.3.0']),
+        ('>=17.x', ['17.0.0', '19.1.0'], ['16.9.9']),
+        ('>=1.0.0 <2.0.0', ['1.0.0', '1.9.9'], ['0.9.9', '2.0.0']),
+        ('1.0.0 - 1.5.0', ['1.0.0', '1.5.0'], ['0.9.9', '1.5.1']),
+        ('1.0 - 1.5', ['1.0.0', '1.5.9'], ['1.6.0']),
+        ('>= 1.2.3', ['1.2.3', '2.0.0'], ['1.2.2']),
+        ('~1', ['1.0.0', '1.9.0'], ['2.0.0']),
+        ('~> 1.2.3', ['1.2.3', '1.2.9'], ['1.3.0']),
+        ('^0.2.3', ['0.2.3', '0.2.9'], ['0.3.0']),
+        ('^0.0.3', ['0.0.3'], ['0.0.4']),
+        ('^0.x', ['0.0.1', '0.9.0'], ['1.0.0']),
+        ('>1', ['2.0.0'], ['1.9.9']),
+        ('<=1.2', ['1.2.9'], ['1.3.0']),
+        ('=1.2.3', ['1.2.3'], ['1.2.4']),
+        ('v1.2.3', ['1.2.3'], ['1.2.4']),
+    ])
+    def test_range_forms(self, spec, matching, not_matching):
+        predicate = _range_predicate(spec)
+        for version in matching:
+            assert predicate(_semver_tuple(version)), f'{version} should satisfy {spec!r}'
+        for version in not_matching:
+            assert not predicate(_semver_tuple(version)), f'{version} should not satisfy {spec!r}'
+
+    @pytest.mark.parametrize('spec', ['latest', 'foo bar', '1.2.3.4', '^^1', '>=a.b'])
+    def test_garbage_raises(self, spec):
+        with pytest.raises(ValueError):
+            _range_predicate(spec)
+
+    def test_satisfies_exact_and_tags(self):
+        assert _satisfies('1.2.3', '1.2.3')
+        assert not _satisfies('1.2.4', '1.2.3')
+        assert _satisfies('1.2.3', 'latest')
+        assert _satisfies('1.2.3', '^1.0.0 || ^2.0.0')
+        assert not _satisfies('3.0.0', '^1.0.0 || ^2.0.0')
+        assert not _satisfies('1.2.3', 'not a range')
+
+
+class TestResolveVersionRanges(BaseGnrAppTest):
+    """_resolve_version against a stubbed registry, for the range forms that
+    used to abort the whole build as 'Unparseable version spec'."""
+
+    VERSIONS = ['0.9.0', '1.0.0', '1.4.0', '1.5.0', '1.6.0', '16.8.0', '17.0.2',
+                '18.3.1', '19.0.0', '2.0.0-rc.1']
+
+    def setup_method(self):
+        self.builder = EsmBuilder(cache_dir=tempfile.mkdtemp())
+        meta = {'versions': {v: {} for v in self.VERSIONS}, 'dist-tags': {'latest': '19.0.0'}}
+        self.builder._fetch_json = lambda url: meta
+
+    @pytest.mark.parametrize('spec, expected', [
+        ('^16.8.0 || ^17.0.0 || ^18.0.0', '18.3.1'),
+        ('*', '19.0.0'),
+        ('1.x', '1.6.0'),
+        ('>=17.x', '19.0.0'),
+        ('>=1.0.0 <2.0.0', '1.6.0'),
+        ('1.0.0 - 1.5.0', '1.5.0'),
+    ])
+    def test_resolves(self, spec, expected):
+        assert self.builder._needs_resolution(spec)
+        assert self.builder._resolve_version('lib', spec) == expected
+
+    def test_unparseable_raises_before_any_network_call(self):
+        calls = []
+        self.builder._fetch_json = lambda url: calls.append(url)
+        with pytest.raises(RuntimeError, match='Unparseable version spec'):
+            self.builder._resolve_version('lib', '1.2.3.4')
+        assert calls == []
+
+    def test_unknown_dist_tag_raises(self):
+        with pytest.raises(RuntimeError, match='Unknown dist-tag'):
+            self.builder._resolve_version('lib', 'nightly')
+
+
+class TestDependencySources(BaseGnrAppTest):
+    """npm: aliases, non-registry sources and lock pins, through bundle()."""
+
+    def setup_method(self):
+        self.work = tempfile.mkdtemp()
+        self.output_dir = tempfile.mkdtemp()
+        self.builder = EsmBuilder(cache_dir=tempfile.mkdtemp())
+        self.builder.get_esbuild = lambda: _write_fake_esbuild(
+            os.path.join(self.work, 'fake-esbuild')
+        )
+        self.registry = _FakeRegistry(self.work)
+        self.builder._fetch_json = self.registry
+
+    def _deps(self):
+        with open(os.path.join(self.output_dir, 'dependencies.json')) as f:
+            return json.load(f)
+
+    def test_npm_alias_is_fetched_under_its_real_name(self):
+        self.registry.publish('string-width', '4.2.3')
+        self.registry.publish('top', '1.0.0', deps={'string-width-cjs': 'npm:string-width@^4.2.0'})
+
+        self.builder.bundle([('top', 'top@1.0.0')], self.output_dir)
+
+        assert self._deps() == {'top': '1.0.0', 'string-width-cjs': '4.2.3'}
+        assert self.registry.packument_calls('string-width')
+
+    def test_peer_dependency_with_or_range_is_followed(self):
+        self.registry.publish('react', '17.0.2')
+        self.registry.publish('react', '18.3.1')
+        self.registry.publish('widget', '1.0.0', peer_deps={'react': '^16.8.0 || ^17.0.0 || ^18.0.0'})
+
+        self.builder.bundle([('widget', 'widget@1.0.0')], self.output_dir)
+
+        assert self._deps()['react'] == '18.3.1'
+
+    def test_git_dependency_fails_the_build(self):
+        self.registry.publish('top', '1.0.0', deps={'thing': 'github:user/thing'})
+        with pytest.raises(RuntimeError, match='Unsupported dependency source'):
+            self.builder.bundle([('top', 'top@1.0.0')], self.output_dir)
+
+    def test_pinned_transitive_version_is_used_without_resolving(self):
+        self.registry.publish('base-lib', '1.0.0')
+        self.registry.publish('base-lib', '1.1.0')
+        self.registry.publish('top', '1.0.0', deps={'base-lib': '^1.0.0'})
+
+        self.builder.bundle([('top', 'top@1.0.0')], self.output_dir,
+                            pinned={'base-lib': '1.0.0'})
+
+        assert self._deps()['base-lib'] == '1.0.0'
+        assert self.registry.packument_calls('base-lib') == []
+
+    def test_unpinned_transitive_version_resolves_to_latest_match(self):
+        self.registry.publish('base-lib', '1.0.0')
+        self.registry.publish('base-lib', '1.1.0')
+        self.registry.publish('top', '1.0.0', deps={'base-lib': '^1.0.0'})
+
+        self.builder.bundle([('top', 'top@1.0.0')], self.output_dir)
+
+        assert self._deps()['base-lib'] == '1.1.0'
+
+    def test_pin_outside_the_requested_range_is_ignored(self):
+        self.registry.publish('base-lib', '1.1.0')
+        self.registry.publish('base-lib', '2.0.0')
+        self.registry.publish('top', '1.0.0', deps={'base-lib': '^1.0.0'})
+
+        self.builder.bundle([('top', 'top@1.0.0')], self.output_dir,
+                            pinned={'base-lib': '2.0.0'})
+
+        assert self._deps()['base-lib'] == '1.1.0'
+
+
+class TestEsbuildCacheKey(BaseGnrAppTest):
+    def test_binary_without_version_in_its_name_is_not_reused(self, monkeypatch):
+        """A binary cached by an older, unpinned download ('esbuild') must not
+        be picked up in place of the pinned version."""
+        monkeypatch.setattr(platform, 'system', lambda: 'Linux')
+        monkeypatch.setattr(platform, 'machine', lambda: 'x86_64')
+        work = tempfile.mkdtemp()
+        builder = EsmBuilder(cache_dir=tempfile.mkdtemp())
+        _write_fake_esbuild(os.path.join(builder.cache_dir, 'esbuild'))
+
+        tgz = os.path.join(work, 'esbuild.tgz')
+        _make_tarball(tgz, {'bin/esbuild': '#!/bin/sh\necho pinned\n'})
+        dist = _dist_for(tgz)
+        builder._fetch_json = lambda url: {'dist': dist}
+
+        path = builder.get_esbuild()
+
+        assert os.path.basename(path) == f'esbuild-{_ESBUILD_VERSION}'
+        with open(path) as f:
+            assert 'pinned' in f.read()
+
+
+class TestInstanceLockPinsTransitiveTree(BaseGnrAppTest):
+    def setup_method(self):
+        self.work = tempfile.mkdtemp()
+        self.output_dir = tempfile.mkdtemp()
+        self.registry = _FakeRegistry(self.work)
+
+    def _bundler(self, package_dirs):
+        bundler = GnrInstanceEsmBundler(_FakeApp(package_dirs))
+        bundler.builder._fetch_json = self.registry
+        bundler.builder.get_esbuild = lambda: _write_fake_esbuild(
+            os.path.join(self.work, 'fake-esbuild')
+        )
+        return bundler
+
+    def _make_package(self, pkgid, requirements_text):
+        parent = os.path.join(self.work, f'parent_{pkgid}')
+        pkg_dir = os.path.join(parent, pkgid)
+        os.makedirs(pkg_dir)
+        with open(os.path.join(pkg_dir, 'esm_requirements.txt'), 'w') as f:
+            f.write(requirements_text)
+        return parent, pkg_dir
+
+    def test_rebuild_reuses_locked_transitive_versions(self):
+        """A newer transitive release published after the lock was written must
+        not reach a rebuild: the lock pins the whole tree, not just aliases."""
+        parent, pkg_dir = self._make_package('pkgone', 'top=top@^1.0.0\n')
+        self.registry.publish('base-lib', '1.0.0')
+        self.registry.publish('top', '1.0.0', deps={'base-lib': '^1.0.0'})
+
+        self._bundler({'pkgone': parent}).run(output=self.output_dir)
+        with open(os.path.join(pkg_dir, 'esm_requirements.lock')) as f:
+            assert json.load(f)['dependencies'] == {'base-lib': '1.0.0', 'top': '1.0.0'}
+
+        self.registry.publish('base-lib', '1.2.0')
+        self.registry.calls.clear()
+        self._bundler({'pkgone': parent}).run(force=True, output=self.output_dir)
+
+        with open(os.path.join(self.output_dir, 'dependencies.json')) as f:
+            assert json.load(f)['base-lib'] == '1.0.0'
+        assert self.registry.packument_calls('base-lib') == []
+
+    def test_stale_lock_does_not_pin(self):
+        """Once the declared spec changes, the old lock's tree is not applied."""
+        parent, pkg_dir = self._make_package('pkgone', 'top=top@^1.0.0\n')
+        self.registry.publish('base-lib', '1.0.0')
+        self.registry.publish('top', '1.0.0', deps={'base-lib': '^1.0.0'})
+        self._bundler({'pkgone': parent}).run(output=self.output_dir)
+
+        self.registry.publish('base-lib', '1.2.0')
+        with open(os.path.join(pkg_dir, 'esm_requirements.txt'), 'w') as f:
+            f.write('top=top@1.0.0\n')
+        self._bundler({'pkgone': parent}).run(output=self.output_dir)
+
+        with open(os.path.join(self.output_dir, 'dependencies.json')) as f:
+            assert json.load(f)['base-lib'] == '1.2.0'
+
+
+CONFIG = """<?xml version="1.0" ?>
+<GenRoBag>
+  <db filename="test.db" implementation="sqlite"/>
+  <packages>
+%s
+  </packages>
+</GenRoBag>"""
+
+REQUIRING_MAIN = """from gnr.app.gnrdbo import GnrDboPackage
+
+class Package(GnrDboPackage):
+    def required_packages(self):
+        return ['esmproj:esmreq']
+"""
+
+LEAF_MAIN = """from gnr.app.gnrdbo import GnrDboPackage
+
+class Package(GnrDboPackage):
+    def required_packages(self):
+        return []
+"""
+
+
+class TestInstanceClosureCollection(BaseGnrTest):
+    """ESM requirements are collected from the same package closure the python
+    dependency check walks, on a real GnrApp in checkdep mode."""
+
+    @classmethod
+    def setup_class(cls):
+        super().setup_class()
+        # a package reached only through required_packages(), living in a
+        # project under a projects root declared in environment.xml
+        cls.required_folder = os.path.join(cls.tmp_conf_dir, 'esmproj', 'packages', 'esmreq')
+        cls._write_package(cls.required_folder, LEAF_MAIN, 'reqlib=req-lib@1.0.0\n')
+        # a package whose folder name differs from its id (filename attribute)
+        cls.packages_root = tempfile.mkdtemp(prefix='gnrtest_esm_')
+        cls._write_package(os.path.join(cls.packages_root, 'esmfile_src'), REQUIRING_MAIN,
+                           'filelib=file-lib@2.0.0\n')
+
+    @classmethod
+    def teardown_class(cls):
+        super().teardown_class()
+        shutil.rmtree(cls.packages_root, ignore_errors=True)
+
+    @classmethod
+    def _write_package(cls, folder, main_source, esm_requirements):
+        os.makedirs(folder)
+        with open(os.path.join(folder, 'main.py'), 'w', encoding='utf-8') as fp:
+            fp.write(main_source)
+        with open(os.path.join(folder, 'esm_requirements.txt'), 'w', encoding='utf-8') as fp:
+            fp.write(esm_requirements)
+
+    @pytest.fixture(autouse=True)
+    def _isolated_home(self, monkeypatch):
+        # the instance bundler keeps its download cache under ~/.gnr
+        monkeypatch.setenv('HOME', tempfile.mkdtemp())
+
+    def _app(self, **kwargs):
+        declared = '    <esmfile pkgcode="esmfile" path="%s" filename="esmfile_src"/>' % self.packages_root
+        with open(self.test_instance_config_path, 'w', encoding='utf-8') as fp:
+            fp.write(CONFIG % declared)
+        return GnrApp(self.test_instance_name, checkdepcli=True, **kwargs)
+
+    def test_collects_required_and_filename_packages(self):
+        bundler = GnrInstanceEsmBundler(self._app())
+        items = bundler.collect_requirements()
+        assert items['filelib']['packages'] == ['esmfile']
+        assert items['reqlib']['packages'] == ['esmreq']
+
+    def test_up_to_date_check_is_network_free(self, monkeypatch):
+        monkeypatch.setattr(esmbuilder, 'NPM_REGISTRY', 'file:///nonexistent-registry')
+        bundler = GnrInstanceEsmBundler(self._app())
+        assert bundler.is_up_to_date(output=tempfile.mkdtemp()) is False
+
+    def test_startup_check_logs_missing_bundles(self, caplog):
+        app = self._app()
+        with caplog.at_level(logging.WARNING, logger='gnr.app'):
+            app.check_esm_bundles()
+        assert 'ESM bundles are missing' in caplog.text
+
+    def test_build_failure_raises(self, monkeypatch):
+        """build_esm_bundles is what checkdep turns into a non-zero exit code:
+        a failure must propagate, not be logged and swallowed."""
+        monkeypatch.setattr(esmbuilder, 'NPM_REGISTRY', 'file:///nonexistent-registry')
+        app = self._app()
+        with pytest.raises(OSError):
+            app.build_esm_bundles(output=tempfile.mkdtemp())
