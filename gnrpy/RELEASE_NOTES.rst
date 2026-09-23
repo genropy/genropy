@@ -1,3 +1,8 @@
+Release 26.09.29
+================
+
+Hotfix release: backport for service implementation resolver (#1395)
+
 Release 26.09.18
 ================
 
