@@ -69,3 +69,17 @@ class FormWizard(BaseComponent):
 
     def th_options(self):
         return dict(dialog_height='420px', dialog_width='700px')
+
+
+class FormWizardResume(FormWizard):
+    """groupletWizardForm: the wizard owns the form (no toolbar, no padlock,
+    a save on every advance) and a saved ticket reopens on its step."""
+
+    def th_form(self, form):
+        form.groupletWizardForm(
+            frameCode='ticket_wizard_resume',
+            grouplets_root='wizard_grouplets',
+            resumeStepField='wizard_step',
+            remote_ticket_note='resume test',
+            recap_remote_subject='=#FORM.record.subject',
+            completeLabel='Complete Ticket')

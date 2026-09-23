@@ -146,7 +146,8 @@
 }
 
 .wizard_next_btn,
-.wizard_close_btn {
+.wizard_close_btn,
+.wizard_back_btn {
     background: none;
     border: none;
     padding: 6px 12px;
@@ -158,12 +159,22 @@
 }
 
 .wizard_next_btn:hover,
-.wizard_close_btn:hover {
+.wizard_close_btn:hover,
+.wizard_back_btn:hover {
     color: var(--primary-dark, #3A3A3C);
 }
 
 .wizard_next_btn::after {
     content: '\00a0\2192';
+}
+
+/* keeps the next button on the right whether or not back is displayed */
+.wizard_back_btn {
+    margin-right: auto;
+}
+
+.wizard_back_btn::before {
+    content: '\2190\00a0';
 }
 
 .wizard_summary {

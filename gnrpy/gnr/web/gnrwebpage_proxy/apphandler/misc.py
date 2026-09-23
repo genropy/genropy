@@ -191,8 +191,7 @@ class MiscMixin:
         """
         if not self.page.checkTablePermission(table, 'readonly,ins'):
             raise self.page.exception('generic',
-                                      description='Duplicate is not allowed in table % for user %s' % (table, self.user))
-            # BUG: format string has ``%`` instead of ``%s`` for table name
+                                      description='Duplicate is not allowed in table %s for user %s' % (table, self.user))
         tblobj = self.db.table(table)
         result_pkeys = []
         for pkey in pkeys:
@@ -225,15 +224,10 @@ class MiscMixin:
             ``None`` on success, or ``("delete_error", {"msg": ...})``
             on failure.
 
-        Note:
-            BUG: The format string in the permission check has ``%``
-            instead of ``%s`` for the table name (same as
-            ``duplicateDbRows``).
         """
         if not self.page.checkTablePermission(table, 'readonly,del'):
             raise self.page.exception('generic',
-                                      description='Delete not allowed in table % for user %s' % (table, self.user))
-            # BUG: format string has ``%`` instead of ``%s`` for table name
+                                      description='Delete not allowed in table %s for user %s' % (table, self.user))
         try:
             tblobj = self.db.table(table)
             rows = tblobj.query(where='$%s IN :pkeys' % tblobj.pkey, pkeys=pkeys,
@@ -386,13 +380,19 @@ class MiscMixin:
     def saveRecord(self, table=None, pkey=None, data=None, **kwargs):
         tblobj = self.db.table(table)
         if pkey == '*newrecord*':
-            tblobj.insert(tblobj.newrecord(**{k: v for k, v in data.items() if v is not None}))
+            newrecord = tblobj.newrecord(**{k: v for k, v in data.items() if v is not None})
+            tblobj.insert(newrecord)
+            # the pkey of a new record is the one the insert wrote: the client
+            # sent '*newrecord*' and data carries no pkey of its own
+            saved_pkey = newrecord[tblobj.pkey]
         else:
             with tblobj.recordToUpdate(pkey) as recToUpd:
                 for k, v in data.items():
                     recToUpd[k] = v
+            # on an update the pkey comes from data, which is how a form renames
+            saved_pkey = data[tblobj.pkey]
         self.db.commit()
-        return dict(pkey=data[tblobj.pkey])
+        return dict(pkey=saved_pkey)
 
     @public_method
     def newRowsData(self, table: Optional[str] = None,
