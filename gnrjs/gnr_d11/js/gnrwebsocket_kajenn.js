@@ -68,18 +68,25 @@ dojo.declare("gnr.GnrWebSocketHandler", null, {
         }
         var that = this;
         this.channelReady = new Promise(function(resolve, reject) {
-            that.socket = new WebSocket(that.url);
-            that.socket.onmessage = function(event) {
+            var socket = new WebSocket(that.url);
+            that.socket = socket;
+            socket.onmessage = function(event) {
                 that.onmessage(event);
             };
-            that.socket.onopen = function() {
-                that.onopen().then(resolve, reject);
+            socket.onopen = function() {
+                that.onopen().then(resolve, function(error) {
+                    reject(error);
+                    // A refused channel leaves the socket open and channelReady
+                    // rejected, so create() would never run again: closing it
+                    // hands the reset and the reconnection to onclose.
+                    socket.close();
+                });
             };
-            that.socket.onerror = function(error) {
+            socket.onerror = function(error) {
                 that.onerror(error);
                 reject(new Error('websocket connection failed'));
             };
-            that.socket.onclose = function() {
+            socket.onclose = function() {
                 that.onclose();
                 reject(new Error('websocket connection closed'));
             };
