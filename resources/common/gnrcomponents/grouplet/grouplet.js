@@ -9,13 +9,16 @@ var gnr_grouplet = {
         }
         if (!form.isValid()) {
             genro.publish('floating_message', {
-                message: 'Please complete required fields',
+                message: _T('!!Please complete required fields'),
                 messageType: 'warning'
             });
             return;
         }
-        // always: an unchanged step still carries defaults to write back
-        form.save({always: true, onReload: function() {
+        if (!form.changed) {
+            this.wizardStepForward(frameCode);
+            return;
+        }
+        form.save({onReload: function() {
             that.wizardStepForward(frameCode);
         }});
     },
@@ -26,19 +29,58 @@ var gnr_grouplet = {
         var steps = frameNode.getRelativeData('.wizard_steps');
         var nodes = steps.getNodes();
         var currentNode = nodes[idx];
+        var isLast = idx >= nodes.length - 1;
+        if (!isLast) {
+            this._wizardSetStepName(frameNode, idx + 1, true);
+        }
+        // lazySave: a silent save, no 'saved' toast on every page. On a saved
+        // record it reloads nothing, so no load consumes wizard_saved_pkey.
+        var mainForm = frameNode.form;
+        if (!isLast && mainForm && frameNode.getRelativeData('.wizard_save_on_next')) {
+            var clearMark = mainForm.isNewRecord() ? null : function() {
+                frameNode.setRelativeData('.wizard_saved_pkey', null);
+            };
+            mainForm.lazySave(clearMark);
+        }
         if (currentNode) {
             genro.publish(frameCode + '_step_complete',
                 {step_code: currentNode.attr.code});
         }
-        if (idx >= nodes.length - 1) {
+        if (isLast) {
             genro.publish(frameCode + '_complete');
         } else {
             frameNode.setRelativeData('.step_index', idx + 1);
         }
     },
 
+    wizardConfirm: function(frameCode) {
+        var mainForm = genro.getFrameNode(frameCode).form;
+        var stepForm = genro.formById(frameCode + '_step_form');
+        var confirm = function() {
+            mainForm.setDraft(false);
+            mainForm.sourceNode.setRelativeData('.wizard_confirming', true);
+            if (typeof mainForm.save({always: true}) == 'string') {
+                mainForm.sourceNode.setRelativeData('.wizard_confirming', false);
+                mainForm.setDraft(true);
+            }
+        };
+        if (stepForm && !stepForm.isValid()) {
+            genro.publish('floating_message', {
+                message: _T('!!Please complete required fields'),
+                messageType: 'warning'
+            });
+            return;
+        }
+        if (stepForm && stepForm.changed) {
+            stepForm.save({onReload: confirm});
+        } else {
+            confirm();
+        }
+    },
+
     wizardGoTo: function(sourceNode, targetIdx, frameCode) {
         var frameNode = genro.getFrameNode(frameCode);
+        if (frameNode.getRelativeData('.wizard_readonly')) { return; }
         var idx = frameNode.getRelativeData('.step_index');
         var showingSummary = frameNode.getRelativeData('.wizard_showing_summary');
         if (showingSummary) {
@@ -55,7 +97,43 @@ var gnr_grouplet = {
                     form.save();
                 }
             }
+            this._wizardSetStepName(frameNode, targetIdx);
             frameNode.setRelativeData('.step_index', targetIdx);
+        }
+    },
+
+    _wizardSetStepName: function(frameNode, idx, advancing) {
+        var nodes = frameNode.getRelativeData('.wizard_steps').getNodes();
+        var node = nodes[idx];
+        frameNode.setRelativeData('.wizard_step_name', node ? node.label : null);
+        var field = frameNode.getRelativeData('.wizard_step_field');
+        if (!(advancing && field && node && frameNode.form)) { return; }
+        var record = frameNode.form.getFormData();
+        var stored = record.getItem(field);
+        var storedIdx = nodes.findIndex(function(n) { return n.label == stored; });
+        if (idx > storedIdx) {
+            record.setItem(field, node.label);
+        }
+    },
+
+    wizardResolveRemote: function(sourceNode, stepLabel) {
+        var specs = sourceNode.getRelativeData('.wizard_remote_specs');
+        if (!specs) { return; }
+        var chosen = {};
+        specs.getNodes().forEach(function(n) {
+            var a = n.attr;
+            if (!(a.name in chosen)) { chosen[a.name] = null; }
+            if (!a.step && !chosen[a.name]) { chosen[a.name] = a; }
+        });
+        specs.getNodes().forEach(function(n) {
+            if (n.attr.step && n.attr.step == stepLabel) { chosen[n.attr.name] = n.attr; }
+        });
+        for (var name in chosen) {
+            var a = chosen[name];
+            var value = a ? (a.path ? sourceNode.getRelativeData(a.path) : a.value) : null;
+            // a copy: setting the Bag itself would move it out of its place
+            if (value instanceof gnr.GnrBag) { value = value.deepCopy(); }
+            sourceNode.setRelativeData('.wizard_remote.' + name, value);
         }
     },
 
@@ -64,6 +142,7 @@ var gnr_grouplet = {
         var nodes = steps.getNodes();
         var node = nodes[idx];
         if (!node) { return; }
+        this.wizardResolveRemote(sourceNode, node.label);
         sourceNode.setRelativeData('.current_resource', node.attr.resource);
         var isLast = (idx >= nodes.length - 1);
         sourceNode.setRelativeData('.next_label',

@@ -3213,3 +3213,47 @@ class TestJoinConditions:
         assert 'account_name IS NOT NULL' in sql
         rows = q.fetch()
         assert isinstance(rows, list)
+
+    def test_join_condition_global_where_column_token_sqlite(self, db_sqlite):
+        """1362: a $column in the ('*','*') condition is compiled to its alias."""
+        tbl = db_sqlite.table('invc.invoice_row')
+        q = tbl.query(columns='$id')
+        q.setJoinCondition(target_fld='*', from_fld='*',
+                           condition='$quantity > :qmin', qmin=1)
+        sql = q.sqltext
+        assert '"t0"."quantity" > :qmin' in sql
+        assert '$quantity' not in sql
+
+    def test_join_condition_global_where_relation_token_sqlite(self, db_sqlite):
+        """1362: a @relation.column in the ('*','*') condition builds its join."""
+        tbl = db_sqlite.table('invc.invoice_row')
+        q = tbl.query(columns='$id')
+        q.setJoinCondition(target_fld='*', from_fld='*',
+                           condition='@invoice_id.date IS NOT NULL')
+        sql = q.sqltext
+        assert 'LEFT JOIN "invc"."invc_invoice"' in sql
+        assert '"t1"."date" IS NOT NULL' in sql
+        assert '@invoice_id' not in sql
+        assert isinstance(q.fetch(), list)
+
+    def test_join_condition_global_where_related_query_sqlite(self, db_sqlite):
+        """1362: the condition filters the same rows as the equivalent where."""
+        tbl = db_sqlite.table('invc.invoice_row')
+        quantities = {}
+        for row in tbl.query(columns='$invoice_id,$quantity').fetch():
+            quantities.setdefault(row['invoice_id'], []).append(row['quantity'])
+        invoice_id, values = next((k, v) for k, v in quantities.items()
+                                  if len(set(v)) > 1)
+        qmin = min(values)
+        expected = len([v for v in values if v > qmin])
+
+        q = tbl.relatedQuery(field='invoice_id', value=invoice_id)
+        q.setJoinCondition(target_fld='*', from_fld='*',
+                           condition='$quantity > :qmin', qmin=qmin)
+        assert len(q.fetch()) == expected
+
+        equivalent = tbl.query(columns='$id',
+                               where='$invoice_id=:inv AND $quantity > :qmin',
+                               inv=invoice_id, qmin=qmin)
+        assert len(equivalent.fetch()) == expected
+        assert expected < len(values)

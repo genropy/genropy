@@ -135,6 +135,8 @@ class SelectionProxy:
                 if '[' in col:
                     tbl, col = col.split('[')
                     maintable = [tbl]
+                # the bracket closes the group: its end is read before the
+                # bracket is stripped, so the next column starts without the prefix
                 group_end = col.endswith(']')
                 if group_end:
                     col = col[:-1]

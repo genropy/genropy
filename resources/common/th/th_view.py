@@ -288,7 +288,10 @@ class TableHandlerView(BaseComponent):
             SET .query.where = where;
         """,queryBySample='^.queryBySample',currentQuery='^.query.currentQuery',
                             _if='currentQuery=="__querybysample__"')
-        fb = bar.fb.formbuilder(onEnter='genro.nodeById(this.getInheritedAttributes().target).publish("runbtn",{"modifiers":null});',
+        tray = bar.fb.div(_class='th_querysample_tray')
+        tray.div(_class='th_querysample_close',tip='!!Plain query',
+                 connect_onclick="SET .query.queryEditor=false; SET .query.currentQuery='__basequery__';")
+        fb = tray.formbuilder(onEnter='genro.nodeById(this.getInheritedAttributes().target).publish("runbtn",{"modifiers":null});',
                                 **pars)
         bar.dataController("""genro.dom.toggleVisible(bar,currentQuery=="__querybysample__");
                             view.widget.resize();""", currentQuery='^.query.currentQuery',
@@ -305,8 +308,11 @@ class TableHandlerView(BaseComponent):
             if permissions.get('user_forbidden'):
                 continue
             fldattr = fieldobj.attributes
+            tag = fkw.pop('tag','textbox')
             fkw.setdefault('lbl',fldattr.get('name_short') or fldattr.get('name_long'))
-            fb.child(fkw.pop('tag','textbox'),value='^.c_%s' %i,attr_column=field,attr_column_dtype=fldattr.get('dtype','T'),
+            if tag.lower()=='checkbox' and not fkw.get('label'):
+                fkw['label'] = fkw.pop('lbl')
+            fb.child(tag,value='^.c_%s' %i,attr_column=field,attr_column_dtype=fldattr.get('dtype','T'),
                         attr_op=fkw.pop('op',None),
                         **fkw)
 

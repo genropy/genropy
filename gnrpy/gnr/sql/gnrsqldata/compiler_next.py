@@ -981,6 +981,10 @@ class SqlQueryCompilerNext(object):
             draftField = self.tblobj.draftField
             if draftField:
                 wherelist.append('${} IS NOT TRUE'.format(draftField))
+        if self.joinConditions:
+            extracnd, _ = self.getJoinCondition('*', '*', self.aliasCode(0))
+            if extracnd:
+                wherelist.append(extracnd)
         where = ' AND '.join(['({where_chunk})'.format(where_chunk=w) for w in wherelist if w])
         columns = self.updateFieldDict(columns)
         where = self.embedFieldPars(where)
@@ -1033,13 +1037,6 @@ class SqlQueryCompilerNext(object):
 
         # replace $fldname with tn.fldname: finally the real SQL where!
         where = gnrstring.templateReplace(where, colPars)
-        if self.joinConditions:
-            extracnd, one_one = self.getJoinCondition('*', '*', self.aliasCode(0))
-            if extracnd:
-                if where:
-                    where = ' ( %s ) AND ( %s ) ' % (where, extracnd)
-                else:
-                    where = extracnd
         order_by = gnrstring.templateReplace(order_by, colPars)
         having = gnrstring.templateReplace(having, colPars)
         group_by = gnrstring.templateReplace(group_by, colPars)

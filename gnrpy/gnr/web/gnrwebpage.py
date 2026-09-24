@@ -1334,6 +1334,21 @@ class GnrWebPage(GnrBaseWebPage):
                 raise exception
         return exception(user=self.user,localizer=self.application.localizer,**kwargs)
 
+    def gnrjs_imports(self):
+        """Return the genro js modules this page loads, in load order.
+
+        The frontend's own list, with one substitution: a selected WebSocket
+        handler that names a ``client_module`` puts that module where
+        ``gnrwebsocket`` was. It takes the place of the classic client, never a
+        place beside it, so a page declares one ``gnr.GnrWebSocketHandler``.
+        """
+        gnrimports = self.frontend.gnrjs_frontend()
+        websocket_client = getattr(self.wsk, 'client_module', None)
+        if not websocket_client:
+            return gnrimports
+        return [websocket_client if name == 'gnrwebsocket' else name
+                for name in gnrimports]
+
     def build_arg_dict(self, _nodebug=False, **kwargs):
         """TODO
         
@@ -1390,7 +1405,7 @@ class GnrWebPage(GnrBaseWebPage):
         arg_dict['page_id'] = self.page_id or getUuid()
         arg_dict['bodyclasses'] = self.get_bodyclasses()
         arg_dict['gnrModulePath'] = gnrModulePath
-        gnrimports = self.frontend.gnrjs_frontend()
+        gnrimports = self.gnrjs_imports()
         if localroot:
             arg_dict['genroJsImport'] = [gnr_static_handler.url(self.gnrjsversion, 'js', '%s.js' % f, _localroot=localroot) for f in gnrimports]
         elif _nodebug is False and (self.isDeveloper()):

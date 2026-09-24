@@ -725,11 +725,9 @@ def test_related_selection_sql_context_condition(handlers, db):
     """S9 - the join condition of the SQL context is applied to the query and
     re-applied on the wildcard pair, which puts it on the root of the WHERE.
 
-    The re-applied condition reaches the SQL uncompiled — the WHERE ends with
-    ``AND ( $quantity > :qmin )``, with ``$quantity`` never turned into a
-    column reference (defect D20, in the query layer, out of the scope of this
-    subtask).  On sqlite that selects nothing.  Both handlers do it the same
-    way, which is what this case asserts.
+    The re-applied condition is compiled with the rest of the WHERE (#1371),
+    so ``$quantity`` becomes a column reference and the context keeps exactly
+    the rows with a quantity above ``qmin``.  Both handlers do it the same way.
     """
     invoice = _first_invoice(db)
     joinbag = Bag(dict(target_fld='invc.invoice_row.invoice_id',
@@ -747,7 +745,9 @@ def test_related_selection_sql_context_condition(handlers, db):
         target_fld='invc.invoice_row.invoice_id',
         relation_value=invoice['id'], sqlContextName='ctx3')
     assert without_context
-    assert with_context == []
+    assert with_context
+    assert [label for label, _ in with_context] == \
+        [label for label, attr in without_context if attr['quantity'] > 0]
 
 
 # ---------------------------------------------------------------------------
