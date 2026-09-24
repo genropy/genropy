@@ -10,6 +10,7 @@ database.
 import pytest
 
 from gnr.app.gnrapp import GnrApp, experimentalConfig
+from core.common import BaseGnrTest
 
 
 INSTANCECONFIG = """<?xml version="1.0" ?>
@@ -70,23 +71,24 @@ def test_item_without_group_and_name_raises(xpr):
 #  The application
 # ---------------------------------------------------------------------------
 
-def test_instanceconfig_alone(instance_folder):
-    app = GnrApp(instance_folder)
-    assert app.experimentalFlag('page', 'no_mako') is False
-    assert app.experimentalFlag('page', 'page_class_cache') is True
-    assert app.experimentalFlag('db', 'next_sql_compiler') is False
+class TestExperimentalOnTheApp(BaseGnrTest):
+    """A real GnrApp, with the test genro configuration of BaseGnrTest."""
 
+    def test_instanceconfig_alone(self, instance_folder):
+        app = GnrApp(instance_folder)
+        assert app.experimentalFlag('page', 'no_mako') is False
+        assert app.experimentalFlag('page', 'page_class_cache') is True
+        assert app.experimentalFlag('db', 'next_sql_compiler') is False
 
-def test_command_line_is_read_by_the_accessors(instance_folder):
-    app = GnrApp(instance_folder, custom_config=experimentalConfig(
-        'db.next_sql_compiler,page.dojo_xhr_patch=fetch'))
-    assert app.experimentalFlag('db', 'next_sql_compiler') is True
-    assert app.experimentalValue('page', 'dojo_xhr_patch') == 'fetch'
+    def test_command_line_is_read_by_the_accessors(self, instance_folder):
+        app = GnrApp(instance_folder, custom_config=experimentalConfig(
+            'db.next_sql_compiler,page.dojo_xhr_patch=fetch'))
+        assert app.experimentalFlag('db', 'next_sql_compiler') is True
+        assert app.experimentalValue('page', 'dojo_xhr_patch') == 'fetch'
 
-
-def test_command_line_wins_and_keeps_the_rest(instance_folder):
-    """``no_mako`` is False in the file and True on the command line; the
-    ``page_class_cache`` of the file is left as it is."""
-    app = GnrApp(instance_folder, custom_config=experimentalConfig('page.no_mako'))
-    assert app.experimentalFlag('page', 'no_mako') is True
-    assert app.experimentalFlag('page', 'page_class_cache') is True
+    def test_command_line_wins_and_keeps_the_rest(self, instance_folder):
+        """``no_mako`` is False in the file and True on the command line; the
+        ``page_class_cache`` of the file is left as it is."""
+        app = GnrApp(instance_folder, custom_config=experimentalConfig('page.no_mako'))
+        assert app.experimentalFlag('page', 'no_mako') is True
+        assert app.experimentalFlag('page', 'page_class_cache') is True
