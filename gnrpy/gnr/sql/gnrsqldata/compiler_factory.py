@@ -22,12 +22,15 @@
 
 Two compiler classes exist: the frozen ``SqlQueryCompiler`` of
 ``compiler.py`` and ``SqlQueryCompilerNext`` of ``compiler_next.py``, the copy
-that receives new work.  An instance opts in to the copy with::
+that receives new work.  An instance opts in to the copy with the experimental
+flag::
 
-    <db sql_compiler="next"/>
+    <experimental>
+        <db next_sql_compiler="True"/>
+    </experimental>
 
-in its configuration.  Any other value, a missing key, or a database with no
-application attached (standalone mode) keeps the frozen compiler.
+in its configuration.  A false or missing flag, or a database with no
+application attached (standalone mode), keeps the frozen compiler.
 
 ``queryCompilerClass`` is called at the two points where a compiler is built:
 ``SqlQuery.compileQuery`` and ``SqlRecord.compileQuery``.
@@ -35,8 +38,6 @@ application attached (standalone mode) keeps the frozen compiler.
 
 from gnr.sql.gnrsqldata.compiler import SqlQueryCompiler
 from gnr.sql.gnrsqldata.compiler_next import SqlQueryCompilerNext
-
-NEXT_COMPILER = 'next'
 
 
 def queryCompilerClass(db):
@@ -46,9 +47,10 @@ def queryCompilerClass(db):
         db: A :class:`GnrSqlDb <gnr.sql.gnrsql.GnrSqlDb>` instance.
 
     Returns:
-        type: ``SqlQueryCompilerNext`` when the instance configuration has
-        ``<db sql_compiler="next"/>``, ``SqlQueryCompiler`` otherwise.
+        type: ``SqlQueryCompilerNext`` when the experimental flag
+        ``next_sql_compiler`` of the ``db`` group is on,
+        ``SqlQueryCompiler`` otherwise.
     """
-    if db.application and db.application.config['db?sql_compiler'] == NEXT_COMPILER:
+    if db.application and db.application.experimentalFlag('db', 'next_sql_compiler'):
         return SqlQueryCompilerNext
     return SqlQueryCompiler
