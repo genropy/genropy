@@ -236,7 +236,7 @@ class TableHandlerView(BaseComponent):
         pars.setdefault('border_spacing','6px 2px')
         view.data('.query.bySample',True)
         view.data('.query.bySampleIsDefault',pars.pop('isDefault',False))
-        bar = view.top.slotToolbar('fb',childname='queryBySample',fb_width='100%',_class='th_querysample_bar')
+        bar = view.top.slotToolbar('fb',childname='queryBySample',fb_width='100%')
         bar.dataController("""
             var where = new gnr.GnrBag();
             var parnames = {};
