@@ -155,9 +155,6 @@
     --toolbar-color: var(--gray-900); /* @theme */
     --toolbar-dark-bg: var(--gray-600); /* @theme */
     --quickgrid-toolbar-min-height: 1.8em;
-    --querysample-tray-bg: var(--gray-200); /* @theme */
-    --querysample-tray-shadow: inset 0 1px 3px rgba(0,0,0,0.14), inset 0 0 0 1px rgba(0,0,0,0.05), 0 1px 0 rgba(255,255,255,0.75); /* @theme */
-    --querysample-tray-radius: var(--radius-md); /* @theme */
 
     /* --- Layout: frameindex --- */
     --frameindexroot-background: var(--gray-100); /* @theme */
