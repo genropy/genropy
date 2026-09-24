@@ -71,6 +71,12 @@ class GnrUndeclaredPackageException(GnrException):
     description = '!!Required package not declared in instanceconfig'
 
 
+class GnrPackageNotFoundException(GnrException):
+    """No package folder found for a package id in the known packages roots."""
+    code = 'GNRAPP-003'
+    description = '!!Package not found'
+
+
 class NullLoader(object):
     """TODO"""
 
@@ -630,7 +636,7 @@ class GnrPackage(object):
             raise GnrImportException(
                     "Cannot import package %s from %s: %s" % (pkg_id, os.path.join(self.packageFolder, 'main.py'), str(e)))
         self.pkgMixin = GnrMixinObj()
-        instanceMixin(self.pkgMixin, getattr(self.main_module, 'Package', None))
+        self._mixinPackageClass(getattr(self.main_module, 'Package', None))
         
         self.baseTableMixinCls = getattr(self.main_module, 'Table', None)
         self.baseTableMixinClsCustom = None
@@ -643,7 +649,7 @@ class GnrPackage(object):
         self.custom_module = None
         if os.path.isfile(custom_mixin):
             self.custom_module = gnrImport(custom_mixin,avoidDup=True, silent=False)
-            instanceMixin(self.pkgMixin, getattr(self.custom_module, 'Package', None))
+            self._mixinPackageClass(getattr(self.custom_module, 'Package', None))
         
             self.attributes.update(self.pkgMixin.config_attributes())
             self.webPageMixinCustom = getattr(self.custom_module, 'WebPage', None)
@@ -652,6 +658,14 @@ class GnrPackage(object):
         instanceMixin(self, self.pkgMixin)
         self.attributes.update(pkgattrs)
         self.disabled = boolean(self.attributes.get('disabled'))
+
+    def _mixinPackageClass(self, source):
+        instanceMixin(self.pkgMixin, source)
+        declared = getattr(source, 'required_packages', None)
+        if declared is not None and not callable(declared):
+            # instanceMixin copies callables only: the attribute form becomes a method
+            self.pkgMixin.required_packages = types.MethodType(
+                    lambda obj, required=tuple(declared): list(required), self.pkgMixin)
 
     def initTableMixinDict(self):
         self.tableMixinDict = {}
@@ -1084,30 +1098,78 @@ class GnrApp(object):
                                           for k in self.config['packages'].digest('#k'))
         return self._declared_packages
 
-    def _required_packages_from_source(self, main_path):
-        """The literal list returned by ``Package.required_packages()`` in *main_path*,
-        read without importing it: in a clean environment the module may not import
-        precisely because its dependencies are the ones still to install.
-        ``[]`` when the method is not defined, ``None`` when its body is not a literal."""
+    def _required_packages_from_source(self, source_path):
+        """Read ``required_packages`` from the ``Package`` class of *source_path* without
+        importing it: in a clean environment the module may not import precisely because
+        its dependencies are the ones still to install.
+
+        Return ``(packages, None)`` for a literal list of strings, declared as a class
+        attribute or as the single ``return`` of the method; ``(None, None)`` when the
+        class, or the module, declares nothing and inherits only from ``gnr`` bases;
+        ``(None, reason)`` when the declaration cannot be read from the source."""
+        filename = os.path.basename(source_path)
         try:
-            with open(main_path, encoding='utf-8') as fp:
+            with open(source_path, encoding='utf-8') as fp:
                 tree = ast.parse(fp.read())
-        except (OSError, SyntaxError):
-            return None
-        for node in ast.walk(tree):
-            if isinstance(node, ast.FunctionDef) and node.name == 'required_packages':
-                for sub in ast.walk(node):
-                    if isinstance(sub, ast.Return) and isinstance(sub.value, (ast.List, ast.Tuple)) \
-                            and all(isinstance(e, ast.Constant) and isinstance(e.value, str)
-                                    for e in sub.value.elts):
-                        return [e.value for e in sub.value.elts]
-                return None
-        return []
+        except (OSError, SyntaxError, ValueError) as e:
+            return None, 'cannot read %s: %s' % (filename, e)
+        gnr_names = set(['object'])
+        for node in tree.body:
+            if isinstance(node, ast.ImportFrom) and not node.level and node.module \
+                    and node.module.split('.')[0] == 'gnr':
+                gnr_names.update(alias.asname or alias.name for alias in node.names)
+            elif isinstance(node, ast.Import):
+                gnr_names.update(alias.asname or alias.name.split('.')[0] for alias in node.names
+                                 if alias.name.split('.')[0] == 'gnr')
+        classes = [node for node in tree.body if isinstance(node, ast.ClassDef) and node.name == 'Package']
+        if not classes:
+            return None, None
+        package = classes[-1]
+        attributes = [node.value for node in package.body
+                      if (isinstance(node, ast.Assign)
+                          and any(isinstance(t, ast.Name) and t.id == 'required_packages'
+                                  for t in node.targets))
+                      or (isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name)
+                          and node.target.id == 'required_packages')]
+        methods = [node for node in package.body
+                   if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+                   and node.name == 'required_packages']
+        if len(attributes) + len(methods) > 1:
+            return None, 'required_packages is declared more than once in %s' % filename
+        if attributes:
+            value = attributes[0]
+        elif methods:
+            returns = [node for node in ast.walk(methods[0]) if isinstance(node, ast.Return)]
+            if len(returns) != 1:
+                return None, 'required_packages() in %s has %s return statements' % (filename, len(returns))
+            value = returns[0].value
+        else:
+            for base in package.bases:
+                root = base
+                while isinstance(root, ast.Attribute):
+                    root = root.value
+                if not (isinstance(root, ast.Name) and root.id in gnr_names):
+                    return None, 'Package in %s inherits from %s, not readable here' % (
+                            filename, ast.unparse(base))
+            return None, None
+        if isinstance(value, (ast.List, ast.Tuple)) and all(
+                isinstance(e, ast.Constant) and isinstance(e.value, str) for e in value.elts):
+            return [e.value for e in value.elts], None
+        return None, 'required_packages in %s is not a literal list of strings' % filename
 
     def _required_packages_of(self, entry):
-        required = self._required_packages_from_source(os.path.join(entry['folder'], 'main.py'))
-        if required is not None:
-            return required
+        """``custom.py`` is read after ``main.py``, the order ``GnrPackage`` mixes them."""
+        required, reason = self._required_packages_from_source(os.path.join(entry['folder'], 'main.py'))
+        custom_path = os.path.join(self.instanceFolder, 'custom', entry['pkgid'], 'custom.py')
+        if not reason and os.path.isfile(custom_path):
+            custom_required, reason = self._required_packages_from_source(custom_path)
+            if custom_required is not None:
+                required = custom_required
+        if not reason:
+            return required or []
+        if self.kwargs.get('static_closure'):
+            entry['unresolved'] = reason
+            return []
         try:
             apppkg = GnrPackage(entry['pkgid'], self, path=entry['path'],
                                 filename=entry['filename'], project=entry['project'])
@@ -1133,13 +1195,19 @@ class GnrApp(object):
                     if required_by:
                         entry['required_by'].add(required_by)
                     continue
-                path = self.pkg_path_from_attrs(pkgid, attrs, project=project)
                 filename = attrs.get('filename') or pkgid
-                entry = dict(code=code, pkgid=pkgid, project=project, path=path, filename=filename,
-                             folder=os.path.join(path, filename),
-                             declared=pkgid in self.declared_packages,
+                entry = dict(code=code, pkgid=pkgid, project=project, path=None, filename=filename,
+                             folder=None, declared=pkgid in self.declared_packages,
                              required_by=set([required_by]) if required_by else set())
                 closure[pkgid] = entry
+                try:
+                    entry['path'] = self.pkg_path_from_attrs(pkgid, attrs, project=project)
+                except GnrPackageNotFoundException:
+                    if not self.kwargs.get('static_closure'):
+                        raise
+                    entry['unresolved'] = 'package folder not found in the packages roots'
+                    continue
+                entry['folder'] = os.path.join(entry['path'], filename)
                 for reqcode in self._required_packages_of(entry):
                     todo.append((reqcode, {}, pkgid))
             self._package_closure = closure
@@ -1150,6 +1218,24 @@ class GnrApp(object):
         """The closure entries loaded through ``required_packages()`` only, sorted by code."""
         return sorted((e for e in self.package_closure().values() if not e['declared']),
                       key=lambda e: e['code'])
+
+    @property
+    def unresolved_packages(self):
+        """The closure entries whose folder or ``required_packages`` could not be read
+        from the source, sorted by code: only a ``static_closure`` app records them."""
+        return sorted((e for e in self.package_closure().values() if e.get('unresolved')),
+                      key=lambda e: e['code'])
+
+    def unresolved_packages_report(self):
+        unresolved = self.unresolved_packages
+        lines = ['Cannot compute the package closure without importing package code:']
+        for e in unresolved:
+            required_by = ' (required by %s)' % ', '.join(sorted(e['required_by'])) if e['required_by'] else ''
+            lines.append('  %s%s: %s' % (e['code'], required_by, e['unresolved']))
+        if any(e['folder'] for e in unresolved):
+            lines.append('required_packages must be a literal list of strings, declared as a class'
+                         ' attribute or as the single return of the method.')
+        return '\n'.join(lines)
 
     def undeclared_packages_report(self):
         lines = ['Packages loaded through required_packages() but not declared in the'
@@ -1188,6 +1274,8 @@ class GnrApp(object):
         logger.debug("Checking python dependencies")
         instance_deps = defaultdict(list)
         for entry in self.package_closure().values():
+            if not entry['folder']:
+                continue
             requirements_file = os.path.join(entry['folder'], "requirements.txt")
             if os.path.isfile(requirements_file):
                 with open(requirements_file) as fp:
@@ -1347,7 +1435,7 @@ class GnrApp(object):
         if path:
             return path
         else:
-            raise Exception(
+            raise GnrPackageNotFoundException(
                     'Error: package %s not found' % pkgid)
 
     def pkg_path_from_attrs(self, pkgid, pkgattrs=None, project=None):

@@ -29,9 +29,23 @@ def main():
                         action="store_true",
                         help="Fail when the packages section of instanceconfig.xml does not"
                              " declare every package reached through required_packages()")
+    parser.add_argument("-r", "--requirements",
+                        dest="requirements",
+                        action="store_true",
+                        help="Print the requirements of the whole package closure, read"
+                             " without importing package code, and fail naming any package"
+                             " whose required_packages cannot be read")
     
     parser.add_argument("instance_name")
     options = parser.parse_args()
+    if options.requirements:
+        app = GnrApp(options.instance_name, checkdepcli=True, static_closure=True)
+        if app.unresolved_packages:
+            print(app.unresolved_packages_report(), file=sys.stderr)
+            sys.exit(5)
+        for requirement in sorted(app.instance_packages_dependencies):
+            print(requirement)
+        return
     app = GnrApp(options.instance_name, checkdepcli=True)
     instance_deps = app.instance_packages_dependencies
 
