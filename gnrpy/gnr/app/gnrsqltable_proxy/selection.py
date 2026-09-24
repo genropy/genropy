@@ -121,10 +121,13 @@ class SelectionProxy:
                 if '[' in col:
                     tbl, col = col.split('[')
                     maintable = [tbl]
-                if col.endswith(']'):
+                # the bracket closes the group: its end is read before the
+                # bracket is stripped, so the next column starts without the prefix
+                group_end = col.endswith(']')
+                if group_end:
                     col = col[:-1]
                 columns.append('.'.join(maintable + [col.rstrip(']')]))
-                if col.endswith(']'):
+                if group_end:
                     maintable = []
             columns = ','.join(columns)
         if expressions:

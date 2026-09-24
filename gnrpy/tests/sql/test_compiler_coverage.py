@@ -14,7 +14,7 @@ from core.common import BaseGnrTest
 from gnr.core.gnrbag import Bag
 from gnr.sql.gnrsql_exceptions import GnrSqlMissingField
 
-from .common import sql_compiler_setting
+from .common import next_sql_compiler_flag
 
 def setup_module(module):
     BaseGnrTest.setup_class()
@@ -3216,9 +3216,9 @@ class TestJoinConditions:
         rows = q.fetch()
         assert isinstance(rows, list)
 
-    @pytest.fixture(params=['legacy', 'next'])
+    @pytest.fixture(params=['False', 'True'], ids=['legacy', 'next'])
     def sql_compiler(self, request, db_sqlite):
-        with sql_compiler_setting(db_sqlite, request.param):
+        with next_sql_compiler_flag(db_sqlite, request.param):
             yield request.param
 
     @pytest.mark.usefixtures('sql_compiler')

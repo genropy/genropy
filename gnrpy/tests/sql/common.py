@@ -120,15 +120,16 @@ def get_pg_config():
 
 
 @contextmanager
-def sql_compiler_setting(db, value):
-    """Set ``<db sql_compiler="..."/>`` on the application config, then restore it."""
-    config = db.application.config
-    previous = config['db?sql_compiler']
-    config.setAttr('db', sql_compiler=value)
+def next_sql_compiler_flag(db, value):
+    """Set ``<experimental><db next_sql_compiler="..."/></experimental>`` on the
+    application config, then restore it."""
+    node = db.application.config.getNode('experimental.db', autocreate=True)
+    previous = node.attr.get('next_sql_compiler')
+    node.attr['next_sql_compiler'] = value
     try:
         yield
     finally:
-        config.setAttr('db', sql_compiler=previous)
+        node.attr['next_sql_compiler'] = previous
 
 
 @excludewin32

@@ -3,9 +3,9 @@
 Two things are checked here.
 
 1. ``queryCompilerClass`` picks the class the instance configuration asks for:
-   ``<db sql_compiler="next"/>`` selects ``SqlQueryCompilerNext``, anything else
-   (another value, the key absent, no application at all) selects the legacy
-   ``SqlQueryCompiler``.
+   the experimental flag ``<experimental><db next_sql_compiler="True"/></experimental>``
+   selects ``SqlQueryCompilerNext``; a false or empty flag, the flag absent, or no
+   application at all selects the legacy ``SqlQueryCompiler``.
 
 2. The two classes compile the same query to the same SQL.  A corpus of queries
    on the ``test_invoice`` project is compiled twice, once with each class, and
@@ -23,7 +23,7 @@ from gnr.sql.gnrsqldata.compiler import SqlQueryCompiler
 from gnr.sql.gnrsqldata.compiler_factory import queryCompilerClass
 from gnr.sql.gnrsqldata.compiler_next import SqlQueryCompilerNext
 
-from .common import sql_compiler_setting
+from .common import next_sql_compiler_flag
 
 
 # ===================================================================
@@ -223,20 +223,20 @@ def _assert_same_record_compilation(db):
 class TestQueryCompilerClass:
 
     def test_setting_absent(self, db_sqlite):
-        assert db_sqlite.application.config['db?sql_compiler'] is None
+        assert db_sqlite.application.experimentalValue('db', 'next_sql_compiler') is None
         assert queryCompilerClass(db_sqlite) is SqlQueryCompiler
 
-    def test_setting_next(self, db_sqlite):
-        with sql_compiler_setting(db_sqlite, 'next'):
+    def test_setting_true(self, db_sqlite):
+        with next_sql_compiler_flag(db_sqlite, 'True'):
             assert queryCompilerClass(db_sqlite) is SqlQueryCompilerNext
         assert queryCompilerClass(db_sqlite) is SqlQueryCompiler
 
-    def test_setting_other_value(self, db_sqlite):
-        with sql_compiler_setting(db_sqlite, 'legacy'):
+    def test_setting_false(self, db_sqlite):
+        with next_sql_compiler_flag(db_sqlite, 'False'):
             assert queryCompilerClass(db_sqlite) is SqlQueryCompiler
 
     def test_setting_empty_value(self, db_sqlite):
-        with sql_compiler_setting(db_sqlite, ''):
+        with next_sql_compiler_flag(db_sqlite, ''):
             assert queryCompilerClass(db_sqlite) is SqlQueryCompiler
 
     def test_no_application(self):
@@ -253,14 +253,14 @@ class TestSwitchReachesTheQuery:
         assert type(cpl).__module__ == 'gnr.sql.gnrsqldata.compiler'
 
     def test_query_uses_next_when_selected(self, db_sqlite):
-        with sql_compiler_setting(db_sqlite, 'next'):
+        with next_sql_compiler_flag(db_sqlite, 'True'):
             cpl = db_sqlite.table('invc.invoice').query(columns='$inv_number').compiled
         assert type(cpl).__module__ == 'gnr.sql.gnrsqldata.compiler_next'
 
     def test_record_uses_next_when_selected(self, db_sqlite):
         tbl = db_sqlite.table('invc.invoice')
         pkey = tbl.query(columns='$id', limit=1).fetch()[0]['id']
-        with sql_compiler_setting(db_sqlite, 'next'):
+        with next_sql_compiler_flag(db_sqlite, 'True'):
             cpl = tbl.record(pkey=pkey).compiled
         assert type(cpl).__module__ == 'gnr.sql.gnrsqldata.compiler_next'
 
@@ -268,7 +268,7 @@ class TestSwitchReachesTheQuery:
         tbl = db_sqlite.table('invc.invoice')
         legacy_sql = tbl.query(columns='$inv_number,@customer_id.account_name',
                                order_by='$date').sqltext
-        with sql_compiler_setting(db_sqlite, 'next'):
+        with next_sql_compiler_flag(db_sqlite, 'True'):
             next_sql = tbl.query(columns='$inv_number,@customer_id.account_name',
                                  order_by='$date').sqltext
         assert next_sql == legacy_sql

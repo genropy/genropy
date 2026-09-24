@@ -58,7 +58,8 @@ class GnrCustomWebPage(object):
         """No-summary wizard (wizard_grouplets root) on myticket.
         Reopen a SAVED ticket, move to step 2, save from the toolbar:
         the wizard must NOT reposition to step 1 on the reload that
-        follows the save. A NEW record must still open on step 1.
+        follows the save. A NEW record must still open on step 1, and
+        so must ANOTHER saved ticket opened while on step 2.
         Step 2 hosts a groupletGrid whose editors carry
         validate_notnull: emptying product or qty must mark the form
         invalid (no console noise)."""
@@ -177,4 +178,34 @@ class GnrCustomWebPage(object):
             datapath='.tickets',
             viewResource='View',
             formResource='Form',
+            view_store__onStart=True)
+
+    def test_11_wizard_resume(self, pane):
+        """groupletWizardForm with resumeStepField: no toolbar, no padlock.
+        Move a saved ticket to step 3 and save, open another ticket, reopen
+        the first: it opens on step 3. Moving back without editing and
+        closing asks nothing. A NEW record opens on step 1. The recap shows
+        the subject (recap_remote_subject, that step only) and the note
+        (remote_ticket_note, every step); reopening another ticket on the
+        recap shows its subject, not the previous one. draftConfirm: a ticket
+        that is not a draft opens on the recap, locked, with only Back to
+        draft (backToDraft); a draft's recap has Save draft (saves and closes)
+        and Complete Ticket (asks, confirms, reloads read-only)."""
+        pane.borderContainer(height='500px').contentPane(
+            region='center').dialogTableHandler(
+            table='test.myticket',
+            datapath='.ticket_wizard_resume',
+            viewResource='ViewWizard',
+            formResource='FormWizardResume',
+            view_store__onStart=True)
+
+    def test_12_wizard_left(self, pane):
+        """test_11 with stepperPosition='left': the steps in a rail on the
+        left, full height, the footer under the step only."""
+        pane.borderContainer(height='500px').contentPane(
+            region='center').dialogTableHandler(
+            table='test.myticket',
+            datapath='.ticket_wizard_left',
+            viewResource='ViewWizard',
+            formResource='FormWizardLeft',
             view_store__onStart=True)
