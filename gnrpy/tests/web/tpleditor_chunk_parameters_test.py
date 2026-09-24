@@ -92,6 +92,19 @@ class TestChunkEditorParameters(BaseGnrTest):
         assert grids['.varsgrid']['region'] == 'bottom'
         assert grids['.varsgrid']['height'] == '60%'
 
+    def test_body_is_edited_with_jodit_inside_the_letterhead_box(self):
+        nodes = list(struct_nodes(self.chunk_editor_pane()))
+        tags = {node.attr.get('tag') for node in nodes}
+        assert not tags & {'ckEditor', 'ExtendedCkeditor'}
+        editors = [node for node in nodes if node.attr.get('tag') == 'ExtendedJoditEditor']
+        assert len(editors) == 1
+        assert editors[0].attr['value'] == '^.data.content'
+        assert editors[0].attr['css_value'] == '^.data.content_css'
+        assert editors[0].attr['bodyStyle'] == '^.editor.bodyStyle'
+        box = [node.attr['script'] for node in nodes
+               if node.attr.get('tag') == 'dataController' and 'letterhead_center_width' in node.attr]
+        assert len(box) == 1 and 'SET .editor.bodyStyle' in box[0]
+
     def test_save_button_forwards_the_parameters(self):
         for pane in (self.chunk_editor_pane(), self.chunk_editor_pane(showParameters=True)):
             buttons = self.save_buttons(pane)

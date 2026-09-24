@@ -1501,6 +1501,8 @@ class GnrWebPage(GnrBaseWebPage):
         'codemirror6': ('js_libs', 'codemirror6', 'codemirror6.bundle.js'),
         'prosemirror': ('js_libs', 'prosemirror', 'prosemirror.bundle.js'),
         'prosemirrorCss': ('js_libs', 'prosemirror', 'prosemirror.css'),
+        'jodit': ('js_libs', 'jodit', 'jodit.min.js'),
+        'joditCss': ('js_libs', 'jodit', 'jodit.min.css'),
     }
 
     def _vendoredBundlesMtime(self):
