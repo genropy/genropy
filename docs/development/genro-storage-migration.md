@@ -564,7 +564,8 @@ Open, deliberately:
    the legacy service**, because serving it through a writable backend would silently
    drop the restriction;
    `local_path(keep=True)` — refused with `NotImplementedError` on a remote mount rather
-   than silently not keeping the file.
+   than silently not keeping the file. The legacy `aws_s3` and `sftp` services keep it;
+   no caller passes `keep=True` today, here or in the application projects searched.
 3. **Two upstream round-trip costs on S3, reported as `genropy/genro-storage#78`**
    *(measured)*: `copy_to()` issues 6 API calls where one `CopyObject` would do — two of
    them `ListObjectVersions`, which a copy does not need — and `open('rb')` adds a
