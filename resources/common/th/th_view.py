@@ -233,8 +233,10 @@ class TableHandlerView(BaseComponent):
         pars['table'] = table
         pars['datapath'] = '.queryBySample'
         pars.setdefault('_class','th_querysampleform')
+        pars.setdefault('border_spacing','6px 2px')
+        view.data('.query.bySample',True)
         view.data('.query.bySampleIsDefault',pars.pop('isDefault',False))
-        bar = view.top.slotToolbar('fb,*',childname='queryBySample')
+        bar = view.top.slotToolbar('fb',childname='queryBySample',fb_width='100%',_class='th_querysample_bar')
         bar.dataController("""
             var where = new gnr.GnrBag();
             var parnames = {};
@@ -289,8 +291,6 @@ class TableHandlerView(BaseComponent):
         """,queryBySample='^.queryBySample',currentQuery='^.query.currentQuery',
                             _if='currentQuery=="__querybysample__"')
         tray = bar.fb.div(_class='th_querysample_tray')
-        tray.div(_class='th_querysample_close',tip='!!Plain query',
-                 connect_onclick="SET .query.queryEditor=false; SET .query.currentQuery='__basequery__';")
         fb = tray.formbuilder(onEnter='genro.nodeById(this.getInheritedAttributes().target).publish("runbtn",{"modifiers":null});',
                                 **pars)
         bar.dataController("""genro.dom.toggleVisible(bar,currentQuery=="__querybysample__");
@@ -1546,6 +1546,13 @@ class TableHandlerView(BaseComponent):
                               dlgtitle='!!Current query record count',alertmsg='=.currentQueryCountAsString')
         box = pane.div(datapath='.query.where',onEnter='genro.nodeById(this.getInheritedAttributes().target).publish("runbtn",{"modifiers":null});',parentForm=False)
         box.data('.#parent.queryMode','S',caption='!!Search')
+        toggle = box.div(_class='th_querysample_toggle',tip='!!Query by sample',
+                         hidden='^.#parent.bySample?=!#v',
+                         connect_onclick="""var currentQuery = GET .#parent.currentQuery;
+                                            SET .#parent.queryEditor=false;
+                                            SET .#parent.currentQuery = currentQuery=='__querybysample__'?'__basequery__':'__querybysample__';""")
+        box.dataController("genro.dom.setClass(toggle,'th_querysample_toggle_on',currentQuery=='__querybysample__');",
+                           currentQuery='^.#parent.currentQuery',toggle=toggle,_onBuilt=True)
         box.div('^.#parent.queryMode?caption',_class='gnrfieldlabel th_searchlabel',
                 nodeId='%s_searchMenu_a' %th_root)
         querybox_stack = box.div(style='display:inline-block')
