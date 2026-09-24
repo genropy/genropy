@@ -13,8 +13,6 @@ import pytest
 from gnr.core.gnrcrypto import Encryptor
 from gnr.sql.gnrsqldata.compiler import SqlCompiledQuery
 
-from core.common import BaseGnrTest
-
 TEST_ENCRYPTION_KEY = 'gnr_test_encryption_key_747'
 
 
@@ -25,15 +23,6 @@ def enc_db(db_sqlite):
     if hasattr(db_sqlite, '_encryptor'):
         del db_sqlite._encryptor
     return db_sqlite
-
-
-def setup_module(module):
-    """Configure genro environment for GnrApp-based fixtures."""
-    BaseGnrTest.setup_class()
-
-
-def teardown_module(module):
-    BaseGnrTest.teardown_class()
 
 
 # ---------------------------------------------------------------------------
