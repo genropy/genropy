@@ -445,11 +445,13 @@ class GroupletHandler(BaseComponent):
                      _class='wizard_caption')
         step_form_id = f'{frameCode}_step_form'
         # The reload that follows the wizard's own save (onSaved sets
-        # wizard_saved_pkey before it, this load consumes it) changes nothing,
-        # unless it switched read-only (a confirm). Another load of the same
-        # record (a reload after an rpc) stays on the step and rebuilds it,
-        # unless it switched read-only. A different or
-        # new record repositions: first step, the step stored in
+        # wizard_saved_pkey before it, this load consumes it) stays on the step,
+        # unless it switched read-only (a confirm). After the insert of an
+        # advance it enters the step the advance left pending: that step is
+        # built on the saved record (wizardStepForward).
+        # Another load of the same record (a reload after an rpc) stays on the
+        # step and rebuilds it, unless it switched read-only.
+        # A different or new record repositions: first step, the step stored in
         # resumeStepField, or the last one when read-only. SET, not FIRE: FIRE
         # leaves step_index null and the next advance would restart from 0.
         # Already on the target step, wizard_build rebuilds it: its content
@@ -459,6 +461,7 @@ class GroupletHandler(BaseComponent):
             var isNew = this.form.isNewRecord();
             var ownSave = !isNew && pkey == _saved_pkey;
             SET .wizard_saved_pkey = null;
+            SET .wizard_pending_index = null;
             var confirmed = !isNew && !this.form.isDraft();
             var readOnly = confirmed_ro && !isNew
                            && (confirmed || this.form.isProtectWrite());
@@ -468,6 +471,9 @@ class GroupletHandler(BaseComponent):
             SET .wizard_confirmed = confirmed;
             SET .wizard_loaded_pkey = pkey;
             if(ownSave && sameMode){
+                if(_pending_index != null){
+                    SET .step_index = _pending_index;
+                }
                 return;
             }
             if(sameRecord){
@@ -512,8 +518,12 @@ class GroupletHandler(BaseComponent):
             # a save followed by no load (a dismiss) must not mark the next one
             pane.dataController("SET .wizard_saved_pkey = null; SET .wizard_loaded_pkey = null;",
                                 formsubscribe_onDismissed=True)
+        # a refused insert brings no reload to enter the pending step
+        pane.dataController("SET .wizard_pending_index = null;",
+                            formsubscribe_onSaveFailed=True)
         if has_summary:
             on_loaded_js = """
+                SET .wizard_pending_index = null;
                 SET .wizard_showing_summary = false;
                 SET .wizard_page = 'steps';
                 if(this.form.isNewRecord()){
@@ -525,6 +535,7 @@ class GroupletHandler(BaseComponent):
         pane.dataController(on_loaded_js,
                             frameCode=frameCode,
                             _saved_pkey='=.wizard_saved_pkey',
+                            _pending_index='=.wizard_pending_index',
                             _loaded_pkey='=.wizard_loaded_pkey',
                             _was_readonly='=.wizard_readonly',
                             _step_index='=.step_index',
