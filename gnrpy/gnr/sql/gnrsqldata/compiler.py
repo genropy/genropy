@@ -987,6 +987,10 @@ class SqlQueryCompiler(object):
             draftField = self.tblobj.draftField
             if draftField:
                 wherelist.append('${} IS NOT TRUE'.format(draftField))
+        if self.joinConditions:
+            extracnd, _ = self.getJoinCondition('*', '*', self.aliasCode(0))
+            if extracnd:
+                wherelist.append(extracnd)
         where = ' AND '.join(['({where_chunk})'.format(where_chunk=w) for w in wherelist if w])
         columns = self.updateFieldDict(columns)
         where = self.embedFieldPars(where)
@@ -1039,13 +1043,6 @@ class SqlQueryCompiler(object):
 
         # replace $fldname with tn.fldname: finally the real SQL where!
         where = gnrstring.templateReplace(where, colPars)
-        if self.joinConditions:
-            extracnd, one_one = self.getJoinCondition('*', '*', self.aliasCode(0))
-            if extracnd:
-                if where:
-                    where = ' ( %s ) AND ( %s ) ' % (where, extracnd)
-                else:
-                    where = extracnd
         order_by = gnrstring.templateReplace(order_by, colPars)
         having = gnrstring.templateReplace(having, colPars)
         group_by = gnrstring.templateReplace(group_by, colPars)
@@ -1176,9 +1173,19 @@ class SqlQueryCompiler(object):
         self.cpl.columns = ',\n       '.join(self.fieldlist)
         self.cpl.for_update = for_update
 
-        # Resolve any field references that appeared in join conditions
+        # Resolve any field references that appeared in join conditions.
+        # relationDict carries the placeholders emitted for relations declared
+        # on a virtual column, which have no physical column to join on.
+        joindict.update(self.cpl.relationDict)
         for key, value in list(joindict.items()):
+            self._currColKey = key
             colPars[key] = self.getFieldAlias(value)
+        missingKeys = set(self.cpl.relationDict).difference(colPars)
+        while missingKeys:
+            for key in missingKeys:
+                self._currColKey = key
+                colPars[key] = self.getFieldAlias(self.cpl.relationDict[key])
+            missingKeys = set(self.cpl.relationDict).difference(colPars)
         self.cpl.joins = [gnrstring.templateReplace(j, colPars) for j in self.cpl.joins]
 
         return self.cpl

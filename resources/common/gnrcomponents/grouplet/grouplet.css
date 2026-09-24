@@ -126,6 +126,74 @@
     background: var(--accent-color, #007AFF);
 }
 
+/* --- Vertical stepper (stepperPosition='left') --- */
+.wizard_stepper_bar.wizard_stepper_vertical {
+    display: block;
+    width: 200px;
+    height: 100%;
+    box-sizing: border-box;
+    padding: 20px 12px;
+    border-bottom: none;
+    border-right: 1px solid var(--border-color, #ccc);
+    background: var(--surface-alt, #f9fafb);
+    overflow-y: auto;
+}
+
+.wizard_stepper_vertical .wizard_stepper {
+    flex-direction: column;
+    align-items: stretch;
+}
+
+.wizard_stepper_vertical .wizard_step {
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    padding: 6px 8px;
+    border-radius: var(--radius-md, 8px);
+    transition: background .15s;
+}
+
+.wizard_stepper_vertical .wizard_step.active {
+    background: rgba(0, 122, 255, 0.08);
+    background: color-mix(in srgb, var(--accent-color, #007AFF) 10%, transparent);
+}
+
+.wizard_stepper_vertical .wizard_step.completed:hover {
+    background: rgba(0, 0, 0, 0.04);
+    background: color-mix(in srgb, var(--text-color, #444) 6%, transparent);
+}
+
+.wizard_stepper_vertical .wizard_circle {
+    flex: none;
+}
+
+.wizard_stepper_vertical .wizard_caption {
+    margin-top: 0;
+    font-size: 0.92em;
+    line-height: 1.25;
+    text-align: left;
+    white-space: normal;
+}
+
+/* centred under the circles: step padding 8px + half of a 26px circle,
+   less half of the 2px line */
+.wizard_stepper_vertical .wizard_connector {
+    flex: none;
+    width: 2px;
+    height: 16px;
+    min-width: 0;
+    max-width: none;
+    margin: 2px 0 2px 20px;
+    border-radius: 1px;
+}
+
+/* beside the rail the step would touch its border */
+.wizard_vertical .wizard_step_pane .grouplet_box {
+    padding: 12px 16px;
+    box-sizing: border-box;
+}
+
 /* The step content is the only thing in a wizard that may be taller than the
    window. Everything between the frame and here is a dijit layout pane that
    the BorderContainer sizes and clips (overflow:hidden, whatever the pane was
@@ -139,6 +207,8 @@
 /* --- Bottom navigation bar --- */
 .wizard_bottom_bar {
     display: flex;
+    flex-wrap: wrap;
+    row-gap: 4px;
     justify-content: flex-end;
     align-items: center;
     padding: 10px 16px;
@@ -146,7 +216,8 @@
 }
 
 .wizard_next_btn,
-.wizard_close_btn {
+.wizard_close_btn,
+.wizard_back_btn {
     background: none;
     border: none;
     padding: 6px 12px;
@@ -158,12 +229,40 @@
 }
 
 .wizard_next_btn:hover,
-.wizard_close_btn:hover {
+.wizard_close_btn:hover,
+.wizard_back_btn:hover {
     color: var(--primary-dark, #3A3A3C);
 }
 
 .wizard_next_btn::after {
     content: '\00a0\2192';
+}
+
+/* keeps the next button on the right whether or not back is displayed */
+.wizard_back_btn {
+    margin-right: auto;
+}
+
+/* the secondary of a draft's last step: same weight as the footer's other
+   buttons, the colour tells it from the confirm next to it */
+.wizard_save_draft_btn {
+    background: none;
+    border: none;
+    padding: 6px 12px;
+    margin-right: 8px;
+    font-size: 1.05em;
+    font-weight: 600;
+    color: var(--primary-dark, #3A3A3C);
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.wizard_save_draft_btn:hover {
+    color: var(--accent-color, #007AFF);
+}
+
+.wizard_back_btn::before {
+    content: '\2190\00a0';
 }
 
 .wizard_summary {

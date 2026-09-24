@@ -233,8 +233,10 @@ class TableHandlerView(BaseComponent):
         pars['table'] = table
         pars['datapath'] = '.queryBySample'
         pars.setdefault('_class','th_querysampleform')
+        pars.setdefault('border_spacing','6px 2px')
+        view.data('.query.bySample',True)
         view.data('.query.bySampleIsDefault',pars.pop('isDefault',False))
-        bar = view.top.slotToolbar('fb,*',childname='queryBySample')
+        bar = view.top.slotToolbar('fb',childname='queryBySample',fb_width='100%')
         bar.dataController("""
             var where = new gnr.GnrBag();
             var parnames = {};
@@ -288,7 +290,8 @@ class TableHandlerView(BaseComponent):
             SET .query.where = where;
         """,queryBySample='^.queryBySample',currentQuery='^.query.currentQuery',
                             _if='currentQuery=="__querybysample__"')
-        fb = bar.fb.formbuilder(onEnter='genro.nodeById(this.getInheritedAttributes().target).publish("runbtn",{"modifiers":null});',
+        tray = bar.fb.div(_class='th_querysample_tray')
+        fb = tray.formbuilder(onEnter='genro.nodeById(this.getInheritedAttributes().target).publish("runbtn",{"modifiers":null});',
                                 **pars)
         bar.dataController("""genro.dom.toggleVisible(bar,currentQuery=="__querybysample__");
                             view.widget.resize();""", currentQuery='^.query.currentQuery',
@@ -305,8 +308,11 @@ class TableHandlerView(BaseComponent):
             if permissions.get('user_forbidden'):
                 continue
             fldattr = fieldobj.attributes
+            tag = fkw.pop('tag','textbox')
             fkw.setdefault('lbl',fldattr.get('name_short') or fldattr.get('name_long'))
-            fb.child(fkw.pop('tag','textbox'),value='^.c_%s' %i,attr_column=field,attr_column_dtype=fldattr.get('dtype','T'),
+            if tag.lower()=='checkbox' and not fkw.get('label'):
+                fkw['label'] = fkw.pop('lbl')
+            fb.child(tag,value='^.c_%s' %i,attr_column=field,attr_column_dtype=fldattr.get('dtype','T'),
                         attr_op=fkw.pop('op',None),
                         **fkw)
 
@@ -1540,6 +1546,13 @@ class TableHandlerView(BaseComponent):
                               dlgtitle='!!Current query record count',alertmsg='=.currentQueryCountAsString')
         box = pane.div(datapath='.query.where',onEnter='genro.nodeById(this.getInheritedAttributes().target).publish("runbtn",{"modifiers":null});',parentForm=False)
         box.data('.#parent.queryMode','S',caption='!!Search')
+        toggle = box.div(_class='th_querysample_toggle',tip='!!Query by sample',
+                         hidden='^.#parent.bySample?=!#v',
+                         connect_onclick="""var currentQuery = GET .#parent.currentQuery;
+                                            SET .#parent.queryEditor=false;
+                                            SET .#parent.currentQuery = currentQuery=='__querybysample__'?'__basequery__':'__querybysample__';""")
+        box.dataController("genro.dom.setClass(toggle,'th_querysample_toggle_on',currentQuery=='__querybysample__');",
+                           currentQuery='^.#parent.currentQuery',toggle=toggle,_onBuilt=True)
         box.div('^.#parent.queryMode?caption',_class='gnrfieldlabel th_searchlabel',
                 nodeId='%s_searchMenu_a' %th_root)
         querybox_stack = box.div(style='display:inline-block')

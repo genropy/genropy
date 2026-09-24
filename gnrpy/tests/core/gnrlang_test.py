@@ -377,7 +377,6 @@ def test_gnrImport_concurrent_single_module_identity(tmp_path):
     assert all(m is modules[0] for m in modules)
     assert modules[0].Service is not None
 
-
 # ---------------------------------------------------------------------------
 # ThreadedDict
 # ---------------------------------------------------------------------------

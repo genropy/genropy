@@ -24,7 +24,7 @@ class FrameIndex(BaseComponent):
                    gnrcomponents/maintenance:MaintenancePlugin
                    """
     #gnrcomponents/datamover:MoverPlugin, removed
-    js_requires='frameindex'
+    js_requires='frameindex,adm_notification'
     css_requires='frameindex'
     
     custom_plugin_list = None
@@ -360,7 +360,7 @@ class FrameIndex(BaseComponent):
         menu = slot.menudiv("!!Help",iconClass='iconbox help',_class='largemenu noIconMenu')
         if documentationcb or usergroup_documentation:
             m = menu.menuline('!![en]Open documentation',code='documentation',
-                              documentationcb=documentationcb)
+                              action=documentationcb)
             if usergroup_documentation:
                 m = m.menu(action="genro.openBrowserTab($1.url);")
                 for r in usergroup_documentation:
@@ -373,6 +373,7 @@ class FrameIndex(BaseComponent):
         if not self.avatar.group_code:
             return
         return self.db.table('adm.group_helpdoc').query(
+            columns='$url,@helpdoc_id.title AS title',
             where='$group_code=:gc',
             gc = self.avatar.group_code,
         ).fetch()

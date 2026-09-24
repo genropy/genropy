@@ -1171,7 +1171,7 @@ class SqlSelection(object):
 
             result.addItem('%s' % spkey, row, nodecaption=nodecaption)
             if pkey and recordResolver:
-                result['%s._' % spkey] = SqlRelatedRecordResolver(db=self.db, cacheTime=-1, mode='bag',
+                result['%s._' % spkey] = SqlRelatedRecordResolver(db=self.db, cacheTime=-1, output_mode='bag',
                                                                   target_fld='%s.%s' % (defaultTable, self.dbtable.pkey),
                                                                   relation_value=pkey,
                                                                   joinConditions=self.joinConditions,
@@ -1275,7 +1275,7 @@ class SqlSelection(object):
                 spkey = gnrstring.toText(pkey).replace('.', '_')
             # Optionally attach a lazy record resolver
             if pkey and recordResolver:
-                content = SqlRelatedRecordResolver(db=self.db, cacheTime=-1, mode='bag',
+                content = SqlRelatedRecordResolver(db=self.db, cacheTime=-1, output_mode='bag',
                                                    target_fld='%s.%s' % (self.dbtable.fullname, self.dbtable.pkey),
                                                    relation_value=pkey,
                                                    joinConditions=self.joinConditions,
@@ -1334,7 +1334,7 @@ class SqlSelection(object):
             else:
                 spkey = gnrstring.toText(pkey)
             if pkey and recordResolver:
-                content = SqlRelatedRecordResolver(db=self.db, cacheTime=-1, mode='bag',
+                content = SqlRelatedRecordResolver(db=self.db, cacheTime=-1, output_mode='bag',
                                                    target_fld='%s.%s' % (self.dbtable.fullname, self.dbtable.pkey),
                                                    relation_value=pkey, joinConditions=self.joinConditions,
                                                    virtual_columns=virtual_columns,

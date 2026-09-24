@@ -5,7 +5,6 @@
 import os
 import re
 import random
-import os
 import shutil
 import mimetypes
 import hashlib
@@ -242,9 +241,6 @@ class ServiceType(BaseServiceType):
 
     #def conf_vol(self):
     #    return dict(implementation='symbolic')
-    def getServiceFactory(self,implementation=None):
-        return self.implementations.get(implementation)
-    
 class StorageNode(object):
     def __str__(self):
         return 'StorageNode %s <%s>' %(self.service.service_implementation,self.internal_path)
@@ -436,8 +432,15 @@ class StorageService(GnrBaseService):
         pass
 
     def md5hash(self,*args):
-        """Returns the md5 hash of a given path"""
-        pass
+        """Returns the md5 hash of the content at the given path"""
+        BLOCKSIZE = 65536
+        hasher = hashlib.new('md5', usedforsecurity=False)
+        with self.open(*args, mode='rb') as afile:
+            buf = afile.read(BLOCKSIZE)
+            while len(buf) > 0:
+                hasher.update(buf)
+                buf = afile.read(BLOCKSIZE)
+        return hasher.hexdigest()
 
     def versions(self,*args):
         return []
@@ -807,16 +810,6 @@ class BaseLocalService(StorageService):
     def isfile(self, *args):
         return os.path.isfile(self.internal_path(*args))
     
-    def md5hash(self,*args):
-        BLOCKSIZE = 65536
-        hasher = hashlib.md5()
-        with self.open(*args, mode='rb') as afile:
-            buf = afile.read(BLOCKSIZE)
-            while len(buf) > 0:
-                hasher.update(buf)
-                buf = afile.read(BLOCKSIZE)
-        return hasher.hexdigest()
-
     def renameNode(self, sourceNode=None, destNode=None):
         destNode.service.autocreate(destNode.path, autocreate=-1)
         shutil.move(sourceNode.internal_path, destNode.internal_path)

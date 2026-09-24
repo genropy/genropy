@@ -294,6 +294,11 @@ div.cellContent{
     display: inline-flex;
 }
 
+/* inline-flex cells cannot line up in columns across rows */
+.slotbar_row table.formbuilder:has(tr+tr) td.gnrfield,.slotbar_row table.formbuilder:has(tr+tr) td.fb_lbl{
+    display: table-cell;
+}
+
 
 .slotbar_toolbar .gnrfieldlabel {
     color: var(--text-muted);

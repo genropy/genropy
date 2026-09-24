@@ -200,12 +200,6 @@ class GetSelectionMixin:
             A tuple ``(data_bag, attributes_dict)``.
 
         Note:
-            BUG: At line 785 in original, ``formats[7:]`` should be
-            ``formats[k[7:]]`` — the slice ``7:`` on the dict key is
-            used as a dict key assignment, but the code writes
-            ``formats[7:] = ...`` which raises ``TypeError`` since
-            dicts don't support slice assignment.
-
             SMELL: The method has ~40 parameters — a strong indicator
             that it should be decomposed into smaller units or use a
             parameter object.
@@ -220,6 +214,9 @@ class GetSelectionMixin:
         formats = {}
         if queryExtraPars:
             kwargs.update(queryExtraPars.asDict(ascii=True))
+        where, columns, limit, customOrderBy = self._loadSavedSelection(
+            tblobj, savedQuery=savedQuery, savedView=savedView, where=where,
+            columns=columns, limit=limit, customOrderBy=customOrderBy)
         if limit is None and hardQueryLimit is not None:
             limit = hardQueryLimit
         wherebag = where if isinstance(where, Bag) else None
@@ -239,7 +236,9 @@ class GetSelectionMixin:
             checkPermissions = self.page.permissionPars
         for k in list(kwargs.keys()):
             if k.startswith('format_'):
-                formats[7:] = kwargs.pop(k)  # BUG: slice assignment on dict — should be ``formats[k[7:]] = ...``
+                # the key is the column name, what follows 'format_': the slice
+                # belongs to k, not to the dict being written
+                formats[k[7:]] = kwargs.pop(k)
         if selectionName.startswith('*'):
             if selectionName == '*':
                 selectionName = self.page.page_id
@@ -255,19 +254,6 @@ class GetSelectionMixin:
                 newSelection = False
         if newSelection:
             debug = 'fromDb'
-            if savedQuery:
-                userobject_tbl = self.db.table('adm.userobject')
-                where = userobject_tbl.loadUserObject(userObjectIdOrCode=savedQuery,
-                                                      objtype='query', tbl=tblobj.fullname)[0]
-                if where['where']:
-                    limit = where['queryLimit']
-                    savedView = savedView or where['currViewPath']
-                    customOrderBy = customOrderBy or where['customOrderBy']
-                    where = where['where']
-            if savedView:
-                userobject_tbl = self.db.table('adm.userobject')
-                columns = userobject_tbl.loadUserObject(userObjectIdOrCode=savedView,
-                                                        objtype='view', tbl=tblobj.fullname)[0]
             if selectmethod:
                 selecthandler = self.page.getPublicMethod('rpc', selectmethod)
             else:
@@ -359,7 +345,9 @@ class GetSelectionMixin:
             resultAttributes['prevSelectedIdx'] = [m['rowidx'] for m in [r for r in selection.data if r['pkey'] in keys]]
         if wherebag:
             resultAttributes['whereAsPlainText'] = tblobj.whereTranslator.toHtml(tblobj, wherebag)
-        resultAttributes['hardQueryLimitOver'] = hardQueryLimit and resultAttributes['totalrows'] == hardQueryLimit
+        # totalrows is written only on the new selection path, so reading it
+        # back here raised KeyError on a selection replayed from its pickle
+        resultAttributes['hardQueryLimitOver'] = hardQueryLimit and len(selection) == hardQueryLimit
         if self.page.pageStore().getItem('slaveSelections.%s' % selectionName):
             with self.page.pageStore() as store:
                 slaveSelections = store.getItem('slaveSelections.%s' % selectionName)
@@ -376,6 +364,46 @@ class GetSelectionMixin:
     # -----------------------------------------------------------------------
     #  Private methods of the getSelection flow
     # -----------------------------------------------------------------------
+
+    def _loadSavedSelection(self, tblobj: Any, savedQuery: Optional[str] = None,
+                            savedView: Optional[str] = None,
+                            where: Union[str, Bag] = '',
+                            columns: Union[str, Bag] = '',
+                            limit: Optional[int] = None,
+                            customOrderBy: Optional[Bag] = None
+                            ) -> tuple[Any, Any, Optional[int], Optional[Bag]]:
+        """Resolve a saved query and a saved view into query parameters.
+
+        A saved query supplies the WHERE :class:`Bag`, the row limit, the
+        custom ordering and, when it carries one, the saved view whose
+        columns replace the incoming ones.
+
+        Args:
+            tblobj: The table object.
+            savedQuery: Saved query identifier or code.
+            savedView: Saved view identifier or code.
+            where: Incoming WHERE clause.
+            columns: Incoming column specification.
+            limit: Incoming row limit.
+            customOrderBy: Incoming custom ordering :class:`Bag`.
+
+        Returns:
+            A tuple ``(where, columns, limit, customOrderBy)``.
+        """
+        if savedQuery:
+            userobject_tbl = self.db.table('adm.userobject')
+            where = userobject_tbl.loadUserObject(userObjectIdOrCode=savedQuery,
+                                                  objtype='query', tbl=tblobj.fullname)[0]
+            if where['where']:
+                limit = where['queryLimit']
+                savedView = savedView or where['currViewPath']
+                customOrderBy = customOrderBy or where['customOrderBy']
+                where = where['where']
+        if savedView:
+            userobject_tbl = self.db.table('adm.userobject')
+            columns = userobject_tbl.loadUserObject(userObjectIdOrCode=savedView,
+                                                    objtype='view', tbl=tblobj.fullname)[0]
+        return where, columns, limit, customOrderBy
 
     def _getSelection_columns(self, tblobj: Any, columns: Union[str, Bag],
                               expressions: Optional[str] = None) -> tuple[str, dict]:
@@ -411,10 +439,13 @@ class GetSelectionMixin:
                 if '[' in col:
                     tbl, col = col.split('[')
                     maintable = [tbl]
-                if col.endswith(']'):
+                # the bracket closes the group: its end is read before the
+                # bracket is stripped, so the next column starts without the prefix
+                group_end = col.endswith(']')
+                if group_end:
                     col = col[:-1]
                 columns.append('.'.join(maintable + [col.rstrip(']')]))
-                if col.endswith(']'):
+                if group_end:
                     maintable = []
             columns = ','.join(columns)
         if expressions:
