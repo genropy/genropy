@@ -1237,6 +1237,29 @@ class GnrApp(object):
                          ' attribute or as the single return of the method.')
         return '\n'.join(lines)
 
+    def check_package_imports(self):
+        """Load every package of the closure the way the boot does, ``main.py`` and
+        ``custom.py`` included, and return ``(entry, exception)`` for each one that
+        fails: the loop goes on after a failure, so one run names them all."""
+        failures = []
+        for entry in sorted(self.package_closure().values(), key=lambda e: e['code']):
+            if not entry['folder']:
+                continue
+            try:
+                GnrPackage(entry['pkgid'], self, path=entry['path'],
+                           filename=entry['filename'], project=entry['project'])
+            except Exception as e:
+                failures.append((entry, e))
+        return failures
+
+    def package_imports_report(self, failures):
+        lines = ['Packages that do not load in this environment:']
+        for entry, error in failures:
+            required_by = ' (required by %s)' % ', '.join(sorted(entry['required_by'])) \
+                if entry['required_by'] else ''
+            lines.append('  %s%s: %s: %s' % (entry['code'], required_by, type(error).__name__, error))
+        return '\n'.join(lines)
+
     def undeclared_packages_report(self):
         lines = ['Packages loaded through required_packages() but not declared in the'
                  ' packages section of instanceconfig.xml:']

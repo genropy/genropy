@@ -35,6 +35,12 @@ def main():
                         help="Write to FILE the requirements of the whole package closure,"
                              " read without importing package code, and fail naming any"
                              " package whose required_packages cannot be read")
+    parser.add_argument("-m", "--imports",
+                        dest="imports",
+                        action="store_true",
+                        help="Also load the main.py and custom.py of every package in the"
+                             " closure, and fail naming each one that does not load; imports"
+                             " inside methods are not reached")
     
     parser.add_argument("instance_name")
     options = parser.parse_args()
@@ -47,7 +53,10 @@ def main():
             for requirement in sorted(app.instance_packages_dependencies):
                 fp.write(requirement + '\n')
         return
-    app = GnrApp(options.instance_name, checkdepcli=True)
+    app = GnrApp(options.instance_name, checkdepcli=True, static_closure=options.imports)
+    if options.imports and app.unresolved_packages:
+        print(app.unresolved_packages_report(), file=sys.stderr)
+        sys.exit(5)
     instance_deps = app.instance_packages_dependencies
 
     if options.verbose:
@@ -103,6 +112,12 @@ def main():
                
         sys.exit(3)
         
+    if options.imports:
+        failures = app.check_package_imports()
+        if failures:
+            print(app.package_imports_report(failures), file=sys.stderr)
+            sys.exit(6)
+
     if not missing and not wrong:
         print("All good!")
 if __name__ == "__main__":

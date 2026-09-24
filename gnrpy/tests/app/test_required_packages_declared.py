@@ -263,3 +263,47 @@ class TestRequiredPackagesDeclared(BaseGnrTest):
         assert self._checkdep(monkeypatch, '--requirements', target) == 5
         assert not os.path.exists(target)
         assert 'dynamicpkg' in capsys.readouterr().err
+
+    def test_check_package_imports_names_every_failure(self):
+        first = self._package('brokenpkg', BROKEN_MAIN)
+        second = self._package('attrbroken', ATTRIBUTE_MAIN)
+        app = self._app('sys', extra=first + '\n' + second, checkdepcli=True, static_closure=True)
+        failures = app.check_package_imports()
+        assert [entry['code'] for entry, error in failures] == ['attrbroken', 'brokenpkg']
+        report = app.package_imports_report(failures)
+        assert 'brokenpkg: GnrImportException' in report
+        assert 'surely_missing_module_for_this_test' in report
+
+    def test_check_package_imports_loads_custom_py(self):
+        app = self._app('biz', checkdepcli=True)
+        custom_root = self._custom(app, 'adm', 'import surely_missing_module_for_this_test\n')
+        try:
+            app = self._app('biz', checkdepcli=True, static_closure=True)
+            failures = app.check_package_imports()
+            assert [entry['code'] for entry, error in failures] == ['gnrcore:adm']
+            assert isinstance(failures[0][1], ModuleNotFoundError)
+        finally:
+            shutil.rmtree(custom_root)
+
+    def test_check_package_imports_passes_on_a_loadable_closure(self):
+        app = self._app('biz', checkdepcli=True, static_closure=True)
+        assert app.check_package_imports() == []
+
+    def test_checkdep_imports_fails_naming_the_package(self, monkeypatch, capsys):
+        broken = self._package('brokenpkg', BROKEN_MAIN)
+        self._app('sys', extra=broken, checkdepcli=True)
+        assert self._checkdep(monkeypatch, '--imports') == 6
+        out, err = capsys.readouterr()
+        assert 'brokenpkg' in err
+        assert 'All good!' not in out
+
+    def test_checkdep_imports_passes(self, monkeypatch, capsys):
+        self._app('biz', checkdepcli=True)
+        assert self._checkdep(monkeypatch, '--imports') == 0
+        assert 'All good!' in capsys.readouterr().out
+
+    def test_checkdep_imports_fails_on_an_unresolved_closure(self, monkeypatch, capsys):
+        dynamic = self._package('dynamicpkg', DYNAMIC_MAIN)
+        self._app('sys', extra=dynamic, checkdepcli=True)
+        assert self._checkdep(monkeypatch, '--imports') == 5
+        assert 'dynamicpkg' in capsys.readouterr().err
