@@ -248,17 +248,18 @@ class TestRequiredPackagesDeclared(BaseGnrTest):
     def test_checkdep_requirements_prints_the_closure_without_importing(self, monkeypatch, capsys):
         broken = self._package('brokenpkg', ATTRIBUTE_MAIN, ['surely-missing-dist-for-this-test'])
         self._app('sys', extra=broken, checkdepcli=True)
-        assert self._checkdep(monkeypatch, '--requirements') == 0
-        out, err = capsys.readouterr()
-        lines = out.splitlines()
+        target = os.path.join(tempfile.mkdtemp(prefix='gnrtest_req_'), 'requirements.txt')
+        assert self._checkdep(monkeypatch, '--requirements', target) == 0
+        with open(target, encoding='utf-8') as fp:
+            lines = fp.read().splitlines()
         assert 'surely-missing-dist-for-this-test' in lines
         assert lines == sorted(set(lines))
-        assert 'Cannot compute' not in err
+        assert 'Cannot compute' not in capsys.readouterr().err
 
     def test_checkdep_requirements_fails_naming_the_package(self, monkeypatch, capsys):
         dynamic = self._package('dynamicpkg', DYNAMIC_MAIN, ['some-dist-for-this-test'])
         self._app('sys', extra=dynamic, checkdepcli=True)
-        assert self._checkdep(monkeypatch, '--requirements') == 5
-        out, err = capsys.readouterr()
-        assert out == ''
-        assert 'dynamicpkg' in err
+        target = os.path.join(tempfile.mkdtemp(prefix='gnrtest_req_'), 'requirements.txt')
+        assert self._checkdep(monkeypatch, '--requirements', target) == 5
+        assert not os.path.exists(target)
+        assert 'dynamicpkg' in capsys.readouterr().err
