@@ -25,7 +25,8 @@
 This module is the copy of ``compiler.py`` that receives new work.
 ``compiler.py`` is frozen: it keeps compiling every query for every instance
 that does not opt in, and only fixes are backported into it.  This copy is
-selected per instance with ``<db sql_compiler="next"/>`` in the instance
+selected per instance with the experimental flag
+``<experimental><db next_sql_compiler="True"/></experimental>`` in the instance
 configuration, through
 ``gnr.sql.gnrsqldata.compiler_factory.queryCompilerClass``.
 
