@@ -319,18 +319,19 @@ def test_get_record_count(handlers):
 # ---------------------------------------------------------------------------
 
 def _app_handler_for(db, tmp_path, value):
-    """Build page.app with ``db?app_handler`` set to *value* (None = absent)."""
-    confnode = db.application.config.getNode('db')
-    previous = confnode.attr.pop('app_handler', None)
+    """Build page.app with ``experimental.db?next_app_handler`` set to *value*
+    (None = absent)."""
+    confnode = db.application.config.getNode('experimental.db', autocreate=True)
+    previous = confnode.attr.pop('next_app_handler', None)
     if value is not None:
-        confnode.attr['app_handler'] = value
+        confnode.attr['next_app_handler'] = value
     try:
         page = _StandInPage(db, str(tmp_path / ('switch_%s' % value)))
         return GnrWebPage.app.fget(page)
     finally:
-        confnode.attr.pop('app_handler', None)
+        confnode.attr.pop('next_app_handler', None)
         if previous is not None:
-            confnode.attr['app_handler'] = previous
+            confnode.attr['next_app_handler'] = previous
 
 
 def test_switch_absent_gives_the_current_handler(db, tmp_path):
@@ -339,13 +340,13 @@ def test_switch_absent_gives_the_current_handler(db, tmp_path):
     assert not isinstance(handler, GnrWebAppHandlerNext)
 
 
-def test_switch_next_gives_the_new_handler(db, tmp_path):
-    handler = _app_handler_for(db, tmp_path, 'next')
+def test_switch_on_gives_the_new_handler(db, tmp_path):
+    handler = _app_handler_for(db, tmp_path, 'True')
     assert isinstance(handler, GnrWebAppHandlerNext)
 
 
-def test_switch_other_value_gives_the_current_handler(db, tmp_path):
-    handler = _app_handler_for(db, tmp_path, 'whatever')
+def test_switch_off_gives_the_current_handler(db, tmp_path):
+    handler = _app_handler_for(db, tmp_path, 'False')
     assert isinstance(handler, GnrWebAppHandler)
     assert not isinstance(handler, GnrWebAppHandlerNext)
 

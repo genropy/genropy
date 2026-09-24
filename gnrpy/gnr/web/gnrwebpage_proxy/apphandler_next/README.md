@@ -7,14 +7,18 @@ from it, and the legacy package is frozen.
 
 ## Switch
 
-The instance configuration selects the handler; nothing else changes.
+An experimental flag of the instance configuration selects the handler;
+nothing else changes.
 
 ```xml
-<db app_handler="next"/>
+<experimental>
+    <db next_app_handler="True"/>
+</experimental>
 ```
 
-`GnrWebPage.app` (`gnrwebpage.py`) builds `GnrWebAppHandlerNext` for that
-value and `GnrWebAppHandler` for any other value or none.
+`GnrWebPage.app` (`gnrwebpage.py`) builds `GnrWebAppHandlerNext` when
+`experimentalFlag('db', 'next_app_handler')` is true and `GnrWebAppHandler`
+otherwise.
 
 ## How to read the copy
 

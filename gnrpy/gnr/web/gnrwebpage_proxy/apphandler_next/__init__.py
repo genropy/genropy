@@ -28,8 +28,9 @@ subclass of it: :class:`GnrWebAppHandlerNext` shares no code with
 of this package imports from that one.  The frozen package keeps serving the
 instances that do not opt in; every refactoring lands here.
 
-The instance configuration ``<db app_handler="next"/>`` selects this handler,
-read in the ``app`` property of :class:`gnr.web.gnrwebpage.GnrWebPage`.
+The experimental flag ``<experimental><db next_app_handler="True"/></experimental>``
+selects this handler, read in the ``app`` property of
+:class:`gnr.web.gnrwebpage.GnrWebPage`.
 
 The ``getSelection`` flow is the one of phase 2, on the app level table proxy
 ``tblobj.selectionProxy()``; the other flows are still the copied ones and

@@ -1729,13 +1729,14 @@ class GnrWebPage(GnrBaseWebPage):
     def app(self):
         """The web application handler of this page.
 
-        The instance configuration ``<db app_handler="next"/>`` selects
-        :class:`GnrWebAppHandlerNext`; any other value, or no value at all,
-        gives :class:`GnrWebAppHandler`.
+        The experimental flag
+        ``<experimental><db next_app_handler="True"/></experimental>`` selects
+        :class:`GnrWebAppHandlerNext`; a false or missing flag gives
+        :class:`GnrWebAppHandler`.
         """
         if not hasattr(self, '_app'):
             handler_class = GnrWebAppHandler
-            if self.application.config['db?app_handler'] == 'next':
+            if self.application.experimentalFlag('db', 'next_app_handler'):
                 handler_class = GnrWebAppHandlerNext
             self._app = handler_class(self)
         return self._app
