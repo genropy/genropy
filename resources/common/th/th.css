@@ -258,10 +258,6 @@
     padding-left:1em;
 }
 
-.th_view_toolbar + .th_querysample_bar{
-    margin-top: -1px;
-}
-
 .slotbar.th_querysample_bar{
     background-image: linear-gradient(var(--querysample-bar-shade), var(--querysample-bar-shade));
 }
