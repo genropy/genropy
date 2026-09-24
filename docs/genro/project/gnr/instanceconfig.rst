@@ -185,6 +185,18 @@ Tags
     A missing tag or attribute reads as ``False`` for a boolean switch and as
     ``None`` for one carrying a value.
 
+    ``gnr web serve`` switches features on for a single run with ``--xpr``, a
+    comma-separated list of ``group.name`` (the switch is on) or
+    ``group.name=value`` items, applied on top of this tag::
+
+        gnr web serve myinstance --xpr page.no_mako,page.dojo_xhr_patch=fetch
+
+    The command line wins over ``instanceconfig.xml`` for the attributes it names
+    and leaves the others as they are. Surrounding square brackets are accepted
+    when quoted (``--xpr '[page.no_mako]'``); unquoted, zsh reads them as a glob
+    pattern. Processes started separately (``gnrdaemon``, the websocket server,
+    the task workers) do not receive the option.
+
 .. _instanceconfig_authentication:
 
 ``<authentication>``
