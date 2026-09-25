@@ -1070,7 +1070,8 @@ class GnrWsgiSite(object):
 
     @deprecated(message='use errorHandler')
     def writeException(self, exception=None, traceback=None):
-        return self._writeErrorRecord(exception=exception, error_type='EXC')
+        return self._writeErrorRecord(exception=exception, error_type='EXC',
+                                      traceback=traceback)
 
     @public_method
     @deprecated(message='use errorHandler')

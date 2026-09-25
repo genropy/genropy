@@ -145,6 +145,20 @@ class TestGnrWsgiSite(BaseGnrDaemonTest):
         finally:
             self._drop_error_row(rec['id'])
 
+    def test_deprecated_write_exception_keeps_supplied_traceback(self):
+        supplied_traceback = 'traceback captured before reporting'
+        with pytest.warns(DeprecationWarning, match='writeException'):
+            rec = self.site.writeException(
+                exception=ValueError('legacy site failure'),
+                traceback=supplied_traceback)
+        assert rec and rec['id']
+        try:
+            self.site.db.closeConnection()
+            stored = self.site.db.table('sys.error').record(pkey=rec['id']).output('dict')
+            assert stored['error_data'] == supplied_traceback
+        finally:
+            self._drop_error_row(rec['id'])
+
     def test_deprecated_write_error_is_public_and_returns_the_record(self):
         assert self.site.writeError.is_rpc
         with pytest.warns(DeprecationWarning, match='writeError'):
