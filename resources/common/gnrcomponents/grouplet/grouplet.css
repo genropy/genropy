@@ -327,6 +327,14 @@
     --gg-header-text: var(--surface-on-strong, #f9fafb);
     --gg-total-bg: var(--total-bg, #fffbe6);
     --gg-total-text: var(--total-text, #1f2937);
+    /* totals= band: the theme's strong surface. The figure to read first
+       is marked by an accent rule rather than coloured with the accent,
+       which on several themes is too dark to read on that surface; a
+       theme that can afford it sets --totals-highlight. */
+    --gg-totals-bg: var(--totals-bg, var(--gg-header-bg));
+    --gg-totals-text: var(--totals-text, var(--gg-header-text));
+    --gg-totals-highlight: var(--totals-highlight, var(--gg-totals-text));
+    --gg-totals-marker: var(--totals-marker, var(--gg-accent));
     margin: 6px 0;
 }
 
@@ -366,6 +374,54 @@
     display: none;
 }
 
+/* totals= band: one line of label/value pairs, right-aligned, in the
+   bottom slot. In frame mode it stays put while the body scrolls;
+   `totals_sticky` pins it to the foot of the scrolling ancestor when the
+   grid is not framed. */
+.grouplet_grid_slot_bottom > .grouplet_grid__totals {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    align-items: baseline;
+    gap: 4px 22px;
+    margin-top: 6px;
+    padding: 6px 14px;
+    border-radius: var(--radius-md, 8px);
+    background: var(--gg-totals-bg);
+    color: var(--gg-totals-text);
+    font-variant-numeric: tabular-nums;
+}
+
+.grouplet_grid__total {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+}
+
+.grouplet_grid__total_label {
+    font-size: 0.75em;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    opacity: 0.72;
+}
+
+.grouplet_grid__total_value {
+    font-weight: 600;
+}
+
+.grouplet_grid__total--highlight > .grouplet_grid__total_value {
+    color: var(--gg-totals-highlight);
+    font-weight: 700;
+    border-bottom: 2px solid var(--gg-totals-marker);
+}
+
+.grouplet_grid--sticky-totals > .grouplet_grid_slot_bottom {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+}
+
 /* Frame mode: container has explicit height/max_height. The wrapper
    clips overflow; the center body scrolls internally; top/bottom/left/
    right stay anchored because they sit in non-scrolling grid cells. */
@@ -397,6 +453,8 @@
    sul container. */
 .grouplet_grid_container.grouplet_grid_responsive .grouplet_grid_body {
     display: grid;
+    /* a framed body is taller than its rows: without this they stretch */
+    align-content: start;
     gap: var(--gg-gap, 12px);
     grid-template-columns: repeat(auto-fill,
                                   minmax(var(--gg-min-width, 280px), 1fr));
