@@ -4,6 +4,7 @@
 #  Copyright (c) 2013 Softwell. All rights reserved.
 
 import os
+import functools
 import tempfile
 import mimetypes
 from datetime import datetime
@@ -186,6 +187,11 @@ class Service(StorageService):
         if len(etag) == 32:
             return etag
         #multipart upload (smart_open always writes one): the ETag is not the content md5
+        return self._content_md5(etag, *args)
+
+    @functools.lru_cache
+    def _content_md5(self, etag, *args):
+        #etag only keys the cache: a rewrite gets a new one, so the hash cannot go stale
         return super().md5hash(*args)
 
     def exists(self, *args):
