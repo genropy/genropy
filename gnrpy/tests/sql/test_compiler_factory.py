@@ -15,8 +15,6 @@ Two things are checked here.
    exactly when the corpus has to keep the legacy behaviour honest.
 """
 
-from contextlib import contextmanager
-
 import pytest
 
 from gnr.core.gnrbag import Bag
@@ -25,18 +23,7 @@ from gnr.sql.gnrsqldata.compiler import SqlQueryCompiler
 from gnr.sql.gnrsqldata.compiler_factory import queryCompilerClass
 from gnr.sql.gnrsqldata.compiler_next import SqlQueryCompilerNext
 
-
-@contextmanager
-def next_sql_compiler_flag(db, value):
-    """Set ``<experimental><db next_sql_compiler="..."/></experimental>`` on the
-    application config, then restore it."""
-    node = db.application.config.getNode('experimental.db', autocreate=True)
-    previous = node.attr.get('next_sql_compiler')
-    node.attr['next_sql_compiler'] = value
-    try:
-        yield
-    finally:
-        node.attr['next_sql_compiler'] = previous
+from .common import next_sql_compiler_flag
 
 
 # ===================================================================

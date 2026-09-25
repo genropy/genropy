@@ -1896,6 +1896,17 @@ dojo.declare("gnr.GnrFrmHandler", null, {
             allowed = !this._protectedNode(kw.node);
         }
         if( kw.value==kw.oldvalue  || (isNullOrBlank(kw.value) && isNullOrBlank(kw.oldvalue))){
+            if(kw.updattr && kw.oldattr && ('_loadedValue' in kw.node.attr) && kw.oldattr._loadedValue!==kw.node.attr._loadedValue){
+                var loadedValue = kw.node.attr._loadedValue;
+                var currentValue = kw.node.getValue('static');
+                if(loadedValue==currentValue || (isNullOrBlank(loadedValue) && isNullOrBlank(currentValue))){
+                    //a set carrying _loadedValue equal to the value makes it the baseline
+                    delete kw.node.attr._loadedValue;
+                    this.getChangesLogger().pop(this.getChangeKey(kw.node));
+                    this.updateStatus();
+                    return;
+                }
+            }
             if(kw.updattr && kw.changedAttr && kw.changedAttr!='_displayedValue'){
                 var cattr = kw.changedAttr;
                 var oldvalue = kw.oldattr[cattr];

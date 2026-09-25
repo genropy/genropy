@@ -36,11 +36,17 @@ var gnr_grouplet = {
         // lazySave: a silent save, no 'saved' toast on every page. On a saved
         // record it reloads nothing, so no load consumes wizard_saved_pkey.
         var mainForm = frameNode.form;
+        var inserting = false;
         if (!isLast && mainForm && frameNode.getRelativeData('.wizard_save_on_next')) {
-            var clearMark = mainForm.isNewRecord() ? null : function() {
+            var isNew = mainForm.isNewRecord();
+            var clearMark = isNew ? null : function() {
                 frameNode.setRelativeData('.wizard_saved_pkey', null);
             };
-            mainForm.lazySave(clearMark);
+            // An insert reloads the form with its pkey, and that load aborts the
+            // step form (genro_frm.js, parentForm onLoaded): the screen stays
+            // locked until the reload, which enters the next step itself.
+            var saving = mainForm.lazySave(clearMark, isNew ? {waitingStatus: true} : null);
+            inserting = isNew && saving instanceof dojo.Deferred;
         }
         if (currentNode) {
             genro.publish(frameCode + '_step_complete',
@@ -48,6 +54,8 @@ var gnr_grouplet = {
         }
         if (isLast) {
             genro.publish(frameCode + '_complete');
+        } else if (inserting) {
+            frameNode.setRelativeData('.wizard_pending_index', idx + 1);
         } else {
             frameNode.setRelativeData('.step_index', idx + 1);
         }
