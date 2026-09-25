@@ -695,7 +695,26 @@
 <en_totalize base="Totalize" it="Totalizza"></en_totalize>
 <en_carry_caption base="Carry caption" it="Porta didascalia"></en_carry_caption>
 <en_totals_caption base="Totals caption" it="Didascalia Totals"></en_totals_caption>
-<en_allow_only_saved_query base="Allow only saved query" it="Consenti solo le query salvate"></en_allow_only_saved_query></userobject_editor></userobject></gnrcomponents>
+<en_allow_only_saved_query base="Allow only saved query" it="Consenti solo le query salvate"></en_allow_only_saved_query></userobject_editor></userobject><recordpicker><recordpicker path="resources/common/gnrcomponents/recordpicker/recordpicker.js" ext="js">
+<en_select_province base="Select province" en="Select province" it="Seleziona una provincia"></en_select_province>
+<en_select_a_record base="Select a record" en="Select a record" it="Seleziona un elemento"></en_select_a_record>
+<en_choose_province base="Choose province" en="Choose province" it="Scegli una provincia"></en_choose_province>
+<en_choose_or_change_province base="Choose or change province" en="Choose or change province" it="Scegli o cambia provincia"></en_choose_or_change_province>
+<en_select_an_item_to_preview base="Select an item to preview" en="Select an item to preview" it="Seleziona un elemento per l’anteprima"></en_select_an_item_to_preview>
+<en_no_items base="No items" en="No items" it="Nessun elemento"></en_no_items>
+<en_results base="Results" en="Results" it="Risultati"></en_results>
+<en_selected base="Selected" en="Selected" it="Selezionati"></en_selected>
+<en_candidates base="Candidates" en="Candidates" it="Elementi disponibili"></en_candidates>
+<en_record_preview base="Record preview" en="Record preview" it="Anteprima"></en_record_preview>
+<en_type_to_find_candidates base="Type to find candidates" en="Type to find candidates" it="Cerca un elemento…"></en_type_to_find_candidates>
+<en_retry base="Retry" en="Retry" it="Riprova"></en_retry>
+<en_unable_to_load_candidates_retry_the_search_ base="Unable to load candidates. Retry the search." en="Unable to load candidates. Retry the search." it="Impossibile caricare gli elementi. Riprova."></en_unable_to_load_candidates_retry_the_search_>
+<en_loading_candidates_ base="Loading candidates…" en="Loading candidates…" it="Caricamento…"></en_loading_candidates_>
+<en_more_matches_available_refine_your_search base="More matches available; refine your search" en="More matches available; refine your search" it="Altri risultati disponibili: precisa la ricerca"></en_more_matches_available_refine_your_search>
+<en_select_displayed_candidates base="Select displayed candidates" en="Select displayed candidates" it="Seleziona gli elementi visibili"></en_select_displayed_candidates>
+<en_unavailable base="Unavailable" en="Unavailable" it="Non disponibile"></en_unavailable>
+<en_remove base="Remove" en="Remove" it="Rimuovi"></en_remove>
+</recordpicker></recordpicker></gnrcomponents>
 <iframegallery><iframegallery path="resources/common/iframegallery/iframegallery.py" ext="py"><en_logout fr="Se Déconnecter" de="Logout" en="Logout" it="Uscire" base="Logout"></en_logout></iframegallery></iframegallery>
 <js_plugins><chartjs><chartjs path="resources/common/js_plugins/chartjs/chartjs.py" ext="py"><en_charts base="Charts" it="Grafici"></en_charts>
 <en_new_chart base="New Chart" it="Nuovo grafico"></en_new_chart></chartjs></chartjs>

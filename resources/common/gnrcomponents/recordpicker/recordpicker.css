@@ -1,0 +1,162 @@
+.record_picker {
+    display: flex;
+    flex-direction: column;
+    gap: var(--record-picker-gap, .5em);
+    min-width: 0;
+    min-height: 0;
+    box-sizing: border-box;
+    border: 1px solid var(--record-picker-frame-border, var(--roundedgroup-border));
+    border-radius: var(--record-picker-frame-radius, var(--radius-md));
+    padding: var(--record-picker-padding, .75em);
+    background: var(--record-picker-bg, var(--surface-bg));
+    color: var(--record-picker-color, var(--text-color));
+}
+.record_picker .rp_viewport { display: flex; flex-direction: column; gap: var(--record-picker-gap, .5em); min-height: 0; flex: 1; }
+.record_picker_fixed .rp_viewport { height: var(--record-picker-box-height); flex: none; overflow: hidden; }
+.record_picker * { box-sizing: border-box; }
+.record_picker [hidden] { display: none !important; }
+.record_picker button, .record_picker input { font: inherit; }
+.record_picker button {
+    padding: .35em .65em;
+    border: 1px solid var(--record-picker-border, var(--border-color));
+    border-radius: var(--record-picker-radius, var(--radius-sm));
+    background: var(--record-picker-control-bg, var(--surface-bg));
+    color: inherit;
+    cursor: pointer;
+}
+.record_picker button:disabled, .record_picker .rp_disabled {
+    opacity: var(--field-disabled-opacity);
+    color: var(--field-disabled-color);
+    cursor: default;
+}
+.record_picker :is(button, input):focus-visible {
+    outline: 2px solid var(--record-picker-focus-color, var(--accent-color));
+    outline-offset: 2px;
+}
+.record_picker .rp_search {
+    display: flex;
+    flex-direction: column;
+    gap: .3em;
+    color: var(--record-picker-label-color, var(--gnrfieldlabel-color));
+}
+.record_picker .rp_search input {
+    width: 100%;
+    padding: var(--record-picker-input-padding, .55em 1em);
+    background: var(--record-picker-input-bg, var(--form-field-bg));
+    color: var(--record-picker-input-color, var(--form-field-color));
+    border: var(--form-field-border-width) solid var(--record-picker-input-border, var(--form-field-border));
+    border-radius: var(--record-picker-search-radius, var(--radius-pill));
+}
+.record_picker .rp_search input:disabled {
+    background: var(--field-disabled-bg);
+    border-color: var(--field-disabled-border);
+    color: var(--field-disabled-color);
+}
+.record_picker .rp_status { color: var(--record-picker-muted-color, var(--text-muted)); }
+.record_picker .rp_retry { align-self: flex-start; }
+.record_picker .rp_body { display: flex; gap: var(--record-picker-gap, .5em); overflow: hidden; min-height: 0; flex: 1; padding: 2px; }
+.record_picker .rp_candidates { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--record-picker-card-width, 15em)), 1fr)); gap: var(--record-picker-gap, .5em); flex: 1; align-content: start; min-width: 0; min-height: 0; overflow: auto; }
+.record_picker_columns .rp_candidates { grid-template-columns: repeat(var(--record-picker-columns), minmax(0, 1fr)); }
+.record_picker .rp_candidates.rp_empty { display: flex; align-items: center; justify-content: center; text-align: center; color: var(--record-picker-muted-color, var(--text-muted)); }
+.record_picker .rp_empty_message {
+    padding: var(--record-picker-item-padding, .75em);
+    color: var(--record-picker-empty-color, var(--text-placeholder));
+    font-size: var(--record-picker-empty-font-size, 1.25em);
+    font-weight: normal;
+}
+.record_picker_list .rp_candidates { grid-template-columns: minmax(0, 1fr); }
+.record_picker .rp_candidate {
+    border: 1px solid var(--record-picker-border, var(--border-color));
+    border-radius: var(--record-picker-radius, var(--radius-sm));
+    background: var(--record-picker-card-bg, var(--card-surface));
+    min-width: 0;
+}
+.record_picker .rp_candidate:not(.rp_disabled):not(.rp_selected):hover { background: var(--record-picker-hover-bg, var(--surface-light)); }
+.record_picker .rp_candidate.rp_selected {
+    border-color: var(--record-picker-selected-border, var(--accent-color));
+    background: var(--record-picker-selected-bg, var(--grid-row-selected-bg));
+    color: var(--record-picker-selected-color, var(--text-color));
+}
+.record_picker .rp_choice { display: flex; width: 100%; height: 100%; min-width: 0; align-items: flex-start; gap: var(--record-picker-gap, .5em); padding: var(--record-picker-item-padding, .75em); cursor: pointer; text-align: left; }
+.record_picker button.rp_choice { border: 0; background: transparent; color: inherit; }
+.record_picker .rp_choice input { flex-shrink: 0; margin: .15em 0 0; accent-color: var(--record-picker-selected-border, var(--accent-color)); }
+.record_picker .rp_content { min-width: 0; flex: 1; overflow-wrap: anywhere; }
+.record_picker .rp_preview { flex: 0 0 var(--record-picker-preview-width, 38%); padding: var(--record-picker-item-padding, .75em); background: var(--record-picker-preview-bg, var(--card-surface)); border: 1px solid var(--record-picker-border, var(--border-color)); border-radius: var(--record-picker-radius, var(--radius-sm)); overflow-wrap: anywhere; min-width: 0; min-height: 0; align-self: stretch; overflow: auto; }
+.record_picker .rp_preview_empty { display: flex; align-items: center; justify-content: center; text-align: center; }
+.record_picker .rp_preview_title { font-weight: bold; margin-bottom: .75em; }
+.record_picker .rp_footer { flex-shrink: 0; display: flex; flex-direction: column; gap: var(--record-picker-gap, .5em); }
+.record_picker .rp_footer.rp_with_selection {
+    padding: var(--record-picker-selection-padding, .65em);
+    border-top: 1px solid var(--record-picker-selection-border, var(--border-color));
+    border-radius: var(--record-picker-radius, var(--radius-sm));
+    background: var(--record-picker-selection-bg, var(--surface-light));
+}
+.record_picker .rp_summary { color: var(--record-picker-muted-color, var(--text-muted)); }
+.record_picker .rp_chips { display: flex; flex-wrap: wrap; gap: var(--record-picker-gap, .5em); max-height: var(--record-picker-selection-height, 8em); overflow: auto; }
+.record_picker .rp_chip {
+    overflow-wrap: anywhere;
+    text-align: left;
+    border: 0;
+    border-radius: var(--record-picker-chip-radius, var(--radius-pill));
+    background: var(--record-picker-chip-bg, var(--btn-tonal-bg));
+    color: var(--record-picker-chip-color, var(--btn-tonal-color));
+    padding: var(--record-picker-chip-padding, .3em .7em);
+}
+.record_picker .rp_chip:hover { background: var(--record-picker-chip-hover-bg, var(--btn-tonal-hover-bg)); }
+.record_picker .rp_actions { display: flex; justify-content: flex-end; }
+.record_picker .rp_actions button {
+    border: 0;
+    background: transparent;
+    padding: .25em 0;
+    color: var(--record-picker-action-color, var(--accent-color));
+    font-size: var(--record-picker-action-font-size, .9em);
+    font-weight: bold;
+    text-decoration: underline;
+    text-underline-offset: .15em;
+}
+.record_picker .rp_actions button:disabled { color: var(--field-disabled-color); }
+@media (max-width: 600px) {
+    .record_picker .rp_body { flex-direction: column; }
+    .record_picker .rp_candidates { grid-template-columns: minmax(0, 1fr); flex: 1; }
+    .record_picker .rp_candidates.rp_empty { flex: 1; }
+    .record_picker .rp_preview { flex: 0 1 40%; width: 100%; }
+    .record_picker button, .record_picker .rp_choice { min-height: var(--record-picker-touch-height, 44px); }
+    .record_picker .rp_search input { font-size: max(16px, 1em); }
+}
+@media (pointer: coarse) {
+    .record_picker button, .record_picker .rp_choice, .record_picker .rp_search input { min-height: var(--record-picker-touch-height, 44px); }
+}
+
+.record_picker_button { --btn-tonal-color: var(--record-picker-color, var(--text-color)); width: min(100%, var(--record-picker-button-width, 26em)); margin: 0; }
+.record_picker_button .dijitButtonNode {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: var(--record-picker-gap, .75em);
+    box-sizing: border-box;
+    min-height: var(--record-picker-button-height, 5em);
+    width: 100%;
+    padding: var(--record-picker-button-padding, .9em 2.5em .9em 1em);
+    border: 1px solid var(--record-picker-frame-border, var(--roundedgroup-border));
+    border-radius: var(--record-picker-frame-radius, var(--radius-md));
+    background: var(--record-picker-button-bg, var(--card-surface));
+    color: var(--record-picker-color, var(--text-color));
+    font: inherit;
+    text-align: left;
+    box-shadow: none;
+}
+.record_picker_button .dijitButtonNode:hover { border-color: var(--record-picker-focus-color, var(--accent-color)); }
+.record_picker_button .dijitButtonNode:focus-visible { outline: 2px solid var(--record-picker-focus-color, var(--accent-color)); outline-offset: 2px; }
+.record_picker_button .dijitButtonNode > .dijitInline:not(.rpb_icon) { flex: 1; min-width: 0; }
+.record_picker_button .dijitButtonText { display: block; text-align: left; white-space: normal; overflow-wrap: anywhere; }
+.record_picker_button.rpb_empty .dijitButtonText { color: var(--record-picker-placeholder-color, var(--text-muted)); }
+.record_picker_button .rpb_icon {
+    position: absolute;
+    right: var(--record-picker-button-icon-inset, .7em);
+    bottom: var(--record-picker-button-icon-inset, .7em);
+    width: var(--record-picker-button-icon-size, 1em);
+    height: var(--record-picker-button-icon-size, 1em);
+    background: var(--record-picker-action-color, var(--accent-color));
+    -webkit-mask: var(--record-picker-button-icon, url(search.svg)) no-repeat center / contain;
+    mask: var(--record-picker-button-icon, url(search.svg)) no-repeat center / contain;
+}

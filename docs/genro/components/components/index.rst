@@ -17,9 +17,9 @@ index of components
     linkerField
     periodcombo
     selectionbrowser
+    recordpicker
     testhandler
     dialogs/index
     th/index
     h_th/index
     tpleditor/index
-    
