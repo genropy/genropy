@@ -16,7 +16,10 @@ from gnr.core.gnrdecorator import public_method,extract_kwargs
 from gnr.core.gnrdict import dictExtract
 
 from gnr.app import logger
+from gnr.app.gnrsqltable_proxy.db_select import DbSelectProxy
+from gnr.app.gnrsqltable_proxy.record import RecordProxy
 from gnr.app.gnrsqltable_proxy.selection import SelectionProxy
+from gnr.app.gnrsqltable_proxy.write import WriteProxy
 
 mimetypes.init() # Required for python 2.6 (fixes a multithread bug)
 
@@ -644,6 +647,46 @@ class TableBase(object):
         if proxy is None:
             proxy = SelectionProxy(self)
             self._selection_proxy = proxy
+        return proxy
+
+    def recordProxy(self):
+        """Return the record proxy of this table.
+
+        The proxy holds the table level part of the getRecord,
+        getRelatedRecord and getRelatedSelection flows.  It is a method and
+        not a property for the same reason ``selectionProxy`` is.
+        """
+        proxy = getattr(self, '_record_proxy', None)
+        if proxy is None:
+            proxy = RecordProxy(self)
+            self._record_proxy = proxy
+        return proxy
+
+    def dbSelectProxy(self):
+        """Return the dbSelect proxy of this table.
+
+        The proxy holds the table level part of the dbSelect, tableAnalyzeStore,
+        getValuesString and getMultiFetch flows.  It is a method and not a
+        property for the same reason ``selectionProxy`` is.
+        """
+        proxy = getattr(self, '_dbselect_proxy', None)
+        if proxy is None:
+            proxy = DbSelectProxy(self)
+            self._dbselect_proxy = proxy
+        return proxy
+
+    def writeProxy(self):
+        """Return the write proxy of this table.
+
+        The proxy holds the table level part of the record write flows of the
+        application handler: insert, update, duplicate, unify, delete, archive
+        and the two batch updates the grid sends.  It is a method and not a
+        property for the same reason ``selectionProxy`` is.
+        """
+        proxy = getattr(self, '_write_proxy', None)
+        if proxy is None:
+            proxy = WriteProxy(self)
+            self._write_proxy = proxy
         return proxy
 
     def hasProtectionColumns(self):

@@ -168,7 +168,7 @@ Tags
 
         <experimental>
             <page no_mako="True" page_class_cache="True" dojo_xhr_patch="fetch"/>
-            <db next_sql_compiler="True"/>
+            <db next_sql_compiler="True" next_app_handler="True"/>
         </experimental>
 
     A switch of an experimental feature lives under ``<experimental>`` and nowhere
@@ -193,6 +193,9 @@ Tags
     * ``next_sql_compiler``: compile the queries with ``SqlQueryCompilerNext`` of
       ``compiler_next.py``, the copy of the query compiler that receives new work,
       instead of the frozen ``SqlQueryCompiler``.
+    * ``next_app_handler``: serve the RPCs of the pages with ``GnrWebAppHandlerNext``
+      of ``gnr/web/gnrwebpage_proxy/apphandler_next``, the copy of the app handler
+      built on the table and database proxies, instead of ``GnrWebAppHandler``.
 
     A missing tag or attribute reads as ``False`` for a boolean switch and as
     ``None`` for one carrying a value.
