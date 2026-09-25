@@ -13,11 +13,13 @@ levels, enough to exercise the transitive case.
 """
 import logging
 import os
+import shutil
 import tempfile
 
 import pytest
 
-from gnr.app.gnrapp import GnrApp, GnrUndeclaredPackageException
+from gnr.app.gnrapp import GnrApp, GnrPackageNotFoundException, GnrUndeclaredPackageException, \
+    GnrUnresolvedPackageException
 from core.common import BaseGnrTest
 
 CONFIG = """<?xml version="1.0" ?>
@@ -52,6 +54,26 @@ class Package(GnrDboPackage):
 
     def required_packages(self):
         return list(REQUIRED)
+"""
+
+ATTRIBUTE_MAIN = """import surely_missing_module_for_this_test
+from gnr.app.gnrdbo import GnrDboPackage
+
+class Package(GnrDboPackage):
+    required_packages = ['gnrcore:adm']
+"""
+
+BOOTABLE_ATTRIBUTE_MAIN = """from gnr.app.gnrdbo import GnrDboPackage
+
+class Package(GnrDboPackage):
+    required_packages = ('gnrcore:adm',)
+
+    def config_attributes(self):
+        return dict(sqlschema='attrpkg', name_short='attr', name_long='attr', name_full='attr')
+"""
+
+CUSTOM_ATTRIBUTE = """class Package(object):
+    required_packages = ['gnrcore:email']
 """
 
 
@@ -133,3 +155,103 @@ class TestRequiredPackagesDeclared(BaseGnrTest):
     def test_strict_check_passes_on_a_complete_declaration(self):
         app = self._app('biz', 'adm', 'sys', checkdepcli=True)
         app.assert_packages_declared()
+
+    def _read(self, source):
+        app = self._app('sys', checkdepcli=True)
+        path = os.path.join(tempfile.mkdtemp(prefix='gnrtest_src_'), 'main.py')
+        with open(path, 'w', encoding='utf-8') as fp:
+            fp.write(source)
+        return app._required_packages_from_source(path)
+
+    def _custom(self, app, pkgid, source):
+        folder = os.path.join(app.instanceFolder, 'custom', pkgid)
+        os.makedirs(folder)
+        with open(os.path.join(folder, 'custom.py'), 'w', encoding='utf-8') as fp:
+            fp.write(source)
+        return os.path.dirname(folder)
+
+    def test_reader_attribute_form(self):
+        assert self._read(ATTRIBUTE_MAIN) == (['gnrcore:adm'], None)
+
+    def test_reader_method_form(self):
+        assert self._read(BROKEN_MAIN) == (['gnrcore:adm'], None)
+
+    def test_reader_nothing_declared_on_a_gnr_base(self):
+        assert self._read("import gnr.app.gnrdbo\n\n"
+                          "class Package(gnr.app.gnrdbo.GnrDboPackage):\n    pass\n") == (None, None)
+        assert self._read("X = 1\n") == (None, None)
+
+    @pytest.mark.parametrize('source, reason', [
+        (DYNAMIC_MAIN, 'not a literal list'),
+        ("from mycompany.base import CompanyPackage\n\n"
+         "class Package(CompanyPackage):\n    pass\n", 'inherits from CompanyPackage'),
+        ("class Package(object):\n    def required_packages(self):\n"
+         "        if self:\n            return ['a']\n        return ['b']\n", '2 return statements'),
+        ("class Package(object):\n    required_packages = ['a']\n\n"
+         "    def required_packages(self):\n        return ['b']\n", 'declared more than once'),
+        ("class Package(object):\n    required_packages = ['a', 1]\n", 'not a literal list'),
+        ("class Package(:\n", 'cannot read main.py'),
+    ])
+    def test_reader_unresolved(self, source, reason):
+        required, found = self._read(source)
+        assert required is None
+        assert reason in found
+
+    def test_boot_loads_the_attribute_form(self):
+        attrpkg = self._package('attrpkg', BOOTABLE_ATTRIBUTE_MAIN)
+        app = self._app('sys', extra=attrpkg)
+        assert app.packages['attrpkg'].required_packages() == ['gnrcore:adm']
+        assert 'adm' in app.packages
+        assert 'attrpkg' in app.package_closure()['adm']['required_by']
+
+    def test_custom_attribute_overrides_main_on_boot_and_in_the_closure(self):
+        app = self._app('biz', checkdepcli=True)
+        custom_root = self._custom(app, 'biz', CUSTOM_ATTRIBUTE)
+        try:
+            app = self._app('biz', 'adm', 'sys')
+            assert app.packages['biz'].required_packages() == ['gnrcore:email']
+            assert 'email' in app.packages
+            static = self._app('biz', checkdepcli=True, static_closure=True)
+            assert static.package_closure()['email']['required_by'] == set(['biz'])
+            assert static.package_closure()['adm']['required_by'] == set(['email'])
+        finally:
+            shutil.rmtree(custom_root)
+
+    def test_static_closure_reports_an_unresolved_package(self):
+        dynamic = self._package('dynamicpkg', DYNAMIC_MAIN)
+        app = self._app('sys', extra=dynamic, checkdepcli=True, static_closure=True)
+        assert 'adm' not in app.package_closure()
+        assert [e['code'] for e in app.unresolved_packages] == ['dynamicpkg']
+        assert 'dynamicpkg: required_packages in main.py is not a literal list' \
+            in app.unresolved_packages_report()
+
+    def test_static_closure_reports_a_missing_package(self):
+        missing = '    <nosuchpkg pkgcode="nosuchpkg"/>'
+        app = self._app('sys', extra=missing, checkdepcli=True, static_closure=True)
+        assert [e['code'] for e in app.unresolved_packages] == ['nosuchpkg']
+        report = app.unresolved_packages_report()
+        assert 'nosuchpkg: package folder not found' in report
+        assert 'literal list' not in report
+
+    def test_boot_still_raises_on_a_missing_package(self):
+        with pytest.raises(GnrPackageNotFoundException):
+            self._app('sys', extra='    <nosuchpkg pkgcode="nosuchpkg"/>', checkdepcli=True)
+
+    def test_requirements_file_holds_the_closure_without_importing(self):
+        broken = self._package('brokenpkg', ATTRIBUTE_MAIN, ['surely-missing-dist-for-this-test'])
+        app = self._app('sys', extra=broken, checkdepcli=True, static_closure=True)
+        target = os.path.join(tempfile.mkdtemp(prefix='gnrtest_req_'), 'requirements.txt')
+        app.write_requirements_file(target)
+        with open(target, encoding='utf-8') as fp:
+            lines = fp.read().splitlines()
+        assert 'surely-missing-dist-for-this-test' in lines
+        assert lines == sorted(set(lines))
+
+    def test_requirements_file_raises_naming_the_package(self):
+        dynamic = self._package('dynamicpkg', DYNAMIC_MAIN, ['some-dist-for-this-test'])
+        app = self._app('sys', extra=dynamic, checkdepcli=True, static_closure=True)
+        target = os.path.join(tempfile.mkdtemp(prefix='gnrtest_req_'), 'requirements.txt')
+        with pytest.raises(GnrUnresolvedPackageException) as excinfo:
+            app.write_requirements_file(target)
+        assert not os.path.exists(target)
+        assert 'dynamicpkg' in str(excinfo.value)
