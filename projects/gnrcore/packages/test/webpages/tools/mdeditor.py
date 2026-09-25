@@ -32,3 +32,13 @@ class GnrCustomWebPage(object):
         "MDEditor with maxLength"
         pane.MDEditor(value='^.mycontent.text',height='300px',width='400px',htmlpath='.mycontent.html',
                       maxLength=1024, removeToolbarItems=['image', 'code'])
+
+    def test_4_records(self, pane):
+        "Loading a record leaves the datastore untouched: edit A, click outside, load Empty, click Other"
+        fb = pane.formbuilder(cols=3)
+        fb.button('Record A', action="SET .rec.text='Some **text**'; SET .rec.html='<p>Some <strong>text</strong></p>';")
+        fb.button('Empty', action='SET .rec.text=null; SET .rec.html=null;')
+        fb.textbox('^.other', lbl='Other')
+        pane.MDEditor(value='^.rec.text', htmlpath='.rec.html', height='300px', width='400px',
+                      initialEditType='wysiwyg')
+        pane.simpleTextArea(value='^.rec.html', readOnly=True, height='60px', width='400px')

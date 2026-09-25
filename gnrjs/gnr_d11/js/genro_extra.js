@@ -478,20 +478,18 @@ dojo.declare("gnr.widgets.MDEditor", gnr.widgets.baseExternalWidget, {
         }
     },
 
+    normalizeMarkdown:function(md){
+        if (!md) return '';
+        // Normalize whitespace and common markdown variations
+        return md
+            .replace(/\r\n/g, '\n')  // Normalize line endings
+            .replace(/\n{3,}/g, '\n\n')  // Normalize multiple blank lines
+            .trim();
+    },
+
     attachHooks:function(editor, editor_attrs, sourceNode){
         // Flag to prevent false positives during initial load
         let changeListenerActive = false;
-        let originalNormalizedMarkdown = null;
-
-        // Helper to normalize markdown for comparison
-        const normalizeMarkdown = function(md) {
-            if (!md) return '';
-            // Normalize whitespace and common markdown variations
-            return md
-                .replace(/\r\n/g, '\n')  // Normalize line endings
-                .replace(/\n{3,}/g, '\n\n')  // Normalize multiple blank lines
-                .trim();
-        };
 
         // Activate change listener on first real user interaction
         const activateListener = function() {
@@ -504,8 +502,7 @@ dojo.declare("gnr.widgets.MDEditor", gnr.widgets.baseExternalWidget, {
         // Wait for editor to normalize content after initial load
         setTimeout(() => {
             try {
-                const currentMarkdown = editor.getMarkdown();
-                originalNormalizedMarkdown = normalizeMarkdown(currentMarkdown);
+                sourceNode._mdOriginalMarkdown = this.normalizeMarkdown(editor.getMarkdown());
                 console.log('[MDEditor] Initial content stored');
 
                 // Activate listener only on actual user typing
@@ -537,14 +534,13 @@ dojo.declare("gnr.widgets.MDEditor", gnr.widgets.baseExternalWidget, {
                 return;
             }
 
-            const currentMarkdown = editor.getMarkdown();
-            const currentNormalized = normalizeMarkdown(currentMarkdown);
+            const currentNormalized = this.normalizeMarkdown(editor.getMarkdown());
 
             // Only save if content actually changed
-            if (currentNormalized !== originalNormalizedMarkdown) {
+            if (currentNormalized !== sourceNode._mdOriginalMarkdown) {
                 console.log('[MDEditor] Content changed, saving to datastore');
                 this.setInDatastore(editor, sourceNode);
-                originalNormalizedMarkdown = currentNormalized;
+                sourceNode._mdOriginalMarkdown = currentNormalized;
             } else {
                 console.log('[MDEditor] Content unchanged, skipping save');
             }
@@ -690,22 +686,29 @@ dojo.declare("gnr.widgets.MDEditor", gnr.widgets.baseExternalWidget, {
                 if (hasText || hasHtmlKey){
                     this.sourceNode._mdBagPath = vp;
                     let text = this.sourceNode.getRelativeData(vp + '.text') || '';
-                    this.setMarkdown(text);
+                    this.gnr_loadMarkdown(text);
                     return;
                 }
                 // Bare Bag without keys: use root value as scalar
                 if (typeof b.getValue === 'function'){
-                    this.setMarkdown(String(b.getValue() || ''));
+                    this.gnr_loadMarkdown(String(b.getValue() || ''));
                     return;
                 }
             }
             if (hasHtml && b instanceof gnr.GnrBag && typeof b.getValue === 'function'){
-                this.setMarkdown(String(b.getValue() || ''));
+                this.gnr_loadMarkdown(String(b.getValue() || ''));
                 return;
             }
         }
         // Fallback scalar
-        this.setMarkdown(value || '');
+        this.gnr_loadMarkdown(value || '');
+    },
+
+    mixin_gnr_loadMarkdown:function(markdown){
+        this.setMarkdown(markdown, false);
+        if(!this.options.viewer){
+            this.sourceNode._mdOriginalMarkdown = this.gnr.normalizeMarkdown(this.getMarkdown());
+        }
     },
 
     mixin_gnr_setInDatastore:function(){
