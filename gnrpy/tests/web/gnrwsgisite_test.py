@@ -112,6 +112,54 @@ class TestGnrWsgiSite(BaseGnrDaemonTest):
         response = self.client.get('/sys/test')
         assert "200 " in response.get('status')
         assert b'genro' in response.get('data')
-        
 
+    def _error_rows(self, pkey):
+        db = self.site.db
+        db.closeConnection()
+        return db.table('sys.error').query(
+            columns='$description,$error_type,$error_code', where='$id=:pkey',
+            pkey=pkey).fetch()
 
+    def _drop_error_row(self, pkey):
+        db = self.site.db
+        db.table('sys.error').deleteSelection(where='$id=:pkey', pkey=pkey)
+        db.commit()
+
+    def test_deprecated_write_exception_returns_the_record(self):
+        flow_completed = False
+        try:
+            raise ValueError('legacy site failure')
+        except ValueError as e:
+            with pytest.warns(DeprecationWarning, match='writeException'):
+                rec = self.site.writeException(exception=e)
+            flow_completed = True
+        assert flow_completed
+        assert rec and rec['id']
+        try:
+            assert rec['error_code']
+            assert rec['error_type'] == 'EXC'
+            assert rec['description'] == 'legacy site failure'
+            rows = self._error_rows(rec['id'])
+            assert len(rows) == 1
+            assert rows[0]['error_code'] == rec['error_code']
+        finally:
+            self._drop_error_row(rec['id'])
+
+    def test_deprecated_write_error_is_public_and_returns_the_record(self):
+        assert self.site.writeError.is_rpc
+        with pytest.warns(DeprecationWarning, match='writeError'):
+            rec = self.site.writeError(description='legacy site error')
+        assert rec and rec['id']
+        try:
+            assert rec['error_type'] == 'ERR'
+            rows = self._error_rows(rec['id'])
+            assert len(rows) == 1
+            assert rows[0]['description'] == 'legacy site error'
+        finally:
+            self._drop_error_row(rec['id'])
+
+    def test_deprecated_write_error_never_raises(self):
+        # error_id clashes with the one errorHandler generates, so the write raises
+        with pytest.warns(DeprecationWarning):
+            rec = self.site.writeError(description='clashing kwargs', error_id='forced')
+        assert rec is None
