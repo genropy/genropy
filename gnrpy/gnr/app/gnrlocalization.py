@@ -259,7 +259,11 @@ class AppLocalizer(object):
         if moduleLocBag:
             modulepath = os.path.relpath(n.attr['abs_path'],destFolder)
             path,ext = os.path.splitext(modulepath)
-            locbag.setItem(path.replace('/','.'),moduleLocBag,path=modulepath,ext=ext.replace('.',''))
+            ext = ext.replace('.','')
+            section = path.replace('/','.')
+            if section in locbag:
+                section = '%s_%s' %(section,ext)
+            locbag.setItem(section,moduleLocBag,path=modulepath,ext=ext)
 
 
             
