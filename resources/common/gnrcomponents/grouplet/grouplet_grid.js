@@ -703,6 +703,8 @@ gnr.GroupletGridController = class GroupletGridController {
         this.minRows = kw.minRows || 0;
         this.maxRows = kw.maxRows || null;
         this.counterField = kw.counterField || null;
+        this.formulas = kw.formulas || {};
+        this.totals = kw.totals || [];
         this.dragCode = kw.dragCode || null;
         // RPC path strings, not method names: serialized server-side
         // from bound public_methods so dynamic mixins resolve correctly.
@@ -874,12 +876,134 @@ gnr.GroupletGridController = class GroupletGridController {
                 }
             });
             this._mountStructSlots();
-            const store = this.storebag();
-            if (store && store.len() > 0) {
-                this._changeMgr.resolveCalculatedColumns();
-                this._changeMgr.resolveTotalizeColumns();
-            }
         }
+        this._initDeclaredTotals();
+        const store = this.storebag();
+        if (store && store.len() > 0) {
+            this._changeMgr.resolveCalculatedColumns();
+            this._changeMgr.resolveTotalizeColumns();
+        }
+    }
+
+    // ====================================================================
+    //  Declared formulas and totals band — `formulas=` / `totals=`, any
+    //  mode (the card-mode counterpart of struct cells' formula/totalize)
+    // ====================================================================
+
+    _initDeclaredTotals() {
+        const fields = Object.keys(this.formulas);
+        if (!fields.length && !this.totals.length) return;
+        // A formula is recalculated when a cellmap field it names changes,
+        // and in card mode the cellmap starts empty: every field the
+        // expressions read goes in first, formula fields included, so a
+        // formula over another formula chains.
+        fields.forEach((f) => {
+            this._ensureCell(f);
+            gnr.GroupletGridController.formulaFields(this.formulas[f])
+                .forEach((dep) => this._ensureCell(dep));
+        });
+        fields.forEach((f) => {
+            const cell = this.cellmap[f];
+            cell.formula = this.formulas[f];
+            cell.calculated = true;
+            this._changeMgr.addFormulaColumn(f, {formula: this.formulas[f]});
+        });
+        this.totals.forEach((t) => {
+            if (!t.field) return;
+            const path = this._totalizePath(t.key);
+            this._ensureCell(t.field).totalize = path;
+            this._changeMgr.addTotalizer(t.field, {totalize: path});
+        });
+        if (this.totals.some((t) => t.formula)) {
+            // a `function`, not an arrow: subscribe goes through funcApply,
+            // which reads the handler's signature off its source
+            const that = this;
+            this.sourceNode.subscribe('onUpdateTotalize', function() {
+                that._computeDerivedTotals();
+            });
+        }
+        this._mountTotals();
+    }
+
+    _ensureCell(field) {
+        this.cellmap[field] = this.cellmap[field]
+            || {field: field, _nodelabel: field};
+        return this.cellmap[field];
+    }
+
+    _totalizePath(key) {
+        // Same namespace struct cells use for `totalize=True`.
+        return this.controllerPath + '.totalize.' + key;
+    }
+
+    static formulaFields(expression) {
+        // The row fields an expression reads: identifiers not reached
+        // through a dot (`Math.round`) and not JS vocabulary.
+        const skip = gnr.GroupletGridController._FORMULA_WORDS;
+        const out = [];
+        const re = /(^|[^\w.$])([A-Za-z_$][\w$]*)/g;
+        let m;
+        while ((m = re.exec(expression || '')) !== null) {
+            if (!skip.has(m[2]) && out.indexOf(m[2]) < 0) out.push(m[2]);
+        }
+        return out;
+    }
+
+    _mountTotals() {
+        if (!this.totals.length) return;
+        const slots = this._resolveStructSlots();
+        if (!slots.bottom) return;
+        const root = genro.src.newRoot();
+        const band = root._('div', {_class: 'grouplet_grid__totals'});
+        this.totals.forEach((t) => {
+            const item = band._('div', {_class: 'grouplet_grid__total'
+                + (t.highlight ? ' grouplet_grid__total--highlight' : '')});
+            item._('div', {_class: 'grouplet_grid__total_label',
+                           innerHTML: _T(t.label)});
+            const valueKw = {_class: 'grouplet_grid__total_value',
+                             innerHTML: '^' + this._totalizePath(t.key)};
+            if (t.format) valueKw.format = t.format;
+            item._('div', valueKw);
+        });
+        this._mountSlotContent(slots.bottom, root, 'totals');
+        this._containerDom().classList.add('has-bottom');
+    }
+
+    _computeDerivedTotals() {
+        // Formulas over the other totals, in declaration order, run on
+        // every summed update (onUpdateTotalize) rather than as grafted
+        // dataFormula nodes, which start listening after the first sums.
+        const values = {};
+        this.totals.forEach((t) => {
+            values[t.key] = this.sourceNode.getRelativeData(
+                this._totalizePath(t.key));
+        });
+        this.totals.forEach((t) => {
+            if (!t.formula) return;
+            let result = null;
+            try {
+                result = funcApply('return ' + t.formula, values,
+                                   this.sourceNode);
+            } catch (e) {
+                result = null;
+            }
+            if (typeof result === 'number' && isFinite(result)) {
+                result = Math.round10(result);
+            }
+            values[t.key] = result;
+            this.sourceNode.setRelativeData(this._totalizePath(t.key), result);
+        });
+    }
+
+    _resetTotals() {
+        // A record with no rows Bag publishes no onNewDatastore: without
+        // this the band would keep the previous record's figures.
+        this.totals.forEach((t) => {
+            if (t.field) {
+                this.sourceNode.setRelativeData(this._totalizePath(t.key), null);
+            }
+        });
+        this._computeDerivedTotals();
     }
 
     _mountStructSlots() {
@@ -1170,6 +1294,8 @@ gnr.GroupletGridController = class GroupletGridController {
         }
         if (hasBag) {
             this.sourceNode.publish('onNewDatastore');
+        } else if (this.totals.length) {
+            this._resetTotals();
         }
         if (!hasBag || bag.len() === 0) {
             this._clearBody();
@@ -2163,6 +2289,11 @@ gnr.GroupletGridController = class GroupletGridController {
         return root;
     }
 };
+
+gnr.GroupletGridController._FORMULA_WORDS = new Set([
+    'Math', 'Number', 'String', 'Date', 'JSON', 'parseInt', 'parseFloat',
+    'isNaN', 'isFinite', 'NaN', 'Infinity', 'null', 'undefined', 'true',
+    'false', 'new', 'typeof', 'instanceof', 'void', 'in', 'this']);
 
 
 // One GroupletGridTile per pkey in controller.tiles. Owns wrapper +
