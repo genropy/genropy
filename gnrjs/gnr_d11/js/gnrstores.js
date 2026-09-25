@@ -588,7 +588,7 @@ dojo.declare("gnr.GnrStoreQuery", gnr.GnrStoreBag, {
 
     fetchItemByIdentity: function(/* object */ request) {
         genro.debug('fetchItemByIdentity: identity=' + request.identity);
-
+        this._lastIdentityRequest = request;
         if (!request.identity) {
             genro.debug('fetchItemByIdentity: return null');
             var result = new gnr.GnrBagNode();
@@ -640,6 +640,10 @@ dojo.declare("gnr.GnrStoreQuery", gnr.GnrStoreBag, {
                 }
             }
             var finalize = dojo.hitch(this, function(r) {
+                // a later lookup superseded this one: its answer would bring back the old value
+                if (this._lastIdentityRequest !== request) {
+                    return;
+                }
                 var scope = request.scope ? request.scope : dojo.global;
                 if(r.attr.errors){
                     this._parentSourceNode.widget._lastQueryError = r.attr.errors;
