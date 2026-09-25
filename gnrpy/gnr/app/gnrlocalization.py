@@ -24,7 +24,7 @@
 import os
 import re
 
-from gnr.core.gnrconfig import getGenroRoot
+import gnr
 from gnr.core.gnrstring import flatten
 from gnr.core.gnrbag import Bag,DirectoryResolver
 from gnr.core.gnrlang import GnrException
@@ -50,17 +50,14 @@ class GnrLocString(str):
 class AppLocalizer(object):
     def __init__(self, application=None):
         self.application = application
-        self.genroroot = getGenroRoot()
+        self.genroroot = os.path.dirname(gnr.__file__)
         self._translator = None
         self._languages = None
-        roots = [os.path.join(self.genroroot,n) for n in ('gnrpy/gnr','gnrjs','resources/common','resources/mobile')]
+        roots = [os.path.join(self.genroroot,n) for n in ('','gnrjs','resources/common','resources/mobile')]
         self.slots = [dict(roots=roots,destFolder=self.genroroot,code='core',protected=True,language='en')]
         for p in list(self.application.packages.values()):
             self.slots.append(dict(roots=[p.packageFolder],destFolder=p.packageFolder,
                                     code=p.id, protected = (p.project == 'gnrcore'),language=p.language))
-        #if os.path.exists(self.application.customFolder):
-        #    self.slots.append(dict(roots=[self.application.customFolder],destFolder=self.application.customFolder,
-        #                                code='customization',protected=False))
         self.buildLocalizationDict()
 
     @property
