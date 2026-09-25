@@ -1,6 +1,7 @@
 import pytest
 from gnr.sql.adapters import _gnrbaseadapter as ba
 from gnr.sql.adapters import _gnrbasepostgresadapter as pgmod
+from gnr.sql.adapters import gnrsqlite as sqlitemod
 
 class FakeCursor(object):
     def fetchall(self):
@@ -257,7 +258,12 @@ class TestSqlDbAdapter():
         assert "field" in r
         assert "separator" in r
 
-        
+        r = self.adapter.inCsvColumn("$flags", ":val")
+        assert r == ":val ILIKE ANY(string_to_array($flags,','))"
+
+        r = self.adapter.inCsvColumn("$flags", ":val", separator=';')
+        assert r == ":val ILIKE ANY(string_to_array($flags,';'))"
+
         r = self.adapter.addUniqueConstraint("package", "table", "field")
         assert r == "ALTER TABLE package.table ADD CONSTRAINT un_package_table_field UNIQUE (field)"
 
@@ -375,6 +381,24 @@ class TestPrepareSqlTextDoubleColon:
         assert '%(threshold)s' in sql
         assert '::text' in sql
         assert '::integer' in sql
+
+
+class TestSqliteAdapterInCsvColumn:
+    """inCsvColumn must avoid the postgres only string_to_array()/ANY() (bug #1360)."""
+
+    @classmethod
+    def setup_class(cls):
+        cls.adapter = sqlitemod.SqlDbAdapter(FakeDbRoot(False))
+
+    def test_in_csv_column(self):
+        r = self.adapter.inCsvColumn("$flags", ":val")
+        assert "string_to_array" not in r
+        assert "ANY(" not in r
+        assert r == "(',' || $flags || ',') LIKE ('%,' || :val || ',%')"
+
+    def test_in_csv_column_separator(self):
+        r = self.adapter.inCsvColumn("$flags", ":val", separator=';')
+        assert r == "(';' || $flags || ';') LIKE ('%;' || :val || ';%')"
 
 
 class TestSqliteAdapterMaskField:

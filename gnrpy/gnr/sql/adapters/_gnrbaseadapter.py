@@ -953,6 +953,24 @@ class SqlDbAdapter(object):
         """
         return f"string_agg({fieldpath},'{separator}')"
 
+    def inCsvColumn(self, fieldpath, value, separator=','):
+        """Return a SQL predicate that is true when value is one of the items of a
+        separator delimited column. The match is case insensitive and the predicate
+        is NULL when the column is NULL, which can be overridden if needed.
+
+        Every argument is interpolated into the SQL text, so all three are expected
+        to be SQL-safe: neither the value nor the separator is escaped. The LIKE
+        wildcards are not escaped either, and which side they act on differs by
+        dialect -- here the column's items are the patterns and ``value`` is the
+        string being matched, while the sqlite form builds the pattern out of
+        ``value``. So a ``%`` stored in the data is a wildcard on postgres, and a
+        ``%`` in the value is a wildcard on sqlite.
+
+        :param fieldpath: the column holding the delimited list, as SQL or as ``$name``
+        :param value: the item to look for, as SQL, as ``$name`` or as a ``:name`` placeholder
+        :param separator: the character delimiting the items"""
+        return f"{value} ILIKE ANY(string_to_array({fieldpath},'{separator}'))"
+
     def mask_field_sql(self, field, mode='2-4', placeholder='*'):
         """
         Returns a SQL expression for masking a field value for secure display.
