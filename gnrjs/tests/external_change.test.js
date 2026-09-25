@@ -259,6 +259,21 @@ for (const serverValue of ['X', 'B']) {
     });
 }
 
+for (const [name, before, after] of [
+    ['equal', 'A', 'A'],
+    ['changed', 'A', 'B'],
+    ['equal null', null, null],
+    ['to null', 'A', null]
+]) {
+    test(`a direct setItem with _loadedValue is a baseline: ${name}`, () => {
+        const s = createForm();
+        s.initial('stage_code', before);
+        s.record.setItem('stage_code', after, {_loadedValue: after});
+        assert.equal(s.record.getItem('stage_code'), after);
+        s.assertClean();
+    });
+}
+
 test('an attribute set without _loadedValue keeps a local edit', () => {
     const s = createForm();
     s.initial('stage_code', 'A');
