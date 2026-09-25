@@ -1732,11 +1732,14 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
           this._pendingRemoteUpdate = true;
           return;
         }
-        
+        //taken before anything that can re-enter: a sync rpc on the way
+        //(_T below) lets dojo deliver an async response whose triggers
+        //would otherwise start a second fetch racing this one
+        this._remotebuilding = true;
         var remoteAttr = this.evaluateOnNode(objectExtract(this.attr,'remote_*',true));
         async = objectPop(remoteAttr,'_async',async);
         if(this._lastRemoteAttr && this.attr._cachedRemote && objectIsEqual(this._lastRemoteAttr,remoteAttr)){
-            return;
+            return this._releaseRemoteUpdate(async);
         }
         this._lastRemoteAttr = remoteAttr;
         if(remoteAttr._if){
@@ -1749,7 +1752,7 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
                     }
                     this.mergeRemoteContent(elseval);
                 }
-                return;
+                return this._releaseRemoteUpdate(async);
             }
         }
         var kwargs = {};
@@ -1779,7 +1782,6 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
             this.setHiderLayer(true,{message:waitingMessage});
             kwargs.sync = false;
         }
-        this._remotebuilding = true;
         return genro.rpc.remoteCall(method, kwargs, null, 'POST', null,
             function(result) {
                 //that.setValue(result);
@@ -1802,13 +1804,17 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
                         genro.fakeResize();
                     });
                 }
-                delete that._remotebuilding;
-                if(that._pendingRemoteUpdate){
-                    delete that._pendingRemoteUpdate;
-                    that.updateRemoteContent(true,async);
-                }
+                that._releaseRemoteUpdate(async);
                 return result;
             });
+    },
+
+    _releaseRemoteUpdate:function(async){
+        delete this._remotebuilding;
+        if(this._pendingRemoteUpdate){
+            delete this._pendingRemoteUpdate;
+            this.updateRemoteContent(true,async);
+        }
     },
 
     getValidationError: function() {
