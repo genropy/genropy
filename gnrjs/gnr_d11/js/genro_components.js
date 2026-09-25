@@ -4446,10 +4446,11 @@ dojo.declare("gnr.widgets.DropUploader", gnr.widgets.gnrwdg, {
 
 dojo.declare("gnr.widgets.ModalUploader", gnr.widgets.gnrwdg, {
     createContent:function(sourceNode, kw,children) {
-        let boxkwargs = objectExtract(kw,'position,top,bottom,left,right,border,width,margin,rounded,hidden');
-        let previewkwargs = objectExtract(kw,'height');
+        let boxkwargs = objectExtract(kw,'position,top,bottom,left,right,border,width,height,margin,rounded,hidden');
         boxkwargs._workspace = true;
-        let wrapper = sourceNode._('div','mu_wrapper',boxkwargs);
+        let wrapper = sourceNode._('flexbox','mu_wrapper',{direction:'column',
+                            _class:boxkwargs.height?'modalUploader modalUploader_fill':'modalUploader',
+                            ...boxkwargs});
         let label = objectPop(kw,'label') || 'Document';
         let mu_bar = wrapper._('div','mu_bar',{display:'flex',
                             style:'justify-content:space-between;align-items:center;',
@@ -4477,7 +4478,7 @@ dojo.declare("gnr.widgets.ModalUploader", gnr.widgets.gnrwdg, {
                                                 ...kw},this);
             },dest_stn:dest_stn.replace('^','=')
         });
-        wrapper._('iframe',{src:'^#WORKSPACE.preview_url',width:'100%',border:0,...previewkwargs});
+        wrapper._('iframe',{src:'^#WORKSPACE.preview_url',width:'100%',border:0,_class:'modalUploader_preview'});
         let iframeStarterKw = {script:function(scriptKwargs){
             let value = scriptKwargs.value;
             let prevurl = null;
