@@ -201,3 +201,41 @@ def test_gridFlexWidth_headline_letterhead_uses_content_area():
     # 190 content band - 2 main layout offsets - 0.2 grid offsets - 0.6 grid side
     # borders - 30 fixed column - 0.3 inner cell border
     assert p._gridFlexWidth(cells) == pytest.approx(190 - 2 - 0.2 - 0.6 - 30 - 0.3)
+
+
+class _TotalizedPrint(BagToHtml):
+    row_mode = 'attribute'
+    totalize_footer = 'Total'
+    grid_columns = [dict(field='descr', mm_width=0, name='Description'),
+                    dict(field='amount', mm_width=30, name='Amount', totalize=True)]
+
+    def __init__(self, rows_count, totalize_mode):
+        super().__init__(templateLoader=lambda **kwargs: None)
+        self.rows_count = rows_count
+        self.totalize_mode = totalize_mode
+
+    def gridData(self):
+        rows = Bag()
+        for i in range(self.rows_count):
+            rows.setItem('r%i' % i, None, descr='row %i' % i, amount=1)
+        return rows
+
+
+def _render_across_first_page_break(tmp_path, totalize_mode):
+    rendered = {}
+    for rows_count in range(60, 71):
+        printer = _TotalizedPrint(rows_count, totalize_mode)
+        html = printer(folder=str(tmp_path))
+        rendered[rows_count] = (html.count('totalizer_footer'), printer.current_page_number + 1)
+    assert {pages for _, pages in rendered.values()} == {1, 2}
+    return rendered
+
+
+def test_totalize_footer_doc_mode_only_on_last_page(tmp_path):
+    rendered = _render_across_first_page_break(tmp_path, 'doc')
+    assert {n: footers for n, (footers, _) in rendered.items() if footers != 1} == {}
+
+
+def test_totalize_footer_page_mode_on_every_page(tmp_path):
+    rendered = _render_across_first_page_break(tmp_path, 'page')
+    assert {n: (footers, pages) for n, (footers, pages) in rendered.items() if footers != pages} == {}
