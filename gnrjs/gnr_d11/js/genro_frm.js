@@ -955,7 +955,8 @@ dojo.declare("gnr.GnrFrmHandler", null, {
         if(failure.error=='gnrsilent'){
             return;
         }
-        if(this.rpcFailureReported(failure)){
+        // a server_unavailable arrives as rpc_error before anything has been shown
+        if(failure.error!='rpc_error' && this.rpcFailureReported(failure)){
             this.abort();
             return;
         }
@@ -3137,6 +3138,10 @@ dojo.declare("gnr.formstores.Base", null, {
                                                   'table':this.table, timeout:0},kw),null,'POST',null,maincb);
         if(dbstoreOnDeferred){
             deferred.addCallback(function(result){
+                var failure = form.rpcFailure(result);
+                if(failure){
+                    return failure;
+                }
                 var dbstore = result.getValue().getItem(that.form.dbstoreField);
                 if(dbstore){
                     that.form.sourceNode.attr.context_dbstore = dbstore;
@@ -3180,7 +3185,7 @@ dojo.declare("gnr.formstores.Base", null, {
                 form.waitingStatus(false);
                 return failure;
             }
-            var resultDict={};
+            var resultDict={savedPkey:form.getCurrentPkey()};
             if (result){
                 if(autoreload){
                     var loadedRecordNode = result.getNode('loadedRecord');
