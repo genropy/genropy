@@ -2,7 +2,7 @@
 import sys
 
 from gnr.core.cli import GnrCliArgParse
-from gnr.app.gnrapp import GnrApp
+from gnr.app.gnrapp import GnrApp, GnrUnresolvedPackageException
 
 description = "verify if all the dependencies are installed"
 
@@ -40,12 +40,11 @@ def main():
     options = parser.parse_args()
     if options.requirements:
         app = GnrApp(options.instance_name, checkdepcli=True, static_closure=True)
-        if app.unresolved_packages:
+        try:
+            app.write_requirements_file(options.requirements)
+        except GnrUnresolvedPackageException:
             print(app.unresolved_packages_report(), file=sys.stderr)
             sys.exit(5)
-        with open(options.requirements, 'w', encoding='utf-8') as fp:
-            for requirement in sorted(app.instance_packages_dependencies):
-                fp.write(requirement + '\n')
         return
     app = GnrApp(options.instance_name, checkdepcli=True)
     instance_deps = app.instance_packages_dependencies

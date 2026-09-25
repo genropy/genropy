@@ -77,6 +77,13 @@ class GnrPackageNotFoundException(GnrException):
     description = '!!Package not found'
 
 
+class GnrUnresolvedPackageException(GnrException):
+    """The package closure cannot be computed from the sources without importing
+    package code (``gnr app checkdep --requirements``)."""
+    code = 'GNRAPP-004'
+    description = '!!Package closure not readable from the sources'
+
+
 class NullLoader(object):
     """TODO"""
 
@@ -1252,6 +1259,15 @@ class GnrApp(object):
         strict check for image builds and CI, where a boot refusal costs nothing."""
         if self.undeclared_packages:
             raise GnrUndeclaredPackageException(self.undeclared_packages_report())
+
+    def write_requirements_file(self, path):
+        """Write to ``path`` the sorted requirements of the whole package closure;
+        raise, writing nothing, when part of the closure could not be read."""
+        if self.unresolved_packages:
+            raise GnrUnresolvedPackageException(self.unresolved_packages_report())
+        with open(path, 'w', encoding='utf-8') as fp:
+            for requirement in sorted(self.instance_packages_dependencies):
+                fp.write(requirement + '\n')
 
     def addPackage(self,pkgid,pkgattrs=None,pkgcontent=None):
         if ':' in pkgid:

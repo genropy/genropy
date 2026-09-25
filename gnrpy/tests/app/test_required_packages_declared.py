@@ -14,13 +14,12 @@ levels, enough to exercise the transitive case.
 import logging
 import os
 import shutil
-import sys
 import tempfile
 
 import pytest
 
-from gnr.app.cli import gnrcheckdep
-from gnr.app.gnrapp import GnrApp, GnrPackageNotFoundException, GnrUndeclaredPackageException
+from gnr.app.gnrapp import GnrApp, GnrPackageNotFoundException, GnrUndeclaredPackageException, \
+    GnrUnresolvedPackageException
 from core.common import BaseGnrTest
 
 CONFIG = """<?xml version="1.0" ?>
@@ -171,13 +170,6 @@ class TestRequiredPackagesDeclared(BaseGnrTest):
             fp.write(source)
         return os.path.dirname(folder)
 
-    def _checkdep(self, monkeypatch, *args):
-        monkeypatch.setattr(sys, 'argv', ['gnr app checkdep'] + list(args) + [self.test_instance_name])
-        with pytest.raises(SystemExit) as excinfo:
-            gnrcheckdep.main()
-            raise SystemExit(0)
-        return excinfo.value.code
-
     def test_reader_attribute_form(self):
         assert self._read(ATTRIBUTE_MAIN) == (['gnrcore:adm'], None)
 
@@ -245,21 +237,21 @@ class TestRequiredPackagesDeclared(BaseGnrTest):
         with pytest.raises(GnrPackageNotFoundException):
             self._app('sys', extra='    <nosuchpkg pkgcode="nosuchpkg"/>', checkdepcli=True)
 
-    def test_checkdep_requirements_prints_the_closure_without_importing(self, monkeypatch, capsys):
+    def test_requirements_file_holds_the_closure_without_importing(self):
         broken = self._package('brokenpkg', ATTRIBUTE_MAIN, ['surely-missing-dist-for-this-test'])
-        self._app('sys', extra=broken, checkdepcli=True)
+        app = self._app('sys', extra=broken, checkdepcli=True, static_closure=True)
         target = os.path.join(tempfile.mkdtemp(prefix='gnrtest_req_'), 'requirements.txt')
-        assert self._checkdep(monkeypatch, '--requirements', target) == 0
+        app.write_requirements_file(target)
         with open(target, encoding='utf-8') as fp:
             lines = fp.read().splitlines()
         assert 'surely-missing-dist-for-this-test' in lines
         assert lines == sorted(set(lines))
-        assert 'Cannot compute' not in capsys.readouterr().err
 
-    def test_checkdep_requirements_fails_naming_the_package(self, monkeypatch, capsys):
+    def test_requirements_file_raises_naming_the_package(self):
         dynamic = self._package('dynamicpkg', DYNAMIC_MAIN, ['some-dist-for-this-test'])
-        self._app('sys', extra=dynamic, checkdepcli=True)
+        app = self._app('sys', extra=dynamic, checkdepcli=True, static_closure=True)
         target = os.path.join(tempfile.mkdtemp(prefix='gnrtest_req_'), 'requirements.txt')
-        assert self._checkdep(monkeypatch, '--requirements', target) == 5
+        with pytest.raises(GnrUnresolvedPackageException) as excinfo:
+            app.write_requirements_file(target)
         assert not os.path.exists(target)
-        assert 'dynamicpkg' in capsys.readouterr().err
+        assert 'dynamicpkg' in str(excinfo.value)
