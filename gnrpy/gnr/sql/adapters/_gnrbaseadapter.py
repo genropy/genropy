@@ -40,38 +40,45 @@ FLDMASK = dict(qmark='%s=?',named=':%s',pyformat='%%(%s)s')
 
 
 class MacroExpander(object):
-    # Class-level regex patterns — used by adapter subclasses (e.g. Postgres)
-    macros = {}
+    """Expands the SQL macros registered on a database, one context at a time.
+
+    Built by :class:`SqlQueryCompiler` for every compilation.  The macros
+    come from ``querycompiler.db._macro_registry``, filled by
+    ``db.addMacro()``: this class adds no macro of its own.  Each entry is a
+    dict with ``regex``, ``callback`` and ``contexts``; the registration
+    order of the registry is the order of expansion.  Every callback is
+    called as ``callback(match, querycompiler)``.
+    """
 
     def __init__(self, querycompiler):
         self.querycompiler = querycompiler
-        self._registered_macros = {}
-        self.context = {}
+        self._registered_macros = dict(querycompiler.db._macro_registry)
 
-    def register(self, name, regex, callback):
-        """Register a macro on this expander instance.
+    def replace_context(self, sql_text, context):
+        """Expand in *sql_text* every macro declared valid for *context*.
+
+        A macro registered with ``contexts=None`` is valid everywhere.
+        Macros are applied in registration order.  Each callback receives
+        the regex match and the query compiler.
 
         Args:
-            name: Macro name without ``#`` (e.g. ``'IN_RANGE'``).
-            regex: Compiled regex matching the macro syntax.
-            callback: ``callback(match, expander) → str`` replacement.
-        """
-        self._registered_macros[name] = (regex, callback)
+            sql_text: The SQL fragment to expand.
+            context: Name of the compilation point (e.g. ``'where'``).
 
-    def replace(self, sql_text, macro):
-        """Expand macros in the given SQL text.
-
-        Registered macros (via :meth:`register`) take precedence over
-        class-level macros inherited from the adapter.
+        Returns:
+            str: The fragment with the macros of that context expanded.
         """
-        for m in macro.split(','):
-            if m in self._registered_macros:
-                regex, callback = self._registered_macros[m]
-                sql_text = regex.sub(lambda match: callback(match, self), sql_text)
-            elif m in self.macros:
-                sql_text = self.macros[m].sub(getattr(self, f'_expand_{m}'), sql_text)
+        compiler = self.querycompiler
+        for macro in self._registered_macros.values():
+            contexts = macro['contexts']
+            if contexts is not None and context not in contexts.split(','):
+                continue
+            callback = macro['callback']
+            sql_text = macro['regex'].sub(
+                lambda match, cb=callback: cb(match, compiler), sql_text)
         return sql_text
-    
+
+
 class SqlDbAdapter(object):
     """Base class for sql adapters.
     
@@ -184,6 +191,8 @@ class SqlDbAdapter(object):
 
         Override in subclasses to register macros that depend on the
         database engine (e.g. full-text search, vector similarity).
+        Each call passes a ``callback(match, compiler)`` and the
+        ``contexts`` where the compiler expands the macro.
         """
         pass
 

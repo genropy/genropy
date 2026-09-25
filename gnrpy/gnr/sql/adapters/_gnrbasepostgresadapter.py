@@ -5,107 +5,126 @@ import subprocess
 from gnr.core.gnrbag import Bag
 from gnr.dev.decorator import time_measure
 from gnr.sql import AdapterCapabilities as Capabilities
-from gnr.sql.adapters._gnrbaseadapter import SqlDbAdapter as SqlDbBaseAdapter,MacroExpander as BaseMacroExpander
+from gnr.sql.adapters._gnrbaseadapter import SqlDbAdapter as SqlDbBaseAdapter
 from gnr.sql.adapters._gnrbaseadapter import GnrWhereTranslator, DbAdapterException
 
 DEFAULT_INDEX_METHOD = 'btree'
 
-class MacroExpander(BaseMacroExpander):
-    # Regex patterns for each macro with improved support for quoted identifiers
-    
-    macros = {
-        'TSQUERY':re.compile(
-                            r"#TSQUERY(?:_(?P<querycode>\w+))?\s*\(\s*"  # `querycode` opzionale dopo `_`
-                            r"(?P<tsv>[\$\@][\w\.\@]+)\s*,\s*"  # Primo parametro: colonna
-                            r"(?P<querystring>[:\$\@][\w\.\@]+)\s*"  # Secondo parametro: può iniziare con `:`, `$` o `@`
-                            r"(?:,\s*(?P<language>[:\$\@][\w\.\@]+))?\s*"  # Terzo parametro (opzionale), stesso pattern del secondo
-                            r"\)"
-                    ),
-        'TSRANK': re.compile(
-            r"#TSRANK(?:_(?P<code>\w+))?"
-            r"(?:\(\s*(?:\[(?P<weights>[\d.,\s]*)\])?\s*"
-            r"(?:,\s*(?P<normalization>\d+))?\s*\))?"
-        ),
-        'TSHEADLINE': re.compile(
-                r"#TSHEADLINE(?:_(?P<querycode>\w+))?\s*\(\s*"  # `querycode` opzionale dopo `_`
-                r"(?P<textfield>[\$\@][\w\.\@]+)\s*"  # Primo parametro: colonna con il testo
-                r"(?:,\s*'(?P<config>[^']+)')?\s*"  # Config opzionale tra apici singoli
-                r"\)"
-        ),
-        'VECQUERY': re.compile(
-                r"#VECQUERY(?:_(?P<querycode>\w+))?\s*\(\s*"
-                r"(?P<veccol>[\$\@][\w\.\@]+)\s*,\s*"
-                r"(?P<target>[:\$\@][\w\.\@]+)\s*"
-                r"\)"
-        ),
-        'VECRANK': re.compile(
-                r"#VECRANK(?:_(?P<code>\w+))?"
-        )
-    }
+# Regex patterns for each macro with improved support for quoted identifiers
 
-    def _expand_TSQUERY(self, m):
-        """Expands the #TSQUERY macro into a full-text search condition using websearch_to_tsquery."""
-        tsv = m.group("tsv").strip()  # The field contining the ts_vector
-        querystring = m.group("querystring")  # The search text parameter (e.g., :querystring)
-        language = m.group("language") or "'simple'"  # Default to 'simple' if no language is provided
-        sqlparams = self.querycompiler.sqlparams
-        channel_code = m.group('querycode') or 'current'
-        sqlparams[f'tsquery_{channel_code}'] = {'querystring':querystring,'language':language,'tsv':tsv}
-        return f"{tsv} @@ websearch_to_tsquery(CAST({language} AS regconfig),{querystring})"
+TSQUERYFINDER = re.compile(
+    r"#TSQUERY(?:_(?P<querycode>\w+))?\s*\(\s*"  # optional `querycode` after `_`
+    r"(?P<tsv>[\$\@][\w\.\@]+)\s*,\s*"  # first parameter: the column
+    r"(?P<querystring>[:\$\@][\w\.\@]+)\s*"  # second parameter: may start with `:`, `$` or `@`
+    r"(?:,\s*(?P<language>[:\$\@][\w\.\@]+))?\s*"  # third parameter (optional), same pattern as the second
+    r"\)"
+)
 
-    def _expand_TSRANK(self, m):
-        """Expands the #TSRANK macro into a ts_rank function for ranking full-text search results."""
-        weights = m.group("weights") or 'ARRAY[0.1, 0.2, 0.4, 1.0]' # The weight array
-        normalization = m.group("normalization") or 8  # Default normalization factor
-        channel_code = m.group('code') or 'current'
-        sqlparams = self.querycompiler.sqlparams
-        tsquery_params = sqlparams.get(f'tsquery_{channel_code}',{})
-        query_param = tsquery_params.get("querystring",'')  # The search text parameter (e.g., :querystring)
-        language_param = tsquery_params.get("language",'simple')  # Default language to 'simple'
-        tsvector = tsquery_params['tsv']
-        result =  f"ts_rank({tsvector}, websearch_to_tsquery(CAST({language_param} AS regconfig), {query_param}))"
-        if normalization:
-            result =  f"ts_rank({tsvector}, websearch_to_tsquery(CAST({language_param} AS regconfig), {query_param}),{normalization})"
-        if weights:
-            result =  f"ts_rank({weights},{tsvector}, websearch_to_tsquery(CAST({language_param} AS regconfig), {query_param}),{normalization})"
-        return result
+TSRANKFINDER = re.compile(
+    r"#TSRANK(?:_(?P<code>\w+))?"
+    r"(?:\(\s*(?:\[(?P<weights>[\d.,\s]*)\])?\s*"
+    r"(?:,\s*(?P<normalization>\d+))?\s*\))?"
+)
 
-    def _expand_TSHEADLINE(self, m):
-        """Expands the #TSHEADLINE macro into a ts_headline function for highlighting search terms."""
-        text_field = m.group("textfield").strip()  # The text field to highlight
-        channel_code = m.group('querycode') or 'current'
-        sqlparams = self.querycompiler.sqlparams
-        tsquery_params = sqlparams.get(f'tsquery_{channel_code}',{})
-        if not tsquery_params:
-            return "''"
-        query_param = tsquery_params.get("querystring",'')  # The search text parameter (e.g., :querystring)
-        language_param = tsquery_params.get("language",'simple')  # Default language to 'simple'
-        config = m.group("config") or "StartSel=<mark>, StopSel=</mark>, MaxWords=20, MinWords=5, MaxFragments=99, FragmentDelimiter=<hr/>"
-        return f"ts_headline(CAST({language_param} AS regconfig), {text_field}, websearch_to_tsquery(CAST({language_param} AS regconfig), {query_param}), '{config}')"
+TSHEADLINEFINDER = re.compile(
+    r"#TSHEADLINE(?:_(?P<querycode>\w+))?\s*\(\s*"  # optional `querycode` after `_`
+    r"(?P<textfield>[\$\@][\w\.\@]+)\s*"  # first parameter: the column holding the text
+    r"(?:,\s*'(?P<config>[^']+)')?\s*"  # optional config between single quotes
+    r"\)"
+)
 
-    def _expand_VECQUERY(self, m):
-        """Expands the #VECQUERY macro into a vector similarity filter condition.
+VECQUERYFINDER = re.compile(
+    r"#VECQUERY(?:_(?P<querycode>\w+))?\s*\(\s*"
+    r"(?P<veccol>[\$\@][\w\.\@]+)\s*,\s*"
+    r"(?P<target>[:\$\@][\w\.\@]+)\s*"
+    r"\)"
+)
 
-        Usage: #VECQUERY($table.embedding_col, :param_name)
-        Stores vector params in sqlparams and returns a NOT NULL check as filter."""
-        veccol = m.group("veccol").strip()
-        target = m.group("target")
-        channel_code = m.group('querycode') or 'current'
-        sqlparams = self.querycompiler.sqlparams
-        sqlparams[f'vecquery_{channel_code}'] = {'veccol': veccol, 'target': target}
-        return f"{veccol} IS NOT NULL"
+VECRANKFINDER = re.compile(
+    r"#VECRANK(?:_(?P<code>\w+))?"
+)
 
-    def _expand_VECRANK(self, m):
-        """Expands the #VECRANK macro into a cosine similarity score.
 
-        Returns (1 - cosine_distance) so higher values = more similar.
-        Requires a prior #VECQUERY in the same query (same channel code)."""
-        channel_code = m.group('code') or 'current'
-        sqlparams = self.querycompiler.sqlparams
-        vecquery_params = sqlparams.get(f'vecquery_{channel_code}', {})
-        veccol = vecquery_params['veccol']
-        target = vecquery_params['target']
-        return f"(1 - ({veccol} <=> CAST({target} AS vector)))"
+def expand_tsquery(match, compiler):
+    """Expands the #TSQUERY macro into a full-text search condition using websearch_to_tsquery."""
+    tsv = match.group("tsv").strip()  # The field contining the ts_vector
+    querystring = match.group("querystring")  # The search text parameter (e.g., :querystring)
+    language = match.group("language") or "'simple'"  # Default to 'simple' if no language is provided
+    sqlparams = compiler.sqlparams
+    channel_code = match.group('querycode') or 'current'
+    sqlparams[f'tsquery_{channel_code}'] = {'querystring':querystring,'language':language,'tsv':tsv}
+    return f"{tsv} @@ websearch_to_tsquery(CAST({language} AS regconfig),{querystring})"
+
+
+def expand_tsrank(match, compiler):
+    """Expands the #TSRANK macro into a ts_rank function for ranking full-text search results."""
+    weights = match.group("weights") or 'ARRAY[0.1, 0.2, 0.4, 1.0]' # The weight array
+    normalization = match.group("normalization") or 8  # Default normalization factor
+    channel_code = match.group('code') or 'current'
+    sqlparams = compiler.sqlparams
+    tsquery_params = sqlparams.get(f'tsquery_{channel_code}',{})
+    query_param = tsquery_params.get("querystring",'')  # The search text parameter (e.g., :querystring)
+    language_param = tsquery_params.get("language",'simple')  # Default language to 'simple'
+    tsvector = tsquery_params['tsv']
+    result =  f"ts_rank({tsvector}, websearch_to_tsquery(CAST({language_param} AS regconfig), {query_param}))"
+    if normalization:
+        result =  f"ts_rank({tsvector}, websearch_to_tsquery(CAST({language_param} AS regconfig), {query_param}),{normalization})"
+    if weights:
+        result =  f"ts_rank({weights},{tsvector}, websearch_to_tsquery(CAST({language_param} AS regconfig), {query_param}),{normalization})"
+    return result
+
+
+def expand_tsheadline(match, compiler):
+    """Expands the #TSHEADLINE macro into a ts_headline function for highlighting search terms."""
+    text_field = match.group("textfield").strip()  # The text field to highlight
+    channel_code = match.group('querycode') or 'current'
+    sqlparams = compiler.sqlparams
+    tsquery_params = sqlparams.get(f'tsquery_{channel_code}',{})
+    if not tsquery_params:
+        return "''"
+    query_param = tsquery_params.get("querystring",'')  # The search text parameter (e.g., :querystring)
+    language_param = tsquery_params.get("language",'simple')  # Default language to 'simple'
+    config = match.group("config") or "StartSel=<mark>, StopSel=</mark>, MaxWords=20, MinWords=5, MaxFragments=99, FragmentDelimiter=<hr/>"
+    return f"ts_headline(CAST({language_param} AS regconfig), {text_field}, websearch_to_tsquery(CAST({language_param} AS regconfig), {query_param}), '{config}')"
+
+
+def expand_vecquery(match, compiler):
+    """Expands the #VECQUERY macro into a vector similarity filter condition.
+
+    Usage: #VECQUERY($table.embedding_col, :param_name)
+    Stores vector params in sqlparams and returns a NOT NULL check as filter."""
+    veccol = match.group("veccol").strip()
+    target = match.group("target")
+    channel_code = match.group('querycode') or 'current'
+    sqlparams = compiler.sqlparams
+    sqlparams[f'vecquery_{channel_code}'] = {'veccol': veccol, 'target': target}
+    return f"{veccol} IS NOT NULL"
+
+
+def expand_vecrank(match, compiler):
+    """Expands the #VECRANK macro into a cosine similarity score.
+
+    Returns (1 - cosine_distance) so higher values = more similar.
+    Requires a prior #VECQUERY in the same query (same channel code)."""
+    channel_code = match.group('code') or 'current'
+    sqlparams = compiler.sqlparams
+    vecquery_params = sqlparams.get(f'vecquery_{channel_code}', {})
+    veccol = vecquery_params['veccol']
+    target = vecquery_params['target']
+    return f"(1 - ({veccol} <=> CAST({target} AS vector)))"
+
+
+# name -> (regex, callback, contexts), in registration order
+POSTGRES_MACROS = (
+    ('TSQUERY', TSQUERYFINDER, expand_tsquery, 'where'),
+    ('TSRANK', TSRANKFINDER, expand_tsrank,
+     'formula_pre,columns_final,order_by'),
+    ('TSHEADLINE', TSHEADLINEFINDER, expand_tsheadline,
+     'formula_pre,columns_final'),
+    ('VECQUERY', VECQUERYFINDER, expand_vecquery, 'where'),
+    ('VECRANK', VECRANKFINDER, expand_vecrank,
+     'formula_pre,columns_final,order_by'),
+)
 
 
 class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
@@ -221,12 +240,8 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
 
     def registerMacros(self, db):
         """Register PostgreSQL-specific macros."""
-        for name, regex in MacroExpander.macros.items():
-            db.addMacro(name, regex, None)
-
-    @property
-    def macroExpander(self):
-        return MacroExpander
+        for name, regex, callback, contexts in POSTGRES_MACROS:
+            db.addMacro(name, regex, callback, contexts=contexts)
 
     # -- Schema and naming ---------------------------------------------------
 

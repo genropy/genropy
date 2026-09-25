@@ -1,0 +1,17 @@
+{
+  "env_diff": {},
+  "sqlparams": {
+    "jc_kwargs": {},
+    "probe": {
+      "field": "price_label",
+      "sql_formula": "#TSRANK"
+    },
+    "q": "hello",
+    "tsquery_current": {
+      "language": "'simple'",
+      "querystring": ":q",
+      "tsv": "$description"
+    }
+  },
+  "sqltext": "SELECT  \"t0\".\"code\" AS \"code\",\n( ts_rank(ARRAY[0.1, 0.2, 0.4, 1.0],\"t0\".\"description\", websearch_to_tsquery(CAST('simple' AS regconfig), :q),8) ) AS \"probe\",\n\"t0\".\"id\" AS \"pkey\"\n FROM \"invc\".\"invc_product\" AS t0\nWHERE (\"t0\".\"description\" @@ websearch_to_tsquery(CAST('simple' AS regconfig),:q)) AND (\"t0\".\"__del_ts\" IS NULL)"
+}

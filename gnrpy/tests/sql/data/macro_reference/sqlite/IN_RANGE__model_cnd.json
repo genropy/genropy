@@ -1,0 +1,9 @@
+{
+  "env_diff": {},
+  "sqlparams": {
+    "hi": 500,
+    "jc_kwargs": {},
+    "lo": 1
+  },
+  "sqltext": "SELECT  \"t0\".\"inv_number\" AS \"inv_number\",\n\"t1\".\"description\" AS \"_discount_tier_id_description\",\n\"t0\".\"id\" AS \"pkey\"\n FROM \"invc\".\"invc_invoice\" AS t0\n       LEFT JOIN \"invc\".\"invc_discount_tier\" AS \"t1\" ON (\n                ((:lo IS NULL AND :hi IS NOT NULL AND \"t1\".\"min_amount\"<=:hi) OR\n                (:lo IS NOT NULL AND :hi IS NULL AND \"t1\".\"min_amount\">=:lo) OR\n                (:lo IS NOT NULL AND :hi IS NOT NULL AND\n                    \"t1\".\"min_amount\" >= :lo AND \"t1\".\"min_amount\" <= :hi) OR\n                (:lo IS NULL AND :hi IS NULL))\n            )\nWHERE (\"t0\".\"__del_ts\" IS NULL)"
+}

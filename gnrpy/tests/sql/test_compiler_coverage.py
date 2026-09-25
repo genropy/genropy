@@ -2606,7 +2606,8 @@ class TestExpandBag:
 
     #BAG($field) registers the column for post-query Bag deserialization.
     #BAGCOLS($field) does the same but expands Bag keys into separate columns.
-    Covers compiler.py expandBag (lines 1278-1281) and expandBagcols (1296-1299).
+    Covers gnrsqlmacros.expand_bag and expand_bagcols, called from the
+    ``columns`` context of compiler.py.
     """
 
     def test_bag_macro_pg(self, db_pg):
@@ -2896,7 +2897,7 @@ class TestExpandInRange:
 
 
 # ---------------------------------------------------------------------------
-#  GAP 12 — expandPeriod  (righe 1346-1379)
+#  GAP 12 — gnrsqlmacros.expand_period (``where`` context)
 # ---------------------------------------------------------------------------
 
 class TestExpandPeriod:
