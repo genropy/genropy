@@ -38,7 +38,7 @@ class TestGnrLocalization(BaseGnrAppTest):
         al._languages = dict(en="English", it="Italian")
 
 
-        tr = al.translate("goober", "en")
+        al.translate("goober", "en")
 
         # FIXME: won't work with a proper al.translator
         #al.autoTranslate("it")
@@ -153,3 +153,28 @@ class TestGnrLocalization(BaseGnrAppTest):
             r = al.getTranslation(txt, 'it')
             assert r['status'] == 'OK', txt
             assert r['translation'] == translation
+
+    def test_same_basename_modules_keep_their_sections(self, tmp_path):
+        (tmp_path / 'grouplet.js').write_text("var msg = '!!Please complete required fields';")
+        (tmp_path / 'grouplet.py').write_text("caption = '!!Save draft'")
+        (tmp_path / 'localization.xml').write_text(
+            '<?xml version="1.0" encoding="UTF-8"?>\n<GenRoBag>'
+            '<grouplet path="grouplet.js" ext="js"><en_please_complete_required_fields'
+            ' base="Please complete required fields" it="Completa i campi obbligatori">'
+            '</en_please_complete_required_fields></grouplet>'
+            '<grouplet path="grouplet.py" ext="py"><en_save_draft base="Save draft" it="Salva bozza">'
+            '</en_save_draft></grouplet></GenRoBag>')
+        al = gl.AppLocalizer(self.app)
+        al.slots.append(dict(roots=[str(tmp_path)], destFolder=str(tmp_path),
+                             code='samebasename', protected=False, language='en'))
+        al.buildLocalizationDict()
+
+        al.updateLocalizationFiles(localizationBlock='samebasename')
+
+        lbag = al.getLocalizationBag(str(tmp_path))
+        assert lbag.getNode('grouplet').attr['ext'] == 'js'
+        assert lbag.getNode('grouplet_py').attr['ext'] == 'py'
+        assert 'grouplet.en_please_complete_required_fields' in lbag
+        assert 'grouplet_py.en_save_draft' in lbag
+        assert al.translate('!!Please complete required fields', 'it') == 'Completa i campi obbligatori'
+        assert al.translate('!!Save draft', 'it') == 'Salva bozza'
