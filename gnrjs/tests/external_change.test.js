@@ -5,7 +5,7 @@ const {test} = require('node:test');
 const vm = require('node:vm');
 
 function createForm() {
-    const context = {console, File: function() {}, gnr: {}, genro: {}};
+    const context = {console, TextEncoder, TextDecoder, Uint8Array, atob, btoa, File: function() {}, gnr: {}, genro: {}};
     context.dojo = {
         Deferred: function() {},
         eval,
@@ -29,7 +29,10 @@ function createForm() {
     };
     vm.createContext(context);
     const sourceDir = process.env.GNR_JS_SOURCE || path.join(__dirname, '../gnr_d11/js');
-    for (const filename of ['gnrlang.js', 'gnrbag.js', 'gnrdomsource.js', 'genro_frm.js']) {
+    const bagFiles = process.env.GNR_JS_BAG === 'genro-bag-js-mixin'
+        ? ['genro_bagjs_bundle.js', 'gnrbag_mixin.js']
+        : ['gnrbag.js'];
+    for (const filename of ['gnrlang.js', ...bagFiles, 'gnrdomsource.js', 'genro_frm.js']) {
         vm.runInContext(readFileSync(path.join(sourceDir, filename), 'utf8'), context, {filename});
     }
     const Bag = context.gnr.GnrBag;
@@ -276,4 +279,18 @@ test('a silent push acknowledges a previously deleted field', () => {
     s.record.popNode('amount');
     s.form.externalChange('amount', 12);
     s.assertClean();
+});
+
+test('form ancestry checks recognize nested data nodes and reject sibling data', () => {
+    const s = createForm();
+    s.initial('preferences.color_variant', 'blue');
+    s.data.setItem('outside.value', 'red');
+
+    const variantNode = s.record.getNode('preferences.color_variant');
+    const outsideNode = s.data.getNode('outside.value');
+
+    assert.equal(s.form.isNodeInFormData(variantNode), true);
+    assert.equal(s.form.isNodeInFormData(outsideNode), false);
+    assert.equal(s.record.getNode('preferences').isAncestor(variantNode), true);
+    assert.equal(variantNode.isDescendant(s.record.getNode('preferences')), true);
 });

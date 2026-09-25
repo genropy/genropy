@@ -22,7 +22,7 @@ logging_tree_editor.ondblclick = function(evt) {
     
     var action = function(res) {
 	var n = genro.getDataNode('logging_conf_bag.'+row.path);
-	n.updAttributes(res.asDict());
+	n.setAttr(res.asDict(),true,true,false);
     }
     
     genro.dlg.prompt("Edit", {widget: fields, action: action,

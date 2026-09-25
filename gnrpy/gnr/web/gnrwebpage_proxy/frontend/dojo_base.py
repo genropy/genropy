@@ -12,6 +12,10 @@ from gnr.web.gnrwebpage_proxy.frontend.gnrbasefrontend import GnrBaseFrontend
 from gnr.core.gnrlang import boolean
 
 class GnrBaseDojoFrontend(GnrBaseFrontend):
+    def bag_javascript_files(self):
+        from gnr.web.gnrjsassets import bag_javascript_files
+        return bag_javascript_files(self.page)
+
     def importer(self):
         return '<script type="text/javascript" src="%s" djConfig="%s"> </script>' % (self.dojolib, self.djConfig)
         

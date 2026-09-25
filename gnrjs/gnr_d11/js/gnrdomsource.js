@@ -25,13 +25,17 @@
 
 
 //######################## class BagNode##########################
-dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
-    constructor:function(){
+gnr.GnrDomSourceNode = class GnrDomSourceNode extends gnr.GnrBagNode {
+    constructor() {
+        super(...arguments);
         var mobile_kw = objectExtract(this.attr,'mobile_*');
         if(genro.isMobile && objectNotEmpty(mobile_kw)){
             objectUpdate(this.attr,mobile_kw);
         }
-    },
+    }
+};
+Object.assign(gnr.GnrDomSourceNode.prototype, {
+    declaredClass: 'gnr.GnrDomSourceNode',
 
     application:function() {
         return this.getParentBag().getRoot().application;
@@ -154,7 +158,7 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
     },
 
     trigger_data:function(prop, kw) {
-        var trigger_reason = this.getTriggerReason(this.attrDatapath(prop),kw)
+        var trigger_reason = this.getTriggerReason(this.attrDatapath(prop),kw);
         if (trigger_reason) {
             if ((kw.evt == 'fired') && (trigger_reason == 'child')) {
                 // pass fired event on child datapath: get only parent changes for variable datapaths
@@ -955,7 +959,16 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         return attributes;
     },
     rebuild: function() {
-        this.setValue(this._value);
+        if (typeof GenroBagJS === 'undefined' || !(this instanceof GenroBagJS.BagNode)) {
+            this.setValue(this._value);
+            return;
+        }
+        // Rebuilding is an explicit UI operation, not a data value change.
+        // Native Bags correctly suppress notifications for identical values.
+        if (this.getParentBag()) {
+            genro.src.nodeTrigger({evt:'upd', node:this, oldvalue:this._value,
+                value:this._value, updvalue:true, updattr:false, reason:true});
+        }
     },
     build: function(destination, ind) {
         genro.src.stripData(this);
@@ -1340,8 +1353,8 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
     lazyBuildFinalize:function(widget){
         var content = this.getValue();
         if (content instanceof gnr.GnrBag){
-            var nodes = content._nodes;
-            content._nodes = [];
+            var nodes = Array.from(content.getNodes());
+            content.clear(false);
             dojo.forEach(nodes,function(n){
                 content.setItem(n.label,n);
             });
@@ -1424,11 +1437,11 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
             if(valuepath){
                 var updattr = {};
                 updattr[attr.slice(5)] = kw.value;
-                genro.getDataNode(this.absDatapath(valuepath)).updAttributes(updattr);
+                genro.getDataNode(this.absDatapath(valuepath)).setAttr(updattr,true,true,false);
             }
         }
         if(this._original_attributes){
-            this.setAttr(this._original_attributes,true);
+            this.setAttr(this._original_attributes,true,false,false);
             this._original_attributes=null;
         }
         var autocreate = kw.reason =='autocreate';
@@ -1446,7 +1459,7 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
                     var wdg_modifiers = objectExtract(valueNode.attr,wdg_prefix);
                     if(objectNotEmpty(wdg_modifiers)){
                         this._original_attributes = objectUpdate({},this.attr);
-                        this.updAttributes(wdg_modifiers,true);
+                        this.setAttr(wdg_modifiers,true,true,false);
                     }
                 }
             }
@@ -1605,7 +1618,7 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
                                     valueToFormat = _displayedValue;
                                 }
                             }
-                            valueNode.updAttributes({_formattedValue:genro.formatter.asText(valueToFormat, nattr)},this);
+                            valueNode.setAttr({_formattedValue:genro.formatter.asText(valueToFormat, nattr)},this,true,false);
                         }
 
                     }
@@ -1662,7 +1675,7 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
             }
             else {
                 var attrdict = {};
-                this.setAttr(attrdict, this, true);
+                this.setAttr(attrdict, this, true, false);
                 //this.setAttr({attr:value}, this, true);
 
                 //domnode.setAttribute(attr,value);
@@ -2132,7 +2145,7 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
     replaceContent:function(value){
         var currval = this._value;
         if(currval instanceof gnr.GnrDomSource){
-            dojo.forEach(currval._nodes,function(n){
+            dojo.forEach(currval.getNodes(),function(n){
                 currval.popNode(n.label);
             });
         }else{
@@ -2141,7 +2154,7 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
             currval.setBackRef(this, this._parentbag);
         }
         if(value){
-                dojo.forEach(value._nodes,function(n){
+                dojo.forEach(value.getNodes(),function(n){
                 var node = value.popNode(n.label);
                 currval.setItem(node.label,node);
             });
@@ -2153,7 +2166,7 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         var mergetable = this.attr.tag=='tbody';
         var currval = this._value;
         if(currval instanceof gnr.GnrDomSource){
-            dojo.forEach(currval._nodes,function(n){
+            dojo.forEach(currval.getNodes(),function(n){
                 if(!mergetable || stringStartsWith(n.label,'remote_merged_')){
                     currval.popNode(n.label);
                 }
@@ -2171,7 +2184,7 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
                 }
                 value = valueNode._value;
             }
-            dojo.forEach(value._nodes,function(n){
+            dojo.forEach(value.getNodes(),function(n){
                 var node = value.popNode(n.label);
                 var label = mergetable?'remote_merged_'+node.label:node.label;
                 currval.setItem(label,node);
@@ -2206,13 +2219,17 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
 
 });
 
-dojo.declare("gnr.GnrStructData", gnr.GnrBag, {
+gnr.GnrStructData = class GnrStructData extends gnr.GnrBag {};
+Object.assign(gnr.GnrStructData.prototype, {
+    declaredClass: 'gnr.GnrStructData',
     // constructor: function(source){
     //     this._validationPrefix = 'structvalidate_';
     // }
 });
 
-dojo.declare("gnr.GnrDomSource", gnr.GnrStructData, {
+gnr.GnrDomSource = class GnrDomSource extends gnr.GnrStructData {};
+Object.assign(gnr.GnrDomSource.prototype, {
+    declaredClass: 'gnr.GnrDomSource',
     _validationPrefix: 'structvalidate_',
     _nodeFactory:gnr.GnrDomSourceNode,
 
@@ -2329,4 +2346,3 @@ dojo.declare("gnr.GnrDomSource", gnr.GnrStructData, {
         return node;
     }
 });
-

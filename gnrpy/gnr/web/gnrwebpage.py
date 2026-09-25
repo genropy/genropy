@@ -51,6 +51,8 @@ from gnr.core.gnrclasses import GnrMixinNotFound
 
 from gnr.web import logger
 from gnr.web._gnrbasewebpage import GnrBaseWebPage
+from gnr.web.gnrbagtransport import transport_format
+from gnr.web.gnrjsassets import compressed_javascript_url
 from gnr.web.gnrwebreqresp import GnrWebRequest, GnrWebResponse
 from gnr.web.gnrwebpage_proxy.gnrbaseproxy import GnrBaseProxy
 from gnr.web.gnrwebpage_proxy.menuproxy import GnrMenuProxy
@@ -1393,6 +1395,7 @@ class GnrWebPage(GnrBaseWebPage):
             localroot ='file://%s/app/lib/static/' %self.connection.electron_static
         if getattr(self,'_avoid_module_cache',None):
             kwargs['_avoid_module_cache'] = True
+        kwargs['bagTransport'] = transport_format(self.application, page=self)
         safety_re = re.compile(r"(.*<.*.*?>.+?</.*>)")
         startArgs = dict([(k,self.catalog.asTypedText(v)) for k,v in list(kwargs.items())])
         for arg in list(startArgs.keys()):
@@ -1411,10 +1414,8 @@ class GnrWebPage(GnrBaseWebPage):
         elif _nodebug is False and (self.isDeveloper()):
             arg_dict['genroJsImport'] = [self.mtimeurl(self.gnrjsversion, 'js', '%s.js' % f) for f in gnrimports]
         else:
-            if not self.site.compressedJsPath or self.site.debug:
-                jsfiles = [gnr_static_handler.internal_path(self.gnrjsversion, 'js', '%s.js' % f) for f in gnrimports]
-                self.site.compressedJsPath = self.jstools.compress(jsfiles)
-            arg_dict['genroJsImport'] = [self.site.compressedJsPath]
+            jsfiles = [gnr_static_handler.internal_path(self.gnrjsversion, 'js', '%s.js' % f) for f in gnrimports]
+            arg_dict['genroJsImport'] = [compressed_javascript_url(self, jsfiles)]
         arg_dict['css_genro'] = self.get_css_genro()
         arg_dict['js_requires'] = [x for x in [self.getResourceUri(r, 'js', add_mtime=True) for r in self.js_requires]
                                    if x]

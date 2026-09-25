@@ -67,3 +67,23 @@ Mocks should be used **only** to isolate external dependencies (network APIs, re
 - If a test passes with MagicMock but fails on a real instance, the test is **useless**
 
 **Why**: A test on MagicMock that passes while real code throws `KeyError: 'data'` is not a test — it's an illusion. The reviewer wastes time discovering nothing actually works. Cosmetic mocks are worse than no tests, because they give false confidence.
+
+## Bag integration decisions
+
+Before changing Bag compatibility behavior, reconciling audit tests, or proposing
+an API decision, read `notes/bag-integration/bag-decision-register.md` of the genropy_meta
+repository and the referenced contracts.
+A closed decision must not be reopened because an old parity test fails. Treat
+implementation gaps separately from undecided API design. Historical audit
+snapshots are not current requirements. Use decision/issue IDs in reports,
+update the register and contract tests when an item closes, and only reopen a
+closed decision following explicit user instruction.
+
+### JavaScript Bag verification modes
+
+Run both `node --test gnrjs/tests/*.test.js` and
+`GNR_JS_BAG=genro-bag-js-mixin node --test gnrjs/tests/*.test.js` when reporting
+integration readiness. Default-mode skips are configuration-gated scenarios,
+not evidence of passing selected-mode behavior. See
+`notes/bag-integration/bag-verification-checkpoint.md` of genropy_meta for the
+reconciled checkpoint and issues.

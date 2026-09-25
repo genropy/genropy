@@ -40,6 +40,7 @@ from urllib.parse import urlparse, unquote
 from collections import defaultdict
 from email.mime.text import MIMEText
 
+from gnr import BAG_MODE
 from gnr.core.gnrclasses import GnrClassCatalog
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrlocale import defaultLocale
@@ -960,7 +961,11 @@ class GnrApp(object):
             return config
         
         instance_config_path = os.path.join(self.instanceFolder, 'instanceconfig.xml')
-        base_instance_config = normalizePackages(Bag(instance_config_path, _template_kwargs=os.environ))
+        if BAG_MODE == 'genro-bag':
+            instance_bag = Bag(instance_config_path.format_map(os.environ))
+        else:
+            instance_bag = Bag(instance_config_path, _template_kwargs=os.environ)
+        base_instance_config = normalizePackages(instance_bag)
         instance_config = normalizePackages(self.gnr_config['gnr.instanceconfig.default_xml']) or Bag()
         template = base_instance_config['instance?template']
         if template:

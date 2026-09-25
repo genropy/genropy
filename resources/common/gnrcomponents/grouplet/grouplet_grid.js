@@ -553,23 +553,19 @@ gnr.GroupletDataStore = class GroupletDataStore {
     }
 
     moveRow(rowKey, position) {
-        // Splice the Bag's _nodes array in place: no del/ins triggers
-        // fire, so nested widgets whose datapath is anchored to the
-        // moved row (e.g. inner groupletGrids on `.contacts`) keep a
-        // valid parent chain. DOM mirroring is the controller's job.
+        // Reorder through the Bag API without del/ins events; nested widgets
+        // retain their node identity and parent chain. The controller mirrors DOM.
         if (typeof position !== 'string') return null;
         const op = position.charAt(0);
         if (op !== '<' && op !== '>') return null;
         const targetKey = position.slice(1);
         const bag = this.getData();
-        const nodes = bag._nodes;
+        const nodes = bag.getNodes();
         const fromIdx = nodes.findIndex((n) => n.label === rowKey);
         const targetIdx = nodes.findIndex((n) => n.label === targetKey);
         if (fromIdx < 0 || targetIdx < 0 || fromIdx === targetIdx) return null;
-        const [moved] = nodes.splice(fromIdx, 1);
-        let insertAt = nodes.findIndex((n) => n.label === targetKey);
-        if (op === '>') insertAt += 1;
-        nodes.splice(insertAt, 0, moved);
+        const insertAt = targetIdx - (fromIdx < targetIdx ? 1 : 0) + (op === '>' ? 1 : 0);
+        bag.moveNode(fromIdx, insertAt, false);
         return {op: op, targetKey: targetKey};
     }
 

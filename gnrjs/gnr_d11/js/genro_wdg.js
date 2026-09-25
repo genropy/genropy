@@ -1376,7 +1376,8 @@ dojo.declare("gnr.GridEditor", null, {
         }
         var rowData = rowEditor.data;
         if(rowData.index(colname)<0){
-            rowData.setItem(colname,n.attr[colname],{_loadedValue:n.attr[colname]});
+            rowData.setItem(colname,n.attr[colname]).setAttr(
+                {_loadedValue:n.attr[colname]},false,true,false);
         }
 
         rowEditor.startEditCell(colname);
@@ -1417,7 +1418,7 @@ dojo.declare("gnr.GridEditor", null, {
         }else{
             var row_attributes = value.pop('_row_attributes');
             if(row_attributes){
-                rowEditor.data.getParentNode().updAttributes(row_attributes,false);
+                rowEditor.data.getParentNode().setAttr(row_attributes,false,true,false);
             }
             rowEditor.data.update(value,null,'remoteController');
         }
@@ -1523,7 +1524,7 @@ dojo.declare("gnr.GridEditor", null, {
                 var rowData = rowEditor.data;
                 var m = this.grid.cellmap[k];
                 if(rowData.index(k)<0){
-                    rowData.setItem(k,row[k],{_loadedValue:row[k]});
+                    rowData.setItem(k,row[k]).setAttr({_loadedValue:row[k]},false,true,false);
                 }
                 rowData.setItem(k,updkw[k]);
             }
@@ -1622,7 +1623,7 @@ dojo.declare("gnr.GridEditor", null, {
         }
         var datachanged = false;
         var editedRowId=null;
-        if (rowDataNode && rowDataNode._resolver && rowDataNode._resolver.expired()) {
+        if (rowDataNode && rowDataNode._resolver && rowDataNode._resolver.expired) {
             datachanged = true;
         }
         editedRowId= this.startEditRemote(rowDataNode,colname,row);
@@ -1636,7 +1637,7 @@ dojo.declare("gnr.GridEditor", null, {
             datachanged = true;
             cellDataNode = rowData.getNode(gridcell, null, true);
         }
-        else if (cellDataNode._resolver && cellDataNode._resolver.expired()) {
+        else if (cellDataNode._resolver && cellDataNode._resolver.expired) {
             datachanged = true;
             cellDataNode.getValue();
         }

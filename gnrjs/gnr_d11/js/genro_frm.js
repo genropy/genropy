@@ -1277,7 +1277,7 @@ dojo.declare("gnr.GnrFrmHandler", null, {
                 return
             }
             let local_clipboard = that.getControllerData('clipboard') || new gnr.GnrBag();
-            remote_clipboard._nodes.forEach(function(n){
+            remote_clipboard.getNodes().forEach(function(n){
                 local_clipboard.addItem(n.label,n);
             });
             that.setControllerData('clipboard',local_clipboard);
@@ -1880,7 +1880,7 @@ dojo.declare("gnr.GnrFrmHandler", null, {
             var invalidFields = this.getInvalidFields();
             var ck = this.getChangeKey(kw.node);
             if(invalidFields && invalidFields.len()){
-                invalidFields._nodes.forEach(function(n){
+                invalidFields.getNodes().forEach(function(n){
                     if(n.label.indexOf(ck)==0){
                         invalidFields.popNode(n.label);
                     }

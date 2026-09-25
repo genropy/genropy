@@ -18,7 +18,7 @@ def test_transport_bootstrap_uses_instance_configuration(transport):
         config.setItem('experimental.page', None, dojo_xhr_patch=transport)
     application = SimpleNamespace(config=config)
     application.experimentalValue = MethodType(GnrApp.experimentalValue, application)
-    static = SimpleNamespace(url=lambda *args: '/static/')
+    static = SimpleNamespace(url=lambda *args: '/static/', internal_path=lambda *args: '/static/' + '/'.join(args))
     page = SimpleNamespace(
         application=application,
         site=SimpleNamespace(
@@ -27,6 +27,7 @@ def test_transport_bootstrap_uses_instance_configuration(transport):
         frontend=SimpleNamespace(
             frontend_arg_dict=lambda args: None,
             gnrjs_frontend=lambda: []),
+        jstools=SimpleNamespace(compress=lambda files: '/client.js'),
         catalog=GnrClassCatalog(), gnrjsversion='gnr_d11',
         _htmlHeaders=[], charset='utf-8', pagename='test', page_id='test',
         wsk_enabled=False, wsk=None, debug_sql=False, debug_py=False, isMobile=False,

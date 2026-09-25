@@ -603,7 +603,7 @@ class RecordToHtml(TableScriptOnRecord):
     def field(self, path, default=None, locale=None,
               format=None, mask=None, root=None):
         root = root or self._data['record']
-        datanode = root.getNode(path, default)
+        datanode = root.getNode(path)
         value = datanode.value
         attr = datanode.attr
         if value is None:
