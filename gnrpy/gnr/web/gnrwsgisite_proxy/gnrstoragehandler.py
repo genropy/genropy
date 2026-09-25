@@ -231,7 +231,6 @@ class BaseStorageHandler:
             service_name = service_record['service_name']
             implementation = service_record['implementation']
             parameters_bag = Bag(service_record['parameters'])
-
             # Use centralized method to set parameters
             self._setStorageParams(service_name,
                 parameters=parameters_bag,
@@ -556,6 +555,5 @@ class LegacyStorageHandler(BaseStorageHandler):
             mode=mode,
             version=version
         )
-
 
 
