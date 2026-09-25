@@ -60,8 +60,8 @@
 				<en_topics base="Topics" en="Topics" it="Argomenti"/>
 				<en_publish_date base="Publish date" en="Publish date" it="Data di pubblicazione"/>
 				<en_revision base="Revision" en="Revision" it="Revisione"/>
-				<en_rst_s base="Rst %s" en="Rst [50]" it="Rst %s"/>
-				<en_title_s base="Title %s" en="Title [51]" it="Titolo %s"/>
+				<en_rst_s base="Rst %s" en="Rst %s" it="Rst %s"/>
+				<en_title_s base="Title %s" en="Title %s" it="Titolo %s"/>
 				<en_parameter_name base="Parameter name" en="Parameter name" it="Nome parametro"/>
 				<en_type fr="Type" de="Art" en="Type" it="Tipo" base="Type"/>
 				<en_description base="Description" en="Description" it="Descrizione"/>

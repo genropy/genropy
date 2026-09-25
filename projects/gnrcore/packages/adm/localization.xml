@@ -298,7 +298,7 @@
 				<en_custom_groups base="Custom groups" en=""/>
 				<en_name base="Name" de="Name" en="Name" fr="Nom" it="Nome"/>
 				<en_recover_email base="Recover email" en=""/>
-				<en_username_cannot_be_set_to_null_username_s base="Username cannot be set to null %(username)s" en="Username cannot be set to null [46]" it="Il nome utente non può essere impostato su null %(username)s"/>
+				<en_username_cannot_be_set_to_null_username_s base="Username cannot be set to null %(username)s" en="Username cannot be set to null %(username)s" it="Il nome utente non può essere impostato su null %(username)s"/>
 		</user>
 		<user_access_group path="model/user_access_group.py" ext="py">
 			<en_user_access fr="l'accès de l'utilisateur" de="Benutzerzugang" en="User access" it="Accesso utente" base="User access"/>
@@ -383,7 +383,7 @@
 				<en_open_helper_editor_in_current base="Open helper editor in current" en=""/>
 				<en_toggle_dev_items_in_root base="Toggle dev items in root" en=""/>
 				<en_toggle_dev_items_in_current base="Toggle dev items in current" en=""/>
-				<en_s_preference _tag="en__s_preference" fr="%s préférence" en="[47] preference" de="%s Präferenz" it="%s preferenza" base="%s preference"/>
+				<en_s_preference _tag="en__s_preference" fr="%s préférence" en="%s preference" de="%s Präferenz" it="%s preferenza" base="%s preference"/>
 				<en_help base="Help" de="Hilfe" en="Help" fr="Aider" it="Aiuto"/>
 				<en_open_documentation base="Open documentation" en="Open documentation" it="Apri documentazione"/>
 				<en_ask_for_help base="Ask for help" en="Ask for help" it="Chiedi aiuto"/>
@@ -566,11 +566,11 @@
 								<en_bottom fr="Bas" de="Boden" en="Bottom" it="Fondo" base="Bottom"/>
 								<en_left fr="Gauche" de="Links" en="Left" it="Uscita" base="Left"/>
 								<en_right fr="Droite" de="Recht" en="Right" it="Destra" base="Right"/>
-								<en_s_height _tag="en__s_height" fr="%s hauteur" en="[48] height" de="%s Höhe" it="%s Altezza" base="%s height"/>
-								<en_s _tag="en__s" fr="% S" en="[29]" de="% S" it="% S" base="%s"/>
+								<en_s_height _tag="en__s_height" fr="%s hauteur" en="%s height" de="%s Höhe" it="%s Altezza" base="%s height"/>
+								<en_s _tag="en__s" fr="% S" en="%s" de="% S" it="% S" base="%s"/>
 								<en_center_height fr="Hauteur de pointes" de="Spitzenhöhe" en="Center height" it="Altezza di punte" base="Center height"/>
 								<en_center_width fr="La largeur centrale" de="Spitzenweite" en="Center width" it="Larghezza Centro" base="Center width"/>
-								<en_s_width _tag="en__s_width" fr="%s Largeur" en="[49] width" de="%s Breite" it="%s larghezza" base="%s width"/>
+								<en_s_width _tag="en__s_width" fr="%s Largeur" en="%s width" de="%s Breite" it="%s larghezza" base="%s width"/>
 				</th_htmltemplate>
 			</htmltemplate>
 				<install_checklist>

@@ -3,7 +3,7 @@
 	<lib>
 		<services>
 			<ftp path="lib/services/ftp.py" ext="py">
-				<en_s_s _tag="en__s_s" base="%s %s" en="[4] [5]" it="%s %s"/>
+				<en_s_s _tag="en__s_s" base="%s %s" en="%s %s" it="%s %s"/>
 			</ftp>
 		</services>
 	</lib>
