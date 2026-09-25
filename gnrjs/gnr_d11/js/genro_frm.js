@@ -2691,6 +2691,15 @@ dojo.declare("gnr.GnrValidator", null, {
 dojo.declare("gnr.formstores.Base", null, {
     recordCluster_onSaved:'reload',
 
+    writeBackBag:function(target,path,value){
+        // the replaced node keeps its attributes: _sendback decides whether a record's save sends it
+        var oldnode = target.getNode(path);
+        if(oldnode){
+            target.pop(path);
+        }
+        target.setItem(path,value,oldnode ? objectUpdate({},oldnode.attr) : null);
+    },
+
     constructor:function(kw,handlers){
         objectPop(kw, 'tag');
         this.handlers = handlers;
@@ -3389,7 +3398,8 @@ dojo.declare("gnr.formstores.Item", gnr.formstores.Base, {
                 return false;
             }
         }
-        var oldsubbag,path;
+        var that = this;
+        var path;
         formData.walk(function(n){
             var v = n.getValue();
             var kw = {dtype:n.attr.dtype};
@@ -3404,11 +3414,7 @@ dojo.declare("gnr.formstores.Item", gnr.formstores.Base, {
                 kw._valuelabel = n.attr._valuelabel;
             }
             if(v instanceof gnr.GnrBag){
-                oldsubbag = sourceBag.getItem(path);
-                if(oldsubbag){
-                    sourceBag.pop(path);
-                }
-                sourceBag.setItem(path,v);
+                that.writeBackBag(sourceBag,path,v);
                 return '__continue__';
             }
             sourceBag.setItem(path,n.getValue(),{dtype:n.attr.dtype},{lazySet:true});
@@ -3562,16 +3568,13 @@ dojo.declare("gnr.formstores.Collection", gnr.formstores.Base, {
             }
         }
         form.setCurrentPkey(newPkey);
-        var path,v,oldsubbag;
+        var that = this;
+        var path,v;
         formData.walk(function(n){
             v = n.getValue();
             path = n.getFullpath('static',formData);
             if(v instanceof gnr.GnrBag){
-                oldsubbag = data.getItem(path);
-                if(oldsubbag){
-                    data.pop(path);
-                }
-                data.setItem(path,v)
+                that.writeBackBag(data,path,v);
                 return '__continue__';
             }
             data.setItem(path,n.getValue(),{dtype:n.attr.dtype},{lazySet:true});
