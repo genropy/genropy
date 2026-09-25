@@ -1,0 +1,299 @@
+<h2>Cheat Sheet</h2>
+<p class="lede">Look up the action, find the widget.</p>
+
+<h3>I want to&hellip;</h3>
+<p>Each row maps an everyday need to the widget that solves it, plus the line of code you would actually type. Skim the left column until something matches; the shorthand on the right is meant to be edited, not pasted verbatim.</p>
+
+<table>
+  <thead>
+    <tr><th>I want to&hellip;</th><th>Use this</th><th>Code shorthand</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Show a simple address form inline on a page</td>
+      <td><code>grouplet</code> + handler</td>
+      <td><code>pane.grouplet(value='^.address', handler=self.grp_address)</code></td>
+    </tr>
+    <tr>
+      <td>Render a reusable field block from a resource file</td>
+      <td><code>grouplet</code> + resource</td>
+      <td><code>pane.grouplet(value='^.data', resource='examples/address_fields')</code></td>
+    </tr>
+    <tr>
+      <td>Pick the resource per&#8209;table automatically</td>
+      <td><code>grouplet</code> + <code>table=</code></td>
+      <td><code>pane.grouplet(table='pkg.tbl', resource='card_summary', value='^#FORM.record')</code></td>
+    </tr>
+    <tr>
+      <td>Swap the entire layout when a value changes</td>
+      <td><code>grouplet</code> with reactive resource</td>
+      <td><code>pane.grouplet(resource='^.record_type', value='^.data')</code></td>
+    </tr>
+    <tr>
+      <td>Edit a record's hidden detail behind a pencil button</td>
+      <td><code>groupletChunk</code></td>
+      <td><code>pane.groupletChunk(value='^#FORM.record', template='$name &mdash; $city', handler=self.grp_addr)</code></td>
+    </tr>
+    <tr>
+      <td>Read&#8209;only summary with click&#8209;to&#8209;edit popup</td>
+      <td><code>groupletChunk</code> + <code>resource=</code></td>
+      <td><code>pane.groupletChunk(value='^#FORM.record', resource='person_card')</code></td>
+    </tr>
+    <tr>
+      <td>Edit a Bag in memory inside a dialog</td>
+      <td><code>genro.dlg.memoryDataEditor</code></td>
+      <td><code>genro.dlg.memoryDataEditor('addr', editor_kw, this)</code></td>
+    </tr>
+    <tr>
+      <td>Edit a DB record in a popup dialog</td>
+      <td><code>genro.dlg.recordDataEditor</code></td>
+      <td><code>genro.dlg.recordDataEditor(node, {table:'pkg.tbl', destPkey:pkey})</code></td>
+    </tr>
+    <tr>
+      <td>Edit a document Bag stored on disk</td>
+      <td><code>genro.dlg.documentDataEditor</code></td>
+      <td><code>genro.dlg.documentDataEditor(node, {path:'site:settings/x.xml'})</code></td>
+    </tr>
+    <tr>
+      <td>Multi&#8209;section settings page with tree menu on the left</td>
+      <td><code>groupletPanel</code> (tree mode)</td>
+      <td><code>pane.groupletPanel(value='^.data', frameCode='settings')</code></td>
+    </tr>
+    <tr>
+      <td>Multi&#8209;section page with horizontal buttons for one topic</td>
+      <td><code>groupletPanel</code> (multiButton)</td>
+      <td><code>pane.groupletPanel(table='pkg.tbl', topic='technical', value='^.data')</code></td>
+    </tr>
+    <tr>
+      <td>Panel without inner form wrapper</td>
+      <td><code>groupletPanel(useForm=False)</code></td>
+      <td><code>pane.groupletPanel(topic='ui', value='^.data', useForm=False)</code></td>
+    </tr>
+    <tr>
+      <td>Step&#8209;by&#8209;step onboarding form</td>
+      <td><code>groupletWizard</code></td>
+      <td><code>pane.groupletWizard(topic='onboarding', value='^.data', completeLabel='Confirm')</code></td>
+    </tr>
+    <tr>
+      <td>Wizard with a final summary screen</td>
+      <td><code>groupletWizard</code> + <code>summary_template</code> in <code>__info__</code></td>
+      <td><code>pane.groupletWizard(topic='onboarding', value='^.data')</code></td>
+    </tr>
+    <tr>
+      <td>Save the parent TH form when the wizard completes</td>
+      <td><code>groupletWizard(saveMainFormOnComplete=True)</code></td>
+      <td><code>pane.groupletWizard(topic='signup', value='^.data', saveMainFormOnComplete=True)</code></td>
+    </tr>
+    <tr>
+      <td>Invoice lines / repeating sub&#8209;records</td>
+      <td><code>groupletGrid</code></td>
+      <td><code>pane.groupletGrid(storepath='.lines', resource='invoice_row')</code></td>
+    </tr>
+    <tr>
+      <td>Repeating rows with an inline page&#8209;level handler</td>
+      <td><code>groupletGrid</code> + <code>handler=</code></td>
+      <td><code>pane.groupletGrid(storepath='.todos', handler=self.todo_row_handler)</code></td>
+    </tr>
+    <tr>
+      <td>Responsive multi&#8209;column grid (cards)</td>
+      <td><code>groupletGrid</code> + <code>cols</code> / <code>min_width</code></td>
+      <td><code>pane.groupletGrid(storepath='.lines', resource='invoice_row', cols=3, min_width='300px')</code></td>
+    </tr>
+    <tr>
+      <td>Kanban board with cross&#8209;column drag</td>
+      <td>three <code>groupletGrid</code> sharing <code>dragCode</code></td>
+      <td><code>pane.groupletGrid(storepath='.todo', resource='kanban_card', dragCode='kanban')</code></td>
+    </tr>
+    <tr>
+      <td>Tab strip with one panel per item</td>
+      <td><code>groupletGrid</code> + <code>layout='tabs'</code></td>
+      <td><code>pane.groupletGrid(storepath='.team', resource='person', layout='tabs', titleField='name')</code></td>
+    </tr>
+    <tr>
+      <td>Vertical tabs instead of horizontal</td>
+      <td><code>groupletGrid(layout='vtabs')</code></td>
+      <td><code>pane.groupletGrid(storepath='.team', resource='person', layout='vtabs')</code></td>
+    </tr>
+    <tr>
+      <td>Spreadsheet with formula columns and footer total</td>
+      <td><code>groupletGrid</code> + <code>struct=</code></td>
+      <td><code>pane.groupletGrid(storepath='.rows', struct=struct_fn)</code></td>
+    </tr>
+    <tr>
+      <td>Heterogeneous rows (different template per row)</td>
+      <td><code>groupletGrid</code> + <code>resourceField=</code></td>
+      <td><code>pane.groupletGrid(storepath='.rows', resourceField='ticket_type')</code></td>
+    </tr>
+    <tr>
+      <td>Load rows from a DB query</td>
+      <td><code>groupletGrid</code> driven by <code>dataRpc</code></td>
+      <td><code>pane.groupletGrid(storepath='.rows', resource='row'); pane.dataRpc('.rows', self.getRows)</code></td>
+    </tr>
+    <tr>
+      <td>Custom toolbar button that adds a row</td>
+      <td>publish on the grid's action bus</td>
+      <td><code>genro.publish('groupletGrid_&lt;nodeId&gt;_action', {action:'add'})</code></td>
+    </tr>
+    <tr>
+      <td>Custom toolbar button that deletes the current row</td>
+      <td>publish on the grid's action bus</td>
+      <td><code>genro.publish('groupletGrid_&lt;nodeId&gt;_action', {action:'delete'})</code></td>
+    </tr>
+    <tr>
+      <td>Customize the per&#8209;row kebab menu</td>
+      <td><code>groupletGrid</code> + <code>editmenu=</code></td>
+      <td><code>editmenu={'addPrev':True, 'addNext':'Insert below', 'delete':True}</code></td>
+    </tr>
+    <tr>
+      <td>Hide the phantom <code>+</code> row</td>
+      <td><code>groupletGrid(additem=False)</code></td>
+      <td><code>pane.groupletGrid(storepath='.lines', resource='row', additem=False)</code></td>
+    </tr>
+    <tr>
+      <td>Hide the per&#8209;row <code>&times;</code></td>
+      <td><code>groupletGrid(delitem=False)</code></td>
+      <td><code>pane.groupletGrid(storepath='.lines', resource='row', delitem=False)</code></td>
+    </tr>
+    <tr>
+      <td>Nested grid inside a row (master/detail in one Bag)</td>
+      <td><code>groupletGrid</code> inside the row resource</td>
+      <td>inside <code>grouplet_main</code>: <code>pane.groupletGrid(storepath='.children', resource='child_row')</code></td>
+    </tr>
+    <tr>
+      <td>Switch grid layout at runtime</td>
+      <td>controller API on the node</td>
+      <td><code>genro.nodeById('grid_id').gridController.setLayout('tabs')</code></td>
+    </tr>
+    <tr>
+      <td>Seed the default row values</td>
+      <td><code>groupletGrid(defaultRow=...)</code></td>
+      <td><code>pane.groupletGrid(storepath='.lines', resource='row', defaultRow=dict(qty=1, price=0))</code></td>
+    </tr>
+    <tr>
+      <td>Auto&#8209;populate row ordinal</td>
+      <td><code>groupletGrid</code> + <code>counterField=</code></td>
+      <td><code>pane.groupletGrid(storepath='.lines', resource='row', counterField='ord')</code></td>
+    </tr>
+    <tr>
+      <td>Limit row count</td>
+      <td><code>groupletGrid</code> + <code>minRows</code> / <code>maxRows</code></td>
+      <td><code>pane.groupletGrid(storepath='.lines', resource='row', minRows=1, maxRows=10)</code></td>
+    </tr>
+    <tr>
+      <td>Frame the grid with internal scroll</td>
+      <td>set <code>height</code> or <code>max_height</code></td>
+      <td><code>pane.groupletGrid(storepath='.lines', resource='row', max_height='320px')</code></td>
+    </tr>
+    <tr>
+      <td>Sticky summary footer below a grid</td>
+      <td>compose with a sibling div</td>
+      <td><code>summary = pane.div(_class='grid_summary'); summary.div('^.total')</code></td>
+    </tr>
+    <tr>
+      <td>Persistent inline form with load/save lifecycle</td>
+      <td><code>groupletForm</code> + <code>formId</code></td>
+      <td><code>pane.groupletForm(formId='gf_main', handler=self.grp_card)</code></td>
+    </tr>
+    <tr>
+      <td>CSS grid of related sections (topic folder)</td>
+      <td><code>grouplet</code> + topic folder + <code>grid_columns</code></td>
+      <td><code>pane.grouplet(resource='technical', grid_columns=2)</code></td>
+    </tr>
+    <tr>
+      <td>Conditional preview field in a template</td>
+      <td><code>${...$field}</code> syntax</td>
+      <td><code>template='${&lt;span&gt;$city&lt;/span&gt;}'</code></td>
+    </tr>
+    <tr>
+      <td>Hand&#8209;built menu that drives grouplet selection</td>
+      <td>call <code>gr_getGroupletMenu</code> server&#8209;side</td>
+      <td>returns a Bag suitable for <code>tree</code> or <code>multibutton</code></td>
+    </tr>
+    <tr>
+      <td>Use a non&#8209;default resources folder</td>
+      <td><code>grouplets_root=</code></td>
+      <td><code>pane.grouplet(value='^.data', resource='card', grouplets_root='my_grouplets')</code></td>
+    </tr>
+    <tr>
+      <td>Hide a grouplet from a topic menu conditionally</td>
+      <td><code>is_enabled(page)</code> in the resource file</td>
+      <td><code>def is_enabled(page): return page.userTags.has('admin')</code></td>
+    </tr>
+    <tr>
+      <td>Restrict a grouplet to certain user tags</td>
+      <td><code>tags</code> key in <code>__info__</code></td>
+      <td><code>return dict(caption='Admin', tags='admin')</code></td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Quick decision tree</h3>
+<p>When you don't know which member of the family to grab, walk down this list and stop at the first match.</p>
+
+<pre><code>Need to show one section bound to one Bag?         &rarr; grouplet
+Need N variable sub&#8209;records (lines, cards)?         &rarr; groupletGrid
+Need step&#8209;by&#8209;step navigation through sections?      &rarr; groupletWizard
+Need a menu to jump between sections?              &rarr; groupletPanel
+Need a compact preview with click&#8209;to&#8209;edit?         &rarr; groupletChunk
+Need a popup to edit one Bag/record?               &rarr; genro.dlg.*DataEditor
+Need a CSS grid of related sections?               &rarr; grouplet + topic folder
+Need lifecycle (load/save/dirty) around a section? &rarr; groupletForm
+</code></pre>
+
+<h3>Common path patterns</h3>
+<p>The grouplet family is path&#8209;heavy. Most bugs are a path one character off. These are the four shapes you will write 95% of the time.</p>
+
+<ul>
+  <li><code>'^.field'</code> &mdash; relative path inside a grouplet handler. Resolved under the widget's <code>value=</code> root. Use inside <code>grouplet_main</code> and inside row resources for <code>groupletGrid</code>.</li>
+  <li><code>'^#FORM.record.field'</code> &mdash; absolute path from the surrounding TH form context. <strong>Required</strong> for <code>groupletChunk</code> (the chunk needs a stable address it can hand to the dialog).</li>
+  <li><code>'^#parent.something'</code> &mdash; climb one datapath level. Useful inside a <code>groupletForm</code> wrapper when you need to read sibling state.</li>
+  <li><code>'^.&lt;store&gt;.field'</code> &mdash; the common pattern for storing edits at a sibling location of the visible data (typical for unsaved drafts).</li>
+</ul>
+
+<h3>Anti&#8209;patterns</h3>
+
+<div class="callout warn">
+  <div class="callout-title">Don't use <code>grouplet</code> for repeating items</div>
+  <p>Looping with <code>for i in range(n): pane.grouplet(value=f'.item_{i}')</code> works exactly once. The moment the user wants to add, remove or reorder rows you are reinventing <code>groupletGrid</code> by hand &mdash; and you have lost the kebab menu, the phantom <code>+</code>, drag&#8209;and&#8209;drop, <code>counterField</code>, <code>defaultRow</code> and the action bus. If the data is a Bag of sibling records, reach for <code>groupletGrid</code>.</p>
+</div>
+
+<div class="callout warn">
+  <div class="callout-title">Don't reuse <code>formId</code> across multiple <code>groupletForm</code></div>
+  <p>The page&#8209;wide form registry is keyed by id. <code>genro.formById('gf_main')</code> returns the first one registered, and the others become silently unreachable: their save buttons fire on the wrong form, status badges flicker, reloads target the wrong record. Give each <code>groupletForm</code> on the page a unique <code>formId</code>.</p>
+</div>
+
+<div class="callout danger">
+  <div class="callout-title">Don't mix relative and absolute paths inside templates</div>
+  <p><code>groupletChunk</code> resolves <code>$field</code> against the <code>value=</code> path you gave it, but the dialog it opens binds to that same path absolutely. If your template uses <code>$field</code> while the handler underneath addresses <code>^#FORM.record.field</code> directly, edits and previews go to different Bag nodes &mdash; the chunk shows stale data after save. Pick the right shape per widget: chunk wants absolute (<code>^#FORM.record.x</code>), grouplet handler wants relative (<code>^.x</code>).</p>
+</div>
+
+<div class="callout warn">
+  <div class="callout-title">Don't put business logic in <code>__info__()</code></div>
+  <p><code>__info__</code> is metadata only &mdash; caption, priority, tags, permissions, summary_template. It is called during menu construction and may be invoked multiple times per request. Heavy computation, DB queries, or anything with side effects belong in <code>grouplet_main</code> (where you have <code>pane</code> and the current datapath) or in the handler. Treat <code>__info__</code> as a static dict generator.</p>
+</div>
+
+<div class="callout warn">
+  <div class="callout-title">Don't bypass <code>groupletGrid</code> with a hand&#8209;rolled <code>repeater</code></div>
+  <p>A <code>repeater</code> over a Bag gives you a list of widgets bound to siblings, but no add/remove affordance, no drag&#8209;and&#8209;drop, no reactive layout switch, no counterField, no kebab. You inevitably re&#8209;implement them &mdash; badly. If you find yourself writing <code>connect_onclick</code> handlers that mutate sibling Bag keys, you have rebuilt half of <code>groupletGrid</code>; use the real one.</p>
+</div>
+
+<h3>Source files at a glance</h3>
+<ul>
+  <li><code>resources/common/gnrcomponents/grouplet/grouplet.py</code> &mdash; the engine. Defines <code>GroupletHandler</code> (loader, panel, wizard, chunk) and <code>GroupletGridHandler</code> (server side of the grid). The RPC entry points <code>gr_loadGrouplet</code> and <code>gr_getGroupletMenu</code> live here.</li>
+  <li><code>resources/common/gnrcomponents/grouplet/grouplet.js</code> &mdash; client side for wizard navigation and panel selection (<code>gnr_grouplet.wizardGoTo</code>, <code>panelSelectFromCode</code>, etc.).</li>
+  <li><code>resources/common/gnrcomponents/grouplet/grouplet_grid.js</code> &mdash; client controller for <code>groupletGrid</code>: layout switching, drag&#8209;and&#8209;drop across <code>dragCode</code>, action bus, reactive title field. Read from <code>origin/develop</code> if not present locally.</li>
+  <li><code>resources/common/gnrcomponents/grouplet/grouplet.css</code> &mdash; visual layer (chip styles, kanban columns, wizard stepper, tree menu).</li>
+  <li><code>gnrjs/gnr_d20/js/genro_components.js</code> &mdash; widget classes <code>gnr.widgets.grouplet</code>, <code>groupletform</code>, <code>groupletChunk</code> (client&#8209;side mounting and lifecycle).</li>
+  <li><code>gnrjs/gnr_d20/js/genro_dlg.js</code> &mdash; the three dialog editors: <code>memoryDataEditor</code> (in&#8209;page Bag), <code>documentDataEditor</code> (on&#8209;disk Bag), <code>recordDataEditor</code> (DB record).</li>
+  <li><code>projects/gnrcore/packages/test/webpages/gnrwdg/test_grouplets/01_grouplet_basics.py</code> &mdash; handler, resource, multiple grouplets on one page.</li>
+  <li><code>projects/gnrcore/packages/test/webpages/gnrwdg/test_grouplets/02_grouplet_dialogs.py</code> &mdash; the three <code>genro.dlg.*DataEditor</code> patterns.</li>
+  <li><code>projects/gnrcore/packages/test/webpages/gnrwdg/test_grouplets/03_grouplet_chunk.py</code> &mdash; <code>groupletChunk</code> with templates and pencil dialog.</li>
+  <li><code>projects/gnrcore/packages/test/webpages/gnrwdg/test_grouplets/04_grouplet_form.py</code> &mdash; <code>groupletForm</code> lifecycle.</li>
+  <li><code>projects/gnrcore/packages/test/webpages/gnrwdg/test_grouplets/05_grouplet_topic_grid.py</code> &mdash; CSS grid of related sections via a topic folder.</li>
+  <li><code>projects/gnrcore/packages/test/webpages/gnrwdg/test_grouplets/06_grouplet_navigation.py</code> &mdash; <code>groupletPanel</code> (tree + multiButton) and basic <code>groupletWizard</code>.</li>
+  <li><code>projects/gnrcore/packages/test/webpages/gnrwdg/test_grouplets/07_grouplet_nested_topics.py</code> &mdash; nested topics, wizard with summary.</li>
+  <li><code>projects/gnrcore/packages/test/webpages/gnrwdg/test_grouplet_grid/01_gallery.py</code> &mdash; seven canonical <code>groupletGrid</code> tests (invoice, todo, kanban, tabs, struct/formula, resourceField). On <code>origin/develop</code>.</li>
+  <li><code>projects/gnrcore/packages/test/webpages/gnrwdg/test_grouplet_grid/02_grid_db.py</code> &mdash; DB&#8209;backed grid via <code>dataRpc</code>.</li>
+  <li><code>projects/gnrcore/packages/test/webpages/gnrwdg/test_grouplet_grid/03_budget_editor.py</code> &mdash; three&#8209;level nested grids in one Bag.</li>
+  <li><code>projects/gnrcore/packages/test/resources/grouplets/</code> &mdash; the canonical example resources (<code>invoice_row</code>, <code>kanban_card</code>, <code>contact_row</code>, <code>person_with_contacts</code>, <code>province_row</code>, <code>budget/*</code>).</li>
+</ul>
