@@ -134,6 +134,11 @@
 				<en_show_authors base="Show authors" it="Mostra autori"/>
 		</preference>
 		<tables>
+			<faq_documentation>
+				<th_faq_documentation path="resources/tables/faq_documentation/th_faq_documentation.py" ext="py">
+					<en_copied_to_clipboard base="Copied to clipboard" it="Copiato negli appunti"/>
+				</th_faq_documentation>
+			</faq_documentation>
 			<content>
 				<th_content path="resources/tables/content/th_content.py" ext="py">
 					<en_content_data base="Content Data" it="Dati sui contenuti"/>
