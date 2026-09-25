@@ -51,7 +51,8 @@ Constraints are processed by type:
 
 - **UNIQUE on single column**: converted to a ``unique=True`` attribute
   on the column (does not remain as a separate constraint). If the column
-  coincides with the pkey, it is ignored.
+  coincides with the pkey, it is ignored. Its real name is kept in
+  ``column_unique_objects``, so that dropping the uniqueness targets it.
 
 - **Multi-column UNIQUE**: remains as a separate constraint in the JSON structure.
 
@@ -66,6 +67,8 @@ Index handling
 Indexes are filtered: those with an associated ``constraint_type``
 (e.g. indexes automatically created by PK or UNIQUE) are skipped,
 because they are already represented by the corresponding constraint.
+A non-partial UNIQUE INDEX on a single column enforces the same
+uniqueness as a UNIQUE constraint, and is represented the same way.
 
 Non-existing database
 ----------------------
@@ -75,6 +78,8 @@ If the database does not exist yet (``GnrNonExistingDbException``),
 will be empty (``{}``). In this case the comparison with the ORM will
 produce commands for the complete database creation.
 """
+
+from collections import defaultdict
 
 from gnr.dev.decorator import time_measure
 from gnr.sql.gnrsql_exceptions import GnrNonExistingDbException, GnrSqlConnectionException
@@ -103,6 +108,9 @@ class DbExtractor(object):  # REVIEW: old-style (object) base class — unnecess
 
     Attributes:
         json_structure: The resulting JSON dictionary with the DB structure.
+        column_unique_objects: ``{(schema, table, column): [(kind, name)]}``,
+            the constraints (kind ``'constraint'``) and indexes (kind
+            ``'index'``) behind each column's ``unique=True``.
         conn: Database connection (opened during extraction, closed after).
     """
 
@@ -157,6 +165,7 @@ class DbExtractor(object):  # REVIEW: old-style (object) base class — unnecess
         """
         self.json_structure = new_structure_root(self.db.get_dbname())
         self.json_meta = nested_defaultdict()
+        self.column_unique_objects = defaultdict(list)
         self.json_schemas = self.json_structure["root"]['schemas']
         infodict = self.get_info_from_db(schemas=schemas)
         if infodict is False:  # REVIEW: {} is also falsy — if get_info_from_db returns {} this path is skipped
@@ -303,8 +312,7 @@ class DbExtractor(object):  # REVIEW: old-style (object) base class — unnecess
                         continue
                     # UNIQUE on single column -> column attribute
                     multiple_unique.pop(k)
-                    self.json_schemas[schema_name]["tables"][table_name][
-                        'columns'][columns[0]]['attributes']['unique'] = True
+                    self.mark_column_unique(table_json, columns[0], 'constraint', k)
 
             # FOREIGN KEY -> delegate to process_table_relations
             self.process_table_relations(
@@ -350,7 +358,10 @@ class DbExtractor(object):  # REVIEW: old-style (object) base class — unnecess
 
         Filters indexes that have an associated ``constraint_type``
         (automatically created by PK or UNIQUE) because they are already
-        represented by the corresponding constraint.
+        represented by the corresponding constraint. A non-partial UNIQUE
+        INDEX on a single non-pkey column becomes the column's ``unique``
+        attribute: kept as an index, it would hash to the same key as a
+        plain index on that column and one of the two would hide the other.
 
         The ``indexes_dict`` dictionary is organized by table:
         ``{(schema, table): {index_name: {columns, method, ...}}}``.
@@ -368,6 +379,11 @@ class DbExtractor(object):  # REVIEW: old-style (object) base class — unnecess
                 if index_attributes.get('constraint_type'):
                     continue
                 indexed_columns = list(index_attributes['columns'].keys())
+                if (index_attributes.get('unique') and len(indexed_columns) == 1
+                        and not index_attributes.get('where')
+                        and indexed_columns[0] != table_json['attributes']['pkeys']):
+                    self.mark_column_unique(table_json, indexed_columns[0], 'index', index_name)
+                    continue
                 index_item = new_index_item(
                     schema_name, table_name,
                     columns=indexed_columns,
@@ -375,6 +391,20 @@ class DbExtractor(object):  # REVIEW: old-style (object) base class — unnecess
                     index_name=index_name
                 )
                 table_json['indexes'][index_item['entity_name']] = index_item
+
+    def mark_column_unique(self, table_json, column_name, kind, object_name):
+        """Set ``unique=True`` on a column and record the DB object enforcing it.
+
+        Args:
+            table_json: Table item holding the column.
+            column_name: Name of the column.
+            kind: ``'constraint'`` or ``'index'``.
+            object_name: Real name of the constraint or index in the DB.
+        """
+        table_json['columns'][column_name]['attributes']['unique'] = True
+        self.column_unique_objects[
+            (table_json['schema_name'], table_json['table_name'], column_name)
+        ].append((kind, object_name))
 
     def process_extensions(self, extensions, **kwargs):
         """Process installed PostgreSQL extensions.
