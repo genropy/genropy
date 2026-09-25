@@ -224,6 +224,52 @@ test('an equal Bag snapshot acknowledges child changes', () => {
     s.assertClean();
 });
 
+function setBaseline(s, field, value) {
+    s.form.sourceNode.setRelativeData('form.record.' + field, value, {_loadedValue: value});
+}
+
+for (const attributes of [{}, {dtype: 'T'}]) {
+    for (const [name, before, after] of [
+        ['equal', 'A', 'A'],
+        ['changed', 'A', 'B'],
+        ['equal null', null, null],
+        ['to null', 'A', null]
+    ]) {
+        test(`a _loadedValue set is a baseline: ${name} ${JSON.stringify(attributes)}`, () => {
+            const s = createForm();
+            s.initial('stage_code', before, {...attributes});
+            setBaseline(s, 'stage_code', after);
+            assert.equal(s.record.getItem('stage_code'), after);
+            s.assertClean();
+        });
+    }
+}
+
+for (const serverValue of ['X', 'B']) {
+    test(`a _loadedValue set acknowledges a local edit with value ${serverValue}`, () => {
+        const s = createForm();
+        s.initial('stage_code', 'A');
+        s.edit('stage_code', 'X');
+        assert.equal(s.form.hasChanges(), true);
+        setBaseline(s, 'stage_code', serverValue);
+        s.assertClean();
+        s.edit('stage_code', 'Y');
+        assert.equal(s.record.getNode('stage_code').attr._loadedValue, serverValue);
+        assert.deepEqual(s.fields(), ['stage_code']);
+    });
+}
+
+test('an attribute set without _loadedValue keeps a local edit', () => {
+    const s = createForm();
+    s.initial('stage_code', 'A');
+    s.edit('stage_code', 'X');
+    s.form.sourceNode.setRelativeData('form.record.stage_code', 'X', {caption: 'Stage'},
+                                      null, null, null, {_updattr: true});
+    assert.equal(s.form.hasChanges(), true);
+    assert.equal(s.record.getNode('stage_code').attr._loadedValue, 'A');
+    assert.deepEqual(s.fields(), ['stage_code']);
+});
+
 test('a silent push acknowledges a previously deleted field', () => {
     const s = createForm();
     s.initial('amount', 10);
