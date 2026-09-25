@@ -109,9 +109,9 @@
 				<en_last_used fr="Dernière occasion" de="Zuletzt verwendeten" en="Last used" it="Ultimo uso" base="Last used"/>
 				<en_holes fr="Trous" de="Löcher" en="Holes" it="Holes" base="Holes"/>
 				<en_errors fr="Erreurs" de="Fehler" en="Errors" it="Errori" base="Errors"/>
-				<en_missing_s_mandatory_for_counter_s fr="Manquant% s. Obligatoire pour compteur% s" de="% S fehlt. Obligatorisch für Gegen% s" en="Missing [41]. Mandatory for counter [42]" it="Manca% s. Obbligatorio per contatore% s" base="Missing %s. Mandatory for counter %s"/>
-				<en_missing_date_s_for_counter_s fr="Manquant jour% s pour le compteur% s" de="Fehlende Datum% s für% s Zähler" en="Missing date [43] for counter [44]" it="Data mancante% s per il contatore% s" base="Missing date %s for counter %s"/>
-				<en_incompatible_date_assigning_fieldname_s_counter fr="Le compteur de la date attribution Incompatible% (fieldname)" de="Inkompatible Datum Zuweisen% (fieldname) s Gegen" en="Incompatible date assigning [45] counter" it="Data incompatibile assegnazione% (fieldname) s contatore" base="Incompatible date assigning %(fieldname)s counter"/>
+				<en_missing_s_mandatory_for_counter_s fr="%s manquant. Obligatoire pour le compteur %s" de="%s fehlt. Obligatorisch für den Zähler %s" en="Missing %s. Mandatory for counter %s" it="Manca %s. Obbligatorio per il contatore %s" base="Missing %s. Mandatory for counter %s"/>
+				<en_missing_date_s_for_counter_s fr="Date %s manquante pour le compteur %s" de="Fehlendes Datum %s für den Zähler %s" en="Missing date %s for counter %s" it="Data mancante %s per il contatore %s" base="Missing date %s for counter %s"/>
+				<en_incompatible_date_assigning_fieldname_s_counter fr="Date incompatible pour l'attribution du compteur %(fieldname)s" de="Inkompatibles Datum bei der Zuweisung des Zählers %(fieldname)s" en="Incompatible date assigning %(fieldname)s counter" it="Data incompatibile per l'assegnazione del contatore %(fieldname)s" base="Incompatible date assigning %(fieldname)s counter"/>
 		</counter>
 		<day path="model/day.py" ext="py">
 			<en_days base="Days" en="Days" it="Giorni"/>
@@ -298,7 +298,7 @@
 				<en_custom_groups base="Custom groups" en=""/>
 				<en_name base="Name" de="Name" en="Name" fr="Nom" it="Nome"/>
 				<en_recover_email base="Recover email" en=""/>
-				<en_username_cannot_be_set_to_null_username_s base="Username cannot be set to null %(username)s" en="Username cannot be set to null [46]" it="Il nome utente non può essere impostato su null %(username)s"/>
+				<en_username_cannot_be_set_to_null_username_s base="Username cannot be set to null %(username)s" en="Username cannot be set to null %(username)s" it="Il nome utente non può essere impostato su null %(username)s"/>
 		</user>
 		<user_access_group path="model/user_access_group.py" ext="py">
 			<en_user_access fr="l'accès de l'utilisateur" de="Benutzerzugang" en="User access" it="Accesso utente" base="User access"/>
@@ -383,7 +383,7 @@
 				<en_open_helper_editor_in_current base="Open helper editor in current" en=""/>
 				<en_toggle_dev_items_in_root base="Toggle dev items in root" en=""/>
 				<en_toggle_dev_items_in_current base="Toggle dev items in current" en=""/>
-				<en_s_preference _tag="en__s_preference" fr="%s préférence" en="[47] preference" de="%s Präferenz" it="%s preferenza" base="%s preference"/>
+				<en_s_preference _tag="en__s_preference" fr="%s préférence" en="%s preference" de="%s Präferenz" it="%s preferenza" base="%s preference"/>
 				<en_help base="Help" de="Hilfe" en="Help" fr="Aider" it="Aiuto"/>
 				<en_open_documentation base="Open documentation" en="Open documentation" it="Apri documentazione"/>
 				<en_ask_for_help base="Ask for help" en="Ask for help" it="Chiedi aiuto"/>
@@ -566,11 +566,11 @@
 								<en_bottom fr="Bas" de="Boden" en="Bottom" it="Fondo" base="Bottom"/>
 								<en_left fr="Gauche" de="Links" en="Left" it="Uscita" base="Left"/>
 								<en_right fr="Droite" de="Recht" en="Right" it="Destra" base="Right"/>
-								<en_s_height _tag="en__s_height" fr="%s hauteur" en="[48] height" de="%s Höhe" it="%s Altezza" base="%s height"/>
-								<en_s _tag="en__s" fr="% S" en="[29]" de="% S" it="% S" base="%s"/>
+								<en_s_height _tag="en__s_height" fr="%s hauteur" en="%s height" de="%s Höhe" it="%s Altezza" base="%s height"/>
+								<en_s _tag="en__s" fr="% S" en="%s" de="% S" it="% S" base="%s"/>
 								<en_center_height fr="Hauteur de pointes" de="Spitzenhöhe" en="Center height" it="Altezza di punte" base="Center height"/>
 								<en_center_width fr="La largeur centrale" de="Spitzenweite" en="Center width" it="Larghezza Centro" base="Center width"/>
-								<en_s_width _tag="en__s_width" fr="%s Largeur" en="[49] width" de="%s Breite" it="%s larghezza" base="%s width"/>
+								<en_s_width _tag="en__s_width" fr="%s Largeur" en="%s width" de="%s Breite" it="%s larghezza" base="%s width"/>
 				</th_htmltemplate>
 			</htmltemplate>
 				<install_checklist>

@@ -1,7 +1,14 @@
+import pathlib
+import re
+import xml.etree.ElementTree as ET
+
 import pytest
 import gnr.app.gnrlocalization as gl
 from gnr.sql.gnrsql_exceptions import GnrSqlMissingTable
 from common import BaseGnrAppTest
+
+REPO = pathlib.Path(__file__).resolve().parents[3]
+MASK = re.compile(r'\[\d+\]')
 
 class TestGnrLocalization(BaseGnrAppTest):
     app_name = 'gnr_it'
@@ -178,3 +185,19 @@ class TestGnrLocalization(BaseGnrAppTest):
         assert 'grouplet_py.en_save_draft' in lbag
         assert al.translate('!!Please complete required fields', 'it') == 'Completa i campi obbligatori'
         assert al.translate('!!Save draft', 'it') == 'Salva bozza'
+
+    def test_autotranslate_keeps_the_base_text_for_the_base_language(self):
+        al = gl.AppLocalizer(self.app)
+        al.localizationDict = {'en_counter_s': {'base': 'Counter %s'},
+                               'en_fieldname_s_promised': {'base': '%(fieldname)s promised'}}
+        al.autoTranslate('en')
+        assert al.localizationDict['en_counter_s']['en'] == 'Counter %s'
+        assert al.localizationDict['en_fieldname_s_promised']['en'] == '%(fieldname)s promised'
+
+
+@pytest.mark.parametrize('catalog', [REPO / 'localization.xml'] + sorted((REPO / 'projects').rglob('localization.xml')),
+                         ids=lambda p: str(p.relative_to(REPO)))
+def test_catalog_base_language_carries_no_autotranslate_masks(catalog):
+    masked = [el.tag for el in ET.parse(catalog).iter()
+              if MASK.search(el.get('en', '')) and not MASK.search(el.get('base', ''))]
+    assert not masked
