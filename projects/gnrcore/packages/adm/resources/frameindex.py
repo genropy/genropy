@@ -358,13 +358,17 @@ class FrameIndex(BaseComponent):
         if not (usergroup_documentation or documentationcb or helpcb):
             return
         menu = slot.menudiv("!!Help",iconClass='iconbox help',_class='largemenu noIconMenu')
-        if documentationcb or usergroup_documentation:
-            m = menu.menuline('!![en]Open documentation',code='documentation',
-                              action=documentationcb)
-            if usergroup_documentation:
-                m = m.menu(action="genro.openBrowserTab($1.url);")
-                for r in usergroup_documentation:
-                    m.menuline(r['title'],url=r['url'])
+        if usergroup_documentation:
+            m = menu.menuline('!![en]Open documentation',code='documentation')
+            m = m.menu(action="genro.openBrowserTab($1.url);")
+            if documentationcb:
+                m.menuline('!![en]Application documentation',action=documentationcb)
+                m.menuline('-')
+            for r in usergroup_documentation:
+                m.menuline(r['title'],url=r['url'])
+        elif documentationcb:
+            menu.menuline('!![en]Open documentation',code='documentation',
+                          action=documentationcb)
         if helpcb:
             menu.menuline('!![en]Ask for help',code='help',action=helpcb)
         
