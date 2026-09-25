@@ -899,6 +899,74 @@ class BaseGnrSqlMigration(BaseGnrSqlTest):
                        ' ALTER COLUMN "codekey" TYPE character varying(306);')
         self.checkChanges(check_value)
 
+    def assertRefIdAcceptsDuplicates(self):
+        self.db.execute("INSERT INTO alfa.alfa_legacy_unique (ref_id) VALUES ('R1'), ('R1')")
+        self.db.commit()
+
+    def test_13a_legacy_unique_column(self):
+        """A unique, indexed column as the old setup path left it.
+
+        Its UNIQUE constraint and UNIQUE INDEX carry the names Postgres and
+        the old path gave them, not hashed_name(), and live in schema alfa,
+        which is not on search_path. The model still wants them.
+        """
+        pkg = self.src.package('alfa')
+        tbl = pkg.table('legacy_unique', pkey='id')
+        tbl.column('id', dtype='serial')
+        tbl.column('ref_id', size=':22', unique=True, indexed=True)
+        tbl.column('code', size=':10', indexed=True)
+        self.checkChanges(apply_only=True)
+        self.db.execute('ALTER TABLE alfa.alfa_legacy_unique DROP CONSTRAINT "cst_d85a1843"')
+        self.db.execute('ALTER TABLE alfa.alfa_legacy_unique '
+                        'ADD CONSTRAINT alfa_legacy_unique_ref_id_key UNIQUE (ref_id)')
+        self.db.execute('CREATE UNIQUE INDEX alfa_legacy_unique_ref_id_idx '
+                        'ON alfa.alfa_legacy_unique (ref_id)')
+        self.db.execute('DROP INDEX alfa.idx_a3431371')
+        self.db.execute('CREATE INDEX alfa_legacy_unique_code_idx ON alfa.alfa_legacy_unique (code)')
+        self.db.commit()
+        self.checkChanges('')
+
+    def test_13b_remove_unique_from_legacy_column(self):
+        """Dropping unique removes the constraint and the unique index by their real names."""
+        pkg = self.src.package('alfa')
+        tbl = pkg.table('legacy_unique')
+        tbl.column('ref_id').attributes.pop('unique')
+        check_value = ('ALTER TABLE "alfa"."alfa_legacy_unique"\n'
+                       'DROP CONSTRAINT IF EXISTS "alfa_legacy_unique_ref_id_key";\n'
+                       'DROP INDEX IF EXISTS "alfa"."alfa_legacy_unique_ref_id_idx";\n'
+                       'CREATE INDEX idx_5627684d ON "alfa"."alfa_legacy_unique" USING btree ("ref_id");')
+        self.checkChanges(check_value)
+        self.assertRefIdAcceptsDuplicates()
+
+    def test_13c_legacy_unique_index_beside_the_plain_one(self):
+        """A legacy unique index next to the plain index the model wants is not accepted as it.
+
+        This is what an unqualified DROP INDEX left behind: both indexes hash
+        to the same key, and the plain one used to hide the unique one.
+        """
+        self.db.execute('DELETE FROM alfa.alfa_legacy_unique')
+        self.db.execute('CREATE UNIQUE INDEX alfa_legacy_unique_ref_id_idx '
+                        'ON alfa.alfa_legacy_unique (ref_id)')
+        self.db.commit()
+        check_value = 'DROP INDEX IF EXISTS "alfa"."alfa_legacy_unique_ref_id_idx";'
+        self.checkChanges(check_value)
+        self.assertRefIdAcceptsDuplicates()
+
+    def test_13d_rebuild_legacy_named_index(self):
+        """Rebuilding an index drops it by its real, schema-qualified name."""
+        pkg = self.src.package('alfa')
+        tbl = pkg.table('legacy_unique')
+        tbl.column('code', size=':10', indexed=dict(method='hash'))
+        check_value = ('DROP INDEX IF EXISTS "alfa"."alfa_legacy_unique_code_idx";\n'
+                       'CREATE INDEX idx_a3431371 ON "alfa"."alfa_legacy_unique" USING hash ("code");')
+        self.checkChanges(check_value)
+        code_indexes = self.db.execute(
+            "SELECT i.relname FROM pg_index ix "
+            "JOIN pg_class i ON i.oid = ix.indexrelid "
+            "JOIN pg_attribute a ON a.attrelid = ix.indrelid AND a.attnum = ANY(ix.indkey) "
+            "WHERE ix.indrelid = 'alfa.alfa_legacy_unique'::regclass AND a.attname = 'code'").fetchall()
+        assert [r[0] for r in code_indexes] == ['idx_a3431371']
+
 
 @pytest.mark.skipif(gnrpostgres.SqlDbAdapter.not_capable(Capabilities.MIGRATIONS),
                     reason="Adapter doesn't support migrations")
