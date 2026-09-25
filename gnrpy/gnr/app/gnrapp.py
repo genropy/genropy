@@ -52,6 +52,7 @@ from gnr.core.gnrconfig import getGnrConfig
 from gnr.core import gnrlog
 from gnr.utils import ssmtplib
 from gnr.app.pathresolver import PathResolver
+from gnr.app.esmbuilder import GnrInstanceEsmBundler
 from gnr.app import logger
 from gnr.app.gnrlocalization import AppLocalizer
 from gnr.sql.gnrsql import GnrSqlDb
@@ -1198,7 +1199,7 @@ class GnrApp(object):
 
         self.instance_packages_dependencies = instance_deps
 
-        if not 'checkdepcli' in self.kwargs:
+        if 'checkdepcli' not in self.kwargs:
             missing, wrong = self.check_package_missing_dependencies()
             if missing:
                 logger.error(f"ERROR: missing dependencies: {', '.join(missing)}")
@@ -1206,7 +1207,29 @@ class GnrApp(object):
                 logger.error("ERROR: wrong dependencies:")
                 for requested, installed in wrong:
                     logger.error(f"{requested} is requested, but {installed} found")
-            
+            self.check_esm_bundles()
+
+    def check_esm_bundles(self):
+        """Network-free startup check: log when the ESM bundles are missing or
+        do not match the specs declared in the packages' esm_requirements.txt.
+        Building them touches the network and runs an external binary, so it
+        is left to ``gnr app checkdep`` (see build_esm_bundles)."""
+        logger.debug("Checking javascript dependencies")
+        try:
+            up_to_date = GnrInstanceEsmBundler(self).is_up_to_date()
+        except Exception as e:
+            logger.warning("Cannot check the ESM bundles: %s", e)
+            return
+        if not up_to_date:
+            logger.warning("ESM bundles are missing or do not match esm_requirements.txt:"
+                           " run 'gnr app checkdep %s' to build them", self.instanceName)
+
+    def build_esm_bundles(self, force=False, output=None):
+        """Download and bundle the ESM requirements of every package in the
+        closure. Raises on any failure; returns (output_dir, results), or
+        (None, None) when no package declares ESM requirements."""
+        return GnrInstanceEsmBundler(self).run(force=force, output=output)
+
     def check_package_missing_dependencies(self):
         missing = []
         wrong = []

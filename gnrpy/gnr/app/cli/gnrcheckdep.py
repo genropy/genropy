@@ -87,7 +87,17 @@ def main():
                 print("\nAll conflicts solved!")
                
         sys.exit(3)
-        
+
+    if options.verbose:
+        print("Building the ESM bundles")
+    try:
+        output_dir, results = app.build_esm_bundles()
+    except Exception as e:
+        print(f"\nESM bundling failed: {e}", file=sys.stderr)
+        sys.exit(5)
+    if options.verbose and results is not None:
+        print(f"ESM bundles in {output_dir}")
+
     if not missing and not wrong:
         print("All good!")
 if __name__ == "__main__":
