@@ -31,7 +31,7 @@ import pytz
 
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrlist import GnrNamedList
-from gnr.core.gnrclasses import GnrClassCatalog
+from gnr.core.gnrclasses import GnrClassCatalog, GnrCastingError
 from gnr.core.gnrdate import decodeDatePeriod
 from gnr.sql import AdapterCapabilities as Capabilities
 from gnr.sql import logger
@@ -1420,7 +1420,13 @@ class GnrWhereTranslator(object):
                         value = [encryptor.encrypt(v, 'Q') for v in value]
                     else:
                         value = encryptor.encrypt(value, 'Q')
-                onecondition = self.prepareCondition(column, op, value, dtype, sqlArgs,tblobj=tblobj,parname=parname)
+                try:
+                    onecondition = self.prepareCondition(column, op, value, dtype, sqlArgs,tblobj=tblobj,parname=parname)
+                except GnrCastingError as e:
+                    # GnrException interpolates its caption twice
+                    raise tblobj.exception('invalid_filter_value',
+                                           column=self._relPathToCaption(tblobj.fullname, column).replace('%', '%%'),
+                                           value=str(value).replace('%', '%%')) from e
 
             if onecondition:
                 if negate:
@@ -1501,10 +1507,13 @@ class GnrWhereTranslator(object):
 
     def storeArgs(self, value, dtype, sqlArgs, parname=None):
         if not dtype in ('A', 'T') and not self.checkValueIsField(value):
-            if isinstance(value, list):
-                value = [self.catalog.fromText(v, dtype) for v in value]
-            elif isinstance(value, (bytes,str)):
-                value = self.catalog.fromText(value, dtype)
+            try:
+                if isinstance(value, list):
+                    value = [self.catalog.fromText(v, dtype) for v in value]
+                elif isinstance(value, (bytes,str)):
+                    value = self.catalog.fromText(value, dtype)
+            except (ValueError, ArithmeticError) as e:
+                raise GnrCastingError(f'Invalid value {value} for dtype {dtype}'.replace('%', '%%')) from e
         argLbl = parname or 'v_%i' % len(sqlArgs)
         sqlArgs[argLbl] = value
         return argLbl
