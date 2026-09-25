@@ -231,12 +231,32 @@ class BaseStorageHandler:
             service_name = service_record['service_name']
             implementation = service_record['implementation']
             parameters_bag = Bag(service_record['parameters'])
+            if self._skipOnLocalMachine(service_name, implementation, parameters_bag):
+                continue
 
             # Use centralized method to set parameters
             self._setStorageParams(service_name,
                 parameters=parameters_bag,
                 implementation=implementation
             )
+
+    def _skipOnLocalMachine(self, service_name, implementation, parameters):
+        """Drop an aws_s3 service that a local instance could only read.
+
+        Without write_in_local or an explicit readonly, the service falls back to
+        local storage at site_static_dir/<service_name>. Keyed on the implementation
+        because write_in_local is an aws_s3 parameter.
+
+        Returns:
+            True if the service has been dropped
+        """
+        if implementation != 'aws_s3' or not getattr(self.site, '_local_mode', False) \
+                or parameters['readonly'] or parameters['write_in_local']:
+            return False
+        self.storage_params.pop(service_name, None)
+        logger.info("Storage service %s (aws_s3) runs on local storage in local mode: "
+                    "set write_in_local or readonly to use the bucket", service_name)
+        return True
 
     def getStorageParameters(self, storage_name):
         """Get parameters for a storage service.
@@ -305,6 +325,8 @@ class BaseStorageHandler:
         # Extract parameters
         implementation = service_record.get('implementation')
         parameters_bag = Bag(service_record.get('parameters'))
+        if self._skipOnLocalMachine(service_name, implementation, parameters_bag):
+            return True
         # Use centralized method to set parameters
         self._setStorageParams(service_name,
             parameters=parameters_bag,

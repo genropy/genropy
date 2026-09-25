@@ -15,6 +15,7 @@ import boto3
 import botocore
 from smart_open import open as so_open
 
+from gnr.core.gnrlang import GnrException
 from gnr.lib.services.storage import StorageService, StorageNode
 from gnr.web.gnrbaseclasses import BaseComponent
 
@@ -375,11 +376,11 @@ class Service(StorageService):
     def open(self, *args, **kwargs):
         kwargs['mode'] = kwargs.get('mode', 'rb')
         #version_id = kwargs.pop('version_id',None)
-        if self.readonly:
-            if 'b' in kwargs['mode']:
-                kwargs['mode'] = 'rb'
-            else:
-                kwargs['mode'] = 'r'
+        if self.readonly and set(kwargs['mode']) & set('wax+'):
+            raise GnrException('Storage service %(service_name)s is read-only: '
+                               'cannot write s3://%(bucket)s/%(key)s',
+                               service_name=self.service_name, bucket=self.bucket,
+                               key=self.internal_path(*args))
         so_open.DEFAULT_BUFFER_SIZE = 1024 * 1024
         version_id = kwargs.pop('version_id',None)
         return so_open("s3://%s/%s"%(self.bucket,self.internal_path(*args)),
