@@ -109,9 +109,9 @@
 				<en_last_used fr="Dernière occasion" de="Zuletzt verwendeten" en="Last used" it="Ultimo uso" base="Last used"/>
 				<en_holes fr="Trous" de="Löcher" en="Holes" it="Holes" base="Holes"/>
 				<en_errors fr="Erreurs" de="Fehler" en="Errors" it="Errori" base="Errors"/>
-				<en_missing_s_mandatory_for_counter_s fr="Manquant% s. Obligatoire pour compteur% s" de="% S fehlt. Obligatorisch für Gegen% s" en="Missing [41]. Mandatory for counter [42]" it="Manca% s. Obbligatorio per contatore% s" base="Missing %s. Mandatory for counter %s"/>
-				<en_missing_date_s_for_counter_s fr="Manquant jour% s pour le compteur% s" de="Fehlende Datum% s für% s Zähler" en="Missing date [43] for counter [44]" it="Data mancante% s per il contatore% s" base="Missing date %s for counter %s"/>
-				<en_incompatible_date_assigning_fieldname_s_counter fr="Le compteur de la date attribution Incompatible% (fieldname)" de="Inkompatible Datum Zuweisen% (fieldname) s Gegen" en="Incompatible date assigning [45] counter" it="Data incompatibile assegnazione% (fieldname) s contatore" base="Incompatible date assigning %(fieldname)s counter"/>
+				<en_missing_s_mandatory_for_counter_s fr="%s manquant. Obligatoire pour le compteur %s" de="%s fehlt. Obligatorisch für den Zähler %s" en="Missing %s. Mandatory for counter %s" it="Manca %s. Obbligatorio per il contatore %s" base="Missing %s. Mandatory for counter %s"/>
+				<en_missing_date_s_for_counter_s fr="Date %s manquante pour le compteur %s" de="Fehlendes Datum %s für den Zähler %s" en="Missing date %s for counter %s" it="Data mancante %s per il contatore %s" base="Missing date %s for counter %s"/>
+				<en_incompatible_date_assigning_fieldname_s_counter fr="Date incompatible pour l'attribution du compteur %(fieldname)s" de="Inkompatibles Datum bei der Zuweisung des Zählers %(fieldname)s" en="Incompatible date assigning %(fieldname)s counter" it="Data incompatibile per l'assegnazione del contatore %(fieldname)s" base="Incompatible date assigning %(fieldname)s counter"/>
 		</counter>
 		<day path="model/day.py" ext="py">
 			<en_days base="Days" en="Days" it="Giorni"/>
