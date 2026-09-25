@@ -206,6 +206,10 @@
     --expandbox-content-padding: 8px; /* @theme */
     --expandbox-transition-duration: 0.3s; /* @theme */
 
+    /* --- Modal uploader (modalUploader widget, default size when none is passed) --- */
+    --modaluploader-width: 190px;
+    --modaluploader-preview-ratio: 190 / 210;
+
     /* === Forms === */
 
     /* --- Form fields --- */

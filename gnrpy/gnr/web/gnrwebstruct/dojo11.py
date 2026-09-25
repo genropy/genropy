@@ -1088,8 +1088,6 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
             result['tag'] = 'modalUploader'
             result['dest_fld'] = fieldobj.fullname
             result.setdefault('enable','^#FORM.controller.is_newrecord?!=#v')
-            result.setdefault('height','210px')
-            result.setdefault('width','190px')
             result.setdefault('border','1px solid silver')
             result.setdefault('rounded',8)
             result.setdefault('dest_record_pkey','=#FORM.pkey')
