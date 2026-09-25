@@ -468,8 +468,48 @@ class GenroWidgets:
     # =====================================================================
 
     @element
+    def joditEditor(self, **kwargs):
+        """Jodit WYSIWYG HTML editor, whose HTML source view is CodeMirror 6.
+
+        Stored markup is kept as written: there is no document schema, and
+        Jodit's cleanup only drops ``<script>``, event attributes and
+        ``javascript:`` links, and adds ``rel="noopener noreferrer"`` to
+        ``target="_blank"`` links.
+
+        Args:
+            **kwargs: value (^path, HTML string; empty content is stored as None),
+                toolbar ('minimal' | 'simple' | 'standard' (default) | False |
+                list or comma string of Jodit button names),
+                mode ('wysiwyg' (default) | 'source' | 'split'; a ^path is
+                written back when the user switches view),
+                sourceEditor ('codemirror' (default) | 'area'),
+                iframe (bool, default True: content isolated from page CSS),
+                contentsCss (stylesheet URLs, list or comma string; iframe only),
+                contentStyles (CSS text, may be a ^path; iframe only),
+                bodyStyle (CSS declarations of the content body, e.g. a
+                page box 'width:170mm;height:250mm', may be a ^path; iframe only),
+                enter ('p' (default) | 'div' | 'br'), placeholder,
+                statusbar (bool), readOnly, disabled, height, width,
+                config_* (any other Jodit option).
+        """
+        ...
+
+    @element
+    def ExtendedJoditEditor(self, **kwargs):
+        """joditEditor with a side CodeMirror pane editing the content CSS.
+
+        Args:
+            **kwargs: value (^path, HTML), css_value (^path, CSS applied live
+                as contentStyles; the side pane is shown only when given),
+                css_* (codemirror attributes of the CSS pane), height, width,
+                region, title, margin, margin_*; everything else goes to
+                joditEditor (e.g. bodyStyle, toolbar, readOnly).
+        """
+        ...
+
+    @element
     def ckEditor(self, **kwargs):
-        """CKEditor rich text editor widget.
+        """Deprecated: use joditEditor. CKEditor 3 rich text editor widget.
 
         Args:
             **kwargs: value, height, width, toolbar, config.
@@ -478,7 +518,7 @@ class GenroWidgets:
 
     @element
     def ExtendedCkeditor(self, **kwargs):
-        """Extended CKEditor with additional GenroPy integration.
+        """Deprecated: use ExtendedJoditEditor. CKEditor with side HTML and CSS panes.
 
         Args:
             **kwargs: value, height, width, toolbar, config.

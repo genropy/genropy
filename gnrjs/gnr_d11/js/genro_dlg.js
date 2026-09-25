@@ -1097,7 +1097,7 @@ dojo.declare("gnr.GnrDlgHandler", null, {
         var palette = node._('palettePane',paletteCode,paletteAttr);
         var valuepath = kw.valuepath || sourceNode.attr.innerHTML || sourceNode.attr.value;
         valuepath = '^'+sourceNode.absDatapath(valuepath);
-        palette._('ckeditor',objectUpdate(kw,{value:valuepath}));
+        palette._('joditEditor',objectUpdate(kw,{value:valuepath,height:'100%'}));
         node.unfreeze(); 
     },
 
@@ -1108,7 +1108,7 @@ dojo.declare("gnr.GnrDlgHandler", null, {
         var dlg = genro.dlg.quickDialog('Editor',objectUpdate(dlg_kw,kw));
         var valuepath = kw.valuepath || sourceNode.attr.innerHTML || sourceNode.attr.value;
         valuepath = '^'+sourceNode.absDatapath(valuepath);
-        dlg.center._('ckeditor',objectUpdate(kw,{value:valuepath}));
+        dlg.center._('joditEditor',objectUpdate(kw,{value:valuepath}));
         dlg.show_action()
     },
 

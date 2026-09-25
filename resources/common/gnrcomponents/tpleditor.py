@@ -456,8 +456,11 @@ class TemplateEditor(TemplateEditorBase):
         editorConstrain = editorConstrain or dict()
         constrain_height = editorConstrain.pop('constrain_height',False)
         constrain_width = editorConstrain.pop('constrain_width',False)
-        bc.dataController("""SET .editor.height = letterhead_center_height?letterhead_center_height+'mm': constrain_height;
-                             SET .editor.width = letterhead_center_width?letterhead_center_width+'mm':constrain_width;
+        bc.dataController("""var height = letterhead_center_height?letterhead_center_height+'mm': constrain_height;
+                             var width = letterhead_center_width?letterhead_center_width+'mm':constrain_width;
+                             SET .editor.height = height;
+                             SET .editor.width = width;
+                             SET .editor.bodyStyle = (height?'height:'+height+';':'')+(width?'width:'+width+';':'');
             """,constrain_height=constrain_height,
                 constrain_width=constrain_width,
                 letterhead_center_height='^.preview.letterhead_record.center_height',
@@ -477,10 +480,9 @@ class TemplateEditor(TemplateEditorBase):
                             value='^.data.content',css_value='^.data.content_css',
                             height='^.editor.height', width='^.editor.width', **editorConstrain)
         else:
-            bc.ExtendedCkeditor(region='center',margin='2px',margin_left='5px',
+            bc.ExtendedJoditEditor(region='center',margin='2px',margin_left='5px',
                             value='^.data.content',css_value='^.data.content_css',
-                            constrain_height='^.editor.height',
-                            constrain_width='^.editor.width',**editorConstrain)
+                            bodyStyle='^.editor.bodyStyle',**editorConstrain)
 
     def _te_framePreview(self,frame,table=None):
         bar = frame.top.slotToolbar('5,parentStackButtons,10,fb,*',parentStackButtons_font_size='8pt')                   

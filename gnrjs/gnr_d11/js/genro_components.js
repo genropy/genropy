@@ -2212,14 +2212,13 @@ dojo.declare("gnr.widgets.QuickEditor", gnr.widgets.gnrwdg, {
         if(inCell){
             return this._createCellContent(sourceNode, kw);
         }
-        kw['constrain_margin'] = '1px';
         kw['toolbar'] = kw['toolbar'] || false;
         var boxpars = objectExtract(kw,'height,width,z_index,position,top,left,right,bottom,_class');
-        boxpars.height = boxpars.height;
+        kw['height'] = '100%';
         boxpars.position =  boxpars.position || 'relative'
         boxpars._class = (boxpars._class || '') +' quickEditorWrapper';
         var box = sourceNode._('div',boxpars);
-        var editor = box._('div',{_class:'quickEditor'})._('div',{position:'absolute',top:'1px',bottom:'2px',left:'1px',right:'1px'})._('ckeditor',kw);
+        var editor = box._('div',{_class:'quickEditor'})._('div',{position:'absolute',top:'1px',bottom:'2px',left:'1px',right:'1px'})._('joditEditor',kw);
         box._('div',{_class:'quickEditorButton fakeButton'})._('div',{_class:'dijitArrowButtonInner',height:'17px',width:'18px',
                                                             cursor:'pointer',
                                                         connect_onclick:function(){
@@ -2288,8 +2287,39 @@ dojo.declare("gnr.widgets.QuickEditor", gnr.widgets.gnrwdg, {
 
 });
 
+dojo.declare("gnr.widgets.ExtendedJoditEditor", gnr.widgets.gnrwdg, {
+    createContent:function(sourceNode, kw,children) {
+        let containerkw = objectExtract(kw,'height,width,region,title,margin');
+        objectUpdate(containerkw,objectExtract(kw,'margin_*',false,true));
+        let bc = sourceNode._('borderContainer',containerkw);
+        let css_value = objectPop(kw,'css_value');
+        let css_pars = objectExtract(kw,'css_*');
+        kw.contentStyles = css_value;
+        kw.height = '100%';
+        kw.width = '100%';
+        bc._('contentPane',{region:'center',overflow:'hidden'})._('joditEditor',kw);
+        if(css_value){
+            css_pars = objectUpdate({value:css_value,height:'100%',width:'100%',config_mode:'css',
+                                     config_lineNumbers:true,config_keyMap:'softTab'},css_pars);
+            bc._('borderContainer',{region:'right',width:'30%',splitter:true,closable:'close',
+                                    closable_background:'rgba(222, 255, 0, 1)',
+                                    closable_top:'10px',
+                                    closable_width:'14px',
+                                    closable_left:'-20px',
+                                    closable_height:'14px',
+                                    closable_padding:'2px',
+                                    closable_opacity:'1',
+                                    closable_iconClass:'smalliconbox create_edit_html_template',
+                                    border_left:'1px solid silver'})
+                ._('contentPane',{region:'center',overflow:'hidden',_lazyBuild:true})._('codemirror',css_pars);
+        }
+        return bc;
+    }
+});
+
 dojo.declare("gnr.widgets.ExtendedCkeditor", gnr.widgets.gnrwdg, {
     createContent:function(sourceNode, kw,children) {
+        genro.dev.deprecation('ExtendedCkeditor', 'ExtendedJoditEditor');
         let containerkw = objectExtract(kw,'height,width,region,title,margin');
         objectUpdate(containerkw,objectExtract(kw,'margin_*',false,true));
         let bc = sourceNode._('borderContainer',containerkw);
@@ -3052,7 +3082,7 @@ dojo.declare("gnr.widgets.GridGallery", gnr.widgets.gnrwdg, {
                     genro.dlg.prompt(_T('Edit'),{dlg_noModal:true,
                         widget:function(pane){
                             var tc = pane._('tabContainer',{height:'600px',width:'1000px',margin:'2px'});
-                            tc._('ContentPane',{title:'Content',overflow:'hidden'})._('ckeditor',{value:'^.content'});
+                            tc._('ContentPane',{title:'Content',overflow:'hidden'})._('joditEditor',{value:'^.content',height:'100%'});
                             var pane = tc._('ContentPane',{title:'Metadata',overflow:'hidden'})
                             var fb = genro.dev.formbuilder(pane._('div',{margin:'10px'}),3,{border_spacing:'1px',width:'100%',margin_bottom:'12px'});
                             fb.addField('textbox',{value:'^.iframe_src',width:'25em',lbl_text_align:'right',

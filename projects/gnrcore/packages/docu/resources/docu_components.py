@@ -501,7 +501,7 @@ class ContentsComponent(BaseComponent):
         Unified content editor supporting multiple editor types.
 
         Supported modes:
-        - 'html': WYSIWYG HTML editor (tinyMce or ckeditor based on sys stylingPreferences)
+        - 'html': WYSIWYG HTML editor (tinyMce or joditEditor based on sys stylingPreferences)
             Edits .html field, optionally saves plain text to .text
         - 'md': Markdown editor with preview (MDEditor)
             Edits .text field, optionally renders HTML to .html
@@ -535,13 +535,13 @@ class ContentsComponent(BaseComponent):
         self.contentEditor(pane, mode=mode, **kwargs)
 
     def contentEditor_html(self, pane, **kwargs):
-        "Chooses html editor after checking sys stylingPreferences for tinymce_beta (True=tinyMce, False=ckeditor)"
+        "Chooses html editor after checking sys stylingPreferences for tinymce_beta (True=tinyMce, False=joditEditor)"
         use_tinymce = self.getPreference('theme.tinymce_beta', pkg='sys') 
         if use_tinymce:
             pane.tinyMce(value='^.html', textpath='.text', nodeId='contentHtml',
                         height='100%', **kwargs)
         else:
-            pane.ckeditor(value='^.html', nodeId='contentHtml', height='100%', **kwargs)
+            pane.joditEditor(value='^.html', nodeId='contentHtml', height='100%', **kwargs)
     
     def contentEditor_md(self, pane, initialEditType='wysiwyg', previewStyle='vertical', **kwargs):
         "Markdown editor with preview. Default initialEditType to 'wysiwyg' if not provided"

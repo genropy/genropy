@@ -16,7 +16,7 @@ class GnrCustomWebPage(object):
                                                        emailChunk=True)
 
     def test_1_importTemplate(self,pane):
-        "tinyMCE/ckEditor are the widgets used in the Template Editor block to edit the template body"
+        "tinyMCE/joditEditor are the widgets used in the Template Editor block to edit the template body"
         content = pane.borderContainer(height='625px')
         top = content.borderContainer(region='top', height='25px')
         top.button('!!IMPORT TEMPLATE').dataRpc(self.importTemplate, _ask=dict(title='Import template', 
@@ -28,7 +28,7 @@ class GnrCustomWebPage(object):
         if self.getPreference('theme.tinymce_beta', pkg='sys'):
             middle.tinymce(value='^.body', height='100%', width='100%')
         else:
-            middle.ckeditor(value='^.body', height='100%', width='100%')
+            middle.joditEditor(value='^.body', height='100%', width='100%')
 
     @public_method
     def importTemplate(self, query_object_id=None):
