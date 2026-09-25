@@ -4,8 +4,8 @@ const path = require('node:path');
 const {test} = require('node:test');
 const vm = require('node:vm');
 
-function loadHandler() {
-    const context = {console, gnr: {widgets: {}}, genro: {locale: () => 'it-IT'}};
+function loadHandler(globals) {
+    const context = {console, gnr: {widgets: {}}, genro: {locale: () => 'it-IT'}, ...globals};
     context.dojo = {
         eval,
         hitch: (object, method) => (typeof method === 'string' ? object[method] : method).bind(object),
@@ -275,4 +275,27 @@ test('dictated text is inserted as text at the caret and stored', () => {
     editor.s = {insertNode: (node) => { editor.value = '<p>a' + node.text + '</p>'; }};
     handler.onSpeechEnd(sourceNode, ' <b>dictated</b>');
     assert.deepEqual(sourceNode.writes, [['value', '<p>a <b>dictated</b></p>']]);
+});
+
+function initializeWith(sourceEditor) {
+    let made;
+    const editor = {
+        container: {},
+        e: {on() { return this; }},
+        waitForReady: () => new Promise(() => {})
+    };
+    const handler = loadHandler({
+        document: {createElement: () => ({})},
+        Jodit: {make: (textarea, options) => { made = options; return editor; }}
+    });
+    const joditAttrs = create(handler, {sourceEditor});
+    const widget = {classList: {add() {}}, appendChild() {}};
+    handler.initialize(widget, joditAttrs, makeSourceNode(''));
+    return made.sourceEditor;
+}
+
+test('source view uses CodeMirror, or the plain textarea for any other sourceEditor', () => {
+    assert.equal(typeof initializeWith('codemirror'), 'function');
+    assert.equal(initializeWith('area'), 'area');
+    assert.equal(initializeWith('ace'), 'area');
 });

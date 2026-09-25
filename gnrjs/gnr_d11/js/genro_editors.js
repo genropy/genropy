@@ -1760,6 +1760,8 @@ dojo.declare("gnr.widgets.joditEditor", gnr.widgets.baseExternalWidget, {
         var options = objectUpdate({defaultMode: this.modeCode(joditAttrs.mode)}, joditAttrs.options);
         if(joditAttrs.sourceEditor == 'codemirror'){
             options.sourceEditor = function(jodit){ return that.makeCodemirrorSource(jodit); };
+        }else{
+            options.sourceEditor = 'area';
         }
         var editor = Jodit.make(textarea, options);
         editor._gnrReadOnly = options.readonly;
