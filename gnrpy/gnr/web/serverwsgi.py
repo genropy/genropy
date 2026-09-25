@@ -230,6 +230,13 @@ class Server(object):
                 type=int,
                 help="Debugpy port (defaults to 5678)")
 
+        parser.add_argument('--xpr',
+                            dest='xpr',
+                            help="Experimental features to switch on for this run, "
+                                 "on top of the <experimental> tag of instanceconfig.xml: "
+                                 "a comma-separated list of group.name or group.name=value, "
+                                 "e.g. --xpr page.no_mako,db.next_sql_compiler")
+
         self.site_script = site_script
         self.app_scheme = 'http'
         self.app_host = '127.0.0.1'

@@ -831,6 +831,31 @@ class GnrPackage(object):
         return changed
 
 
+def experimentalConfig(xpr):
+    """The ``<experimental>`` configuration described by a command-line string.
+
+    ``xpr`` is a comma-separated list of ``group.name`` or ``group.name=value``
+    items, optionally wrapped in square brackets: ``page.no_mako,db.x=next``
+    gives ``<experimental><page no_mako="True"/><db x="next"/></experimental>``.
+    An item with no value is a switch turned on. An item with no group raises
+    ``ValueError``.
+    """
+    result = Bag()
+    xpr = xpr.strip()
+    if xpr.startswith('[') and xpr.endswith(']'):
+        xpr = xpr[1:-1]
+    for item in splitAndStrip(xpr, ','):
+        key, _, value = item.partition('=')
+        group, dot, name = key.strip().partition('.')
+        if not dot or not group or not name:
+            raise ValueError("experimental feature '%s' is not in the form group.name[=value]" % item)
+        path = 'experimental.%s' % group
+        if path not in result:
+            result.setItem(path, None)
+        result.setAttr(path, **{name: value.strip() if value else 'True'})
+    return result
+
+
 class GnrApp(object):
     """Opens a GenroPy application :ref:`instance <instances>`
     
