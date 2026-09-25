@@ -45,7 +45,7 @@ Internal organisation:
 
 from __future__ import annotations
 
-from gnr.sql.gnrsql import GnrSqlException
+from gnr.sql.gnrsql.helpers import GnrSqlException
 
 __version__ = '1.0b'
 
