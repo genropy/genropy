@@ -6,6 +6,7 @@ import pytest
 
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrlang import GnrException
+from gnr.lib.services.storage import StorageNode
 
 # The aws_s3 Service lives under projects/gnrcore/ which is not on the
 # default test sys.path: it is loaded from the file system.
@@ -90,6 +91,15 @@ def test_write_without_write_in_local_raises(smart_open, machine):
     with pytest.raises(GnrException):
         service.open('docs', 'file.pdf', mode='wb')
     assert smart_open.calls == []
+
+
+def test_storage_node_write_on_readonly_skips_autocreate(smart_open):
+    service = _make_service(readonly=True)
+    node = StorageNode(parent=service.parent, service=service, path='docs/file.pdf')
+    with pytest.raises(GnrException, match='app is read-only'):
+        node.open('wb')
+    assert smart_open.calls == []
+    assert not hasattr(service, '_boto_client')
 
 
 @pytest.mark.parametrize('mode', ['rb', 'r'])

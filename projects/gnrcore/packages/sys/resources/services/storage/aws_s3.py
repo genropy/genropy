@@ -373,6 +373,11 @@ class Service(StorageService):
             Params={'Bucket': self.bucket,'Key': internal_path},
             ExpiresIn=expiration)
 
+    def autocreate(self, *args, **kwargs):
+        if self.readonly:
+            return
+        return super().autocreate(*args, **kwargs)
+
     def open(self, *args, **kwargs):
         kwargs['mode'] = kwargs.get('mode', 'rb')
         #version_id = kwargs.pop('version_id',None)

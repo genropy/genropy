@@ -1159,33 +1159,35 @@ class TestStorageHandler(BaseGnrDaemonTest):
             self.services_handler('storage').service_instances.pop(record['service_name'], None)
 
     def test_s3_on_local_machine_uploads_to_local_storage(self, monkeypatch, s3_record):
-        """On a local machine an aws_s3 service without write_in_local was forced
-        read-only, and an upload to it failed with NoSuchKey (issue #1368): the
-        service is served by local storage in the site static dir instead."""
+        """Uploads use a local path while existing bucket paths remain readable."""
         monkeypatch.setattr(self.site, '_local_mode', True, raising=False)
         service_name = s3_record('s3_local_fallback')
         local_dir = os.path.join(self.site.site_static_dir, service_name)
         try:
-            assert service_name not in self.storage_handler.storage_params
-            assert service_name not in LegacyStorageHandler(self.site).storage_params
+            assert self.storage_handler.storage_params[service_name]['implementation'] == 'aws_s3'
+            assert LegacyStorageHandler(self.site).storage_params[service_name]['implementation'] == 'aws_s3'
             service = self.site.storage(service_name)
-            assert service.service_implementation == 'local'
-            assert service.base_path == local_dir
+            assert service.service_implementation == 'aws_s3'
+            assert service.readonly
+            assert self.site.storageNode('%s:docs/existing.pdf' % service_name).service is service
 
             data_url = 'data:application/pdf;base64,%s' % base64.b64encode(b'%PDF-1.4').decode()
-            file_path, _ = self.site.uploadFile(dataUrl=data_url, filename='probe',
-                                                uploadPath='%s:docs' % service_name)
-            assert file_path == '%s:docs/probe.pdf' % service_name
+            file_path, file_url = self.site.uploadFile(dataUrl=data_url, filename='probe',
+                                                       uploadPath='%s:docs' % service_name)
+            assert file_path == 'site:%s/docs/probe.pdf' % service_name
+            assert '/_storage/site/%s/docs/probe.pdf' % service_name in file_url
             with open(os.path.join(local_dir, 'docs', 'probe.pdf'), 'rb') as uploaded:
+                assert uploaded.read() == b'%PDF-1.4'
+            with self.site.storageNode(file_path).open() as uploaded:
                 assert uploaded.read() == b'%PDF-1.4'
         finally:
             shutil.rmtree(local_dir, ignore_errors=True)
 
     def test_s3_on_local_machine_follows_write_in_local(self, monkeypatch, s3_record):
-        """Clearing write_in_local on the record moves the service to local storage."""
+        """Clearing write_in_local redirects uploads without changing S3 reads."""
         monkeypatch.setattr(self.site, '_local_mode', True, raising=False)
         service_name = s3_record('s3_write_in_local_cleared', write_in_local=True)
-        assert self.site.storage(service_name).service_implementation == 'aws_s3'
+        assert not self.site.storage(service_name).readonly
 
         tblservice = self.site.db.table('sys.service')
         with tblservice.recordToUpdate(service_type='storage', service_name=service_name) as record:
@@ -1194,10 +1196,41 @@ class TestStorageHandler(BaseGnrDaemonTest):
             record['parameters'] = parameters
         self.site.db.commit()
 
-        assert service_name not in self.storage_handler.storage_params
-        assert self.site.storage(service_name).service_implementation == 'local'
+        assert self.storage_handler.storage_params[service_name]['implementation'] == 'aws_s3'
+        assert self.site.storage(service_name).readonly
+        local_dir = os.path.join(self.site.site_static_dir, service_name)
+        try:
+            data_url = 'data:application/pdf;base64,%s' % base64.b64encode(b'%PDF-1.4').decode()
+            file_path, _ = self.site.uploadFile(dataUrl=data_url, filename='probe',
+                                                uploadPath='%s:docs' % service_name)
+            assert file_path == 'site:%s/docs/probe.pdf' % service_name
+        finally:
+            shutil.rmtree(local_dir, ignore_errors=True)
+
+    def test_s3_on_secondary_machine_uploads_to_local_storage(self, monkeypatch, s3_record):
+        monkeypatch.setattr(self.site, '_local_mode', False, raising=False)
+        packages = self.site.gnrapp.config['packages']
+        previous_secondary = (packages.getAttr('gnrcore:sys') or {}).get('secondary')
+        packages.setAttr('gnrcore:sys', secondary=True)
+        service_name = s3_record('s3_secondary_fallback')
+        local_dir = os.path.join(self.site.site_static_dir, service_name)
+        try:
+            service = self.site.storage(service_name)
+            assert service.service_implementation == 'aws_s3'
+            assert service.readonly
+            data_url = 'data:application/pdf;base64,%s' % base64.b64encode(b'%PDF-1.4').decode()
+            file_path, _ = self.site.uploadFile(dataUrl=data_url, filename='probe',
+                                                uploadPath='%s:docs' % service_name)
+            assert file_path == 'site:%s/docs/probe.pdf' % service_name
+            with self.site.storageNode(file_path).open() as uploaded:
+                assert uploaded.read() == b'%PDF-1.4'
+            assert self.site.storageNode('%s:docs/existing.pdf' % service_name).service is service
+        finally:
+            packages.setAttr('gnrcore:sys', secondary=previous_secondary)
+            shutil.rmtree(local_dir, ignore_errors=True)
 
     @pytest.mark.parametrize('local_mode,parameters', [
+        (True, {}),
         (True, {'write_in_local': True}),
         (True, {'readonly': True}),
         (False, {}),
@@ -1216,3 +1249,7 @@ class TestStorageHandler(BaseGnrDaemonTest):
         service = self.site.storage(service_name)
         with pytest.raises(GnrException, match='s3_readonly_local is read-only'):
             service.open('docs', 'probe.pdf', mode='wb')
+        data_url = 'data:application/pdf;base64,%s' % base64.b64encode(b'%PDF-1.4').decode()
+        with pytest.raises(GnrException, match='s3_readonly_local is read-only'):
+            self.site.uploadFile(dataUrl=data_url, filename='probe',
+                                 uploadPath='%s:docs' % service_name)
