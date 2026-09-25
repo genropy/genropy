@@ -1313,9 +1313,9 @@ dojo.declare("gnr.widgets.video", gnr.widgets.baseHtml, {
         .catch(function(err) {
             console.log("An error occurred: " + err);
             if(onErrorGetUserMedia){
-                funcApply(onErrorGetUserMedia,{e:e});
+                funcApply(onErrorGetUserMedia,{e:err});
             }else{
-                genro.dlg.alert('Not allowed video capture '+e,'Error');
+                genro.dlg.alert('Not allowed video capture '+err,'Error');
             }
         });
     },
