@@ -26,7 +26,7 @@ from gnr.core.gnrbag import Bag
 from gnr.core import gnrstring
 from gnr.core.gnrlang import GnrException, GnrDebugException
 from gnr.core.gnrlang import getUuid, ThreadedDict
-from gnr.core.gnrdecorator import deprecated
+from gnr.core.gnrdecorator import public_method, deprecated
 from gnr.core.gnrconfig import getGnrConfig,getEnvironmentItem
 from gnr.core.gnrsys import expandpath
 from gnr.core.gnrstring import boolean
@@ -1067,6 +1067,30 @@ class GnrWsgiSite(object):
             requests.post(endpoint, json=error_info, timeout=5)
         except Exception:
             logger.warning('Failed to send error to endpoint %s', endpoint)
+
+    @deprecated(message='use errorHandler')
+    def writeException(self, exception=None, traceback=None):
+        return self._writeErrorRecord(exception=exception, error_type='EXC',
+                                      traceback=traceback)
+
+    @public_method
+    @deprecated(message='use errorHandler')
+    def writeError(self, description=None, error_type=None, **kwargs):
+        return self._writeErrorRecord(description=description,
+                                      error_type=error_type or 'ERR', **kwargs)
+
+    def _writeErrorRecord(self, **kwargs):
+        try:
+            error_id = self.errorHandler(**kwargs)
+            if not error_id or not self.db.package('sys'):
+                return None
+            with self.db.tempEnv(connectionName='system', storename=self.db.rootstore):
+                return self.db.table('sys.error').record(
+                    error_code=error_id, ignoreMissing=True,
+                    ignoreDuplicate=True).output('dict') or None
+        except Exception:
+            logger.exception('Failed to write error %s',
+                             kwargs.get('description') or kwargs.get('exception'))
 
 
     def loadResource(self, pkg, *path):
