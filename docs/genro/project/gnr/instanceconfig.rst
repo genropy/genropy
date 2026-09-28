@@ -167,8 +167,14 @@ Tags
     value is read once at startup, so a change requires a restart::
 
         <experimental>
-            <page no_mako="True" page_class_cache="True"/>
+            <page no_mako="True" page_class_cache="True" dojo_xhr_patch="fetch"/>
+            <db next_sql_compiler="True"/>
         </experimental>
+
+    A switch of an experimental feature lives under ``<experimental>`` and nowhere
+    else: no other tag of the configuration carries one. The code reads it only
+    through ``GnrApp.experimentalFlag(group, name)`` for a boolean switch and
+    ``GnrApp.experimentalValue(group, name)`` for one carrying a value.
 
     ``<page>`` switches:
 
@@ -178,8 +184,18 @@ Tags
       later request carrying the same ``page_id``.
     * ``remoteForm``: default for the ``remote`` option of the table handler forms,
       ``onEnter`` or ``delayed``; a form passing ``remote=`` overrides it.
+    * ``dojo_xhr_patch``: transport of the supported asynchronous Dojo HTTP requests.
+      Only ``fetch`` replaces the original XHR transport; see
+      ``docs/development/dojo-xhr-patch.md``.
 
-    A missing tag or attribute reads as ``False``.
+    ``<db>`` switches:
+
+    * ``next_sql_compiler``: compile the queries with ``SqlQueryCompilerNext`` of
+      ``compiler_next.py``, the copy of the query compiler that receives new work,
+      instead of the frozen ``SqlQueryCompiler``.
+
+    A missing tag or attribute reads as ``False`` for a boolean switch and as
+    ``None`` for one carrying a value.
 
 .. _instanceconfig_authentication:
 

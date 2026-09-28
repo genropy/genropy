@@ -24,11 +24,28 @@ def main():
                         dest="verbose",
                         action="store_true",
                         help="Be verbose")
+    parser.add_argument("-s", "--strict",
+                        dest="strict",
+                        action="store_true",
+                        help="Fail when the packages section of instanceconfig.xml does not"
+                             " declare every package reached through required_packages()")
     
     parser.add_argument("instance_name")
     options = parser.parse_args()
     app = GnrApp(options.instance_name, checkdepcli=True)
     instance_deps = app.instance_packages_dependencies
+
+    if options.verbose:
+        print("Packages loaded are")
+        for entry in app.package_closure().values():
+            declared = "declared" if entry['declared'] else "required by " + ", ".join(sorted(entry['required_by']))
+            print(f"* {entry['code']} ({declared})")
+        print(" ")
+    if app.undeclared_packages:
+        print(app.undeclared_packages_report())
+        print(" ")
+        if options.strict:
+            sys.exit(4)
     
     if options.verbose:
         print("Required dependencies are")

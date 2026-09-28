@@ -1,7 +1,14 @@
+import pathlib
+import re
+import xml.etree.ElementTree as ET
+
 import pytest
 import gnr.app.gnrlocalization as gl
 from gnr.sql.gnrsql_exceptions import GnrSqlMissingTable
 from common import BaseGnrAppTest
+
+REPO = pathlib.Path(__file__).resolve().parents[3]
+MASK = re.compile(r'\[\d+\]')
 
 class TestGnrLocalization(BaseGnrAppTest):
     app_name = 'gnr_it'
@@ -38,7 +45,7 @@ class TestGnrLocalization(BaseGnrAppTest):
         al._languages = dict(en="English", it="Italian")
 
 
-        tr = al.translate("goober", "en")
+        al.translate("goober", "en")
 
         # FIXME: won't work with a proper al.translator
         #al.autoTranslate("it")
@@ -133,8 +140,9 @@ class TestGnrLocalization(BaseGnrAppTest):
 
     def test_attachmanager_captions_are_localized(self):
         """
-        The attachment grid captions and the upload size alert are marked for
-        translation: a missing entry would silently fall back to English.
+        The attachment grid captions, the upload size alert and the preview
+        fallback notices are marked for translation: a missing entry would
+        silently fall back to English.
         """
         al = gl.AppLocalizer(self.app)
         expected = {'!!Type': 'Tipo',
@@ -142,8 +150,54 @@ class TestGnrLocalization(BaseGnrAppTest):
                     '!!DL': 'DL',
                     '!!Copy': 'Copia',
                     '!!File exceeds size limit': 'Il file supera la dimensione massima',
-                    '!!Error': 'Errore'}
+                    '!!Error': 'Errore',
+                    '!!Open in a new tab': 'Apri in una nuova scheda',
+                    '!!This video format cannot be played in the browser. Download it to watch it.':
+                        'Questo formato video non può essere riprodotto nel browser. Scaricalo per vederlo.',
+                    '!!This attachment links to an external site and cannot be previewed here.':
+                        'Questo allegato rimanda a un sito esterno e non può essere visualizzato qui.'}
         for txt, translation in expected.items():
             r = al.getTranslation(txt, 'it')
             assert r['status'] == 'OK', txt
             assert r['translation'] == translation
+
+    def test_same_basename_modules_keep_their_sections(self, tmp_path):
+        (tmp_path / 'grouplet.js').write_text("var msg = '!!Please complete required fields';")
+        (tmp_path / 'grouplet.py').write_text("caption = '!!Save draft'")
+        (tmp_path / 'localization.xml').write_text(
+            '<?xml version="1.0" encoding="UTF-8"?>\n<GenRoBag>'
+            '<grouplet path="grouplet.js" ext="js"><en_please_complete_required_fields'
+            ' base="Please complete required fields" it="Completa i campi obbligatori">'
+            '</en_please_complete_required_fields></grouplet>'
+            '<grouplet path="grouplet.py" ext="py"><en_save_draft base="Save draft" it="Salva bozza">'
+            '</en_save_draft></grouplet></GenRoBag>')
+        al = gl.AppLocalizer(self.app)
+        al.slots.append(dict(roots=[str(tmp_path)], destFolder=str(tmp_path),
+                             code='samebasename', protected=False, language='en'))
+        al.buildLocalizationDict()
+
+        al.updateLocalizationFiles(localizationBlock='samebasename')
+
+        lbag = al.getLocalizationBag(str(tmp_path))
+        assert lbag.getNode('grouplet').attr['ext'] == 'js'
+        assert lbag.getNode('grouplet_py').attr['ext'] == 'py'
+        assert 'grouplet.en_please_complete_required_fields' in lbag
+        assert 'grouplet_py.en_save_draft' in lbag
+        assert al.translate('!!Please complete required fields', 'it') == 'Completa i campi obbligatori'
+        assert al.translate('!!Save draft', 'it') == 'Salva bozza'
+
+    def test_autotranslate_keeps_the_base_text_for_the_base_language(self):
+        al = gl.AppLocalizer(self.app)
+        al.localizationDict = {'en_counter_s': {'base': 'Counter %s'},
+                               'en_fieldname_s_promised': {'base': '%(fieldname)s promised'}}
+        al.autoTranslate('en')
+        assert al.localizationDict['en_counter_s']['en'] == 'Counter %s'
+        assert al.localizationDict['en_fieldname_s_promised']['en'] == '%(fieldname)s promised'
+
+
+@pytest.mark.parametrize('catalog', [REPO / 'localization.xml'] + sorted((REPO / 'projects').rglob('localization.xml')),
+                         ids=lambda p: str(p.relative_to(REPO)))
+def test_catalog_base_language_carries_no_autotranslate_masks(catalog):
+    masked = [el.tag for el in ET.parse(catalog).iter()
+              if MASK.search(el.get('en', '')) and not MASK.search(el.get('base', ''))]
+    assert not masked

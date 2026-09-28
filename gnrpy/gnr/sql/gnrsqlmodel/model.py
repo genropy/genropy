@@ -43,7 +43,7 @@ from gnr.core.gnrdict import dictExtract
 from gnr.core.gnrlang import moduleDict
 from gnr.core.gnrstructures import GnrStructData
 from gnr.sql import logger
-from gnr.sql.gnrsql_exceptions import GnrSqlException, GnrSqlRelationError
+from gnr.sql.gnrsql_exceptions import GnrSqlException, GnrSqlRelationError, NotMatchingModelError
 from gnr.sql.gnrsqlmodel.columns import DbVirtualColumnObj
 from gnr.sql.gnrsqlmodel.containers import DbIndexObj
 from gnr.sql.gnrsqlmodel.helpers import (
@@ -152,7 +152,20 @@ class DbModel:
                     if hasattr(tblmix, 'config_db'):
                         tblmix._cls = tblmix.config_db.__self__
                     _doObjMixinConfig(tblmix, pkgsrc)
-                    tblsrc = pkgsrc.table(tblmix._tblname)
+                # every config_db has run, so this is the whole package rather than
+                # the modules that sort before the one being checked
+                declared = set(pkgsrc['tables'].keys()) if 'tables' in pkgsrc else set()
+                for tblname in tablenames:
+                    tblmix = tables[tblname]
+                    if tblname not in declared:
+                        # the mixin registry is keyed by module filename: calling
+                        # pkgsrc.table() here would materialize an empty phantom
+                        # table and leave the declared one without its mixin
+                        raise NotMatchingModelError(
+                            'model module %s/%s declares no table named %r (declared: %s): '
+                            'name the module after the table it declares'
+                            % (pkg, tblname, tblname, ', '.join(sorted(declared)) or 'none'))
+                    tblsrc = pkgsrc.table(tblname)
                     tblsrc._mixinobj = tblmix
                     tblmix.src = tblsrc
         onBuildingCalls: list[Any] = []

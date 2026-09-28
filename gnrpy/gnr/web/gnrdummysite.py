@@ -94,6 +94,11 @@ class FakeRegister(object):
     def get_dbenv(self, register_item_id, register_name=None):
         return Bag()
 
+    def subscribeTable(self, page_id=None, table=None, subscribe=True, subscribeMode=None):
+        """Dropped: a grid built here has no page in the register to notify,
+        and every table handler struct subscribes the table it shows."""
+        pass
+
 
 class GnrDummySite(GnrWsgiSite):
     """Site without a register server, for headless, CLI and test contexts."""

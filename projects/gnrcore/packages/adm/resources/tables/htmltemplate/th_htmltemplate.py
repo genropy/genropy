@@ -110,8 +110,9 @@ class Form(BaseComponent):
         self.htmltemplate_form(bc.borderContainer(region='top', height='250px',splitter=True))
         
         center = bc.roundedGroupFrame(region='center',datapath='^#FORM.currentEditedArea',overflow='hidden')
-        center.center.contentPane(overflow='hidden').ckEditor(value='^.html',nodeId='htmlEditor',
-                    disabled='^#FORM.currentEditedArea?=isNullOrBlank(#v)||#v=="dummy"',toolbar='standard')
+        center.center.contentPane(overflow='hidden').joditEditor(value='^.html',nodeId='htmlEditor',
+                    disabled='^#FORM.currentEditedArea?=isNullOrBlank(#v)||#v=="dummy"',toolbar='standard',
+                    height='100%')
         bottom = center.bottom
         bar = bottom.slotBar('picker_flib,5,atcPalette,*,5,showBackground,5,zoomfactor,5',_class='pbl_roundedGroupBottom')
         bar.showBackground.div(margin_top='1px').checkbox(value='^#FORM.showBackground',label='Background letterheads',default=True)

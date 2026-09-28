@@ -264,11 +264,13 @@ class BagToHtmlWeb(BagToHtml):
         
 
     @extract_kwargs(extra=True)
-    def contentFromTemplate(self,record,template=None,locale=None, extra_kwargs=None, **kwargs):
+    def contentFromTemplate(self,record,template=None,locale=None, extra_kwargs=None,
+                            record_template=None, **kwargs):
         virtual_columns=None
         page = self.page or self.db.currentPage
-        if not template and page and self.record_template:
-            template = page.loadTemplate('%s:%s' %(self.tblobj.fullname,self.record_template))
+        record_template = record_template or self.record_template
+        if not template and page and record_template:
+            template = page.loadTemplate('%s:%s' %(self.tblobj.fullname,record_template))
         if isinstance(template,Bag):
             kwargs['locale'] = locale or template.getItem('main?locale')
             kwargs['masks'] = template.getItem('main?masks')
@@ -316,15 +318,18 @@ class BagToHtmlWeb(BagToHtml):
         return pdfpath
 
 class TableTemplateToHtml(BagToHtmlWeb):
-    def __call__(self,record=None,template=None, htmlContent=None, locale=None,pdf=None,filepath=None,**kwargs):
+    def __call__(self,record=None,template=None, htmlContent=None, locale=None,pdf=None,filepath=None,
+                 record_template=None,**kwargs):
         if not htmlContent:
-            htmlContent = self.contentFromTemplate(record,template=template,locale=locale)
+            htmlContent = self.contentFromTemplate(record,template=template,locale=locale,
+                                                   record_template=record_template)
             record = self.record
+        callingPdfPath = pdf if isinstance(pdf,str) else None
         if pdf :
             filepath = filepath or self.getHtmlPath(f'{self.getDocName()}.html')
         result = super(TableTemplateToHtml, self).__call__(record=record,htmlContent=htmlContent,filepath=filepath,**kwargs)
-        if pdf is True:
-            return self.writePdf()
+        if pdf:
+            return self.writePdf(pdfpath=callingPdfPath)
         return result
     
     def getDocName(self):
@@ -626,6 +631,7 @@ class TableScriptToHtml(BagToHtmlWeb):
         #overridable
         self.row_mode = 'attribute'
         parameters = dict(self.gridQueryParameters())
+        self.gridTable()
         if self.record['selectionPkeys'] and (not parameters or self.parameter('use_current_selection')):
             parameters = self.currentSelectionQueryParameters()
         if not parameters:
@@ -633,7 +639,6 @@ class TableScriptToHtml(BagToHtmlWeb):
         condition_kwargs = dictExtract(parameters,'condition_',pop=True)
         parameters.update(condition_kwargs)
         condition = parameters.pop('condition',None)
-        row_table = self.gridTable()
         relation = parameters.pop('relation',None)
         where = []
         if relation:
@@ -652,8 +657,13 @@ class TableScriptToHtml(BagToHtmlWeb):
             parameters['order_by'] = self.grid_subtotal_order_by
         query = rowtblobj.query(columns=columns,where= ' AND '.join(where),**parameters)
         sel = query.selection(_aggregateRows=True)
-        if not parameters.get('order_by') and self.record['selectionPkeys']: #same case of line 493
-            sel.data.sort(key = lambda r : self.record['selectionPkeys'].index(r['pkey']))
+        selection_pkeys = self.record['selectionPkeys']
+        if not parameters.get('order_by') and selection_pkeys:
+            selection_position = {}
+            for idx, pkey in enumerate(selection_pkeys):
+                selection_position.setdefault(pkey, idx)
+            unselected = len(selection_pkeys)
+            sel.data.sort(key=lambda r: selection_position.get(r['pkey'], unselected))
         if self.parent and self.parent.export_mode:
             return sel.output('dictlist')
         return sel.output('grid',recordResolver=False)
@@ -815,4 +825,3 @@ class TableScriptToHtml(BagToHtmlWeb):
 
 
         
-

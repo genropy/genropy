@@ -512,17 +512,23 @@ class Route53Manager(BaseAwsService):
         if not hosted_zone_id:
             _, hosted_zone_id = self.find_managed_zone(name)
             if not hosted_zone_id:
-                return None
+                return dict(value=None, status='error', description='Zone not managed')
         records = self.get_resource_records(hosted_zone_id=hosted_zone_id)
-        return records.get(name + '.')
+        record = records.get(name + '.')
+        if record is None:
+            return dict(value=None, status='error', description='Record not found')
+        return dict(value=record, status='ok', description='Record found')
 
     def verify_record(self, name, record_type, value, hosted_zone_id=None):
-        record = self.record_exists(name, hosted_zone_id=hosted_zone_id)
-        if not record:
-            return False
+        result = self.record_exists(name, hosted_zone_id=hosted_zone_id)
+        if result['status'] == 'error':
+            return dict(result, value=False)
+        record = result['value']
         if record['type'].upper() != record_type.upper():
-            return False
-        return value in record['resource_records']
+            return dict(value=False, status='error', description='Record type mismatch')
+        if value not in record['resource_records']:
+            return dict(value=False, status='error', description='Record value mismatch')
+        return dict(value=True, status='ok', description='Record matches')
 
     def ensure_cname_record(self, name, value, ttl=300, dryrun=False):
         """Ensure a CNAME record exists in a managed Route53 zone.
@@ -541,8 +547,9 @@ class Route53Manager(BaseAwsService):
         zone_name, hosted_zone_id = self.find_managed_zone(name)
         if not hosted_zone_id:
             raise ValueError('No managed Route53 zone found for %s' % name)
-        record = self.record_exists(name, hosted_zone_id=hosted_zone_id)
-        if record:
+        result = self.record_exists(name, hosted_zone_id=hosted_zone_id)
+        if result['status'] == 'ok':
+            record = result['value']
             if value not in record['resource_records']:
                 raise ValueError('Record %s already exists with a different value: %s' % (name, record['resource_records']))
             return False

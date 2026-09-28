@@ -31,7 +31,7 @@ import pytz
 
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrlist import GnrNamedList
-from gnr.core.gnrclasses import GnrClassCatalog
+from gnr.core.gnrclasses import GnrClassCatalog, GnrCastingError
 from gnr.core.gnrdate import decodeDatePeriod
 from gnr.sql import AdapterCapabilities as Capabilities
 from gnr.sql import logger
@@ -931,13 +931,21 @@ class SqlDbAdapter(object):
         self.dbroot.execute('ANALYZE;')
 
     def vacuum(self, table='', full=False):
-        """Perform analyze routines on the database
-        
-        :param table: the :ref:`database table <table>` name, in the form ``packageName.tableName``
-                      (packageName is the name of the :ref:`package <packages>` to which the table
-                      belongs to)
-        :param full: boolean. TODO"""
-        self.dbroot.execute('VACUUM ANALYZE %s;' % table)
+        """Run ``VACUUM ANALYZE`` (or ``VACUUM FULL ANALYZE``) on the database or on one table.
+
+        VACUUM cannot run inside a transaction block, so the statement goes
+        through a dedicated autocommit connection, not the current one. That
+        connection takes its own locks: do not vacuum a table the caller's
+        transaction has already touched. ``VACUUM FULL`` asks for ACCESS
+        EXCLUSIVE and would wait for a lock only the blocked caller can
+        release, a self-deadlock Postgres does not detect.
+
+        :param table: the table's SQL name, schema-qualified (``tblobj.model.sqlfullname``,
+                      e.g. ``invc.invc_customer``); empty vacuums the whole database
+        :param full: boolean. If True issue ``VACUUM FULL``, which rewrites the table and
+                     returns the reclaimed space to the filesystem"""
+        sql = 'VACUUM FULL ANALYZE %s;' if full else 'VACUUM ANALYZE %s;'
+        self.execute(sql % table, autoCommit=True)
 
     def string_agg(self, fieldpath, separator):
         """
@@ -1412,7 +1420,13 @@ class GnrWhereTranslator(object):
                         value = [encryptor.encrypt(v, 'Q') for v in value]
                     else:
                         value = encryptor.encrypt(value, 'Q')
-                onecondition = self.prepareCondition(column, op, value, dtype, sqlArgs,tblobj=tblobj,parname=parname)
+                try:
+                    onecondition = self.prepareCondition(column, op, value, dtype, sqlArgs,tblobj=tblobj,parname=parname)
+                except GnrCastingError as e:
+                    # GnrException interpolates its caption twice
+                    raise tblobj.exception('invalid_filter_value',
+                                           column=self._relPathToCaption(tblobj.fullname, column).replace('%', '%%'),
+                                           value=str(value).replace('%', '%%')) from e
 
             if onecondition:
                 if negate:
@@ -1493,10 +1507,13 @@ class GnrWhereTranslator(object):
 
     def storeArgs(self, value, dtype, sqlArgs, parname=None):
         if not dtype in ('A', 'T') and not self.checkValueIsField(value):
-            if isinstance(value, list):
-                value = [self.catalog.fromText(v, dtype) for v in value]
-            elif isinstance(value, (bytes,str)):
-                value = self.catalog.fromText(value, dtype)
+            try:
+                if isinstance(value, list):
+                    value = [self.catalog.fromText(v, dtype) for v in value]
+                elif isinstance(value, (bytes,str)):
+                    value = self.catalog.fromText(value, dtype)
+            except (ValueError, ArithmeticError) as e:
+                raise GnrCastingError(f'Invalid value {value} for dtype {dtype}'.replace('%', '%%')) from e
         argLbl = parname or 'v_%i' % len(sqlArgs)
         sqlArgs[argLbl] = value
         return argLbl
@@ -1575,6 +1592,10 @@ class GnrWhereTranslator(object):
         "!!In"
         if isinstance(value, str):
             value = value.split(',')
+        elif value is None:
+            # an IN over nothing: the empty collection is already neutralised
+            # downstream, a None reached the driver as NULL (issue #1385)
+            value = []
         values_string = self.storeArgs(value, dtype, sqlArgs, parname=parname)
         return '%s IN :%s' % (column, values_string)
 

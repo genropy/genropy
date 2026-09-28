@@ -1,0 +1,5 @@
+https://github.com/genropy/gramlot/releases/download/v0.1.3/gramlot-0.1.3-py3-none-any.whl#sha256=893b9a75a10437f239739b70f635a602dac24864e68b0c1de4deea2cc80dfae2
+genro-bag==0.21.1
+genro-builders==0.23.2
+genro-tytx[msgpack]==0.15.0
+genro-toolbox==0.14.0

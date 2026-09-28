@@ -9,14 +9,14 @@ class View(BaseComponent):
         r = struct.view().rows()
         r.fieldcell('__ins_ts',width='10em',name='Datetime')
         r.fieldcell('user_id',width='15em',name='!!Username')
-        r.fieldcell('confirmed',tick=True, lbl='!!Conf.', width='4em')
+        r.fieldcell('confirmed',tick=True, width='4em')
 
 class ViewFromUser(BaseComponent):
     def th_struct(self,struct):
         r = struct.view().rows()
         r.fieldcell('__ins_ts',width='10em',name='Datetime')
         r.fieldcell('@notification_id.title',width='15em',name='!!Username')
-        r.fieldcell('confirmed',tick=True, lbl='!!Conf.', width='4em')
+        r.fieldcell('confirmed',tick=True, width='4em')
 
     def th_order(self):
         return '__ins_ts:d'
@@ -34,7 +34,7 @@ class ViewFromNotification(BaseComponent):
         r = struct.view().rows()
         r.fieldcell('@user_id.username',width='15em',name='!!Username')
         r.fieldcell('user_id',width='25em')
-        r.fieldcell('confirmed',tick=True, lbl='!!Conf.', width='4em')
+        r.fieldcell('confirmed',tick=True, width='4em')
 
     def th_order(self):
         return 'user_id'

@@ -53,3 +53,13 @@
 .test_handler_card_body {
     padding: 10px;
 }
+
+/* Startup data the instance has never loaded */
+.test_handler_card_warning {
+    margin-top: 6px;
+    padding: 4px 8px;
+    border-left: 3px solid #ffc107;
+    background: #fff8e1;
+    color: #8a6d3b;
+    font-weight: 600;
+}

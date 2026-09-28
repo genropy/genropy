@@ -61,6 +61,7 @@ dojo.declare('gnr.GenroClient', null, {
         this.domRootName = kwargs.domRootName || 'mainWindow';
         this.page_id = kwargs.page_id;
         this.startArgs = kwargs.startArgs || {};
+        genropatches.dojoXhr(this.startArgs.dojoXhrPatch);
         this.debuglevel = kwargs.startArgs.debug || null;
         this.debug_sql = kwargs.startArgs.debug_sql;
         dojo.subscribe('gnrServerLog', this, 'serverLog');
@@ -1059,6 +1060,11 @@ dojo.declare('gnr.GenroClient', null, {
         if(sourceNode.grid){
             return;
         }
+        //dijit notifies the focus to every widget above the focused node, the field a
+        //popup (keypad, tooltipPane) was opened from included: when the focus is landing
+        //in that popup, pulling it back on the form's current field would close it
+        var active = document.activeElement;
+        var focusInPopup = !!(active && active.closest && active.closest('.dijitPopup'));
         var destform = sourceNode.form; 
         var changedForm = destform!=genro.activeForm;
         if(changedForm){
@@ -1070,7 +1076,7 @@ dojo.declare('gnr.GenroClient', null, {
         if(genro.activeForm){
             genro.activeForm.onFocusElement(wdg);
             if(changedForm){
-                destform.onFocusForm();
+                destform.onFocusForm(focusInPopup);
             }
         }
     },

@@ -60,6 +60,9 @@ class DijitWidgets:
             constraints: Dict with min, max, places, pattern constraints.
             required: If True, the field must be filled in.
             invalidMessage: Message displayed when the value is invalid.
+            keypad: If True, an icon in the field opens a numeric keypad popup.
+            keypad_calculator: If True, that popup is a calculator; implies keypad.
+            keypad_size: 'large' for a coarser touch target on the popup keys.
         """
         ...
 

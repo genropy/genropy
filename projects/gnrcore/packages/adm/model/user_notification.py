@@ -15,15 +15,18 @@ class Table(object):
                     'user.id',relation_name='user_notifications',mode='foreignkey',onDelete='cascade',onDuplicate='ignore')
         tbl.column('notification_id',size='22' ,group='_',name_long='!!Notification').relation(
                     'notification.id',relation_name='notification_users',mode='foreignkey',onDelete='cascade',onDuplicate='ignore')
-        tbl.column('confirmed',dtype='B',name_long='!!Confirmed')
+        tbl.column('confirmed',dtype='B',name_long='!!Confirmed',name_short='!!Conf.')
         tbl.column('notification',dtype='X',name_long='Custom Notification')
 
 
     @public_method
     def getNotification(self,pkey=None):
-        user_id,notification_template,notification_title,confirm_label,notification_bag = self.readColumns(
+        (user_id,notification_template,notification_title,confirm_label,
+         confirm_button_label,cancel_button_label,notification_bag) = self.readColumns(
                                     pkey=pkey,columns="""$user_id,@notification_id.template,@notification_id.title,
-                                                         @notification_id.confirm_label,$notification""")
+                                                         @notification_id.confirm_label,
+                                                         @notification_id.confirm_button_label,
+                                                         @notification_id.cancel_button_label,$notification""")
         usertbl = self.db.table('adm.user')
         source_record = usertbl.record(pkey=user_id).output('bag')
         htmlbuilder = TableTemplateToHtml(usertbl)
@@ -35,7 +38,10 @@ class Table(object):
         notification = notification_bag['body'] or notification
         notification_title = notification_bag['title'] or notification_title
         confirm_label = notification_bag['confirm_label'] or confirm_label
-        return dict(notification=notification,title=notification_title,confirm_label=confirm_label)
+        confirm_button_label = notification_bag['confirm_button_label'] or confirm_button_label
+        cancel_button_label = notification_bag['cancel_button_label'] or cancel_button_label
+        return dict(notification=notification,title=notification_title,confirm_label=confirm_label,
+                    confirm_button_label=confirm_button_label,cancel_button_label=cancel_button_label)
 
 
     @public_method

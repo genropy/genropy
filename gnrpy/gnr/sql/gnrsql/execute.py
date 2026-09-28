@@ -29,6 +29,7 @@ execution helper.
 from __future__ import annotations
 
 import re
+from collections import defaultdict
 from multiprocessing.pool import ThreadPool
 from time import time
 from typing import Any
@@ -70,7 +71,8 @@ class ExecuteMixin(GnrSqlDbBaseMixin):
         Args:
             sql: The SQL statement to execute.  May contain ``:env_*``
                 placeholders that are resolved from ``currentEnv``.
-            sqlargs: Optional dict of SQL parameter bindings.
+            sqlargs: Optional dict of SQL parameter bindings. Missing names
+                resolve to None (SQL NULL); the supplied dict is not mutated.
             cursor: An existing cursor to reuse.  If ``None`` a new one
                 is created from the adapter.
             cursorname: If provided, a named (server-side) cursor is used.
@@ -99,7 +101,7 @@ class ExecuteMixin(GnrSqlDbBaseMixin):
         if storename is False:
             storename = self.rootstore
         storename = storename or envargs.get('env_storename', self.rootstore)
-        sqlargs = envargs
+        sqlargs = defaultdict(lambda: None, envargs)
         sql_comment = self.currentEnv.get('sql_comment') or self.currentEnv.get('user')
 
         for k, v in list(sqlargs.items()):

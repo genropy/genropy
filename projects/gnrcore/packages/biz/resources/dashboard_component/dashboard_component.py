@@ -38,7 +38,7 @@ class DashboardItem(BaseComponent):
 
     @public_method
     def di_buildRemoteItem(self,pane=None,table=None,itemName=None,itemRecord=None,objtypes=None,**kwargs):
-        table = table or itemRecord['table']
+        table = table or (itemRecord['table'] if itemRecord else None)
         if not objtypes:
             itemResources,objtypes = self.di_itemResourceData()
         resource = itemName or itemRecord['resource']
@@ -48,9 +48,11 @@ class DashboardItem(BaseComponent):
             for req in itemInstance.py_requires.split(','):
                 self.mixinComponent(req)
         itemRecord = itemRecord or Bag()
+        #the gallery gives the item its table through the saved item parameters,
+        #a bare dashboardItem() has no other channel than this one
         itemInstance(pane.contentPane(childname='remoteItem'),title=itemRecord['title'],
                                 parameters=itemRecord['parameters'],
-                                itemRecord=itemRecord,**kwargs)
+                                itemRecord=itemRecord,table=table,**kwargs)
 
         
 

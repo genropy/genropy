@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
+  <title>Numeric keypad_16x16</title>
+  <g id="Layer_1" data-name="Layer 1">
+    <rect x="1" y="1" width="4" height="4" rx="1" fill="#515151"/>
+    <rect x="6" y="1" width="4" height="4" rx="1" fill="#515151"/>
+    <rect x="11" y="1" width="4" height="4" rx="1" fill="#515151"/>
+    <rect x="1" y="6" width="4" height="4" rx="1" fill="#515151"/>
+    <rect x="6" y="6" width="4" height="4" rx="1" fill="#1b4d7f"/>
+    <rect x="11" y="6" width="4" height="4" rx="1" fill="#515151"/>
+    <rect x="1" y="11" width="4" height="4" rx="1" fill="#515151"/>
+    <rect x="6" y="11" width="4" height="4" rx="1" fill="#515151"/>
+    <rect x="11" y="11" width="4" height="4" rx="1" fill="#515151"/>
+  </g>
+</svg>

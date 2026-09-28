@@ -43,6 +43,7 @@ def make_site():
         getStatic=lambda name: None,
         default_page=None,
         gnrapp=SimpleNamespace(packages={}, experimentalFlag=lambda group, name: False),
+
     )
     site.resource_loader = ResourceLoader(site)
     site.resources_dirs = [COMMON_RESOURCES]
@@ -58,11 +59,17 @@ def test_get_service_factory_finds_real_implementation():
 
 
 def test_add_service_missing_implementation_raises_clear_error():
-    """No implementations for the service type: a clear error, not a bare TypeError."""
-    handler = BaseServiceType(site=make_site(), service_type='faketype')
-    with pytest.raises(GnrException, match='faketype'):
-        handler.addService('x', implementation='any')
+    """No implementations for the service type: a clear error, not a bare TypeError.
 
+    The error is raised by the use rather than by the registration, so a site
+    that never touches the service still starts; what issue #1386 asked for is
+    that whoever does touch it reads the service type and the reason.
+    """
+    handler = BaseServiceType(site=make_site(), service_type='faketype')
+    service = handler.addService('x', implementation='any')
+    assert service is not None
+    with pytest.raises(GnrException, match='faketype'):
+        service.anymethod()
 
 def test_add_service_ignores_parameters_the_factory_does_not_accept(caplog):
     """authentication/dummy declares no **kwargs: a foreign key must not break it."""

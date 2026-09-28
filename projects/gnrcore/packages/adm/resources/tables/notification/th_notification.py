@@ -8,7 +8,7 @@ class View(BaseComponent):
 
     def th_struct(self,struct):
         r = struct.view().rows()
-        r.fieldcell('title', width='20em')
+        r.fieldcell('title', width='auto')
         r.fieldcell('tag_rule', width='15em')
         r.fieldcell('group_code', width='10em')
         r.fieldcell('dynamic_list', width='6em')
@@ -26,27 +26,45 @@ class View(BaseComponent):
 
 
 class Form(BaseComponent):
+    js_requires = 'adm_notification'
 
     def th_form(self, form):
         bc = form.center.borderContainer()
-        top = bc.borderContainer(region='top',datapath='.record', height='160px')
+        top = bc.borderContainer(region='top',datapath='.record', height='250px')
 
-        fb = top.contentPane(region='center').formbuilder(cols=2, border_spacing='4px', fld_width='100%')
-        fb.field('title', colspan=2)
-        fb.field('tag_rule', tag='checkboxtext', table='adm.htag', popup=True, cols=4, colspan=2)
-        fb.field('group_code', tag='checkboxtext', table='adm.group', popup=True, cols=4, colspan=2)
-        fb.field('confirm_label',width='20em', colspan=2)
-        fb.field('letterhead_id')
-        fb.field('dynamic_list')
-        fb.field('start_date')
-        fb.field('end_date')
-        
+        self.confirmationSettingsPane(top.roundedGroup(region='left',width='320px',
+                                title='!!Confirmation settings'))
+        self.generalSettingsPane(top.roundedGroup(region='center',
+                                title='!!General settings'))
         self.linkedQueryPane(top.roundedGroup(region='right',width='400px', 
                                 title='!![en]Restriction query'))
         
         sc = bc.stackContainer(region='center')
         self.templatePage(sc.framePane(title='!!Template'))
         self.connectedUser(sc.contentPane(title='!!Users'))
+
+    def confirmationSettingsPane(self,pane):
+        """The three captions of the notification dialog, each one with the
+        placeholder spelling out what an empty value means: the notification
+        is the only way an installation talks to a user before letting them
+        in, so the consequences of leaving a caption out have to be readable
+        while editing it, not discovered on the login of somebody else."""
+        fb = pane.formlet(cols=1, gap='8px', item_lbl_side='top', item_fld_width='100%')
+        fb.field('confirm_label',
+                 placeholder='!!If empty no confirmation checkbox is shown')
+        fb.field('confirm_button_label', placeholder='!!Confirm')
+        fb.field('cancel_button_label',
+                 placeholder='!!If empty the cancel button is hidden')
+
+    def generalSettingsPane(self,pane):
+        fb = pane.formlet(cols=2, gap='8px', item_lbl_side='top', item_fld_width='100%')
+        fb.field('title', colspan=2)
+        fb.field('tag_rule', tag='checkboxtext', table='adm.htag', popup=True, cols=4)
+        fb.field('group_code', tag='checkboxtext', table='adm.group', popup=True, cols=4)
+        fb.field('letterhead_id')
+        fb.field('dynamic_list')
+        fb.field('start_date')
+        fb.field('end_date')
 
     def templatePage(self,frame):
         centerpane = frame.center.contentPane(overflow='auto')
@@ -117,7 +135,22 @@ class Form(BaseComponent):
         return self.db.whereTranslator.toHtml(self.db.table('adm.user'),query)
     
     def connectedUser(self,pane):
-        th = pane.plainTableHandler(relation='@notification_users',viewResource='ViewFromNotification',delrow=True,picker='user_id')
+        """The recipients of the notification, each one a preview of it.
+
+        The rows have no form of their own to open: an adm.user_notification
+        is a delivery, not something to edit here. What is worth seeing on a
+        recipient is the notification as it reaches them -- the template is
+        rendered against their own user record -- so a double click builds
+        the very dialog the login shows, in preview mode: the buttons are the
+        ones the user will be given, and neither of them touches the row."""
+        th = pane.plainTableHandler(relation='@notification_users',viewResource='ViewFromNotification',
+                                    delrow=True,picker='user_id',
+                                    view_grid_connect_onRowDblClick="""
+                                        var pkey = this.widget.rowIdByIndex($1.rowIndex);
+                                        if(pkey){
+                                            notificationDialog.open(pkey,true);
+                                        }
+                                        """)
         th.view.top.bar.replaceSlots('vtitle','parentStackButtons')
 
     @public_method
@@ -135,18 +168,13 @@ class FormEmbed(Form):
     def th_form(self, form):
         bc = form.center.borderContainer()
         left = bc.borderContainer(region='left', width='400px', datapath='.record')
-        fb = left.roundedGroup(title='!![en]Notification parameters', region='top', 
-                               height='50%').formbuilder(cols=1)
-        fb.field('title')
-        fb.field('tag_rule', tag='checkboxtext', table='adm.htag', popup=True, cols=4)
-        fb.field('group_code', tag='checkboxtext', table='adm.group', popup=True, cols=4)
-        fb.field('confirm_label',width='20em')
-        fb.field('letterhead_id')
-        fb.field('dynamic_list')
-        fb.field('start_date')
-        fb.field('end_date')
+        self.generalSettingsPane(left.roundedGroup(title='!!General settings',
+                                                   region='top', height='50%'))
+        self.confirmationSettingsPane(left.roundedGroup(title='!!Confirmation settings',
+                                                        region='center'))
 
-        self.linkedQueryPane(left.roundedGroup(region='center', title='!![en]Restriction query'))
+        self.linkedQueryPane(left.roundedGroup(region='bottom', height='60px',
+                                               title='!![en]Restriction query'))
 
         sc = bc.stackContainer(region='center')
         self.templatePage(sc.framePane(title='!!Template'))

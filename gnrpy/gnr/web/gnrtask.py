@@ -135,40 +135,67 @@ class GnrTaskWorker(object):
     def runTask(self, task_execution):
         page = self.site.dummyPage
         self.site.currentPage = page
-        page._db = None
-        page.db
-        log_record = Bag()
-        start_time = datetime.now(timezone.utc)
-        log_record['start_time'] = start_time
-        log_record['task_id'] =task_execution['id']
-        table = task_execution['task_table']
-        task_class = self.db.table('sys.task').getBtcClass(table=table, 
-                                                    command=task_execution['task_command'], 
-                                                    page=page)
-        if not task_class:
-            return
-        taskObj = task_class(page=page,resource_table=page.db.table(table),
-                            batch_selection_savedQuery=task_execution['task_saved_query'])
-        taskparameters = task_execution['task_parameters']
-        with self.db.tempEnv(connectionName='execution'):
-            logger.info("Executing task %s.%s - %s", 
-                        task_execution['table_table'],
-                        task_execution['table_name'],
-                        task_execution['table_command'])
-            taskObj(parameters=Bag(taskparameters),task_execution_record=task_execution)
+        try:
+            page._db = None
+            page.db
+            log_record = Bag()
+            start_time = datetime.now(timezone.utc)
+            log_record['start_time'] = start_time
+            log_record['task_id'] =task_execution['id']
+            table = task_execution['task_table']
+            task_class = self.db.table('sys.task').getBtcClass(table=table,
+                                                        command=task_execution['task_command'],
+                                                        page=page)
+            if not task_class:
+                logger.error("Can't find task class for command %s", task_execution['task_command'])
+                return
+            taskObj = task_class(page=page,resource_table=page.db.table(table),
+                                batch_selection_savedQuery=task_execution['task_saved_query'])
+            taskparameters = task_execution['task_parameters']
+            with self.db.tempEnv(connectionName='execution'):
+                logger.info("Executing task %s.%s - %s",
+                            task_execution['table_table'],
+                            task_execution['table_name'],
+                            task_execution['table_command'])
+                taskObj(parameters=Bag(taskparameters),task_execution_record=task_execution)
+        finally:
+            # currentPage is thread local: the worker loop keeps running after
+            # a failed task, so the entry has to be popped on every exit path
+            # (missing task class, exception) or it leaks forever (#379/#380)
+            self.site.currentPage = None
     
     def start(self):
         while True:
             for te_pkey in self.taskToExecute():
                 logger.info("Starting task %s", te_pkey)
-                with self.tblobj.recordToUpdate(te_pkey,for_update='SKIP LOCKED',
-                                                virtual_columns="""$task_table,
-                                                                    $task_name,
-                                                                    $task_parameters,
-                                                                    $task_command,
-                                                                    $task_saved_query""") as task_execution:
-                    self.runTask(task_execution)
-                    task_execution['end_ts'] = datetime.now(timezone.utc)
-                self.db.commit()
+                try:
+                    with self.tblobj.recordToUpdate(te_pkey,for_update='SKIP LOCKED',
+                                                    virtual_columns="""$task_table,
+                                                                        $task_name,
+                                                                        $task_parameters,
+                                                                        $task_command,
+                                                                        $task_saved_query""") as task_execution:
+                        self.runTask(task_execution)
+                        task_execution['end_ts'] = datetime.now(timezone.utc)
+                    self.db.commit()
+                except Exception as e:
+                    # a failing task used to propagate out of the loop and take
+                    # the whole worker down with it, so every task queued behind
+                    # it was never run either
+                    logger.exception('Task %s failed', te_pkey)
+                    self.db.rollbackAll()
+                    # recordToUpdate writes nothing on the way out of an
+                    # exception, so the row is still the one taskToExecute
+                    # claimed: close it the way btcbase closes an in-batch
+                    # failure, or active_workers keeps counting it forever.
+                    # Releasing start_ts instead would hand it straight back to
+                    # the generator; the retry comes from the scheduler, which
+                    # inserts a fresh execution on its next useful pass
+                    self.tblobj.batchUpdate(dict(is_error=True,
+                                                 errorbag=Bag(dict(error=str(e))),
+                                                 end_ts=datetime.now(timezone.utc)),
+                                            _pkeys=[te_pkey],
+                                            for_update='SKIP LOCKED')
+                    self.db.commit()
             self.db.closeConnection()
             sleep(randrange(self.interval-10,self.interval+10))

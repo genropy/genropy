@@ -15,6 +15,7 @@ import boto3
 import botocore
 from smart_open import open as so_open
 
+from gnr.core.gnrlang import GnrException
 from gnr.lib.services.storage import StorageService, StorageNode
 from gnr.web.gnrbaseclasses import BaseComponent
 
@@ -129,6 +130,7 @@ class Service(StorageService):
         local_readonly = (local or secondary) and not write_in_local
         self.readonly = readonly or local_readonly
         self.versioned = versioned
+        self._content_md5_cache = {}
 
     @property
     def is_versioned(self):
@@ -179,12 +181,18 @@ class Service(StorageService):
 
 
     def md5hash(self,*args):
-        bucket = self._head_object(*args)
-        if bucket:
-            etag = bucket['ETag'][1:-1]
-            if len(etag) == 32:
-                return etag
-        return None
+        head = self._head_object(*args)
+        if not head:
+            return None
+        etag = head['ETag'][1:-1]
+        if len(etag) == 32:
+            return etag
+        #multipart upload (smart_open always writes one): the ETag is not the content md5
+        #etag only keys the cache: a rewrite gets a new one, so the hash cannot go stale
+        key = (etag,) + args
+        if key not in self._content_md5_cache:
+            self._content_md5_cache[key] = super().md5hash(*args)
+        return self._content_md5_cache[key]
 
     def exists(self, *args):
         return self.isfile(*args) or self.isdir(*args)
@@ -322,10 +330,10 @@ class Service(StorageService):
 
     def url(self, *args , **kwargs):
         kwargs = kwargs or {}
-        _content_disposition = kwargs.get('_content_disposition') or 'inline'
-        _download = kwargs.get('_download')
-        if _download:
-            kwargs['_content_disposition'] = "attachment; filename=%s" % self.basename(*args)
+        if kwargs.get('_download') or kwargs.get('download'):
+            _content_disposition = "attachment; filename=%s" % self.basename(*args)
+        else:
+            _content_disposition = kwargs.get('_content_disposition') or 'inline'
         internal_path = self.internal_path(*args)
         _content_type = mimetypes.guess_type(internal_path)[0]
         expiration = kwargs.pop('expiration', self.url_expiration)
@@ -370,14 +378,19 @@ class Service(StorageService):
             Params={'Bucket': self.bucket,'Key': internal_path},
             ExpiresIn=expiration)
 
+    def autocreate(self, *args, **kwargs):
+        if self.readonly:
+            return
+        return super().autocreate(*args, **kwargs)
+
     def open(self, *args, **kwargs):
         kwargs['mode'] = kwargs.get('mode', 'rb')
         #version_id = kwargs.pop('version_id',None)
-        if self.readonly:
-            if 'b' in kwargs['mode']:
-                kwargs['mode'] = 'rb'
-            else:
-                kwargs['mode'] = 'r'
+        if self.readonly and set(kwargs['mode']) & set('wax+'):
+            raise GnrException('Storage service %(service_name)s is read-only: '
+                               'cannot write s3://%(bucket)s/%(key)s',
+                               service_name=self.service_name, bucket=self.bucket,
+                               key=self.internal_path(*args))
         so_open.DEFAULT_BUFFER_SIZE = 1024 * 1024
         version_id = kwargs.pop('version_id',None)
         return so_open("s3://%s/%s"%(self.bucket,self.internal_path(*args)),

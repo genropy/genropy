@@ -216,7 +216,7 @@ class TableHandlerForm(BaseComponent):
         draftIfInvalid= options.pop('draftIfInvalid',False)
         allowSaveInvalid= options.pop('allowSaveInvalid',draftIfInvalid)
         avoidFloatingMessage= options.pop('avoidFloatingMessage',draftIfInvalid)
-        draftMarker = options.pop('draftMarker', False)
+        draftMarker = options.pop('draftMarker', 'bar')
         formCaption_kwargs = dictExtract(options,'formCaption_',pop=True) 
         formCaption = options.pop('formCaption',formCaption_kwargs)
 

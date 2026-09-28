@@ -1,3 +1,4 @@
+from gnr.core.gnrdecorator import public_method
 from gnr.web.gnrbaseclasses import BaseComponent
 
 
@@ -69,3 +70,40 @@ class FormWizard(BaseComponent):
 
     def th_options(self):
         return dict(dialog_height='420px', dialog_width='700px')
+
+
+class FormWizardResume(FormWizard):
+    """groupletWizardForm: the wizard owns the form (no toolbar, no padlock,
+    a save on every advance) and a saved ticket reopens on its step."""
+
+    def th_form(self, form):
+        form.groupletWizardForm(
+            frameCode='ticket_wizard_resume',
+            grouplets_root='wizard_grouplets',
+            resumeStepField='wizard_step',
+            remote_ticket_note='resume test',
+            recap_remote_subject='=#FORM.record.subject',
+            draftConfirm=True, backToDraft=True,
+            completeLabel='Complete Ticket')
+
+    @public_method
+    def th_onLoading(self, record, newrecord, loadingParameters, recInfo):
+        if newrecord:
+            record['__is_draft'] = True
+
+
+class FormWizardLeft(FormWizardResume):
+    """FormWizardResume with the steps in a rail on the left."""
+
+    def th_form(self, form):
+        form.groupletWizardForm(
+            frameCode='ticket_wizard_left',
+            grouplets_root='wizard_grouplets',
+            resumeStepField='wizard_step',
+            recap_remote_subject='=#FORM.record.subject',
+            draftConfirm=True, backToDraft=True,
+            stepperPosition='left',
+            completeLabel='Complete Ticket')
+
+    def th_options(self):
+        return dict(dialog_height='420px', dialog_width='820px')

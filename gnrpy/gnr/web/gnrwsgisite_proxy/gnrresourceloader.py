@@ -133,6 +133,10 @@ class ResourceLoader(object):
         page_class = self.get_page_class(basepath=info.basepath,relpath=info.relpath, pkg=info.pkg,
                                         avoid_module_cache=_avoid_module_cache,
                                         request_args=info.request_args,request_kwargs=request_kwargs)
+        if getattr(page_class, '__gramlot_page__', False):
+            from gnr.web.gramlotpage import GramlotPage
+            if issubclass(page_class, GramlotPage):
+                return page_class(site=self.site, request_args=info.request_args)
         class_info = dict(basepath=info.basepath,relpath=info.relpath, pkg=info.pkg,
                             request_args=info.request_args,request_kwargs=request_kwargs)
         page = page_class(site=self.site, request=request, response=response,
@@ -186,6 +190,10 @@ class ResourceLoader(object):
         page_module = gnrImport(module_path, avoidDup=True,silent=False,avoid_module_cache=avoid_module_cache)
         page_factory = page_factory or getattr(page_module, 'page_factory', GnrWebPage)
         custom_class = getattr(page_module, 'GnrCustomWebPage')
+        if getattr(custom_class, '__gramlot_page__', False):
+            from gnr.web.gramlotpage import GramlotPage
+            if issubclass(custom_class, GramlotPage):
+                return custom_class
         mainPkg = pkg
         if hasattr(custom_class,'getMainPackage'):
             kw = dict()

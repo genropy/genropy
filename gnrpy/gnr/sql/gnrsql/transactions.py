@@ -308,6 +308,11 @@ class TransactionMixin(GnrSqlDbBaseMixin):
         """Run ``ANALYZE`` on the database to update query planner statistics."""
         self.adapter.analyze()
 
-    def vacuum(self) -> None:
-        """Run ``VACUUM`` on the database to reclaim storage."""
-        self.adapter.vacuum()
+    def vacuum(self, table: str = '', full: bool = False) -> None:
+        """Run ``VACUUM ANALYZE`` on the database, or on ``table``, to reclaim storage.
+
+        Args:
+            table: schema-qualified SQL table name (``sqlfullname``); empty for the whole database.
+            full: If ``True`` run ``VACUUM FULL``, returning the space to the filesystem.
+        """
+        self.adapter.vacuum(table=table, full=full)

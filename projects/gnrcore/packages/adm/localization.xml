@@ -109,9 +109,9 @@
 				<en_last_used fr="Dernière occasion" de="Zuletzt verwendeten" en="Last used" it="Ultimo uso" base="Last used"/>
 				<en_holes fr="Trous" de="Löcher" en="Holes" it="Holes" base="Holes"/>
 				<en_errors fr="Erreurs" de="Fehler" en="Errors" it="Errori" base="Errors"/>
-				<en_missing_s_mandatory_for_counter_s fr="Manquant% s. Obligatoire pour compteur% s" de="% S fehlt. Obligatorisch für Gegen% s" en="Missing [41]. Mandatory for counter [42]" it="Manca% s. Obbligatorio per contatore% s" base="Missing %s. Mandatory for counter %s"/>
-				<en_missing_date_s_for_counter_s fr="Manquant jour% s pour le compteur% s" de="Fehlende Datum% s für% s Zähler" en="Missing date [43] for counter [44]" it="Data mancante% s per il contatore% s" base="Missing date %s for counter %s"/>
-				<en_incompatible_date_assigning_fieldname_s_counter fr="Le compteur de la date attribution Incompatible% (fieldname)" de="Inkompatible Datum Zuweisen% (fieldname) s Gegen" en="Incompatible date assigning [45] counter" it="Data incompatibile assegnazione% (fieldname) s contatore" base="Incompatible date assigning %(fieldname)s counter"/>
+				<en_missing_s_mandatory_for_counter_s fr="%s manquant. Obligatoire pour le compteur %s" de="%s fehlt. Obligatorisch für den Zähler %s" en="Missing %s. Mandatory for counter %s" it="Manca %s. Obbligatorio per il contatore %s" base="Missing %s. Mandatory for counter %s"/>
+				<en_missing_date_s_for_counter_s fr="Date %s manquante pour le compteur %s" de="Fehlendes Datum %s für den Zähler %s" en="Missing date %s for counter %s" it="Data mancante %s per il contatore %s" base="Missing date %s for counter %s"/>
+				<en_incompatible_date_assigning_fieldname_s_counter fr="Date incompatible pour l'attribution du compteur %(fieldname)s" de="Inkompatibles Datum bei der Zuweisung des Zählers %(fieldname)s" en="Incompatible date assigning %(fieldname)s counter" it="Data incompatibile per l'assegnazione del contatore %(fieldname)s" base="Incompatible date assigning %(fieldname)s counter"/>
 		</counter>
 		<day path="model/day.py" ext="py">
 			<en_days base="Days" en="Days" it="Giorni"/>
@@ -199,6 +199,10 @@
 				<en_title base="Title" de="Titel" en="Title" fr="Titre" it="Titolo"/>
 				<en_template fr="Modèle" de="Schablone" en="Template" it="Template" base="Template" es="plantilla"/>
 				<en_confirm_label fr="Confirmez étiquette" de="Label bestätigen" en="Confirm label" it="Etichetta di conferma" base="Confirm label"/>
+				<en_confirm_button_label base="Confirm button label" en="Confirm button label" it="Etichetta del bottone di conferma"/>
+				<en_confirm fr="Confirmer" en="Confirm" de="Bestätigen" it="Conferma" base="Confirm" zh="确认"/>
+				<en_cancel_button_label base="Cancel button label" en="Cancel button label" it="Etichetta del bottone di annullamento"/>
+				<en_cancel base="Cancel" de="Stornieren" en="Cancel" fr="Annuler" it="Annulla"/>
 				<en_tag_rule fr="règle de Tag" de="Tag-Regel" en="Tag rule" it="Regola Tag" base="Tag rule"/>
 				<en_group_code base="Group code"/>
 				<en_for_all_users fr="Pour tous les utilisateurs" de="Für alle Benutzer" en="For all users" it="Per tutti gli utenti" base="For all users"/>
@@ -206,6 +210,10 @@
 				<en_linked_query base="Linked query" it="Query collegata" en="Linked query" zh="关联查询"/>
 				<en_dynamic_list base="Dynamic list" en="Dynamic list" it="Lista dinamica"/>
 				<en_dynamic base="Dynamic" en="Dynamic" it="Dinamica"/>
+				<en_start_date fr="Date De Début" de="Anfangsdatum" en="Start date" it="Data Di Inizio" base="Start Date" zh="开始日期"/>
+				<en_start base="Start" en="Start" de="Anfang" fr="Début" it="Inizio"/>
+				<en_end_date fr="Date De Fin" de="End Date" en="End date" it="Data Di Fine" base="End Date" zh="结束日期"/>
+				<en_end base="End" en="End" de="Ende" fr="Fin" it="Fine"/>
 				<en_confirmed_users base="Confirmed users" en="Confirmed users" it="Utenti confermati"/>
 				<en_conf_users base="Conf.users" en="Conf.users" it="Utenti conf."/>
 				<en_pending_users base="Pending users" en="Pending users" it="Utenti da confermare"/>
@@ -290,7 +298,7 @@
 				<en_custom_groups base="Custom groups" en=""/>
 				<en_name base="Name" de="Name" en="Name" fr="Nom" it="Nome"/>
 				<en_recover_email base="Recover email" en=""/>
-				<en_username_cannot_be_set_to_null_username_s base="Username cannot be set to null %(username)s" en="Username cannot be set to null [46]" it="Il nome utente non può essere impostato su null %(username)s"/>
+				<en_username_cannot_be_set_to_null_username_s base="Username cannot be set to null %(username)s" en="Username cannot be set to null %(username)s" it="Il nome utente non può essere impostato su null %(username)s"/>
 		</user>
 		<user_access_group path="model/user_access_group.py" ext="py">
 			<en_user_access fr="l'accès de l'utilisateur" de="Benutzerzugang" en="User access" it="Accesso utente" base="User access"/>
@@ -315,6 +323,7 @@
 				<en_user base="User" de="Benutzer" en="User" fr="Utilisateur" it="Utente"/>
 				<en_notification fr="Notification" de="Benachrichtigung" en="Notification" it="Notifica" base="Notification"/>
 				<en_confirmed fr="Confirmé" de="Bestätigt" en="Confirmed" it="Confermato" base="Confirmed"/>
+				<en_conf_ base="Conf." en="Conf." it="Conf."/>
 		</user_notification>
 		<user_tag path="model/user_tag.py" ext="py">
 			<en_user_tag fr="tag de l'utilisateur" de="Benutzer Tag-" en="User tag" it="Tag utente" base="User tag"/>
@@ -350,6 +359,11 @@
 	</model>
 
 	<resources>
+		<adm_notification path="resources/adm_notification.js" ext="js">
+			<en_warning base="Warning" de="Warnung" en="Warning" fr="Avertissement" it="Avvertimento"/>
+				<en_if_you_do_not_confirm_you_will_be_logged_out_of_the_application base="If you do not confirm you will be logged out of the application" en="If you do not confirm you will be logged out of the application" it="Se non confermi verrai disconnesso dall'applicativo"/>
+				<en_confirm fr="Confirmer" en="Confirm" de="Bestätigen" it="Conferma" base="Confirm" zh="确认"/>
+		</adm_notification>
 		<frameindex path="resources/frameindex.py" ext="py">
 			<en_invalid_access fr="Accès non valide" de="Ungültige Zugang" en="Invalid Access" it="Accesso non valido" base="Invalid Access"/>
 				<en_not_allowed_to_use_this_page base="Not allowed to use this page" it="Non abilitato in questa pagina" en="Not allowed to use this page"/>
@@ -369,7 +383,7 @@
 				<en_open_helper_editor_in_current base="Open helper editor in current" en=""/>
 				<en_toggle_dev_items_in_root base="Toggle dev items in root" en=""/>
 				<en_toggle_dev_items_in_current base="Toggle dev items in current" en=""/>
-				<en_s_preference _tag="en__s_preference" fr="%s préférence" en="[47] preference" de="%s Präferenz" it="%s preferenza" base="%s preference"/>
+				<en_s_preference _tag="en__s_preference" fr="%s préférence" en="%s preference" de="%s Präferenz" it="%s preferenza" base="%s preference"/>
 				<en_help base="Help" de="Hilfe" en="Help" fr="Aider" it="Aiuto"/>
 				<en_open_documentation base="Open documentation" en="Open documentation" it="Apri documentazione"/>
 				<en_ask_for_help base="Ask for help" en="Ask for help" it="Chiedi aiuto"/>
@@ -552,11 +566,11 @@
 								<en_bottom fr="Bas" de="Boden" en="Bottom" it="Fondo" base="Bottom"/>
 								<en_left fr="Gauche" de="Links" en="Left" it="Uscita" base="Left"/>
 								<en_right fr="Droite" de="Recht" en="Right" it="Destra" base="Right"/>
-								<en_s_height _tag="en__s_height" fr="%s hauteur" en="[48] height" de="%s Höhe" it="%s Altezza" base="%s height"/>
-								<en_s _tag="en__s" fr="% S" en="[29]" de="% S" it="% S" base="%s"/>
+								<en_s_height _tag="en__s_height" fr="%s hauteur" en="%s height" de="%s Höhe" it="%s Altezza" base="%s height"/>
+								<en_s _tag="en__s" fr="% S" en="%s" de="% S" it="% S" base="%s"/>
 								<en_center_height fr="Hauteur de pointes" de="Spitzenhöhe" en="Center height" it="Altezza di punte" base="Center height"/>
 								<en_center_width fr="La largeur centrale" de="Spitzenweite" en="Center width" it="Larghezza Centro" base="Center width"/>
-								<en_s_width _tag="en__s_width" fr="%s Largeur" en="[49] width" de="%s Breite" it="%s larghezza" base="%s width"/>
+								<en_s_width _tag="en__s_width" fr="%s Largeur" en="%s width" de="%s Breite" it="%s larghezza" base="%s width"/>
 				</th_htmltemplate>
 			</htmltemplate>
 				<install_checklist>
@@ -574,7 +588,10 @@
 								<en_linked_query base="Linked query" it="Query collegata" en="Linked query" zh="关联查询"/>
 								<en_confirm fr="Confirmer" en="Confirm" de="Bestätigen" it="Conferma" base="Confirm" zh="确认"/>
 								<en_add_linked_query base="Add linked query"/>
-								<en_notification_parameters base="Notification parameters"/>
+								<en_confirmation_settings base="Confirmation settings" en="Confirmation settings" it="Impostazioni di conferma"/>
+								<en_general_settings base="General settings" en="General settings" it="Impostazioni generali"/>
+								<en_if_empty_no_confirmation_checkbox_is_shown base="If empty no confirmation checkbox is shown" en="If empty no confirmation checkbox is shown" it="Se vuoto non viene mostrata la casella di conferma"/>
+								<en_if_empty_the_cancel_button_is_hidden base="If empty the cancel button is hidden" en="If empty the cancel button is hidden" it="Se vuoto il bottone di annullamento non viene mostrato"/>
 				</th_notification>
 			</notification>
 				<served_page>
@@ -635,7 +652,6 @@
 				<user_notification>
 				<th_user_notification path="resources/tables/user_notification/th_user_notification.py" ext="py">
 					<en_username fr="Nom d'utilisateur" de="Benutzername" en="Username" it="Nome utente" base="Username"/>
-								<en_conf_ base="Conf." it="Conf."/>
 				</th_user_notification>
 			</user_notification>
 				<user_setting>

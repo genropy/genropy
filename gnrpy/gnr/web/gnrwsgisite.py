@@ -26,7 +26,7 @@ from gnr.core.gnrbag import Bag
 from gnr.core import gnrstring
 from gnr.core.gnrlang import GnrException, GnrDebugException
 from gnr.core.gnrlang import getUuid, ThreadedDict
-from gnr.core.gnrdecorator import deprecated
+from gnr.core.gnrdecorator import public_method, deprecated
 from gnr.core.gnrconfig import getGnrConfig,getEnvironmentItem
 from gnr.core.gnrsys import expandpath
 from gnr.core.gnrstring import boolean
@@ -44,7 +44,7 @@ from gnr.web.gnrwsgisite_proxy.gnrstatichandler import StaticHandlerManager
 from gnr.web.gnrwsgisite_proxy.gnrpwahandler import PWAHandler
 from gnr.web.daemon.siteregister_client import SiteRegisterClient
 from gnr.web.daemon.siteregister import DEFAULT_PAGE_MAX_AGE
-from gnr.web.gnrwsgisite_proxy.gnrwebsockethandler import WsgiWebSocketHandler
+from gnr.web.gnrwsgisite_proxy.gnrwebsockethandler import WsgiWebSocketHandler, websocketHandlerClass
 from gnr.web.gnrwsgisite_proxy.datacollector import DataCollector
 
 try:
@@ -465,7 +465,13 @@ class GnrWsgiSite(object):
 
         self.default_page = self.config['wsgi?default_page'] or 'sys/default'
         self.root_static = self.config['wsgi?root_static']
+        self.websocket_handler_class = websocketHandlerClass()
         self.websockets= boolean(self.config['wsgi?websockets']) or websockets
+        if not self.websockets and self.websocket_handler_class is not WsgiWebSocketHandler:
+            # The selected provider terminates the socket in the server that
+            # serves the site: there is no daemon to reach and no config word to
+            # write, so the site has WebSockets because the provider says so.
+            self.websockets = True
         self.allConnectionsFolder = os.path.join(self.site_path, 'data', '_connections')
         self.allUsersFolder = os.path.join(self.site_path, 'data', '_users')
 
@@ -622,7 +628,7 @@ class GnrWsgiSite(object):
         if not self.websockets:
             return
         if not hasattr(self,'_wsk'):
-            wsk = WsgiWebSocketHandler(self)
+            wsk = self.websocket_handler_class(self)
             if self.websockets=='required' or wsk.checkSocket():
                 self._wsk = wsk
             else:
@@ -1062,6 +1068,36 @@ class GnrWsgiSite(object):
         except Exception:
             logger.warning('Failed to send error to endpoint %s', endpoint)
 
+    @deprecated(message='use errorHandler')
+    def writeException(self, exception=None, traceback=None):
+        return self._writeErrorRecord(exception=exception, error_type='EXC',
+                                      traceback=traceback)
+
+    @public_method
+    @deprecated(message='use errorHandler')
+    def writeError(self, description=None, error_type=None, **kwargs):
+        return self._writeErrorRecord(description=description,
+                                      error_type=error_type or 'ERR',
+                                      error_kwargs=kwargs)
+
+    def _writeErrorRecord(self, error_kwargs=None, **kwargs):
+        try:
+            if error_kwargs is not None:
+                error_data = Bag({k: v for k, v in self.db.currentEnv.items()
+                                  if not k.startswith('_')})
+                error_data.update(error_kwargs)
+                kwargs['traceback'] = error_data
+            error_id = self.errorHandler(**kwargs)
+            if not error_id or not self.db.package('sys'):
+                return None
+            with self.db.tempEnv(connectionName='system', storename=self.db.rootstore):
+                return self.db.table('sys.error').record(
+                    error_code=error_id, ignoreMissing=True,
+                    ignoreDuplicate=True).output('dict') or None
+        except Exception:
+            logger.exception('Failed to write error %s',
+                             kwargs.get('description') or kwargs.get('exception'))
+
 
     def loadResource(self, pkg, *path):
         """TODO
@@ -1358,6 +1394,14 @@ class GnrWsgiSite(object):
                 logger.exception("wsgisite.dispatcher: self.resource_loader failed with non-HTTP exception.")
                 logger.exception(str(exc))
                 raise
+
+            if getattr(page, '__gramlot_page__', False):
+                from gnr.web.gramlotpage import GramlotPage
+                if isinstance(page, GramlotPage):
+                    try:
+                        return page.serve(request, response)(environ, start_response)
+                    finally:
+                        self.cleanup()
 
             if not (page and page._call_handler):
                 return self.not_found_exception(environ, start_response)
@@ -2046,6 +2090,12 @@ class GnrWsgiSite(object):
             filename = '%s%s' %(filename,original_ext)
             file_ext = original_ext
         file_node = self.storageNode(uploadPath, filename,autocreate=-1)
+        service = file_node.service
+        storage_params = self.storage_handler.getStorageParameters(service.service_name) or {}
+        if (service.service_implementation == 'aws_s3' and service.readonly
+                and not storage_params.get('readonly')):
+            file_node = self.storageNode('site:%s/%s' % (service.service_name, file_node.path),
+                                         autocreate=-1)
         file_path = file_node.fullpath
         file_url = file_node.internal_url()
         with file_node.open(mode='wb') as outfile:
