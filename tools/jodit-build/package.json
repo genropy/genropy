@@ -1,0 +1,9 @@
+{
+  "name": "genropy-jodit-build",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Pinned Jodit distribution vendored into Genropy at genropy/resources/js_libs/jodit/.",
+  "dependencies": {
+    "jodit": "4.15.13"
+  }
+}

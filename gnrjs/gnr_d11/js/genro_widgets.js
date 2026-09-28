@@ -1961,13 +1961,9 @@ dojo.declare("gnr.widgets.SimpleTextarea", gnr.widgets.baseDojo, {
                 bottom._('div',{_class:'TAeditorPalette',title:'Open in a floating editor',connect_onclick:function(){
                     genro.dlg.floatingEditor(textarea,{});
                 }},{'doTrigger':false})
-                tag = 'ckeditor';
+                tag = 'joditEditor';
                 objectPop(areaAttr,'tag')
                 areaAttr['toolbar'] = false;
-                areaAttr['config_height']=objectPop(areaAttr,'height');
-                areaAttr['config_width']=objectPop(areaAttr,'width');
-
-
                 this._dojotag = null;
             }
             var textarea = top._(tag,areaAttr,notrigger).getParentNode();
@@ -2130,7 +2126,7 @@ dojo.declare("gnr.widgets.SimpleTextarea", gnr.widgets.baseDojo, {
                 },
                 onEnd: () => {
                     if(dictated){
-                        genro.wdg.getHandler('ckeditor').onSpeechEnd(editorSourceNode, dictated);
+                        genro.wdg.getHandler('joditEditor').onSpeechEnd(editorSourceNode, dictated);
                     }
                     stopListening();
                 }
