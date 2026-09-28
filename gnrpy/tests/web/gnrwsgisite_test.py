@@ -172,8 +172,25 @@ class TestGnrWsgiSite(BaseGnrDaemonTest):
         finally:
             self._drop_error_row(rec['id'])
 
-    def test_deprecated_write_error_never_raises(self):
-        # error_id clashes with the one errorHandler generates, so the write raises
+    def test_deprecated_write_error_keeps_kwargs_in_error_data(self):
+        with pytest.warns(DeprecationWarning, match='writeError'):
+            rec = self.site.writeError(description='legacy kwargs', extra_info='KWVAL',
+                                       loglevel='warning', error_id='legacy_id')
+        assert rec and rec['id']
+        try:
+            self.site.db.closeConnection()
+            stored = self.site.db.table('sys.error').record(pkey=rec['id']).output('dict')
+            error_data = str(stored['error_data'])
+            assert 'KWVAL' in error_data
+            assert 'legacy_id' in error_data
+            assert stored['error_code'] != 'legacy_id'
+        finally:
+            self._drop_error_row(rec['id'])
+
+    def test_deprecated_write_error_never_raises(self, monkeypatch):
+        def failing_error_handler(**kwargs):
+            raise RuntimeError('error handler failure')
+        monkeypatch.setattr(self.site, 'errorHandler', failing_error_handler)
         with pytest.warns(DeprecationWarning):
-            rec = self.site.writeError(description='clashing kwargs', error_id='forced')
+            rec = self.site.writeError(description='failing write')
         assert rec is None

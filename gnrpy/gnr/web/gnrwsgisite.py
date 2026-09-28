@@ -1077,10 +1077,16 @@ class GnrWsgiSite(object):
     @deprecated(message='use errorHandler')
     def writeError(self, description=None, error_type=None, **kwargs):
         return self._writeErrorRecord(description=description,
-                                      error_type=error_type or 'ERR', **kwargs)
+                                      error_type=error_type or 'ERR',
+                                      error_kwargs=kwargs)
 
-    def _writeErrorRecord(self, **kwargs):
+    def _writeErrorRecord(self, error_kwargs=None, **kwargs):
         try:
+            if error_kwargs is not None:
+                error_data = Bag({k: v for k, v in self.db.currentEnv.items()
+                                  if not k.startswith('_')})
+                error_data.update(error_kwargs)
+                kwargs['traceback'] = error_data
             error_id = self.errorHandler(**kwargs)
             if not error_id or not self.db.package('sys'):
                 return None
