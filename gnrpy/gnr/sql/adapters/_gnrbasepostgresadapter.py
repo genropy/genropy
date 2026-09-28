@@ -842,7 +842,8 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
             pg_get_expr(ix.indpred, t.oid) AS where_clause,
             i.reloptions AS with_options,
             array_position(ix.indkey, a.attnum) AS ordinal_position,
-            con.contype AS constraint_type
+            con.contype AS constraint_type,
+            ix.indexprs IS NOT NULL AS has_expressions
         FROM
             pg_class t
             JOIN pg_index ix ON t.oid = ix.indrelid
@@ -866,7 +867,7 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
         for row in self.raw_fetch(query, (schemas,)):
             (schema_name, table_name, index_name, column_name, is_unique, 
             desc_order, index_method, tablespace, where_clause, 
-            with_options, ordinal_position, constraint_type) = row
+            with_options, ordinal_position, constraint_type, has_expressions) = row
             
             # Key for schema and table
             table_key = (schema_name, table_name)
@@ -880,7 +881,8 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
                     "where": where_clause,
                     "with_options": {},
                     "columns": {},
-                    "constraint_type": constraint_type  # p, u, etc., or None for manual indexes
+                    "constraint_type": constraint_type,  # p, u, etc., or None for manual indexes
+                    "expressions": has_expressions
                 }
             
             # Aggiunge le colonne e il relativo ordinamento

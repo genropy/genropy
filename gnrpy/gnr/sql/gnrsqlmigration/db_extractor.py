@@ -44,6 +44,11 @@ and return already normalized data.
 Constraint handling
 --------------------
 
+A UNIQUE on a single plain column, whether a constraint or an index, is
+the column's ``unique`` attribute, and the model decides it: if the model
+does not say ``unique=True``, ``migrate`` removes it. Every other UNIQUE
+(multi-column, partial, on expressions) is never touched.
+
 Constraints are processed by type:
 
 - **PRIMARY KEY**: sets ``pkeys`` on the table and marks PK columns
@@ -67,8 +72,8 @@ Index handling
 Indexes are filtered: those with an associated ``constraint_type``
 (e.g. indexes automatically created by PK or UNIQUE) are skipped,
 because they are already represented by the corresponding constraint.
-A non-partial UNIQUE INDEX on a single column enforces the same
-uniqueness as a UNIQUE constraint, and is represented the same way.
+A non-partial UNIQUE INDEX on a single column and no expression enforces
+the same uniqueness as a UNIQUE constraint, and is represented the same way.
 
 Non-existing database
 ----------------------
@@ -378,9 +383,10 @@ class DbExtractor(object):  # REVIEW: old-style (object) base class — unnecess
                 # Skip indexes automatically created by constraints (PK, UNIQUE)
                 if index_attributes.get('constraint_type'):
                     continue
+                has_expressions = index_attributes.pop('expressions', False)
                 indexed_columns = list(index_attributes['columns'].keys())
                 if (index_attributes.get('unique') and len(indexed_columns) == 1
-                        and not index_attributes.get('where')
+                        and not index_attributes.get('where') and not has_expressions
                         and indexed_columns[0] != table_json['attributes']['pkeys']):
                     self.mark_column_unique(table_json, indexed_columns[0], 'index', index_name)
                     continue

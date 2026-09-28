@@ -967,6 +967,18 @@ class BaseGnrSqlMigration(BaseGnrSqlTest):
             "WHERE ix.indrelid = 'alfa.alfa_legacy_unique'::regclass AND a.attname = 'code'").fetchall()
         assert [r[0] for r in code_indexes] == ['idx_a3431371']
 
+    def test_13e_unique_index_on_an_expression_survives(self):
+        """A hand-made unique index mixing a column and an expression is not the column's uniqueness."""
+        pkg = self.src.package('alfa')
+        tbl = pkg.table('expr_unique', pkey='id')
+        tbl.column('id', dtype='serial')
+        tbl.column('code', size=':10')
+        self.checkChanges(apply_only=True)
+        self.db.execute('CREATE UNIQUE INDEX alfa_expr_unique_code_lower '
+                        'ON alfa.alfa_expr_unique (code, lower(code))')
+        self.db.commit()
+        self.checkChanges('')
+
 
 @pytest.mark.skipif(gnrpostgres.SqlDbAdapter.not_capable(Capabilities.MIGRATIONS),
                     reason="Adapter doesn't support migrations")
