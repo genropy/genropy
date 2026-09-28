@@ -46,8 +46,8 @@ Constraint handling
 
 A UNIQUE on a single plain column, whether a constraint or an index, is
 the column's ``unique`` attribute, and the model decides it: if the model
-does not say ``unique=True``, ``migrate`` removes it. Every other UNIQUE
-(multi-column, partial, on expressions) is never touched.
+does not say ``unique=True``, ``migrate`` removes it. Every other index
+or constraint (multi-column, partial, on expressions) is never touched.
 
 Constraints are processed by type:
 

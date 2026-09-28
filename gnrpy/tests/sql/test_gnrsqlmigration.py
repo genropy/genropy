@@ -979,6 +979,25 @@ class BaseGnrSqlMigration(BaseGnrSqlTest):
         self.db.commit()
         self.checkChanges('')
 
+    def test_13f_indexed_unique_is_the_column_uniqueness(self):
+        """indexed=dict(unique=True) on a single column is the column's unique=True."""
+        pkg = self.src.package('alfa')
+        tbl = pkg.table('indexed_unique', pkey='id')
+        tbl.column('id', dtype='serial')
+        tbl.column('code', size=':10', indexed=dict(unique=True))
+        check_value = ('CREATE TABLE "alfa"."alfa_indexed_unique"(\n "id" serial8 NOT NULL,\n'
+                       ' "code" character varying(10),\n PRIMARY KEY (id)\n);\n'
+                       'ALTER TABLE "alfa"."alfa_indexed_unique"\n'
+                       'ADD CONSTRAINT "cst_56bec1d2" UNIQUE ("code");')
+        self.checkChanges(check_value)
+
+    def test_13g_indexed_unique_legacy_index_converges(self):
+        """The unique index an older migrate created for indexed=dict(unique=True) needs no DDL."""
+        self.db.execute('ALTER TABLE alfa.alfa_indexed_unique DROP CONSTRAINT "cst_56bec1d2"')
+        self.db.execute('CREATE UNIQUE INDEX idx_8b2c14e1 ON alfa.alfa_indexed_unique USING btree (code)')
+        self.db.commit()
+        self.checkChanges('')
+
 
 @pytest.mark.skipif(gnrpostgres.SqlDbAdapter.not_capable(Capabilities.MIGRATIONS),
                     reason="Adapter doesn't support migrations")
