@@ -2060,6 +2060,12 @@ class GnrWsgiSite(object):
             filename = '%s%s' %(filename,original_ext)
             file_ext = original_ext
         file_node = self.storageNode(uploadPath, filename,autocreate=-1)
+        service = file_node.service
+        storage_params = self.storage_handler.getStorageParameters(service.service_name) or {}
+        if (service.service_implementation == 'aws_s3' and service.readonly
+                and not storage_params.get('readonly')):
+            file_node = self.storageNode('site:%s/%s' % (service.service_name, file_node.path),
+                                         autocreate=-1)
         file_path = file_node.fullpath
         file_url = file_node.internal_url()
         with file_node.open(mode='wb') as outfile:
