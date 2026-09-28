@@ -154,7 +154,7 @@ class AppLocalizer(object):
             baselang = lockey.split('_',1)[0]
             for lang in languages:
                 if lang==baselang:
-                    locdict[lang] = base_to_translate
+                    locdict[lang] = locdict['base']
                     continue
                 if not locdict.get(lang):
                     if not self.translator:
