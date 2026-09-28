@@ -73,7 +73,7 @@ class Package(GnrDboPackage):
 """
 
 CUSTOM_ATTRIBUTE = """class Package(object):
-    required_packages = ['gnrcore:email']
+    required_packages = ['gnrcore:flib']
 """
 
 
@@ -209,11 +209,11 @@ class TestRequiredPackagesDeclared(BaseGnrTest):
         custom_root = self._custom(app, 'biz', CUSTOM_ATTRIBUTE)
         try:
             app = self._app('biz', 'adm', 'sys')
-            assert app.packages['biz'].required_packages() == ['gnrcore:email']
-            assert 'email' in app.packages
+            assert app.packages['biz'].required_packages() == ['gnrcore:flib']
+            assert 'flib' in app.packages
             static = self._app('biz', checkdepcli=True, static_closure=True)
-            assert static.package_closure()['email']['required_by'] == set(['biz'])
-            assert static.package_closure()['adm']['required_by'] == set(['email'])
+            assert static.package_closure()['flib']['required_by'] == set(['biz'])
+            assert 'adm' not in static.package_closure()
         finally:
             shutil.rmtree(custom_root)
 
