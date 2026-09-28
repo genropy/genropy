@@ -117,3 +117,31 @@ test('a memory form keeps the attributes of a Bag it writes back', () => {
         (d, Bag) => d.setItem('_righe_bozza', new Bag()));
     assert.equal(sourceBag.getNode('_righe_bozza').attr._sendback, true);
 });
+
+test('an Item memory form drops a displayed value the scalar no longer carries', () => {
+    const sourceBag = saveMemory('Item',
+        b => b.setItem('city_id', 'c1', {dtype: 'T', _displayedValue: 'Roma', _sendback: true}),
+        d => d.setItem('city_id', null, {dtype: 'T'}));
+    const node = sourceBag.getNode('city_id');
+    assert.equal(node.getValue(), null);
+    assert.equal('_displayedValue' in node.attr, false);
+    assert.equal(node.attr._sendback, true);
+});
+
+test('a Collection memory form writes back the displayed value over the stale one', () => {
+    const sourceBag = saveMemory('Collection',
+        (b, Bag) => {
+            const row = new Bag();
+            row.setItem('_pkey', 'r1');
+            row.setItem('city_id', 'c1', {dtype: 'T', _displayedValue: 'Roma', _loadedValue: 'c1'});
+            b.setItem('r1', row);
+        },
+        d => {
+            d.setItem('_pkey', 'r1');
+            d.setItem('city_id', 'c2', {dtype: 'T', _displayedValue: 'Milano'});
+        },
+        'r1');
+    const node = sourceBag.getNode('r1.city_id');
+    assert.equal(node.attr._displayedValue, 'Milano');
+    assert.equal(node.attr._loadedValue, 'c1');
+});

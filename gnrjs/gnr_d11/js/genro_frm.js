@@ -3391,22 +3391,16 @@ dojo.declare("gnr.formstores.Item", gnr.formstores.Base, {
         var path;
         formData.walk(function(n){
             var v = n.getValue();
-            var kw = {dtype:n.attr.dtype};
+            var kw = {dtype:n.attr.dtype,
+                      _displayedValue:n.attr._displayedValue,
+                      _formattedValue:n.attr._formattedValue,
+                      _valuelabel:n.attr._valuelabel};
             path = n.getFullpath('static',formData);
-            if('_displayedValue' in n.attr){
-                kw._displayedValue = n.attr._displayedValue;
-            }
-            if('_formattedValue' in n.attr){
-                kw._formattedValue = n.attr._formattedValue;
-            }
-            if('_valuelabel' in n.attr){
-                kw._valuelabel = n.attr._valuelabel;
-            }
             if(v instanceof gnr.GnrBag){
                 that.writeBackBag(sourceBag,path,v);
                 return '__continue__';
             }
-            sourceBag.setItem(path,n.getValue(),kw,{lazySet:true,_updattr:true});
+            sourceBag.setItem(path,n.getValue(),kw,{lazySet:true,_updattr:'*'});
         });
         var result = {};//{savedPkey:loadedRecordNode.label,loadedRecordNode:loadedRecordNode};
         this.saved(result);
@@ -3566,7 +3560,10 @@ dojo.declare("gnr.formstores.Collection", gnr.formstores.Base, {
                 that.writeBackBag(data,path,v);
                 return '__continue__';
             }
-            data.setItem(path,n.getValue(),{dtype:n.attr.dtype},{lazySet:true,_updattr:true});
+            data.setItem(path,n.getValue(),{dtype:n.attr.dtype,
+                                            _displayedValue:n.attr._displayedValue,
+                                            _formattedValue:n.attr._formattedValue,
+                                            _valuelabel:n.attr._valuelabel},{lazySet:true,_updattr:'*'});
         });
         var result = {};//{savedPkey:loadedRecordNode.label,loadedRecordNode:loadedRecordNode};
         this.saved(result);
