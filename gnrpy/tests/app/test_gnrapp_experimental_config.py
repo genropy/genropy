@@ -9,7 +9,8 @@ database.
 
 import pytest
 
-from gnr.app.gnrapp import GnrApp, experimentalConfig
+from gnr.app.gnrapp import GnrApp
+from gnr.web.serverwsgi import experimentalConfig
 from core.common import BaseGnrTest
 
 
