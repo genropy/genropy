@@ -2184,8 +2184,10 @@ dojo.declare("gnr.GridChangeManager", null, {
         var cellmap = this.grid.cellmap;
         pars._currcell = cellmap[formulaKey];
         pars._rowNode = rowNode;
-        var struct = this.grid.structBag.getItem('#0.#0');
-        var bagcellattr = struct.getNode(cellmap[formulaKey]._nodelabel).attr;
+        // no struct in a groupletGrid card mode: no formula_* dynamic pars
+        var struct = this.grid.structBag? this.grid.structBag.getItem('#0.#0'):null;
+        var structNode = struct? struct.getNode(cellmap[formulaKey]._nodelabel):null;
+        var bagcellattr = structNode? structNode.attr:{};
         var dynPars = objectExtract(bagcellattr,'formula_*',true);
         dynPars = this.sourceNode.evaluateOnNode(dynPars);
         objectUpdate(pars,dynPars);

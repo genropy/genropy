@@ -25,6 +25,7 @@
 from gnr.core.gnrbag import Bag, BagCbResolver, DirectoryResolver
 from gnr.core import gnrstring
 from gnr.core.gnrdict import dictExtract
+from gnr.core.gnrdecorator import deprecated
 
 from gnr.web.gnrwebstruct.base import GnrDomSrc, GnrDomSrcError
 from gnr.web.gnrwebstruct._helpers import _selected_defaultFrom
@@ -70,10 +71,10 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
              'dataFormula', 'dataScript', 'dataRpc', 'dataController', 'dataRemote',
              'gridView', 'viewHeader', 'viewRow', 'script', 'func',
              'staticGrid', 'dynamicGrid', 'fileUploader', 'gridEditor', 'ckEditor', 
-             'tinyMCE', 'protovis','codemirror','proseMirrorEditor','mdeditor','qrscanner','fullcalendar','dygraph','chartjs','MultiButton','PaletteGroup','DocumentFrame','DownloadButton','bagEditor','PagedHtml',
+             'tinyMCE', 'protovis','codemirror','proseMirrorEditor','joditEditor','mdeditor','qrscanner','fullcalendar','dygraph','chartjs','MultiButton','PaletteGroup','DocumentFrame','DownloadButton','bagEditor','PagedHtml',
              'DocItem','UserObjectLayout','UserObjectBar', 'PalettePane','PasswordTextBox','PaletteMap','PaletteImporter','DropUploader','ModalUploader','DropUploaderGrid','VideoPickerPalette','GeoCoderField','StaticMap','ImgUploader','TooltipPane','MenuDiv', 'BagNodeEditor','FlatBagEditor',
              'PaletteBagNodeEditor','StackButtons', 'Palette', 'PaletteTree','TreeFrame','CheckBoxText','RadioButtonText','GeoSearch','ComboArrow','ComboMenu','ChartPane','PaletteChart','ColorTextBox','ColorFiltering', 'SearchBox', 'FormStore',
-             'FramePane', 'FrameForm','BoxForm','QuickEditor','ExtendedCkeditor','ExtendedTinyMCE','CodeEditor','TreeGrid','QuickGrid',
+             'FramePane', 'FrameForm','BoxForm','QuickEditor','ExtendedCkeditor','ExtendedJoditEditor','ExtendedTinyMCE','CodeEditor','TreeGrid','QuickGrid',
             "GridGallery","VideoPlayer",'MultiValueEditor','MultiLanguageTextBox','TextboxMenu','MultiLineTextbox','QuickTree','SharedObject','IframeDiv','FieldsTree', 'SlotButton','TemplateChunk','LightButton','Semaphore','CharCounterTextarea','TracebackViewer']
     genroNameSpace = dict([(name.lower(), name) for name in htmlNS])
     genroNameSpace.update(dict([(name.lower(), name) for name in dijitNS]))
@@ -462,6 +463,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
     def docItem(self, store=None,key=None,contentpath=None,**kwargs):        
         return self.child('DocItem',store=store,key=key,contentpath=contentpath,**kwargs)
 
+    @deprecated('use joditEditor')
     def ckeditor(self,stylegroup=None,**kwargs):
         style_table = self.page.db.table('adm.ckstyle')
         if style_table:

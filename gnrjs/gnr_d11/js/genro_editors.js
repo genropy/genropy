@@ -1654,6 +1654,351 @@ dojo.declare("gnr.widgets.proseMirrorEditor", gnr.widgets.baseExternalWidget, {
     }
 });
 
+dojo.declare("gnr.widgets.joditEditor", gnr.widgets.baseExternalWidget, {
+    toolbars: {
+        minimal: ['bold', 'italic', 'underline', '|', 'ul', 'ol', '|', 'link', '|', 'source'],
+        simple: ['bold', 'italic', 'underline', '|', 'ul', 'ol', '|', 'paragraph', '|',
+                 'left', 'center', 'right', '|', 'link', 'image', 'table', '|', 'eraser', '|', 'source'],
+        standard: ['bold', 'italic', 'underline', 'strikethrough', '|', 'ul', 'ol', 'outdent', 'indent', '|',
+                   'paragraph', 'font', 'fontsize', 'brush', '|', 'left', 'center', 'right', 'justify', '|',
+                   'link', 'image', 'table', 'hr', 'symbols', '|', 'eraser', 'copyformat', '|',
+                   'undo', 'redo', '|', 'find', 'source', 'fullsize']
+    },
+    // Jodit's defaults rewrite stored markup on the first save (iframes dropped
+    // or sandboxed, b/i renamed, &nbsp; replaced, empty spacers removed or
+    // filled with <br>): keep it as written.
+    cleanHTML: {denyTags: 'script', replaceOldTags: false, replaceNBSP: false,
+                removeEmptyElements: false, fillEmptyParagraph: false,
+                sandboxIframesInContent: false, collapseEmptyValueToEmptyString: true},
+    modeNames: ['wysiwyg', 'source', 'split'],
+
+    constructor: function(application) {
+        this._domtag = 'div';
+    },
+    creating: function(attributes, sourceNode) {
+        objectPop(attributes, 'value');
+        var toolbar = objectPop(attributes, 'toolbar');
+        var placeholder = objectPop(attributes, 'placeholder');
+        var options = {
+            toolbar: toolbar !== false,
+            buttons: this.resolveToolbar(toolbar),
+            toolbarAdaptive: false,
+            iframe: objectPop(attributes, 'iframe') !== false,
+            iframeCSSLinks: this.splitList(objectPop(attributes, 'contentsCss')),
+            enter: (objectPop(attributes, 'enter') || 'p').toUpperCase(),
+            placeholder: placeholder || '',
+            showPlaceholder: !!placeholder,
+            statusbar: !!objectPop(attributes, 'statusbar'),
+            hidePoweredByJodit: true,
+            readonly: !!objectPop(attributes, 'readOnly'),
+            disabled: !!objectPop(attributes, 'disabled'),
+            language: (genro.locale() || 'en').slice(0, 2).toLowerCase(),
+            height: attributes.height ? '100%' : 'auto',
+            minHeight: 0,
+            allowResizeY: false,
+            askBeforePasteHTML: false,
+            askBeforePasteFromWord: false,
+            beautifyHTML: false,
+            cleanHTML: objectUpdate({}, this.cleanHTML)
+        };
+        objectUpdate(options, objectExtract(attributes, 'config_*'));
+        return {joditAttrs: {options: options,
+                             mode: objectPop(attributes, 'mode') || 'wysiwyg',
+                             sourceEditor: objectPop(attributes, 'sourceEditor') || 'codemirror',
+                             contentStyles: objectPop(attributes, 'contentStyles'),
+                             bodyStyle: objectPop(attributes, 'bodyStyle')}};
+    },
+    created: function(widget, savedAttrs, sourceNode) {
+        var that = this;
+        var joditAttrs = objectPop(savedAttrs, 'joditAttrs');
+        this.loadJodit(function(){ that.initialize(widget, joditAttrs, sourceNode); });
+    },
+    loadJodit: function(cb) {
+        if(window.Jodit){
+            cb();
+            return;
+        }
+        var cssMtime = genro.getData('gnr.vendoredMtime.joditCss') || 0;
+        genro.dom.loadCss('/_rsrc/js_libs/jodit/jodit.min.css' + (cssMtime ? '?mtime=' + cssMtime : ''), 'jodit');
+        var jsMtime = genro.getData('gnr.vendoredMtime.jodit') || 0;
+        genro.dom.loadJs('/_rsrc/js_libs/jodit/jodit.min.js' + (jsMtime ? '?mtime=' + jsMtime : ''), cb);
+    },
+    resolveToolbar: function(toolbar) {
+        if(toolbar === false){
+            return [];
+        }
+        if(!toolbar || this.toolbars[toolbar]){
+            return this.toolbars[toolbar || 'standard'].slice();
+        }
+        return this.splitList(toolbar);
+    },
+    splitList: function(value) {
+        if(!value){
+            return [];
+        }
+        if(typeof(value) == 'string'){
+            value = value.split(',');
+        }
+        return value.map(function(item){ return item.trim(); }).filter(Boolean);
+    },
+    modeCode: function(name) {
+        var code = this.modeNames.indexOf(name) + 1;
+        if(!code){
+            throw new Error('joditEditor: unknown mode "' + name + '", expected ' + this.modeNames.join('|'));
+        }
+        return code;
+    },
+    modeName: function(code) {
+        return this.modeNames[code - 1];
+    },
+    initialize: function(widget, joditAttrs, sourceNode) {
+        var that = this;
+        widget.classList.add('gnr-jodit-host');
+        var textarea = document.createElement('textarea');
+        textarea.value = sourceNode.getAttributeFromDatasource('value') || '';
+        widget.appendChild(textarea);
+        var options = objectUpdate({defaultMode: this.modeCode(joditAttrs.mode)}, joditAttrs.options);
+        if(joditAttrs.sourceEditor == 'codemirror'){
+            options.sourceEditor = function(jodit){ return that.makeCodemirrorSource(jodit); };
+        }else{
+            options.sourceEditor = 'area';
+        }
+        var editor = Jodit.make(textarea, options);
+        editor._gnrReadOnly = options.readonly;
+        this.setExternalWidget(sourceNode, editor);
+        var markUserEdit = function(){ editor._gnrUserEdit = true; };
+        editor.e.on('keydown mousedown paste drop', markUserEdit)
+                .on(editor.container, 'mousedown keydown touchstart', markUserEdit)
+                .on('change', function(){ that.onEditorChange(editor); })
+                .on('blur', function(){ that.writeValue(editor); })
+                .on('afterSetMode', function(){ that.onModeChange(editor); });
+        editor.waitForReady().then(function(){
+            editor.gnr_contentStyles(joditAttrs.contentStyles);
+            editor.gnr_bodyStyle(joditAttrs.bodyStyle);
+        });
+    },
+    onSpeechEnd: function(sourceNode, text) {
+        var editor = sourceNode.externalWidget;
+        editor._gnrUserEdit = true;
+        editor.s.insertNode(editor.createInside.text(text));
+        this.writeValue(editor);
+    },
+    setContentStyle: function(editor, id, css) {
+        if(!editor.o.iframe || !editor.ed){
+            return;
+        }
+        var styleNode = editor.ed.getElementById(id);
+        if(!styleNode){
+            styleNode = editor.ed.createElement('style');
+            styleNode.id = id;
+            editor.ed.head.appendChild(styleNode);
+        }
+        styleNode.textContent = css || '';
+    },
+    onEditorChange: function(editor) {
+        if(editor._gnrSilent || !editor._gnrUserEdit){
+            return;
+        }
+        var that = this;
+        var sourceNode = editor.sourceNode;
+        sourceNode.delayedCall(function(){ that.writeValue(editor); },
+                               sourceNode.attr._delay || 500, 'updatingContent');
+    },
+    writeValue: function(editor) {
+        if(editor.isInDestruct){
+            return;
+        }
+        if(editor._gnrSource){
+            editor._gnrSource.flush();
+        }
+        if(!editor._gnrUserEdit){
+            return;
+        }
+        var sourceNode = editor.sourceNode;
+        var value = editor.value || null;
+        if(value !== (sourceNode.getAttributeFromDatasource('value') || null)){
+            sourceNode.setAttributeInDatasource('value', value);
+        }
+    },
+    onModeChange: function(editor) {
+        var sourceNode = editor.sourceNode;
+        if(sourceNode.isPointerPath(sourceNode.attr.mode)){
+            sourceNode.setAttributeInDatasource('mode', this.modeName(editor.getMode()));
+        }
+    },
+    // Jodit hands the factory only the editor: the host is the plugin's
+    // .jodit-source container, already in the workplace when this runs.
+    makeCodemirrorSource: function(jodit) {
+        var host = document.createElement('div');
+        host.className = 'gnr-jodit-codemirror';
+        jodit.workplace.querySelector('.jodit-source').appendChild(host);
+        var readyCallbacks = [];
+        var source = {
+            isReady: false,
+            view: null,
+            _dirty: false,
+            _pushing: false,
+            _settingValue: false,
+            init: function(){
+                genro.wdg.getHandler('codemirror').loadCodeMirror6(function(){
+                    if(jodit.isInDestruct){
+                        return;
+                    }
+                    source.view = source.createView(window.CodeMirror6);
+                    source.isReady = true;
+                    readyCallbacks.splice(0).forEach(function(cb){ cb(); });
+                });
+            },
+            createView: function(CM){
+                source._readOnly = new CM.Compartment();
+                var pushLater = jodit.async.debounce(function(){ source.flush(); }, jodit.defaultTimeout);
+                var extensions = [
+                    CM.lineNumbers(), CM.highlightActiveLine(), CM.drawSelection(), CM.history(),
+                    CM.indentOnInput(), CM.bracketMatching(), CM.foldGutter(), CM.highlightSelectionMatches(),
+                    CM.search({top: true}), CM.langs.html(), CM.EditorView.lineWrapping,
+                    CM.syntaxHighlighting(CM.defaultHighlightStyle, {fallback: true}),
+                    CM.keymap.of([].concat(CM.defaultKeymap, CM.searchKeymap, CM.historyKeymap,
+                                           CM.foldKeymap, [CM.indentWithTab])),
+                    CM.toolsTheme,
+                    source._readOnly.of(CM.EditorState.readOnly.of(!!jodit.o.readonly)),
+                    CM.EditorView.updateListener.of(function(update){
+                        if(update.docChanged && !source._settingValue){
+                            source._dirty = true;
+                            pushLater();
+                        }
+                    }),
+                    CM.EditorView.domEventHandlers({
+                        focus: function(evt){ jodit.e.fire('focus', evt); },
+                        blur: function(evt){ jodit.e.fire('blur', evt); }
+                    })
+                ];
+                return new CM.EditorView({parent: host, state: CM.EditorState.create({doc: '', extensions: extensions})});
+            },
+            flush: function(){
+                if(!source._dirty || jodit.isInDestruct){
+                    return;
+                }
+                source._dirty = false;
+                source._pushing = true;
+                try {
+                    jodit.value = source.getValue();
+                } finally {
+                    source._pushing = false;
+                }
+            },
+            getValue: function(){
+                return source.view ? source.view.state.doc.toString() : '';
+            },
+            setValue: function(raw){
+                if(source._pushing || !source.view || raw === source.getValue()){
+                    return;
+                }
+                var head = Math.min(source.view.state.selection.main.head, raw.length);
+                source._settingValue = true;
+                try {
+                    source.view.dispatch({changes: {from: 0, to: source.view.state.doc.length, insert: raw},
+                                          selection: {anchor: head}});
+                } finally {
+                    source._settingValue = false;
+                }
+            },
+            insertRaw: function(raw){
+                source.view.dispatch(source.view.state.replaceSelection(raw));
+            },
+            getSelectionStart: function(){
+                return source.view ? source.view.state.selection.main.from : 0;
+            },
+            getSelectionEnd: function(){
+                return source.view ? source.view.state.selection.main.to : 0;
+            },
+            setSelectionRange: function(start, end){
+                var length = source.view.state.doc.length;
+                var clamp = function(pos){ return Math.max(0, Math.min(pos, length)); };
+                source.view.dispatch({selection: {anchor: clamp(start), head: clamp(end == null ? start : end)},
+                                      scrollIntoView: true});
+            },
+            setPlaceHolder: function(){},
+            get isFocused(){
+                return !!(source.view && source.view.hasFocus);
+            },
+            focus: function(){
+                if(source.view){ source.view.focus(); }
+            },
+            blur: function(){
+                if(source.view){ source.view.contentDOM.blur(); }
+            },
+            setReadOnly: function(isReadOnly){
+                if(source.view){
+                    source.view.dispatch({effects: source._readOnly.reconfigure(
+                        window.CodeMirror6.EditorState.readOnly.of(!!isReadOnly))});
+                }
+            },
+            selectAll: function(){
+                source.view.dispatch({selection: {anchor: 0, head: source.view.state.doc.length}});
+            },
+            replaceUndoManager: function(){},
+            onReadyAlways: function(cb){
+                if(source.isReady){
+                    cb();
+                } else {
+                    readyCallbacks.push(cb);
+                }
+            },
+            destruct: function(){
+                if(source.view){ source.view.destroy(); }
+                host.remove();
+                if(jodit._gnrSource === source){ delete jodit._gnrSource; }
+            }
+        };
+        jodit._gnrSource = source;
+        return source;
+    },
+
+    mixin_gnr_value: function(value, kw, trigger_reason) {
+        value = value || '';
+        if(value === this.value){
+            return;
+        }
+        this._gnrSilent = true;
+        try {
+            this.value = value;
+        } finally {
+            this._gnrSilent = false;
+        }
+        this._gnrUserEdit = false;
+    },
+    mixin_gnr_readOnly: function(value, kw, trigger_reason) {
+        this._gnrReadOnly = !!value;
+        this.setReadOnly(this._gnrReadOnly || this.getDisabled());
+    },
+    mixin_gnr_setDisabled: function(disabled) {
+        this.setDisabled(!!disabled);
+        // Jodit re-enables without leaving read-only: its setReadOnly(false)
+        // is a no-op until the cached state is flipped back to true.
+        if(!disabled && this.getReadOnly() && !this._gnrReadOnly){
+            this.setReadOnly(true);
+            this.setReadOnly(false);
+        }
+    },
+    mixin_gnr_mode: function(value, kw, trigger_reason) {
+        var code = this.gnr.modeCode(value || 'wysiwyg');
+        if(code !== this.getMode()){
+            this.setMode(code);
+        }
+    },
+    mixin_gnr_contentStyles: function(value, kw, trigger_reason) {
+        this.gnr.setContentStyle(this, 'gnr_contentStyles', value);
+    },
+    // Appended after contentStyles, so the body box wins over the content CSS.
+    mixin_gnr_bodyStyle: function(value, kw, trigger_reason) {
+        this.gnr.setContentStyle(this, 'gnr_bodyStyle', value ? 'body{' + value + '}' : '');
+    },
+    mixin_destroy: function() {
+        this.gnr.writeValue(this);
+        this.destruct();
+    }
+});
+
 dojo.declare("gnr.widgets.CkEditor", gnr.widgets.baseHtml, {
     constructor: function(application) {
         this._domtag = 'div';
@@ -1673,6 +2018,7 @@ dojo.declare("gnr.widgets.CkEditor", gnr.widgets.baseHtml, {
     },
     
     creating: function(attributes, sourceNode) {
+        genro.dev.deprecation('ckEditor', 'joditEditor');
         if('disabled' in attributes){
             if(!('readOnly' in attributes)){
                 attributes.readOnly = attributes.disabled;

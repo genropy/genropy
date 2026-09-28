@@ -1446,10 +1446,8 @@ class GnrApp(object):
         error_id = self._make_error_id()
         if traceback is None:
             traceback = loglevel in ('error', 'critical')
-        if traceback and exception:
-            traceback = tracebackBag()
-        else:
-            traceback = None
+        if isinstance(traceback, bool):
+            traceback = tracebackBag() if traceback and exception else None
         error_type = error_type or (type(exception).__name__ if exception else 'ERR')
         error_info = dict(
             error_id=error_id,
