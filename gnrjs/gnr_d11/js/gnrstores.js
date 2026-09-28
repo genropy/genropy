@@ -640,16 +640,6 @@ dojo.declare("gnr.GnrStoreQuery", gnr.GnrStoreBag, {
                 }
             }
             var finalize = dojo.hitch(this, function(r) {
-                // a later lookup superseded this one: its answer would bring back the old value
-                if (this._lastIdentityRequest !== request) {
-                    return;
-                }
-                var scope = request.scope ? request.scope : dojo.global;
-                if(r.attr.errors){
-                    this._parentSourceNode.widget._lastQueryError = r.attr.errors;
-                    
-                    this._parentSourceNode.setValidationError({error:r.attr.errors});
-                }
                 var result = r.getValue();
                 if (result instanceof gnr.GnrBag) {
                     result = result.getNode('#0');
@@ -657,6 +647,16 @@ dojo.declare("gnr.GnrStoreQuery", gnr.GnrStoreBag, {
                     result = null;
                 }
                 this.cached_values[request.identity] = {'result':result,'ts':new Date()};
+                // a later lookup superseded this one: its answer would bring back the old value
+                if (this._lastIdentityRequest !== request) {
+                    return;
+                }
+                var scope = request.scope ? request.scope : dojo.global;
+                if(r.attr.errors){
+                    this._parentSourceNode.widget._lastQueryError = r.attr.errors;
+
+                    this._parentSourceNode.setValidationError({error:r.attr.errors});
+                }
                 //if (result) {
                     if(!result){
                         //console.log('no result',request);
