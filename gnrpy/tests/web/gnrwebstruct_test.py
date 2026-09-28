@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import re
+import warnings
 
 import pytest
 
@@ -123,10 +124,10 @@ def test_invalid_override_methods():
 def test_genroNameSpace_total_count():
     """Freeze the cardinality of the public widget namespace.
 
-    Lowercased dedup of htmlNS + dijitNS + dojoxNS + gnrNS yields 257
+    Lowercased dedup of htmlNS + dijitNS + dojoxNS + gnrNS yields 259
     entries today. Drift in either direction must be intentional.
     """
-    assert len(GnrDomSrc_dojo_11.genroNameSpace) == 257
+    assert len(GnrDomSrc_dojo_11.genroNameSpace) == 259
 
 
 def test_genroNameSpace_samples_per_dialect():
@@ -671,3 +672,26 @@ def test_updateslotsattr_keeps_the_parameters_added_by_replaceslots():
     attr = _slotContentAttr(bar, 'plain')
     assert attr['x'] == 'zz'
     assert attr['y'] == 'ww'
+
+
+class _DbStub(object):
+    packages = {}
+
+    def table(self, name):
+        return None
+
+
+@pytest.mark.parametrize('method', ['ckeditor', 'ckEditor', 'CkEditor'])
+def test_ckeditor_is_deprecated_in_favour_of_joditeditor(method):
+    page = _PageStub()
+    page.db = _DbStub()
+    with pytest.warns(DeprecationWarning, match='joditEditor'):
+        node = getattr(_attached_node(_make_root(page)), method)(value='^.html')
+    assert node.parentNode.attr['tag'] == 'ckEditor'
+
+
+def test_joditeditor_is_not_deprecated():
+    with warnings.catch_warnings():
+        warnings.simplefilter('error', DeprecationWarning)
+        node = _attached_node(_make_root()).joditEditor(value='^.html')
+    assert node.parentNode.attr['tag'] == 'joditEditor'
