@@ -1,5 +1,6 @@
 import pytest
 import base64
+import io
 import logging
 import os
 import tempfile
@@ -1253,3 +1254,42 @@ class TestStorageHandler(BaseGnrDaemonTest):
         with pytest.raises(GnrException, match='s3_readonly_local is read-only'):
             self.site.uploadFile(dataUrl=data_url, filename='probe',
                                  uploadPath='%s:docs' % service_name)
+
+    def test_s3_on_local_machine_attachment_reads_back_from_its_record(self, monkeypatch, s3_record):
+        """The attachment record keeps the path the upload actually wrote,
+        not the bucket path it was prepared for (#1368)."""
+        monkeypatch.setattr(self.site, '_local_mode', True, raising=False)
+        service_name = s3_record('s3_attachment_fallback')
+        monkeypatch.setattr(self.site.storage(service_name), 'exists', lambda *args: False)
+        db = self.site.db
+        tbltemplate = db.table('adm.htmltemplate')
+        monkeypatch.setattr(tbltemplate, 'atc_getAttachmentPath',
+                            lambda pkey=None: '%s:atc/%s' % (service_name, pkey), raising=False)
+        tblatc = db.table('adm.htmltemplate_atc')
+        template = tbltemplate.newrecord(name='attachment_probe')
+        tbltemplate.insert(template)
+        db.commit()
+        attachmanager = gnrImport(os.path.join(getGenroRoot(), 'resources', 'common', 'gnrcomponents',
+                                               'attachmanager', 'attachmanager.py'))
+        manager = attachmanager.AttachManager
+        page = type('AttachmentPage', (), dict(db=db, clientPublish=lambda self, *args, **kwargs: None,
+                                               _handleFileHash=manager._handleFileHash))()
+        file_handle = type('FileHandle', (), dict(filename='probe.pdf', stream=io.BytesIO(b'%PDF-1.4')))()
+        kwargs = dict(attachment_table='adm.htmltemplate_atc', maintable_id=template['id'],
+                      filename='probe.pdf', file_handle=file_handle)
+        local_dir = os.path.join(self.site.site_static_dir, service_name)
+        try:
+            manager.onUploadingAttachment(page, kwargs)
+            assert kwargs['_atc_filepath'] == '%s:atc/%s/probe.pdf' % (service_name, template['id'])
+            file_path, file_url = self.site.uploadFile(file_handle=file_handle, filename=kwargs['filename'],
+                                                       uploadPath=kwargs['uploadPath'])
+            manager.onUploadedAttachment(page, file_url=file_url, file_path=file_path, **kwargs)
+            record = tblatc.query(columns='$filepath', where='$maintable_id=:mid', mid=template['id']).fetch()[0]
+            assert record['filepath'] == 'site:%s/atc/%s/probe.pdf' % (service_name, template['id'])
+            with tblatc._atcStorageNode(record).open('rb') as uploaded:
+                assert uploaded.read() == b'%PDF-1.4'
+        finally:
+            tblatc.sql_deleteSelection(where='$maintable_id=:mid', mid=template['id'])
+            tbltemplate.delete(template)
+            db.commit()
+            shutil.rmtree(local_dir, ignore_errors=True)

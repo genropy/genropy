@@ -636,9 +636,10 @@ class AttachManager(BaseComponent):
         attachment_tblobj =  self.db.table(attachment_table)
         uploaderId = kwargs.get('uploaderId')
         pkey = kwargs.get('pkey')
+        filepath = file_path or kwargs.get('_atc_filepath')
         if pkey and pkey != '*newrecord*':
             with attachment_tblobj.recordToUpdate(pkey) as record:
-                record['filepath'] = kwargs.get('_atc_filepath')
+                record['filepath'] = filepath
                 for k,v in kwargs.items():
                     if k.startswith('_'):
                         continue
@@ -648,7 +649,7 @@ class AttachManager(BaseComponent):
             attachment_tblobj.onUploadedAttachment(record['id'])
             return
         record = attachment_tblobj.newrecord(maintable_id=maintable_id,mimetype=kwargs.get('mimetype'),
-                    description=kwargs.get('_atc_description'),filepath=kwargs.get('_atc_filepath'))
+                    description=kwargs.get('_atc_description'),filepath=filepath)
         for k,v in kwargs.items():
             if k.startswith('_'):
                 continue
