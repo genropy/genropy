@@ -3406,7 +3406,7 @@ dojo.declare("gnr.formstores.Item", gnr.formstores.Base, {
                 that.writeBackBag(sourceBag,path,v);
                 return '__continue__';
             }
-            sourceBag.setItem(path,n.getValue(),{dtype:n.attr.dtype},{lazySet:true});
+            sourceBag.setItem(path,n.getValue(),kw,{lazySet:true,_updattr:true});
         });
         var result = {};//{savedPkey:loadedRecordNode.label,loadedRecordNode:loadedRecordNode};
         this.saved(result);
@@ -3566,7 +3566,7 @@ dojo.declare("gnr.formstores.Collection", gnr.formstores.Base, {
                 that.writeBackBag(data,path,v);
                 return '__continue__';
             }
-            data.setItem(path,n.getValue(),{dtype:n.attr.dtype},{lazySet:true});
+            data.setItem(path,n.getValue(),{dtype:n.attr.dtype},{lazySet:true,_updattr:true});
         });
         var result = {};//{savedPkey:loadedRecordNode.label,loadedRecordNode:loadedRecordNode};
         this.saved(result);
