@@ -4,7 +4,6 @@
 #  Copyright (c) 2013 Softwell. All rights reserved.
 
 import os
-import functools
 import tempfile
 import mimetypes
 from datetime import datetime
@@ -130,6 +129,7 @@ class Service(StorageService):
         local_readonly = (local or secondary) and not write_in_local
         self.readonly = readonly or local_readonly
         self.versioned = versioned
+        self._content_md5_cache = {}
 
     @property
     def is_versioned(self):
@@ -187,12 +187,11 @@ class Service(StorageService):
         if len(etag) == 32:
             return etag
         #multipart upload (smart_open always writes one): the ETag is not the content md5
-        return self._content_md5(etag, *args)
-
-    @functools.lru_cache
-    def _content_md5(self, etag, *args):
         #etag only keys the cache: a rewrite gets a new one, so the hash cannot go stale
-        return super().md5hash(*args)
+        key = (etag,) + args
+        if key not in self._content_md5_cache:
+            self._content_md5_cache[key] = super().md5hash(*args)
+        return self._content_md5_cache[key]
 
     def exists(self, *args):
         return self.isfile(*args) or self.isdir(*args)

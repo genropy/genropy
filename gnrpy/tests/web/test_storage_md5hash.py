@@ -1,7 +1,9 @@
+import gc
 import hashlib
 import importlib.util
 import io
 import os
+import weakref
 
 from gnr.lib.services.storage import StorageService
 
@@ -36,8 +38,9 @@ class ContentOnlyService(StorageService):
         return io.BytesIO(self.content)
 
 
-def _s3_service(etag, content=CONTENT):
-    service = object.__new__(_s3_service_class())
+def _s3_service(etag, content=CONTENT, service_class=None):
+    service = object.__new__(service_class or _s3_service_class())
+    service._content_md5_cache = {}
     service.etag = etag
     service.content = content
     service.opened = 0
@@ -89,6 +92,25 @@ def test_s3_md5hash_does_not_share_an_etag_across_paths():
     service.content = NEW_CONTENT
     assert service.md5hash('b.xml') == NEW_CONTENT_MD5
     assert service.opened == 2
+
+
+def test_s3_md5hash_cache_is_not_shared_across_instances():
+    service_class = _s3_service_class()
+    first = _s3_service(CONTENT_MD5 + '-1', service_class=service_class)
+    second = _s3_service(CONTENT_MD5 + '-1', content=NEW_CONTENT, service_class=service_class)
+    assert first.md5hash('file.xml') == CONTENT_MD5
+    assert second.md5hash('file.xml') == NEW_CONTENT_MD5
+    assert (first.opened, second.opened) == (1, 1)
+
+
+def test_s3_md5hash_cache_does_not_keep_the_service_alive():
+    service_class = _s3_service_class()
+    service = _s3_service(CONTENT_MD5 + '-1', service_class=service_class)
+    service.md5hash('file.xml')
+    service_ref = weakref.ref(service)
+    del service
+    gc.collect()
+    assert service_ref() is None
 
 
 def test_s3_md5hash_is_none_for_a_missing_object():
