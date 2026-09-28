@@ -723,7 +723,17 @@ dojo.declare("gnr.FramedIndexManager", null, {
     handleExternalMenuCode:function(external_menucode,runKwargs){
         runKwargs = runKwargs || {}
         let menubag = genro.getData('gnr.appmenu.root');
+        if(!menubag){
+            this.stackSourceNode.watch('externalMenuCode',
+                function(){
+                    return genro.getData('gnr.appmenu.root');
+                },()=>this.handleExternalMenuCode(external_menucode,runKwargs));
+            return;
+        }
         let n = menubag.getNodeByAttr('menucode',external_menucode);
+        if(!n){
+            return;
+        }
         inattr = n.getInheritedAttributes()
         let kw = {name:n.label,pkg_menu:inattr.pkg_menu,"file":null,table:null,formResource:null,
                                 viewResource:null,fullpath:n.getFullpath(null,true),modifiers:null,
