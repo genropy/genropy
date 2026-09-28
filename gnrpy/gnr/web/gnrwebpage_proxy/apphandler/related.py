@@ -36,6 +36,7 @@ from typing import Any, Optional
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdecorator import public_method
 from gnr.core.gnrstring import toJson, toText
+from gnr.sql.gnrsql_exceptions import GnrSqlMissingColumn, GnrSqlMissingField
 
 logger = logging.getLogger('gnr.web.apphandler.related')
 
@@ -140,6 +141,24 @@ class RelatedMixin:
     # Related selection
     # ------------------------------------------------------------------
 
+    def _existingColumns(self, tblobj: Any, columns: Optional[str]) -> str:
+        """Keep only the *columns* that *tblobj* can select.
+
+        A grid may declare cells that are not columns of the table (local
+        cells, ``_checked``): they are left out instead of failing the query.
+        """
+        existing = []
+        for column in (columns or '').split(','):
+            column = column.strip()
+            if not column:
+                continue
+            try:
+                if tblobj.column(column) is not None:
+                    existing.append(column)
+            except (GnrSqlMissingColumn, GnrSqlMissingField):
+                continue
+        return ','.join(existing)
+
     @public_method
     def getRelatedSelection(self, from_fld: str, target_fld: str,
                             relation_value: Optional[Any] = None,
@@ -191,9 +210,9 @@ class RelatedMixin:
         if sqlContextName:
             joinBag = self._getSqlContextConditions(sqlContextName, target_fld=target_fld, from_fld=from_fld)
 
-        columns = columns or '*'
         pkg, tbl, related_field = target_fld.split('.')
         dbtable = '%s.%s' % (pkg, tbl)
+        columns = self._existingColumns(self.db.table(dbtable), columns) or '*'
         if not relation_value:
             kwargs['limit'] = 0
 

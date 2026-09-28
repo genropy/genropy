@@ -88,3 +88,18 @@ class TestRelatedSelectionColumns(BaseGnrAppTest):
         table_columns = set(self.app.db.table('invc.invoice').columns)
         for node in result:
             assert table_columns.issubset(set(node.attr))
+
+    def test_columns_the_table_does_not_have_are_left_out(self):
+        result, _resultAttributes = self.relatedSelection(
+            '$inv_number,$not_a_column,_checked,@not_a_relation.name')
+
+        assert [node.label for node in result] == [row[0] for row in INVOICES]
+        for node, (_pkey, inv_number, _total, _date) in zip(result, INVOICES):
+            assert set(node.attr) == RESOLVER_ATTRIBUTES | {'inv_number'}
+            assert node.attr['inv_number'] == inv_number
+
+    def test_a_relation_column_arrives(self):
+        result, _resultAttributes = self.relatedSelection('$inv_number,@customer_id.account_name')
+
+        for node in result:
+            assert node.attr['_customer_id_account_name'] == 'Acme'
