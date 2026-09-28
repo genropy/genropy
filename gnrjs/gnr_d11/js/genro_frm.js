@@ -931,7 +931,8 @@ dojo.declare("gnr.GnrFrmHandler", null, {
         return error;
     },
     // codes the user is already told about elsewhere: genro.dev.handleRpcError for the
-    // envelope ones, genro.rpc.errorHandler for the transport one, gnrsilent by design
+    // envelope ones, genro.rpc.errorHandler for the transport one (not on load: loadFailed
+    // alerts on rpc_error, which has shown nothing yet), gnrsilent by design
     rpcReportedErrors:['gnrsilent','rpc_error','gnrexception','server_exception',
                        'expired','clientError','serverError'],
     rpcFailureReported:function(failure){
