@@ -358,6 +358,47 @@ dojo.declare("gnr.QueryManager", null, {
     },
 
 
+    applyExternalQuery:function(kw){
+        // Loads conditions sent by another page in the query editor (topic th_external_query):
+        //   where_xml    the where bag, as the query editor writes it, serialized as xml
+        //   orderby_xml  optional custom order bag (rows with fieldpath and sorting)
+        //   limit, title optional query limit and caption
+        //   run          run the query after loading it
+        //   query_id     optional id: a query is applied once, and the page confirms it to its
+        //                parent window with the topic th_external_query_applied
+        // Bags are serialized because the message crosses the iframe boundary.
+        if(!kw.where_xml || (kw.query_id && this._lastExternalQuery==kw.query_id)){
+            return;
+        }
+        this._lastExternalQuery = kw.query_id;
+        var sourceNode = this.sourceNode;
+        var where = new gnr.GnrBag(kw.where_xml);
+        if(!where.len()){
+            where.setItem('c_0',null,{op:null,column:null,op_caption:null,column_caption:null});
+        }
+        if(sourceNode.getRelativeData('.query.currentQuery')!='__queryeditor__'){
+            sourceNode.setRelativeData('.query.currentQuery','__queryeditor__');
+        }
+        sourceNode.setRelativeData('.query.where',where);
+        sourceNode.setRelativeData('.query.customOrderBy',kw.orderby_xml? new gnr.GnrBag(kw.orderby_xml):null);
+        sourceNode.setRelativeData('.query.limit',kw.limit || null);
+        sourceNode.setRelativeData('.query.joinConditions',null);
+        sourceNode.setRelativeData('.query.queryAttributes.caption',kw.title || _T('New Query'));
+        sourceNode.setRelativeData('.query.queryAttributes.extended',true);
+        this.buildQueryPane();
+        if(sourceNode.getRelativeData('.query.queryEditor')){
+            this.queryEditor(true);
+        }else{
+            sourceNode.setRelativeData('.query.queryEditor',true);
+        }
+        if(kw.query_id){
+            genro.dom.windowMessage('parent',{topic:'th_external_query_applied',query_id:kw.query_id});
+        }
+        if(kw.run){
+            sourceNode.fireEvent('.runQuery');
+        }
+    },
+
     pkeySetToQuery:function(pkeys){
         if(!pkeys){
             return;
