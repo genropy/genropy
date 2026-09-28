@@ -1665,7 +1665,7 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
         }
         var _skipSanitize = formatOptions.template || formatOptions.js || formatOptions.apply
             || formatOptions.isbutton || formatOptions.showlinks
-            || formatOptions._hasCustomGetter
+            || formatOptions._hasCustomGetter || formatOptions._trustedRowTemplate
             || formatOptions.dtype==='B' || formatOptions.dtype==='P';
         return function(v, inRowIndex) {
             var opt = objectUpdate({}, formatOptions);
@@ -1856,6 +1856,7 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
                 }
             }
             if(cell.rowTemplate){
+                cell._trustedRowTemplate = typeof(cell.rowTemplate)=='string' && !sourceNode.isPointerPath(cell.rowTemplate);
                 cell.rowTemplate = sourceNode.currentFromDatasource(cell.rowTemplate);
             }
             cell.field = cell.field.replace(/\W/g, '_');
@@ -1930,6 +1931,9 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
             if(_customGetter){
                 cell._customGetter = funcCreate(_customGetter);
                 formats['_hasCustomGetter'] = true;
+            }
+            if(cell._trustedRowTemplate){
+                formats['_trustedRowTemplate'] = true;
             }
             if(dtype=='B'){
                 formats['trueclass']= formats['trueclass'] || "checkboxOn";
@@ -2673,7 +2677,8 @@ dojo.declare("gnr.widgets.VirtualStaticGrid", gnr.widgets.DojoGrid, {
                 c = this.grid.cellmap[k];
                 formats[c.field] = {...c._formats};
             }
-            return dataTemplate(this.rowTemplate,new gnr.GnrBag(rowdata),null,null,{formats:formats});
+            return dataTemplate(this.rowTemplate,new gnr.GnrBag(rowdata),null,null,
+                                {formats:formats,trustedMarkup:this._trustedRowTemplate});
         }else{
             return rowdata[this.field_getter]; 
         }

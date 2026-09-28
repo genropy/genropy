@@ -46,6 +46,45 @@ function stripJsFromHtml(str) {
     return str;
 }
 
+var _TEMPLATE_HANDLER_ATTR = _JS_EXEC_PATTERNS[1][0];
+
+// An on* attribute is HTML-decoded before it is parsed as JS, so entity escaping
+// (&#39;) would be undone: every char outside [A-Za-z0-9] becomes a JS escape.
+function jsStringEscape(value) {
+    return (value + '').replace(/[^A-Za-z0-9]/g, function(c) {
+        var code = c.charCodeAt(0);
+        return code < 256 ? '\\x' + ('0' + code.toString(16)).slice(-2)
+                          : '\\u' + ('000' + code.toString(16)).slice(-4);
+    });
+}
+
+function jsOpenQuote(code) {
+    var q = null;
+    for (var i = 0; i < code.length; i++) {
+        var c = code.charAt(i);
+        if (q) {
+            if (c == '\\') {
+                i++;
+            } else if (c == q) {
+                q = null;
+            }
+        } else if (c == '"' || c == "'" || c == '`') {
+            q = c;
+        }
+    }
+    return q;
+}
+
+function jsInertValue(codeBefore, value) {
+    if (jsOpenQuote(codeBefore)) {
+        return jsStringEscape(value);
+    }
+    if (typeof value == 'number' || typeof value == 'boolean' || /^-?\d+(\.\d+)?$/.test(value)) {
+        return value + '';
+    }
+    return "'" + jsStringEscape(value) + "'";
+}
+
 
 function _px(v){
     v+='';
@@ -301,7 +340,10 @@ function dataTemplate(str, data, path, showAlways,kw) {
     var result;
     var is_empty = true;
     var has_field = false;
-    
+    var jsContext = false;
+    var handlers = null;
+    var nonce;
+
     if(str instanceof gnr.GnrBag){
          templates=str;
          var mainNode =templates.getNode('main');
@@ -339,12 +381,20 @@ function dataTemplate(str, data, path, showAlways,kw) {
         });
     }
  
+    if(kw.trustedMarkup){
+        nonce = '\u0001' + Math.random().toString(36).slice(2) + '_';
+        handlers = [];
+        str = str.replace(_TEMPLATE_HANDLER_ATTR, function(attr) {
+            handlers.push(attr);
+            return nonce + (handlers.length - 1) + '\u0001';
+        });
+    }
+    var substitute;
     if (data instanceof gnr.GnrBag) {
         if (!data && !showAlways) {
             return '';
         }
-        result = str.replace(regexpr,
-                            function() {
+        substitute = function() {
                                 var l = arguments.length;
                                 has_field=true;
                                 var path=arguments[0].slice(1);
@@ -356,7 +406,7 @@ function dataTemplate(str, data, path, showAlways,kw) {
                                 attrname = attrname?attrname.slice(1):null;
                                 var valueattr = {};
                                 var dtype = dtypes[as_name];
-                                var editpars = editcols[as_name];
+                                var editpars = jsContext ? null : editcols[as_name];
                                 if(scopeSourceNode && stringStartsWith(path,'#')){
                                     valueNode = genro.getDataNode(scopeSourceNode.absDatapath(path));
                                 }else{
@@ -407,13 +457,18 @@ function dataTemplate(str, data, path, showAlways,kw) {
                                         }else if(valueattr._formattedValue){
                                             value = valueattr._formattedValue;
                                         }
-                                        value = genro.safeHtmlContent(value);
+                                        if(!jsContext){
+                                            value = genro.safeHtmlContent(value);
+                                        }
                                     }
                                 }
                                 if (value != null) {
                                     is_empty = false;
                                     if (value instanceof Date) {
                                         value = dojo.date.locale.format(value, {selector:dtype=='H'?'time':'date', format:'short'});
+                                    }
+                                    if(jsContext){
+                                        return jsInertValue(arguments[l-1].slice(0, arguments[l-2]), value);
                                     }
                                     return value;
                                 } else if(showAlways){
@@ -422,12 +477,12 @@ function dataTemplate(str, data, path, showAlways,kw) {
                                 }else{
                                     return '';
                                 }
-                            });
+                            };
     } else {
         data = data || {};
         var p,plist,sub;
-        result = str.replace(regexpr,
-                          function(path) {
+        substitute = function(path) {
+                              var l = arguments.length;
                               has_field=true;
                               plist = path.slice(1).split('.');
                               p = plist[0];
@@ -436,13 +491,35 @@ function dataTemplate(str, data, path, showAlways,kw) {
                                     is_empty = false;
                                     sub = plist.slice(1);
                                     if(sub.length && value instanceof gnr.GnrBag){
-                                        return genro.safeHtmlContent(gnrformatter.asText(value.getItem(sub)));
+                                        value = gnrformatter.asText(value.getItem(sub));
+                                    }else{
+                                        value = gnrformatter.asText(value,formats[p]);
                                     }
-                                    return genro.safeHtmlContent(gnrformatter.asText(value,formats[p]));
+                                    if(jsContext){
+                                        return jsInertValue(arguments[l-1].slice(0, arguments[l-2]), value);
+                                    }
+                                    return genro.safeHtmlContent(value);
                               }else{
                                     return '';
                               }
-                          });
+                          };
+    }
+    result = str.replace(regexpr, substitute);
+    if (handlers) {
+        result = genro.safeHtmlContent(result);
+        jsContext = true;
+        result = result.replace(new RegExp(nonce + '(\\d+)\u0001', 'g'), function(m, i) {
+            var attr = handlers[i];
+            var head = attr.match(/^on\w+\s*=\s*["']?/i)[0];
+            var quote = head.slice(-1);
+            var code = attr.slice(head.length);
+            var tail = '';
+            if ((quote == '"' || quote == "'") && code.slice(-1) == quote) {
+                code = code.slice(0, -1);
+                tail = quote;
+            }
+            return head + code.replace(regexpr, substitute) + tail;
+        });
     }
     if (has_field && is_empty && !showAlways) {
         return '';
