@@ -932,7 +932,8 @@ dojo.declare("gnr.GnrFrmHandler", null, {
         return error;
     },
     // codes the user is already told about elsewhere: genro.dev.handleRpcError for the
-    // envelope ones, genro.rpc.errorHandler for the transport one, gnrsilent by design
+    // envelope ones, genro.rpc.errorHandler for the transport one (not on load: loadFailed
+    // alerts on rpc_error, which has shown nothing yet), gnrsilent by design
     rpcReportedErrors:['gnrsilent','rpc_error','gnrexception','server_exception',
                        'expired','clientError','serverError'],
     rpcFailureReported:function(failure){
@@ -956,7 +957,8 @@ dojo.declare("gnr.GnrFrmHandler", null, {
         if(failure.error=='gnrsilent'){
             return;
         }
-        if(this.rpcFailureReported(failure)){
+        // a server_unavailable arrives as rpc_error before anything has been shown
+        if(failure.error!='rpc_error' && this.rpcFailureReported(failure)){
             this.abort();
             return;
         }
@@ -3145,6 +3147,10 @@ dojo.declare("gnr.formstores.Base", null, {
                                                   'table':this.table, timeout:0},kw),null,'POST',null,maincb);
         if(dbstoreOnDeferred){
             deferred.addCallback(function(result){
+                var failure = form.rpcFailure(result);
+                if(failure){
+                    return failure;
+                }
                 var dbstore = result.getValue().getItem(that.form.dbstoreField);
                 if(dbstore){
                     that.form.sourceNode.attr.context_dbstore = dbstore;
@@ -3188,7 +3194,7 @@ dojo.declare("gnr.formstores.Base", null, {
                 form.waitingStatus(false);
                 return failure;
             }
-            var resultDict={};
+            var resultDict={savedPkey:form.getCurrentPkey()};
             if (result){
                 if(autoreload){
                     var loadedRecordNode = result.getNode('loadedRecord');
