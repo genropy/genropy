@@ -188,10 +188,11 @@
     border-radius: 1px;
 }
 
-/* beside the rail the step would touch its border */
+/* beside the rail the step would touch its border. No border-box: dijit sets
+   this box's width and height already net of its padding, so border-box took
+   the padding off twice and left the scrollbar 32px inside the dialog edge */
 .wizard_vertical .wizard_step_pane .grouplet_box {
     padding: 12px 16px;
-    box-sizing: border-box;
 }
 
 /* The step content is the only thing in a wizard that may be taller than the
