@@ -364,13 +364,60 @@ dojo.declare("gnr.QueryManager", null, {
         //   orderby_xml  optional custom order bag (rows with fieldpath and sorting)
         //   limit, title optional query limit and caption
         //   run          run the query after loading it
+        //   view         optional {code, caption, struct_xml}: a view of the grid, added to its
+        //                views as a temporary view and selected
+        //   groupby      optional {code, caption, struct_xml, mode}: a view of the Group By page,
+        //                added and selected the same way; the page shows Group By and runs the
+        //                query, which the grouped view totalizes (mode: flatview, stackedview)
         //   query_id     optional id: a query is applied once, and the page confirms it to its
         //                parent window with the topic th_external_query_applied
         // Bags are serialized because the message crosses the iframe boundary.
-        if(!kw.where_xml || (kw.query_id && this._lastExternalQuery==kw.query_id)){
+        if(!(kw.where_xml || kw.view || kw.groupby) || (kw.query_id && this._lastExternalQuery==kw.query_id)){
             return;
         }
         this._lastExternalQuery = kw.query_id;
+        if(kw.where_xml){
+            this._applyExternalConditions(kw);
+        }
+        if(kw.view){
+            this.applyExternalView(this.th_root+'_grid',kw.view);
+        }
+        var groupby = kw.groupby && this.applyExternalView(this.th_root+'_groupedView_grid',kw.groupby);
+        if(groupby){
+            if(kw.groupby.mode){
+                genro.nodeById(this.th_root+'_groupedView').setRelativeData('.groupMode',kw.groupby.mode);
+            }
+            this.sourceNode.setRelativeData('.statsTools.selectedPage','groupby');
+            this.sourceNode.setRelativeData('.viewPage','statsTools');
+        }else if(this.sourceNode.getRelativeData('.viewPage')=='statsTools'){
+            // a list of records: back from the Group By page left open by a previous message
+            this.sourceNode.setRelativeData('.viewPage','mainView');
+        }
+        if(kw.query_id){
+            genro.dom.windowMessage('parent',{topic:'th_external_query_applied',query_id:kw.query_id});
+        }
+        if(kw.run || groupby){
+            this.sourceNode.fireEvent('.runQuery');
+        }
+    },
+
+    applyExternalView:function(gridId,view){
+        // Adds a struct to the views of a grid as a temporary view (the views menu shows it
+        // and the grid configurator saves it) and selects it.
+        var gridNode = genro.nodeById(gridId);
+        if(!gridNode || !view || !view.struct_xml){
+            return false;
+        }
+        var code = view.code || ('external_'+genro.getCounter());
+        var caption = view.caption || code;
+        gridNode.setRelativeData('.temp_structs.'+code,new gnr.GnrBag(view.struct_xml),
+                                 {code:code,caption:caption,description:caption});
+        gridNode.setRelativeData('.currViewPath',null,null,false,false);
+        gridNode.setRelativeData('.currViewPath',code);
+        return true;
+    },
+
+    _applyExternalConditions:function(kw){
         var sourceNode = this.sourceNode;
         var where = new gnr.GnrBag(kw.where_xml);
         if(!where.len()){
@@ -390,12 +437,6 @@ dojo.declare("gnr.QueryManager", null, {
             this.queryEditor(true);
         }else{
             sourceNode.setRelativeData('.query.queryEditor',true);
-        }
-        if(kw.query_id){
-            genro.dom.windowMessage('parent',{topic:'th_external_query_applied',query_id:kw.query_id});
-        }
-        if(kw.run){
-            sourceNode.fireEvent('.runQuery');
         }
     },
 
