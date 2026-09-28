@@ -432,6 +432,12 @@
 .grouplet_grid--framed > .grouplet_grid_body {
     overflow: auto;
 }
+/* Cards reach the body's right edge, so its scrollbar sat against their
+   border. Not in struct mode, whose header and footer follow the rows'
+   geometry, nor in tabs, whose body is a single panel. */
+.grouplet_grid--framed:not(.grouplet_grid--struct):not(.grouplet_grid--tabs):not(.grouplet_grid--vtabs) > .grouplet_grid_body {
+    padding-right: 6px;
+}
 
 /* Body: stack verticale di default. The body's row-to-row gap (and
    the footer's distance from the last row) is driven by `--gg-gap`
