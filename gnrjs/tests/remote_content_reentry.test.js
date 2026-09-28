@@ -114,3 +114,18 @@ test('a condition that turns false releases the node', () => {
     landAll(fetches);
     assert.deepEqual(mounted, ['second']);
 });
+
+test('an exception before the fetch leaves the node free for the next trigger', () => {
+    const {context, genro, node, fetches, mounted} = createRemote();
+    const original = context._T;
+    context._T = function() {
+        context._T = original;
+        throw new Error('translation failed');
+    };
+    assert.throws(() => node.updateRemoteContent(), /translation failed/);
+    genro._data.setItem('gnr.step.resource', 'second');
+    node.updateRemoteContent(node);
+    assert.deepEqual(fetches.map(f => f.resource), ['second']);
+    landAll(fetches);
+    assert.deepEqual(mounted, ['second']);
+});

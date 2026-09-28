@@ -1736,77 +1736,82 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         //(_T below) lets dojo deliver an async response whose triggers
         //would otherwise start a second fetch racing this one
         this._remotebuilding = true;
-        var remoteAttr = this.evaluateOnNode(objectExtract(this.attr,'remote_*',true));
-        async = objectPop(remoteAttr,'_async',async);
-        if(this._lastRemoteAttr && this.attr._cachedRemote && objectIsEqual(this._lastRemoteAttr,remoteAttr)){
-            return this._releaseRemoteUpdate(async);
-        }
-        this._lastRemoteAttr = remoteAttr;
-        if(remoteAttr._if){
-            var condition = funcApply('return (' + remoteAttr._if + ')',remoteAttr,this);
-            if(!condition){
-                if ('_else' in remoteAttr){
-                    var elseval=remoteAttr._else;
-                    if (elseval && typeof(elseval)=='string'){
-                        elseval=funcCreate(elseval).call(this);
-                    }
-                    this.mergeRemoteContent(elseval);
-                }
+        try{
+            var remoteAttr = this.evaluateOnNode(objectExtract(this.attr,'remote_*',true));
+            async = objectPop(remoteAttr,'_async',async);
+            if(this._lastRemoteAttr && this.attr._cachedRemote && objectIsEqual(this._lastRemoteAttr,remoteAttr)){
                 return this._releaseRemoteUpdate(async);
             }
-        }
-        var kwargs = {};
-        for (var attrname in remoteAttr) {
-            var value = remoteAttr[attrname];
-            if (value instanceof Date) {
-                var abspath = this.absDatapath(this.attr['remote_'+attrname]);
-                var node = genro._data.getNode(abspath);
-                value = asTypedTxt(value, node.attr.dtype);
-            }
-            if (attrname.indexOf('_') != 0) {
-                kwargs[attrname] = value;
-            } else if (attrname == '_onRemote') {
-                _onRemote = funcCreate(value, attrname._onRemote, this);
-            }
-        }
-        var method = this.attr.remote;
-        var that = this;
-        kwargs.sync = !async;
-        if(objectPop(remoteAttr,'sendInheritedAttributes')){
-            kwargs._inheritedAttributes = this.getInheritedAttributes();
-        }
-        
-        if(remoteAttr._waitingMessage){
-            var waitingMessage = remoteAttr._waitingMessage===true?_T('Loading content'):remoteAttr._waitingMessage;
-            waitingMessage = '<div style="height:130px;opacity:.8;" class="waiting"></div>'+'<div style="font-size:13px">'+waitingMessage+'</div>'
-            this.setHiderLayer(true,{message:waitingMessage});
-            kwargs.sync = false;
-        }
-        return genro.rpc.remoteCall(method, kwargs, null, 'POST', null,
-            function(result) {
-                //that.setValue(result);
-                if(result.error){
-                    genro.dlg.alert('Error in remote '+result.error,'Error');
-                }else{
-                    that.watch('checkPendingRequirs',function(){
-                        return !objectNotEmpty(genro.dom.pendingHeaders);
-                    },function(){
-                        if(remoteAttr._waitingMessage){
-                            that.setHiderLayer(false);
+            this._lastRemoteAttr = remoteAttr;
+            if(remoteAttr._if){
+                var condition = funcApply('return (' + remoteAttr._if + ')',remoteAttr,this);
+                if(!condition){
+                    if ('_else' in remoteAttr){
+                        var elseval=remoteAttr._else;
+                        if (elseval && typeof(elseval)=='string'){
+                            elseval=funcCreate(elseval).call(this);
                         }
-                        var t0 = new Date();
-                        //console.log('before building dom');
-                        that.mergeRemoteContent(result);
-                        //console.log('after building dom stuck time',new Date()-t0);
-                        if (_onRemote) {
-                            _onRemote();
-                        }
-                        genro.fakeResize();
-                    });
+                        this.mergeRemoteContent(elseval);
+                    }
+                    return this._releaseRemoteUpdate(async);
                 }
-                that._releaseRemoteUpdate(async);
-                return result;
-            });
+            }
+            var kwargs = {};
+            for (var attrname in remoteAttr) {
+                var value = remoteAttr[attrname];
+                if (value instanceof Date) {
+                    var abspath = this.absDatapath(this.attr['remote_'+attrname]);
+                    var node = genro._data.getNode(abspath);
+                    value = asTypedTxt(value, node.attr.dtype);
+                }
+                if (attrname.indexOf('_') != 0) {
+                    kwargs[attrname] = value;
+                } else if (attrname == '_onRemote') {
+                    _onRemote = funcCreate(value, attrname._onRemote, this);
+                }
+            }
+            var method = this.attr.remote;
+            var that = this;
+            kwargs.sync = !async;
+            if(objectPop(remoteAttr,'sendInheritedAttributes')){
+                kwargs._inheritedAttributes = this.getInheritedAttributes();
+            }
+        
+            if(remoteAttr._waitingMessage){
+                var waitingMessage = remoteAttr._waitingMessage===true?_T('Loading content'):remoteAttr._waitingMessage;
+                waitingMessage = '<div style="height:130px;opacity:.8;" class="waiting"></div>'+'<div style="font-size:13px">'+waitingMessage+'</div>'
+                this.setHiderLayer(true,{message:waitingMessage});
+                kwargs.sync = false;
+            }
+            return genro.rpc.remoteCall(method, kwargs, null, 'POST', null,
+                function(result) {
+                    //that.setValue(result);
+                    if(result.error){
+                        genro.dlg.alert('Error in remote '+result.error,'Error');
+                    }else{
+                        that.watch('checkPendingRequirs',function(){
+                            return !objectNotEmpty(genro.dom.pendingHeaders);
+                        },function(){
+                            if(remoteAttr._waitingMessage){
+                                that.setHiderLayer(false);
+                            }
+                            var t0 = new Date();
+                            //console.log('before building dom');
+                            that.mergeRemoteContent(result);
+                            //console.log('after building dom stuck time',new Date()-t0);
+                            if (_onRemote) {
+                                _onRemote();
+                            }
+                            genro.fakeResize();
+                        });
+                    }
+                    that._releaseRemoteUpdate(async);
+                    return result;
+                });
+        }catch(e){
+            this._releaseRemoteUpdate(async);
+            throw e;
+        }
     },
 
     _releaseRemoteUpdate:function(async){
