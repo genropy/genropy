@@ -14,6 +14,8 @@ from core.common import BaseGnrTest
 from gnr.core.gnrbag import Bag
 from gnr.sql.gnrsql_exceptions import GnrSqlMissingField
 
+from .common import next_sql_compiler_flag
+
 def setup_module(module):
     BaseGnrTest.setup_class()
 def teardown_module(module):
@@ -3214,6 +3216,12 @@ class TestJoinConditions:
         rows = q.fetch()
         assert isinstance(rows, list)
 
+    @pytest.fixture(params=['False', 'True'], ids=['legacy', 'next'])
+    def sql_compiler(self, request, db_sqlite):
+        with next_sql_compiler_flag(db_sqlite, request.param):
+            yield request.param
+
+    @pytest.mark.usefixtures('sql_compiler')
     def test_join_condition_global_where_column_token_sqlite(self, db_sqlite):
         """1362: a $column in the ('*','*') condition is compiled to its alias."""
         tbl = db_sqlite.table('invc.invoice_row')
@@ -3224,6 +3232,7 @@ class TestJoinConditions:
         assert '"t0"."quantity" > :qmin' in sql
         assert '$quantity' not in sql
 
+    @pytest.mark.usefixtures('sql_compiler')
     def test_join_condition_global_where_relation_token_sqlite(self, db_sqlite):
         """1362: a @relation.column in the ('*','*') condition builds its join."""
         tbl = db_sqlite.table('invc.invoice_row')
@@ -3236,6 +3245,7 @@ class TestJoinConditions:
         assert '@invoice_id' not in sql
         assert isinstance(q.fetch(), list)
 
+    @pytest.mark.usefixtures('sql_compiler')
     def test_join_condition_global_where_related_query_sqlite(self, db_sqlite):
         """1362: the condition filters the same rows as the equivalent where."""
         tbl = db_sqlite.table('invc.invoice_row')

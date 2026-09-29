@@ -88,6 +88,7 @@ dojo.declare("gnr.GnrFrmHandler", null, {
             'datetextbox':null,
             'geocoderfield':null,
             'ckeditor':null,
+            'joditeditor':null,
             'tinymce':null,
             'mdeditor':null,
             'datetimetextbox':null
@@ -931,7 +932,8 @@ dojo.declare("gnr.GnrFrmHandler", null, {
         return error;
     },
     // codes the user is already told about elsewhere: genro.dev.handleRpcError for the
-    // envelope ones, genro.rpc.errorHandler for the transport one, gnrsilent by design
+    // envelope ones, genro.rpc.errorHandler for the transport one (not on load: loadFailed
+    // alerts on rpc_error, which has shown nothing yet), gnrsilent by design
     rpcReportedErrors:['gnrsilent','rpc_error','gnrexception','server_exception',
                        'expired','clientError','serverError'],
     rpcFailureReported:function(failure){
@@ -955,7 +957,8 @@ dojo.declare("gnr.GnrFrmHandler", null, {
         if(failure.error=='gnrsilent'){
             return;
         }
-        if(this.rpcFailureReported(failure)){
+        // a server_unavailable arrives as rpc_error before anything has been shown
+        if(failure.error!='rpc_error' && this.rpcFailureReported(failure)){
             this.abort();
             return;
         }
@@ -1709,17 +1712,24 @@ dojo.declare("gnr.GnrFrmHandler", null, {
         this.updateDraftMarker(set);
     },
 
+    draftMarkerCorners:['tr','tl','br','bl'],
+
     updateDraftMarker:function(isDraft){
         var dm = this.draftMarker;
+        if(dm === true || dm === undefined){
+            dm = 'tr';
+        }else if(dm !== false && dm !== 'bar' && this.draftMarkerCorners.indexOf(dm)<0){
+            console.warn('[form ' + this.formId + '] unknown draftMarker "' + dm + '", falling back to "bar"');
+            dm = this.draftMarker = 'bar';
+        }
         var marked = (isDraft && dm!==false) ? true : false;
-        var dmPos = (dm === true || dm === undefined) ? 'tr' : dm;
         genro.dom.setClass(this.sourceNode,'form_draft',marked);
         var domNode = this.sourceNode.getDomNode();
         if(domNode && this.draftLabel){
             domNode.style.setProperty('--form-draft-label','"'+this.draftLabel.replace(/"/g,'\\"')+'"');
         }
-        ['tr','tl','br','bl'].forEach(function(pos){
-            genro.dom.setClass(this.sourceNode,'draft_marker_' + pos, marked && dmPos === pos);
+        this.draftMarkerCorners.forEach(function(pos){
+            genro.dom.setClass(this.sourceNode,'draft_marker_' + pos, marked && dm === pos);
         }, this);
     },
 
@@ -1896,6 +1906,17 @@ dojo.declare("gnr.GnrFrmHandler", null, {
             allowed = !this._protectedNode(kw.node);
         }
         if( kw.value==kw.oldvalue  || (isNullOrBlank(kw.value) && isNullOrBlank(kw.oldvalue))){
+            if(kw.updattr && kw.oldattr && ('_loadedValue' in kw.node.attr) && kw.oldattr._loadedValue!==kw.node.attr._loadedValue){
+                var loadedValue = kw.node.attr._loadedValue;
+                var currentValue = kw.node.getValue('static');
+                if(loadedValue==currentValue || (isNullOrBlank(loadedValue) && isNullOrBlank(currentValue))){
+                    //a set carrying _loadedValue equal to the value makes it the baseline
+                    delete kw.node.attr._loadedValue;
+                    this.getChangesLogger().pop(this.getChangeKey(kw.node));
+                    this.updateStatus();
+                    return;
+                }
+            }
             if(kw.updattr && kw.changedAttr && kw.changedAttr!='_displayedValue'){
                 var cattr = kw.changedAttr;
                 var oldvalue = kw.oldattr[cattr];
@@ -3126,6 +3147,10 @@ dojo.declare("gnr.formstores.Base", null, {
                                                   'table':this.table, timeout:0},kw),null,'POST',null,maincb);
         if(dbstoreOnDeferred){
             deferred.addCallback(function(result){
+                var failure = form.rpcFailure(result);
+                if(failure){
+                    return failure;
+                }
                 var dbstore = result.getValue().getItem(that.form.dbstoreField);
                 if(dbstore){
                     that.form.sourceNode.attr.context_dbstore = dbstore;
@@ -3169,7 +3194,7 @@ dojo.declare("gnr.formstores.Base", null, {
                 form.waitingStatus(false);
                 return failure;
             }
-            var resultDict={};
+            var resultDict={savedPkey:form.getCurrentPkey()};
             if (result){
                 if(autoreload){
                     var loadedRecordNode = result.getNode('loadedRecord');

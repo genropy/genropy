@@ -445,11 +445,13 @@ class GroupletHandler(BaseComponent):
                      _class='wizard_caption')
         step_form_id = f'{frameCode}_step_form'
         # The reload that follows the wizard's own save (onSaved sets
-        # wizard_saved_pkey before it, this load consumes it) changes nothing,
-        # unless it switched read-only (a confirm). Another load of the same
-        # record (a reload after an rpc) stays on the step and rebuilds it,
-        # unless it switched read-only. A different or
-        # new record repositions: first step, the step stored in
+        # wizard_saved_pkey before it, this load consumes it) stays on the step,
+        # unless it switched read-only (a confirm). After the insert of an
+        # advance it enters the step the advance left pending: that step is
+        # built on the saved record (wizardStepForward).
+        # Another load of the same record (a reload after an rpc) stays on the
+        # step and rebuilds it, unless it switched read-only.
+        # A different or new record repositions: first step, the step stored in
         # resumeStepField, or the last one when read-only. SET, not FIRE: FIRE
         # leaves step_index null and the next advance would restart from 0.
         # Already on the target step, wizard_build rebuilds it: its content
@@ -459,6 +461,7 @@ class GroupletHandler(BaseComponent):
             var isNew = this.form.isNewRecord();
             var ownSave = !isNew && pkey == _saved_pkey;
             SET .wizard_saved_pkey = null;
+            SET .wizard_pending_index = null;
             var confirmed = !isNew && !this.form.isDraft();
             var readOnly = confirmed_ro && !isNew
                            && (confirmed || this.form.isProtectWrite());
@@ -468,6 +471,9 @@ class GroupletHandler(BaseComponent):
             SET .wizard_confirmed = confirmed;
             SET .wizard_loaded_pkey = pkey;
             if(ownSave && sameMode){
+                if(_pending_index != null){
+                    SET .step_index = _pending_index;
+                }
                 return;
             }
             if(sameRecord){
@@ -512,8 +518,12 @@ class GroupletHandler(BaseComponent):
             # a save followed by no load (a dismiss) must not mark the next one
             pane.dataController("SET .wizard_saved_pkey = null; SET .wizard_loaded_pkey = null;",
                                 formsubscribe_onDismissed=True)
+        # a refused insert brings no reload to enter the pending step
+        pane.dataController("SET .wizard_pending_index = null;",
+                            formsubscribe_onSaveFailed=True)
         if has_summary:
             on_loaded_js = """
+                SET .wizard_pending_index = null;
                 SET .wizard_showing_summary = false;
                 SET .wizard_page = 'steps';
                 if(this.form.isNewRecord()){
@@ -525,6 +535,7 @@ class GroupletHandler(BaseComponent):
         pane.dataController(on_loaded_js,
                             frameCode=frameCode,
                             _saved_pkey='=.wizard_saved_pkey',
+                            _pending_index='=.wizard_pending_index',
                             _loaded_pkey='=.wizard_loaded_pkey',
                             _was_readonly='=.wizard_readonly',
                             _step_index='=.step_index',
@@ -972,7 +983,7 @@ class GroupletGridHandler(BaseComponent):
     @extract_kwargs(
         grouplet=dict(slice_prefix=False, pop=True),
         store= dict(slice_prefix=False,pop=True),
-        additem=True, delitem=True, editmenu=True,
+        additem=True, delitem=True, editmenu=True, totals=True,
     )
     @struct_method
     def gr_groupletGrid(self, pane, datapath=None, storepath=None,
@@ -994,10 +1005,12 @@ class GroupletGridHandler(BaseComponent):
                         minRows=0, maxRows=None,
                         defaultRow=None,
                         counterField=None,
+                        formulas=None, totals=None,
                         grouplet_kwargs=None,
                         additem_kwargs=None,
                         delitem_kwargs=None,
                         editmenu_kwargs=None,
+                        totals_kwargs=None,
                         store_kwargs=None,
                         nodeId=None, **kwargs):
         # Author-supplied nodeIds inside the template must bake in `rowKey`
@@ -1038,6 +1051,11 @@ class GroupletGridHandler(BaseComponent):
             flavours.append('grouplet_grid--framed')
         if fillParent:
             flavours.append('grouplet_grid--fill')
+        totals_kwargs = dict(totals_kwargs or {})
+        if totals_kwargs.pop('sticky', False):
+            flavours.append('grouplet_grid--sticky-totals')
+        totals = self._gr_groupletGrid_totals(
+            totals, default_format=totals_kwargs.pop('format', None))
         extra_class = kwargs.pop('_class', None)
         if extra_class:
             flavours.append(extra_class)
@@ -1091,6 +1109,11 @@ class GroupletGridHandler(BaseComponent):
             elif struct_has_totalize and side == 'bottom':
                 slot.div(_class='grouplet_grid__struct_footer',
                          childname='struct_footer')
+            # the totals band carries the caller's totals_* attributes
+            # (hidden, dynamic params): the JS grafts only its content
+            if totals and side == 'bottom':
+                slot.div(_class='grouplet_grid__totals', childname='totals',
+                         **totals_kwargs)
         container.div(_class='grouplet_grid_body',
                       nodeId=body_id,
                       datapath=storepath,
@@ -1111,10 +1134,32 @@ class GroupletGridHandler(BaseComponent):
             titleField=titleField, emptyTitle=emptyTitle,
             defaultRow=defaultRow, minRows=minRows, maxRows=maxRows,
             counterField=counterField,
+            formulas=formulas, totals=totals,
             resolved_drag_code=resolved_drag_code,
             loaderrpc=self.gr_getGroupletGridTemplate,
             mapLoaderrpc=self.gr_getGroupletGridTemplateMap)
         return container
+
+    def _gr_groupletGrid_totals(self, totals, default_format=None):
+        """The `totals=` entries in the shape the JS band reads: `key` is
+        where the value lives under `<controllerPath>.totalize`, a row
+        field summed or the `name` of a formula over the other totals."""
+        result = []
+        for entry in totals or []:
+            entry = dict(entry)
+            field = entry.get('field')
+            formula = entry.get('formula')
+            if not (field or formula) or (formula and not entry.get('name')):
+                raise self.exception(
+                    'generic',
+                    msg='groupletGrid totals: each entry needs field=, '
+                        'or name= with formula=')
+            key = field or entry['name']
+            result.append(dict(key=key, field=field, formula=formula,
+                               label=entry.get('label') or key,
+                               format=entry.get('format') or default_format,
+                               highlight=bool(entry.get('highlight'))))
+        return result
 
     def _gr_groupletGrid_emitController(
             self, container, *,
@@ -1125,6 +1170,7 @@ class GroupletGridHandler(BaseComponent):
             additem_kwargs, delitem_kwargs, editmenu_kwargs,
             layout, lazyTabs, titleField, emptyTitle,
             defaultRow, minRows, maxRows, counterField,
+            formulas, totals,
             resolved_drag_code,
             loaderrpc, mapLoaderrpc):
         # Resolve the container via attributeOwnerNode at runtime: a fixed
@@ -1162,6 +1208,8 @@ class GroupletGridHandler(BaseComponent):
                 minRows: minRows,
                 maxRows: maxRows,
                 counterField: counterField,
+                formulas: formulas,
+                totals: totals,
                 dragCode: dragCode,
                 loaderrpc: loaderrpc,
                 mapLoaderrpc: mapLoaderrpc
@@ -1195,6 +1243,8 @@ class GroupletGridHandler(BaseComponent):
             minRows=minRows,
             maxRows=maxRows,
             counterField=counterField,
+            formulas=formulas or {},
+            totals=totals,
             dragCode=resolved_drag_code,
             loaderrpc=loaderrpc,
             mapLoaderrpc=mapLoaderrpc)
