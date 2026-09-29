@@ -245,8 +245,10 @@ class GroupletHandler(BaseComponent):
     def gr_groupletPanel(self, pane, table=None, topic=None, value=None,
                          frameCode=None, grouplets_root=None,
                          useForm=True, useRecordPath=False,
-                         menuCallback=None,
+                         menuCallback=None, startResource=None,
                          grouplet_kwargs=None, **kwargs):
+        # startResource: the group the panel opens on instead of an empty pane — True for the
+        # first leaf of the menu, or a resource path ('topic/grouplet')
         frameCode = frameCode or 'grplt_panel'
         if useRecordPath:
             grouplet_kwargs['formDatapath'] = '.record'
@@ -289,6 +291,10 @@ class GroupletHandler(BaseComponent):
                 pane, menu, frameCode=frameCode, formId=formId,
                 useForm=useForm,
                 grouplet_kwargs=grouplet_kwargs, **kwargs)
+        if startResource:
+            root.dataController("gnr_grouplet.panelStart(this, startResource, mode);",
+                                startResource=startResource,
+                                mode='topic' if topic else 'tree', _onBuilt=100)
         if mandatory_locations and value:
             base = value.lstrip('^=')
             triggers = {f'mandatory_{i}': f'^{base}.{location}'
@@ -376,6 +382,7 @@ class GroupletHandler(BaseComponent):
             _class='grouplet_tree',
             selectedLabelClass='selectedTreeNode',
             openOnClick=True,
+            selectedPath='^.selected_treepath',
             nodeId=f'{frameCode}_tree',
             getLabelClass="""
                 var labelClass = node.attr.grouplet_caption ? '' : 'grouplet_topic';
