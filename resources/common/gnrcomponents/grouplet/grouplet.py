@@ -281,8 +281,8 @@ class GroupletHandler(BaseComponent):
         bar.mb.multibutton(value='^.selected_code',
                            storepath='.grouplet_menu')
         bar.dataController(
-            "gnr_grouplet.panelSelectFromCode(this, code);",
-            code='^.selected_code', _onBuilt=1)
+            "gnr_grouplet.panelSelectFromCode(this, code, innerFormId);",
+            code='^.selected_code', innerFormId=formId, _onBuilt=1)
         center = frame.center.contentPane(overflow='auto')
         if useForm:
             frame.dataController("""
@@ -328,15 +328,7 @@ class GroupletHandler(BaseComponent):
             getLabelClass="""
                 if(!node.attr.grouplet_caption){ return 'grouplet_topic'; }
             """,
-            connect_onClick="""
-                if($2.item.attr.resource && $2.item.attr.grouplet_caption){
-                    let itemInfo = $2.item.attr;
-                    PUT .grouplet_info = new gnr.GnrBag(itemInfo);
-                    PUT .selected_resource = itemInfo.resource;
-                    SET .selected_caption = itemInfo.grouplet_caption;
-                    SET .selected_fullpath = $2.item.getFullpath()
-                }
-            """)
+            connect_onClick=f"gnr_grouplet.panelTreeClick(this, $2, '{formId or ''}');")
         grouplet_kwargs['grouplet_remote__reloader'] = '^#ANCHOR.selected_fullpath'
         right = bc.borderContainer(region='center')
         top = right.contentPane(region='top',

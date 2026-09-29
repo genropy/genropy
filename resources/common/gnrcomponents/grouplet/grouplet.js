@@ -184,14 +184,79 @@ var gnr_grouplet = {
         }
     },
 
-    panelSelectFromCode: function(sourceNode, code) {
-        if (code) {
-            var menu = sourceNode.getRelativeData('.grouplet_menu');
-            var node = menu.getNode(code);
-            if (node) {
-                sourceNode.setRelativeData('.grouplet_info', new gnr.GnrBag(node.attr));
-                sourceNode.setRelativeData('.selected_resource', node.attr.resource);
-            }
+    panelLeaveGroup: function(sourceNode, resource, formId, onLeave, onStay) {
+        var form = formId ? genro.formById(formId) : null;
+        if (resource == sourceNode.getRelativeData('.selected_resource') || !form) {
+            onLeave();
+            return;
         }
+        var pendingEditor = form.checkPendingGridEditor();
+        if (pendingEditor) {
+            // the edited cell reaches the form only when its editor closes, as in form.save
+            var that = this;
+            sourceNode.watch('grouplet_leave', function() { return !pendingEditor.grid.gnrediting; },
+                             function() { that.panelLeaveGroup(sourceNode, resource, formId, onLeave, onStay); });
+            return;
+        }
+        if (!form.changed) {
+            onLeave();
+            return;
+        }
+        if (form.isValid()) {
+            // saved now, with the current grouplet's locationpath and hooks: the switch replaces them
+            form.save();
+            onLeave();
+            return;
+        }
+        onStay();
+        genro.dlg.ask(_T('Invalid changes'), 'The current group has invalid changes.',
+                      {discard: _T('Discard and continue'), cancel: _T('Cancel')},
+                      {discard: function() {
+                          form.reload({discardChanges: true});
+                          onLeave(true);
+                      }});
+    },
+
+    panelTreeClick: function(sourceNode, treeNode, formId) {
+        var item = treeNode.item;
+        var itemInfo = item.attr;
+        if (!itemInfo.resource || !itemInfo.grouplet_caption) {
+            return;
+        }
+        var tree = sourceNode.widget;
+        var currentNode = tree.currentSelectedNode;
+        this.panelLeaveGroup(sourceNode, itemInfo.resource, formId, function(discarded) {
+            if (discarded) {
+                tree.setSelected(treeNode);
+            }
+            sourceNode.setRelativeData('.grouplet_info', new gnr.GnrBag(itemInfo), null, false, false);
+            sourceNode.setRelativeData('.selected_resource', itemInfo.resource, null, false, false);
+            sourceNode.setRelativeData('.selected_caption', itemInfo.grouplet_caption);
+            sourceNode.setRelativeData('.selected_fullpath', item.getFullpath());
+        }, function() {
+            // the tree selects the clicked node after its onClick handlers
+            setTimeout(function() { tree.setSelected(currentNode); }, 1);
+        });
+    },
+
+    panelSelectFromCode: function(sourceNode, code, formId) {
+        var menu = sourceNode.getRelativeData('.grouplet_menu');
+        var node = code ? menu.getNode(code) : null;
+        if (!node) {
+            return;
+        }
+        var currentResource = sourceNode.getRelativeData('.selected_resource');
+        this.panelLeaveGroup(sourceNode, node.attr.resource, formId, function(discarded) {
+            sourceNode.setRelativeData('.grouplet_info', new gnr.GnrBag(node.attr));
+            sourceNode.setRelativeData('.selected_resource', node.attr.resource);
+            if (discarded) {
+                sourceNode.setRelativeData('.selected_code', code);
+            }
+        }, function() {
+            var currentNode = menu.getNodeByAttr('resource', currentResource);
+            setTimeout(function() {
+                sourceNode.setRelativeData('.selected_code', currentNode ? currentNode.label : null);
+            }, 1);
+        });
     }
 };

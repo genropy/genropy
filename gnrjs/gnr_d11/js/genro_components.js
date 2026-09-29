@@ -1086,6 +1086,8 @@ dojo.declare("gnr.widgets.GroupletForm",gnr.widgets.gnrwdg,{
             grouplets_pars['value'] =  kw.formDatapath ;
         }
         kw.controllerPath = formControllerPath;
+        // where #FORM.pkey reads it, as in FrameForm: relation= handlers inside filter on it
+        kw.pkeyPath = kw.pkeyPath || '.pkey';
         sourceNode.gnrwdg.formId = formId;
         let formdiv = sourceNode._('BoxForm',kw);
         return formdiv._('grouplet',grouplets_pars);
