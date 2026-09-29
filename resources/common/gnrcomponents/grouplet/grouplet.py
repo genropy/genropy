@@ -13,7 +13,8 @@ class GroupletHandler(BaseComponent):
     @public_method
     def gr_loadGrouplet(self, pane, resource=None, table=None,
                         handlername=None, valuepath=None,
-                        grouplets_root=None,rootTag='div', **kwargs):
+                        grouplets_root=None,rootTag='div',
+                        mandatory_enforced=None, **kwargs):
         grouplets_root = grouplets_root or 'grouplets'
         if not resource:
             if not handlername:
@@ -43,12 +44,27 @@ class GroupletHandler(BaseComponent):
         handler = getattr(self, handlername)
         box_kw = dict(datapath=valuepath, grouplet_module=grouplet_module)
         info_method = getattr(self, '__info__', None)
-        if info_method:
-            grouplet_code = info_method().get('code')
-            if grouplet_code:
-                box_kw['grouplet_code'] = grouplet_code
+        info = info_method() if info_method else {}
+        grouplet_code = info.get('code')
+        if grouplet_code:
+            box_kw['grouplet_code'] = grouplet_code
         box = pane.child(rootTag,_class='grouplet_box', **box_kw)
-        return handler(box, **kwargs)
+        result = handler(box, **kwargs)
+        if info.get('mandatory'):
+            self._groupletRequireFields(box, info['mandatory'],
+                                        enforced_path=mandatory_enforced)
+        return result
+
+    def _groupletRequireFields(self, box, mandatory, enforced_path=None):
+        # the widgets bound to the mandatory fields, so the open grouplet shows what its menu entry asks for;
+        # in a groupletPanel they are required only while the panel enforces them (not on a draft record)
+        values = {f'^.{field.strip()}' for field in mandatory.split(',')}
+        notnull = f'^{enforced_path}' if enforced_path else True
+
+        def cb(node):
+            if node.attr.get('value') in values and 'validate_notnull' not in node.attr:
+                node.attr['validate_notnull'] = notnull
+        box.walk(cb)
 
     def _loadGroupletTopic(self, pane, topic_menu, table=None,
                            valuepath=None, grouplets_root=None,
@@ -259,16 +275,52 @@ class GroupletHandler(BaseComponent):
         else:
             menu = self.gr_getGroupletMenu(table=table, topic=topic,
                                            grouplets_root=grouplets_root)
+        mandatory_locations = self._groupletPanel_mandatoryPaths(menu, topic=topic)
+        if mandatory_locations:
+            grouplet_kwargs['grouplet_remote_mandatory_enforced'] = '#ANCHOR.mandatory_enforced'
         if topic:
             grouplet_kwargs['grouplet_remote_topic'] = topic
-            return self._groupletPanel_topic(
+            root = self._groupletPanel_topic(
                 pane, menu, frameCode=frameCode, formId=formId,
                 useForm=useForm,
                 grouplet_kwargs=grouplet_kwargs, **kwargs)
-        return self._groupletPanel_tree(
-            pane, menu, frameCode=frameCode, formId=formId,
-            useForm=useForm,
-            grouplet_kwargs=grouplet_kwargs, **kwargs)
+        else:
+            root = self._groupletPanel_tree(
+                pane, menu, frameCode=frameCode, formId=formId,
+                useForm=useForm,
+                grouplet_kwargs=grouplet_kwargs, **kwargs)
+        if mandatory_locations and value:
+            base = value.lstrip('^=')
+            triggers = {f'mandatory_{i}': f'^{base}.{location}'
+                        for i, location in enumerate(sorted(mandatory_locations))}
+            if formId:
+                # the open grouplet's edits, also those an invalid inner form keeps from its location
+                inner_datapath = (grouplet_kwargs.get('grouplet_datapath') or grouplet_kwargs.get('datapath')
+                                  or f'gnr.grouplet_{formId}')
+                inner_record = (grouplet_kwargs.get('grouplet_formDatapath') or grouplet_kwargs.get('formDatapath')
+                                or '.record')
+                triggers['inner_record'] = f'^{inner_datapath}{inner_record}'
+            root.dataController(
+                "gnr_grouplet.panelCheckMandatory(this, basePath, innerFormId);",
+                basePath=base, innerFormId=formId, formsubscribe_onLoaded=True,
+                _onBuilt=1, **triggers)
+        return root
+
+    def _groupletPanel_mandatoryPaths(self, menu, topic=None):
+        # the data location of a grouplet, as GroupletForm.updateFormFromGroupletMeta computes it
+        locations = set()
+
+        def cb(node):
+            if not node.attr.get('mandatory'):
+                return
+            resource = node.attr['resource']
+            if topic and resource.startswith(f'{topic}/'):
+                resource = resource[len(topic) + 1:]
+            location = node.attr.get('locationpath') or resource.replace('/', '.')
+            node.attr['mandatory_path'] = location
+            locations.add(location)
+        menu.walk(cb)
+        return locations
 
     def _groupletPanel_topic(self, pane, menu, frameCode=None,
                              formId=None, useForm=True,
@@ -326,7 +378,11 @@ class GroupletHandler(BaseComponent):
             openOnClick=True,
             nodeId=f'{frameCode}_tree',
             getLabelClass="""
-                if(!node.attr.grouplet_caption){ return 'grouplet_topic'; }
+                var labelClass = node.attr.grouplet_caption ? '' : 'grouplet_topic';
+                if(node.attr.mandatory_status){
+                    labelClass += ' grouplet_mandatory_' + node.attr.mandatory_status;
+                }
+                return labelClass;
             """,
             connect_onClick=f"gnr_grouplet.panelTreeClick(this, $2, '{formId or ''}');")
         grouplet_kwargs['grouplet_remote__reloader'] = '^#ANCHOR.selected_fullpath'

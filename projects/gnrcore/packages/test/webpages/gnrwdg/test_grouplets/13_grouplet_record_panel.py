@@ -7,7 +7,12 @@ autosaves into it; the real save is the outer form's.
 - test_1 (tree) and test_2 (multibutton): empty the company name in Company,
   then open Contact: a dialog offers Cancel (stay on Company, selection
   kept) or Discard and continue. Opening a group without edits leaves the
-  outer form unchanged, extra_data (a Bag column) included.
+  outer form unchanged, extra_data (a Bag column) included. Status is
+  mandatory on source: while it is empty Status is red with the warning
+  icon, its branch is red and the outer form cannot be saved. On a draft
+  record (try genro.formById('prospect_tree_form').setDraft(true)) the
+  marks turn italic, source is not required and the form saves; back to
+  setDraft(false) the save is refused again.
 - test_3: the Logs grouplet mounts a relation handler on sys.task, with its
   datapath outside the grouplet record: the grid lists the task_result rows
   of the outer record, and opening it leaves the outer form unchanged.
