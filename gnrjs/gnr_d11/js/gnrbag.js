@@ -2278,6 +2278,23 @@ dojo.declare("gnr.GnrBag", null, {
         return false;
     },
 
+    hasSameValues: function(otherbag) {
+        // labels and static values, recursively; attributes are ignored
+        if (!(otherbag instanceof gnr.GnrBag) || this.len() != otherbag.len()) {
+            return false;
+        }
+        var othernodes = otherbag.getNodes();
+        return this.getNodes().every(function(node, idx) {
+            var othernode = othernodes[idx];
+            if (node.label != othernode.label) {
+                return false;
+            }
+            var value = node.getValue('static');
+            return value instanceof gnr.GnrBag ? value.hasSameValues(othernode.getValue('static'))
+                                               : isEqual(value, othernode.getValue('static'));
+        });
+    },
+
     _deepIndex: function(path, resList, exploredNodes) {
         var node, v;
         for (var i = 0; i < this._nodes.length; i++) {
