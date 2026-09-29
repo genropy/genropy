@@ -1201,22 +1201,31 @@ class GroupletGridHandler(BaseComponent):
     def _gr_groupletGrid_totals(self, totals, default_format=None):
         """The `totals=` entries in the shape the JS band reads: `key` is
         where the value lives under `<controllerPath>.totalize`, a row
-        field summed or the `name` of a formula over the other totals."""
+        field summed, or the `name` of a formula over the other totals or of
+        a row count. Any other key (`hidden=` and its parameters) goes to
+        the entry's cell as an attribute."""
         result = []
         for entry in totals or []:
             entry = dict(entry)
-            field = entry.get('field')
-            formula = entry.get('formula')
-            if not (field or formula) or (formula and not entry.get('name')):
+            field = entry.pop('field', None)
+            formula = entry.pop('formula', None)
+            count = bool(entry.pop('count', False))
+            name = entry.pop('name', None)
+            if not (field or formula or count) \
+                    or (formula and not name) \
+                    or (count and (field or formula or not name)):
                 raise self.exception(
                     'generic',
                     msg='groupletGrid totals: each entry needs field=, '
-                        'or name= with formula=')
-            key = field or entry['name']
+                        'or name= with formula= or count=True')
+            key = field or name
+            label = entry.pop('label', None) or key
+            # a row count is an integer: the band's money format is not its
+            fmt = entry.pop('format', None) or (None if count else default_format)
+            highlight = bool(entry.pop('highlight', False))
             result.append(dict(key=key, field=field, formula=formula,
-                               label=entry.get('label') or key,
-                               format=entry.get('format') or default_format,
-                               highlight=bool(entry.get('highlight'))))
+                               count=count, label=label, format=fmt,
+                               highlight=highlight, attrs=entry))
         return result
 
     def _gr_groupletGrid_emitController(
