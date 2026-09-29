@@ -352,17 +352,26 @@ class GroupletHandler(BaseComponent):
                 }
             """, barId=bar_id,
                 **{f'subscribe_form_{formId}_onStatusChange': True})
-            bar.dataController("""
-                                 if(genro.formById(innerFormId).status!='noItem'){
-                                    genro.formById(innerFormId).reload()
-                                 }
-                                 """,
-                                 innerFormId=formId,
-                                 formsubscribe_onLoaded=True)
+            self._groupletPanel_innerReload(bar, formId)
             center.GroupletForm(**grouplet_kwargs)
         else:
             center.grouplet(**grouplet_kwargs)
         return frame
+
+    def _groupletPanel_innerReload(self, node, formId):
+        # the open group follows the outer record on every load, except right after the outer
+        # form's own save: an invalid edit the group still holds was not flushed and must stay
+        node.dataController("this.setRelativeData('#ANCHOR.after_save', true);",
+                            formsubscribe_onSaved=True)
+        node.dataController("""
+            var inner = genro.formById(innerFormId);
+            var keep = afterSave && inner.changed;
+            this.setRelativeData('#ANCHOR.after_save', false);
+            if(inner.status!='noItem' && !keep){
+                inner.reload();
+            }
+            """, innerFormId=formId, afterSave='=#ANCHOR.after_save',
+            formsubscribe_onLoaded=True)
 
     def _groupletPanel_tree(self, pane, menu, frameCode=None,
                             formId=None, useForm=True,
@@ -411,13 +420,7 @@ class GroupletHandler(BaseComponent):
             """, titleId=title_id,
                 selectedResource='=.selected_resource',
                 **{f'subscribe_form_{formId}_onStatusChange': True})
-            right.dataController("""
-                                 if(genro.formById(innerFormId).status!='noItem'){
-                                    genro.formById(innerFormId).reload()
-                                 }
-                                 """,
-                                 innerFormId=formId,
-                                 formsubscribe_onLoaded=True)
+            self._groupletPanel_innerReload(right, formId)
             center.GroupletForm(**grouplet_kwargs)
         else:
             center.grouplet(**grouplet_kwargs)
