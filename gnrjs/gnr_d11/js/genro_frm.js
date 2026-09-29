@@ -3378,6 +3378,10 @@ dojo.declare("gnr.formstores.Item", gnr.formstores.Base, {
                 d.forEach(function(n){
                     recordLoaded.addItem(n.label,n.getValue());
                 });
+            // a placeholder pkey (*newrecord*) is left out: reload() on it would build an empty record
+            if(kw._pkey && !/^\*.*\*$/.test(kw._pkey)){
+                form.setCurrentPkey(kw._pkey);
+            }
         }
         if(onLoading){
             var loadResult = funcApply(onLoading,{data:recordLoaded},this);
@@ -3413,19 +3417,29 @@ dojo.declare("gnr.formstores.Item", gnr.formstores.Base, {
             }
         }
         var that = this;
-        var path;
+        var path,destNode,destValue;
         formData.walk(function(n){
             var v = n.getValue();
-            var kw = {dtype:n.attr.dtype,
-                      _displayedValue:n.attr._displayedValue,
-                      _formattedValue:n.attr._formattedValue,
-                      _valuelabel:n.attr._valuelabel};
             path = n.getFullpath('static',formData);
+            destNode = sourceBag.getNode(path);
+            destValue = destNode? destNode.getValue('static'):undefined;
             if(v instanceof gnr.GnrBag){
-                that.writeBackBag(sourceBag,path,v);
+                if(!v.hasSameValues(destValue)){
+                    that.writeBackBag(sourceBag,path,v);
+                }
                 return '__continue__';
             }
-            sourceBag.setItem(path,n.getValue(),kw,{lazySet:true,_updattr:'*'});
+            if(destNode && isEqual(v,destValue)){
+                return;
+            }
+            // merged, not replaced: the destination keeps its change tracking (_loadedValue); a missing label is removed
+            var kw = {_displayedValue:n.attr._displayedValue,
+                      _formattedValue:n.attr._formattedValue,
+                      _valuelabel:n.attr._valuelabel};
+            if(n.attr.dtype){
+                kw.dtype = n.attr.dtype;
+            }
+            sourceBag.setItem(path,v,kw,{lazySet:true,_updattr:'*'});
         });
         var result = {};//{savedPkey:loadedRecordNode.label,loadedRecordNode:loadedRecordNode};
         this.saved(result);
