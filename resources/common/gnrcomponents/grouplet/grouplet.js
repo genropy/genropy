@@ -106,7 +106,10 @@ var gnr_grouplet = {
         if (targetIdx < idx) {
             var formId = frameCode + '_step_form';
             var form = genro.formById(formId);
-            if (form) {
+            // Like wizardNext: an unchanged step is not saved. save() checks
+            // validity before changes, so an untouched step with an empty
+            // required field would show its error on the way back.
+            if (form && form.changed) {
                 form.save();
             }
             this._wizardSetStepName(frameNode, targetIdx);
