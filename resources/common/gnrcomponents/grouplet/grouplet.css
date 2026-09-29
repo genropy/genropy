@@ -15,6 +15,33 @@
     font-weight: normal !important;
 }
 
+/* --- Mandatory grouplets: an incomplete leaf is red with the warning icon,
+   a branch holding one is red only --- */
+.grouplet_tree .grouplet_mandatory_missing,
+.grouplet_tree .grouplet_mandatory_branch,
+.multibutton.grouplet_mandatory_missing .multibutton_caption {
+    color: var(--status-error, #E53935);
+}
+
+.grouplet_tree .grouplet_mandatory_missing::after,
+.multibutton.grouplet_mandatory_missing .multibutton_caption::after {
+    content: '';
+    display: inline-block;
+    width: 1em;
+    height: 0.9em;
+    margin-left: 0.3em;
+    vertical-align: -0.1em;
+    background: var(--icon-warning) no-repeat center / contain;
+}
+
+/* on a draft record the marks only signal what is still to complete */
+.grouplet_mandatory_draft .grouplet_tree .grouplet_mandatory_missing,
+.grouplet_mandatory_draft .grouplet_tree .grouplet_mandatory_branch,
+.grouplet_mandatory_draft .multibutton.grouplet_mandatory_missing .multibutton_caption {
+    color: inherit;
+    font-style: italic;
+}
+
 /* --- Grouplet panel --- */
 .grouplet_panel_tree {
     border-right: 1px solid var(--border-color, #ccc);

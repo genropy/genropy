@@ -216,6 +216,36 @@ loginUrl()
     
     For more information on how to build a login page, please check the :ref:`login_auth` page.
 
+.. _methods_required_packages:
+
+required_packages
+-----------------
+
+    The packages this package needs, loaded with it even when ``instanceconfig.xml``
+    does not declare them. It is how an instance flavour carries its closure: an
+    instance declares the flavour and receives the packages it requires, transitively.
+
+    Declare it in one of two forms, as a class attribute::
+
+        class Package(GnrDboPackage):
+            required_packages = ['gnrcore:adm', 'gnrcore:email']
+
+    or as a method with a single ``return``::
+
+        class Package(GnrDboPackage):
+            def required_packages(self):
+                return ['gnrcore:adm', 'gnrcore:email']
+
+    The value **must be a literal list (or tuple) of strings**. ``gnr app checkdep
+    --requirements`` reads it from ``main.py`` without importing anything, since in a
+    clean environment ``main.py`` may not import precisely because the dependencies to
+    install are the ones this list leads to. A list computed at runtime (from a module
+    constant, from the configuration, from a call) cannot be read that way: the command
+    reports the package as unresolved and fails, instead of guessing.
+
+    A ``Package`` class in ``instance/custom/<package>/custom.py`` can override the
+    declaration, in either form.
+
 .. _main_table_class:
 
 Table class
