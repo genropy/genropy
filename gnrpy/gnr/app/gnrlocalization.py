@@ -25,6 +25,7 @@ import os
 import re
 
 import gnr
+from gnr.core.gnrconfig import getGenroRoot
 from gnr.core.gnrstring import flatten
 from gnr.core.gnrbag import Bag,DirectoryResolver
 from gnr.core.gnrlang import GnrException
@@ -47,16 +48,41 @@ class GnrLocString(str):
         return GnrLocString(super(GnrLocString, self).__mod__(*args,**kwargs),lockey=self.lockey,_tplargs=args,_tplkwargs=kwargs)
 
 
+# (repository layout, installed package layout) of each folder scanned for the core catalogue
+CORE_LOCALIZATION_ROOTS = (('gnrpy/gnr', ''),
+                           ('gnrjs', 'gnrjs'),
+                           ('resources/common', 'resources/common'),
+                           ('resources/mobile', 'resources/mobile'))
+
+def coreLocalizationRoots(packageFolder):
+    """Return the core roots as (folder, modulePrefix) pairs.
+
+    In an installed distribution gnrjs and resources live inside the gnr
+    package (see [tool.setuptools.package-dir]); in a source checkout they
+    stay at the repository root. Each root is resolved under the package
+    first and falls back to the repository layout. The module prefix is
+    always the repository path, so the catalogue keys do not depend on
+    where the scan runs."""
+    genroRoot = getGenroRoot()
+    result = []
+    for repoPath, packagePath in CORE_LOCALIZATION_ROOTS:
+        folder = os.path.normpath(os.path.join(packageFolder, packagePath))
+        if not os.path.isdir(folder):
+            folder = os.path.join(genroRoot, repoPath)
+        result.append((folder, repoPath))
+    return result
+
+
 class AppLocalizer(object):
     def __init__(self, application=None):
         self.application = application
         self.genroroot = os.path.dirname(gnr.__file__)
         self._translator = None
         self._languages = None
-        roots = [os.path.join(self.genroroot,n) for n in ('','gnrjs','resources/common','resources/mobile')]
+        roots = coreLocalizationRoots(self.genroroot)
         self.slots = [dict(roots=roots,destFolder=self.genroroot,code='core',protected=True,language='en')]
         for p in list(self.application.packages.values()):
-            self.slots.append(dict(roots=[p.packageFolder],destFolder=p.packageFolder,
+            self.slots.append(dict(roots=[(p.packageFolder,'')],destFolder=p.packageFolder,
                                     code=p.id, protected = (p.project == 'gnrcore'),language=p.language))
         self.buildLocalizationDict()
 
@@ -218,15 +244,23 @@ class AppLocalizer(object):
             slots = [r for r in slots if r.get('code')==localizationBlock]
         for s in slots:
             if scan_all or s['destFolder'] != self.genroroot:
-                locbag = Bag()
-                for root in s['roots']:
-                    logger.info("Scanning folder %s for localization", root)
-                    d = DirectoryResolver(root,include='*.py,*.js')()
-                    d.walk(self._updateModuleLocalization,locbag=locbag,_mode='deep',destFolder=s['destFolder'] )
+                locbag = self.scanSlot(s)
                 locbag.toXml(os.path.join(s['destFolder'],'localization.xml'),pretty=True,typeattrs=False, typevalue=False)
         self.buildLocalizationDict()
 
-    def _updateModuleLocalization(self,n,locbag=None,destFolder=None):
+    def scanSlot(self,slot):
+        locbag = Bag()
+        for root,modulePrefix in slot['roots']:
+            if not os.path.isdir(root):
+                logger.warning("Localization folder %s not found, skipped", root)
+                continue
+            logger.info("Scanning folder %s for localization", root)
+            d = DirectoryResolver(root,include='*.py,*.js')()
+            d.walk(self._updateModuleLocalization,locbag=locbag,_mode='deep',
+                    rootFolder=root,modulePrefix=modulePrefix)
+        return locbag
+
+    def _updateModuleLocalization(self,n,locbag=None,rootFolder=None,modulePrefix=''):
         if n.attr.get('file_ext') == 'directory':
             return
         moduleLocBag = Bag()
@@ -246,7 +280,7 @@ class AppLocalizer(object):
             filecontent = f.read() 
         LOCREGEXP.sub(addToLocalizationBag,filecontent)
         if moduleLocBag:
-            modulepath = os.path.relpath(n.attr['abs_path'],destFolder)
+            modulepath = os.path.join(modulePrefix,os.path.relpath(n.attr['abs_path'],rootFolder))
             path,ext = os.path.splitext(modulepath)
             locbag.setItem(path.replace('/','.'),moduleLocBag,path=modulepath,ext=ext.replace('.',''))
 
