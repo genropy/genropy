@@ -97,13 +97,17 @@ var gnr_grouplet = {
             frameNode.setRelativeData('.wizard_page', 'steps');
             frameNode.setRelativeData('.wizard_showing_summary', false);
         }
-        if (targetIdx !== idx) {
-            if (targetIdx < idx) {
-                var formId = frameCode + '_step_form';
-                var form = genro.formById(formId);
-                if (form) {
-                    form.save();
-                }
+        if (targetIdx > idx) {
+            if (targetIdx == idx + 1) {
+                this.wizardNext(sourceNode, frameCode);
+            }
+            return;
+        }
+        if (targetIdx < idx) {
+            var formId = frameCode + '_step_form';
+            var form = genro.formById(formId);
+            if (form) {
+                form.save();
             }
             this._wizardSetStepName(frameNode, targetIdx);
             frameNode.setRelativeData('.step_index', targetIdx);
