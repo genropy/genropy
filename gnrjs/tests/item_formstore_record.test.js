@@ -141,6 +141,30 @@ test('a change inside a Bag column is written back', () => {
     assert.deepEqual(s.outerFields(), ['extra']);
 });
 
+test('a changed scalar takes the new label and keeps its dtype', () => {
+    const s = createStage();
+    s.record.getNode('name').attr._displayedValue = 'Roma';
+    s.inner.load();
+    s.inner.getFormData().setItem('name', 'Milan', {_displayedValue: 'Milano'}, {_updattr: true});
+    s.store.save_memory({});
+    const node = s.record.getNode('name');
+    assert.equal(node.getValue(), 'Milan');
+    assert.equal(node.attr._displayedValue, 'Milano');
+    assert.equal(node.attr.dtype, 'T');
+    assert.equal(node.attr._loadedValue, 'Rome');
+});
+
+test('a changed Bag column keeps its destination attributes', () => {
+    const s = createStage();
+    s.record.getNode('extra').attr._sendback = true;
+    s.editInner('extra.room', 'B');
+    s.store.save_memory({});
+    const node = s.record.getNode('extra');
+    assert.equal(node.getValue().getItem('room'), 'B');
+    assert.equal(node.attr._sendback, true);
+    assert.equal(node.attr.dtype, 'X');
+});
+
 test('the loaded pkey is the pkey of the destination record', () => {
     const s = createStage();
     assert.equal(s.inner.getCurrentPkey(), 'PK1');

@@ -2279,7 +2279,7 @@ dojo.declare("gnr.GnrBag", null, {
     },
 
     hasSameValues: function(otherbag) {
-        // labels and static values, recursively; attributes are ignored
+        // labels and static values, recursively, through isEqual (==: 0 and '' match); attributes are ignored
         if (!(otherbag instanceof gnr.GnrBag) || this.len() != otherbag.len()) {
             return false;
         }

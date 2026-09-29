@@ -2701,6 +2701,15 @@ dojo.declare("gnr.GnrValidator", null, {
 dojo.declare("gnr.formstores.Base", null, {
     recordCluster_onSaved:'reload',
 
+    writeBackBag:function(target,path,value){
+        // the replaced node keeps its attributes: _sendback decides whether a record's save sends it
+        var oldnode = target.getNode(path);
+        if(oldnode){
+            target.pop(path);
+        }
+        target.setItem(path,value,oldnode ? objectUpdate({},oldnode.attr) : null);
+    },
+
     constructor:function(kw,handlers){
         objectPop(kw, 'tag');
         this.handlers = handlers;
@@ -3407,6 +3416,7 @@ dojo.declare("gnr.formstores.Item", gnr.formstores.Base, {
                 return false;
             }
         }
+        var that = this;
         var path,destNode,destValue;
         formData.walk(function(n){
             var v = n.getValue();
@@ -3415,18 +3425,21 @@ dojo.declare("gnr.formstores.Item", gnr.formstores.Base, {
             destValue = destNode? destNode.getValue('static'):undefined;
             if(v instanceof gnr.GnrBag){
                 if(!v.hasSameValues(destValue)){
-                    if(destNode){
-                        sourceBag.pop(path);
-                    }
-                    sourceBag.setItem(path,v);
+                    that.writeBackBag(sourceBag,path,v);
                 }
                 return '__continue__';
             }
             if(destNode && isEqual(v,destValue)){
                 return;
             }
-            // merged, not replaced: the destination keeps its dtype and change tracking (_loadedValue)
-            sourceBag.setItem(path,v,n.attr.dtype?{dtype:n.attr.dtype}:null,{lazySet:true,_updattr:true});
+            // merged, not replaced: the destination keeps its change tracking (_loadedValue); a missing label is removed
+            var kw = {_displayedValue:n.attr._displayedValue,
+                      _formattedValue:n.attr._formattedValue,
+                      _valuelabel:n.attr._valuelabel};
+            if(n.attr.dtype){
+                kw.dtype = n.attr.dtype;
+            }
+            sourceBag.setItem(path,v,kw,{lazySet:true,_updattr:'*'});
         });
         var result = {};//{savedPkey:loadedRecordNode.label,loadedRecordNode:loadedRecordNode};
         this.saved(result);
@@ -3577,19 +3590,19 @@ dojo.declare("gnr.formstores.Collection", gnr.formstores.Base, {
             }
         }
         form.setCurrentPkey(newPkey);
-        var path,v,oldsubbag;
+        var that = this;
+        var path,v;
         formData.walk(function(n){
             v = n.getValue();
             path = n.getFullpath('static',formData);
             if(v instanceof gnr.GnrBag){
-                oldsubbag = data.getItem(path);
-                if(oldsubbag){
-                    data.pop(path);
-                }
-                data.setItem(path,v)
+                that.writeBackBag(data,path,v);
                 return '__continue__';
             }
-            data.setItem(path,n.getValue(),{dtype:n.attr.dtype},{lazySet:true});
+            data.setItem(path,n.getValue(),{dtype:n.attr.dtype,
+                                            _displayedValue:n.attr._displayedValue,
+                                            _formattedValue:n.attr._formattedValue,
+                                            _valuelabel:n.attr._valuelabel},{lazySet:true,_updattr:'*'});
         });
         var result = {};//{savedPkey:loadedRecordNode.label,loadedRecordNode:loadedRecordNode};
         this.saved(result);
