@@ -47,6 +47,8 @@ function createStage({outerPkey = 'PK1'} = {}) {
     data.setItem('inner.controller', new Bag());
     data.setBackRef();
     context.genro._data = data;
+    context.genro.callAfter = (callback, delay, scope) => callback.call(scope);
+    context.genro.dlg = {removeFloatingMessage() {}};
     const sourceNode = Object.create(context.gnr.GnrDomSourceNode.prototype);
     sourceNode.absDatapath = value => value;
     function createForm(root, extra) {
@@ -89,7 +91,17 @@ function createStage({outerPkey = 'PK1'} = {}) {
         const changes = outer.getFormChanges().getItem('record');
         return changes ? Array.from(changes.keys()) : [];
     }
-    return {Bag, record, outer, inner, store, editInner, outerFields};
+    function reloadProbe() {
+        let asked = 0;
+        Object.assign(inner, {
+            autoSave: false,
+            opStatus: null,
+            setOpStatus(status) { this.opStatus = status || null; },
+            openPendingChangesDlg() { asked++; }
+        });
+        return () => asked;
+    }
+    return {Bag, record, outer, inner, store, editInner, outerFields, reloadProbe};
 }
 
 test('saving an untouched record leaves the destination form clean', () => {
@@ -171,6 +183,29 @@ test('the loaded pkey is the pkey of the destination record', () => {
     s.inner.reload();
     assert.equal(s.inner.getCurrentPkey(), 'PK1');
     assert.equal(s.inner.getFormData().getItem('name'), 'Rome');
+});
+
+test('a plain load on a changed form over a real record reloads it without asking', () => {
+    const s = createStage();
+    const asked = s.reloadProbe();
+    s.editInner('description', 'set by the build');
+    assert.equal(s.inner.changed, true);
+    s.inner.load();
+    assert.equal(asked(), 0);
+    assert.equal(s.inner.getFormData().getItem('description'), 'Main venue');
+    assert.equal(s.inner.getCurrentPkey(), 'PK1');
+});
+
+test('a plain load on a dismissed form reloads it without asking', () => {
+    const s = createStage();
+    const asked = s.reloadProbe();
+    s.inner.doload_store({destPkey: '*dismiss*'});
+    assert.equal(s.inner.getCurrentPkey(), null);
+    s.editInner('description', 'set by the build');
+    s.inner.load();
+    assert.equal(asked(), 0);
+    assert.equal(s.inner.getFormData().getItem('description'), 'Main venue');
+    assert.equal(s.inner.getCurrentPkey(), 'PK1');
 });
 
 test('a new destination record keeps the placeholder pkey and its data', () => {
