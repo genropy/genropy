@@ -22,6 +22,8 @@ kw.openKw = {topic: 'th_external_query',
              orderby_xml: order.toXml(),             // optional custom order bag
              limit: 100,                             // optional
              run: false,                             // run after loading
+             queryMode: 'S',                         // optional: S, U, I, D
+             save: false,                            // open the save query dialog
              view: {code: 'q_view', caption: 'Invoices by customer',
                     struct_xml: struct.toXml()},     // optional grid view
              groupby: {code: 'q_grp', caption: 'Total by month',
@@ -48,6 +50,17 @@ cell without `group_aggr` breaks the groups, a date cell breaks them with a
 `original_dtype` `D`), a numeric cell is aggregated with `group_aggr` `sum`,
 `avg`, `min` or `max`, and the `_grp_count` cell counts the records.
 Conditions are optional when a view or a grouped view is sent.
+
+`queryMode` combines the records found with the current selection as the
+search mode menu of the page does: `S` search (the default), `U` union, `I`
+intersection, `D` difference.
+
+`save` opens the dialog of the query editor that saves the query (package
+`adm`), with the title as its name. The conditions loaded are a new query:
+saving them never overwrites the saved query the page showed before.
+
+A page can apply a message to one of its own table handlers without the
+topic: `TH(th_root).querymanager.applyExternalQuery(kw)`.
 
 A message with a `query_id` is applied once: the page confirms it to its
 parent window with the topic `th_external_query_applied` and `query_id`, so

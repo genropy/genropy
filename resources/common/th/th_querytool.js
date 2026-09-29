@@ -364,11 +364,14 @@ dojo.declare("gnr.QueryManager", null, {
         //   orderby_xml  optional custom order bag (rows with fieldpath and sorting)
         //   limit, title optional query limit and caption
         //   run          run the query after loading it
+        //   save         open the dialog that saves the query, its description filled with the title
         //   view         optional {code, caption, struct_xml}: a view of the grid, added to its
         //                views as a temporary view and selected
         //   groupby      optional {code, caption, struct_xml, mode}: a view of the Group By page,
         //                added and selected the same way; the page shows Group By and runs the
         //                query, which the grouped view totalizes (mode: flatview, stackedview)
+        //   queryMode    optional S (search), U (union), I (intersect), D (difference): how the
+        //                records found combine with the current selection
         //   query_id     optional id: a query is applied once, and the page confirms it to its
         //                parent window with the topic th_external_query_applied
         // Bags are serialized because the message crosses the iframe boundary.
@@ -376,6 +379,12 @@ dojo.declare("gnr.QueryManager", null, {
             return;
         }
         this._lastExternalQuery = kw.query_id;
+        if(kw.queryMode){
+            var queryModes = genro.getData('gnr.qb.sqlop.queryModes');
+            var modeNode = queryModes && queryModes.getNode(kw.queryMode);
+            this.sourceNode.setRelativeData('.query.queryMode',kw.queryMode,
+                                            {caption:modeNode? modeNode.attr.caption:kw.queryMode});
+        }
         if(kw.where_xml){
             this._applyExternalConditions(kw);
         }
@@ -398,6 +407,10 @@ dojo.declare("gnr.QueryManager", null, {
         }
         if(kw.run || groupby){
             this.sourceNode.fireEvent('.runQuery');
+        }
+        if(kw.save && kw.where_xml){
+            this.sourceNode.setRelativeData('.query.queryAttributes.description',kw.title || null);
+            this.saveQuery();
         }
     },
 
@@ -430,6 +443,10 @@ dojo.declare("gnr.QueryManager", null, {
         sourceNode.setRelativeData('.query.customOrderBy',kw.orderby_xml? new gnr.GnrBag(kw.orderby_xml):null);
         sourceNode.setRelativeData('.query.limit',kw.limit || null);
         sourceNode.setRelativeData('.query.joinConditions',null);
+        // a new query: saving it must not overwrite the saved query loaded before
+        ['id','pkey','code','description'].forEach(function(attr){
+            sourceNode.setRelativeData('.query.queryAttributes.'+attr,null);
+        });
         sourceNode.setRelativeData('.query.queryAttributes.caption',kw.title || _T('New Query'));
         sourceNode.setRelativeData('.query.queryAttributes.extended',true);
         this.buildQueryPane();
