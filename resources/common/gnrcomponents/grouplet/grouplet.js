@@ -313,6 +313,36 @@ var gnr_grouplet = {
         });
     },
 
+    panelStart: function(sourceNode, startResource, mode) {
+        // the group the panel opens on: true for the first leaf, or a resource path
+        var menu = sourceNode.getRelativeData('.grouplet_menu');
+        if (!menu || sourceNode.getRelativeData('.selected_resource')) {
+            return;
+        }
+        var node = null;
+        if (startResource === true) {
+            menu.walk(function(n) {
+                if (!node && n.attr.grouplet_caption) {
+                    node = n;
+                }
+            }, 'static');
+        } else {
+            node = menu.getNodeByAttr('resource', startResource);
+        }
+        if (!node) {
+            return;
+        }
+        if (mode == 'topic') {
+            sourceNode.setRelativeData('.selected_code', node.label);
+            return;
+        }
+        sourceNode.setRelativeData('.grouplet_info', new gnr.GnrBag(node.attr), null, false, false);
+        sourceNode.setRelativeData('.selected_resource', node.attr.resource, null, false, false);
+        sourceNode.setRelativeData('.selected_caption', node.attr.grouplet_caption);
+        sourceNode.setRelativeData('.selected_fullpath', node.getFullpath());
+        sourceNode.setRelativeData('.selected_treepath', node.getFullpath(null, menu));
+    },
+
     panelSelectFromCode: function(sourceNode, code, formId) {
         var menu = sourceNode.getRelativeData('.grouplet_menu');
         var node = code ? menu.getNode(code) : null;

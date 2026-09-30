@@ -635,7 +635,8 @@ dojo.declare("gnr.GnrFrmHandler", null, {
     
     load_store:function(kw){
         var currentPkey = this.getCurrentPkey();
-        if (!kw.discardChanges && this.changed && kw.destPkey &&(currentPkey=='*newrecord*' || (kw.destPkey != currentPkey))) {
+        // *loaditem* (the Item store default) reloads the item at its location: never a navigation
+        if (!kw.discardChanges && this.changed && kw.destPkey && kw.destPkey!='*loaditem*' && (currentPkey=='*newrecord*' || (kw.destPkey != currentPkey))) {
             if(kw.modifiers=='Shift' || this.autoSave){
                 if(this.isValid()){
                     this.save(kw);
@@ -2705,7 +2706,8 @@ dojo.declare("gnr.formstores.Base", null, {
         // the replaced node keeps its attributes: _sendback decides whether a record's save sends it
         var oldnode = target.getNode(path);
         if(oldnode){
-            target.pop(path);
+            // popNode, not pop: pop resolves the value it returns, and a relation node would fire its resolver
+            target.popNode(path);
         }
         target.setItem(path,value,oldnode ? objectUpdate({},oldnode.attr) : null);
     },
@@ -3419,7 +3421,7 @@ dojo.declare("gnr.formstores.Item", gnr.formstores.Base, {
         var that = this;
         var path,destNode,destValue;
         formData.walk(function(n){
-            var v = n.getValue();
+            var v = n.getValue('static');
             path = n.getFullpath('static',formData);
             destNode = sourceBag.getNode(path);
             destValue = destNode? destNode.getValue('static'):undefined;
