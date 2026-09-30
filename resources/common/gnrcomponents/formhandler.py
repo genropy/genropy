@@ -93,7 +93,9 @@ class FormHandler(BaseComponent):
             dialog_kwargs[loadSubscriber] = "this.widget.show();"
             dialog_kwargs[closeSubscriber] = "this.widget.hide();"
             if dialog_kwargs.get('autoSize'):
-                # the height follows the content; block content has no natural width
+                # autoSize fits flow content: a center holding a borderContainer or a
+                # tabContainer has no natural height and takes the windowRatio cap (0.9).
+                # The height follows the content; block content has no natural width
                 form_kwargs.setdefault('width', '600px')
                 dialog_kwargs['subscribe_form_%s_onLoaded' %formId] = "this.widget.fitToContent();"
             dialog_kwargs['selfsubscribe_close'] = """genro.publish('form_%s_dismiss',$1.modifiers);""" %formId

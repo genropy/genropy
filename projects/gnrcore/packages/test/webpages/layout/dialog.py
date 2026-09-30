@@ -38,3 +38,11 @@ class GnrCustomWebPage(object):
                     defaults=short)
         pane.button('Long', action="genro.formById('autosize_form').newrecord(defaults);",
                     defaults=dict(subject='Long', description=long_text))
+        pane.button('Wide', action="genro.formById('autosize_form').newrecord(defaults);",
+                    defaults=dict(subject='Wide', description='W' * 150))
+
+    def test_3_autoSizeLayout(self, pane):
+        "dialog_autoSize on a form whose center is a borderContainer: it takes the windowRatio cap"
+        pane.thFormHandler(table='test.myticket', formId='autosize_layout_form',
+                           datapath='main.autosize_layout', dialog_autoSize=True)
+        pane.button('Open', action="genro.formById('autosize_layout_form').newrecord();")

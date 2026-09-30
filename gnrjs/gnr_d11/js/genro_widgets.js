@@ -1666,16 +1666,40 @@ dojo.declare("gnr.widgets.Dialog", gnr.widgets.baseDojo, {
             return;
         }
         var centerNode = center.domNode;
-        centerNode.style.overflow = 'auto';
         this._observeContent(centerNode);
+        if(!this.open){
+            return;
+        }
+        if(!this._fitBase){
+            this._fitBase = {w:dojo.coords(this.domNode).w,centerWidth:centerNode.clientWidth};
+        }
+        // flow content only: a nested layout has no natural height, it takes the cap
+        var layouts = '.dijitBorderContainer,.dijitStackContainer,.dijitLayoutContainer';
+        if(centerNode.matches(layouts) || centerNode.querySelector(layouts)){
+            this._fittedSize = {h:Number.MAX_SAFE_INTEGER,w:this._fitBase.w};
+            this.adjustDialogSize();
+            return;
+        }
+        centerNode.style.overflow = 'auto';
         // a hidden copy laid out with free height measures the content's natural size
         var padding = dojo._getPadExtents(centerNode);
         var probe = centerNode.cloneNode(true);
         probe.removeAttribute('id');
         dojo.style(probe,{position:'absolute',visibility:'hidden',left:'-10000px',top:'0px',
-                          right:'auto',bottom:'auto',width:(centerNode.clientWidth-padding.w)+'px',
+                          right:'auto',bottom:'auto',width:(this._fitBase.centerWidth-padding.w)+'px',
                           height:'auto',overflow:'visible'});
         dojo.query('.dijitContentPane',probe).forEach(function(node){node.style.height='';});
+        // an iframe in the document loads its src: a same-size placeholder measures the same
+        var iframes = centerNode.getElementsByTagName('iframe');
+        dojo.forEach(dojo._toArray(probe.getElementsByTagName('iframe')),function(iframe,idx){
+            var placeholder = document.createElement('div');
+            var original = iframes[idx];
+            var display = dojo.style(original,'display');
+            dojo.style(placeholder,{width:original.offsetWidth+'px',height:original.offsetHeight+'px',
+                                    display:display=='inline'?'inline-block':display,
+                                    verticalAlign:dojo.style(original,'verticalAlign')});
+            iframe.parentNode.replaceChild(placeholder,iframe);
+        });
         centerNode.parentNode.appendChild(probe);
         var contentHeight = Math.ceil(probe.getBoundingClientRect().height);
         var contentWidth = probe.scrollWidth;
@@ -1688,9 +1712,8 @@ dojo.declare("gnr.widgets.Dialog", gnr.widgets.baseDojo, {
                 bars += child.domNode.offsetHeight;
             }
         });
-        var c = dojo.coords(this.domNode);
         this._fittedSize = {h:dojo.coords(this.titleBar).h+2+bars+contentHeight,
-                            w:c.w+Math.max(0,contentWidth-centerNode.clientWidth)};
+                            w:this._fitBase.w+Math.max(0,contentWidth-this._fitBase.centerWidth)};
         this.adjustDialogSize();
     },
 
