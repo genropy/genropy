@@ -3,7 +3,7 @@
 """Dialogs"""
 
 class GnrCustomWebPage(object):
-    py_requires = "gnrcomponents/testhandler:TestHandlerFull"
+    py_requires = "gnrcomponents/testhandler:TestHandlerFull,th/th:TableHandler"
     
     def windowTitle(self):
         return 'Dialogs'
@@ -26,3 +26,15 @@ class GnrCustomWebPage(object):
         top.button('Show inner dialog',action='dlg.show()',dlg=dlg2.js_widget)
         bc.contentPane(region='center',background='red')
         pane.button('Show',action='dlg.show()',dlg=dlg.js_widget)
+
+    def test_2_autoSize(self, pane):
+        "Form dialog with dialog_autoSize: it fits the loaded record, short or long"
+        pane.thFormHandler(table='test.myticket', formId='autosize_form',
+                           formResource='FormAutoSize', datapath='main.autosize',
+                           dialog_autoSize=True)
+        short = dict(subject='Short', description='One line only.')
+        long_text = '\n'.join('Line %i of a long description.' % i for i in range(1, 41))
+        pane.button('Short', action="genro.formById('autosize_form').newrecord(defaults);",
+                    defaults=short)
+        pane.button('Long', action="genro.formById('autosize_form').newrecord(defaults);",
+                    defaults=dict(subject='Long', description=long_text))
