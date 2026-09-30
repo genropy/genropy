@@ -2022,7 +2022,7 @@ dojo.declare("gnr.GnrFrmHandler", null, {
     triggerDEL: function(kw) {
         var changes = this.getChangesLogger();
         //the node is already out of its parent, its own fullpath ends in '#-1'
-        var parentPath = kw.node.getParentBag().getFullpath(null, true);
+        var parentPath = kw.where.getFullpath(null, true);
         var changekey = this.getChangeKey(parentPath ? parentPath + '.' + kw.node.label : kw.node.label);
         if (changes.getAttr(changekey, 'isNewNode')) {
             changes.pop(changekey);
