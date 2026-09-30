@@ -204,7 +204,7 @@ dojo.declare("gnr.GnrSrcHandler", null, {
     },
     _trigger_ins:function(kw) {//da rivedere
         //console.log('trigger_ins',kw);
-        if(kw.reason=='autocreate'){
+        if(kw.reason=='autocreate' || kw.node.isLostNode()){
             return;
         }
         var node = kw.node;
