@@ -1122,7 +1122,7 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         if (bld_attrs.tooltip) {
             genro.wdg.create('tooltip', null, {label:bld_attrs.tooltip,tooltip_type:'help'}).connectOneNode(newobj.domNode || newobj);
         }
-        if (genro.src._started && this.widget && (this.widget instanceof dijit.form.ValidationTextBox)){
+        if (genro.src._started && this.widget){
             var validations = objectExtract(this.attr, 'validate_*',true);
             if (this.validationsOnChange && objectNotEmpty(validations)){
                 this.resetValidationError();
