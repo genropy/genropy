@@ -2049,6 +2049,7 @@ gnr.GroupletGridController = class GroupletGridController {
         }
         tile.unmount();
         delete this.tiles[pkey];
+        if (this.selectedPkey === pkey) this.selectedPkey = null;
         this._updateAddBtnState();
     }
 
@@ -2099,15 +2100,8 @@ gnr.GroupletGridController = class GroupletGridController {
     }
 
     _askAndDeleteItem(pkey) {
-        this.dataStore.deleteRowAsk(pkey);
-    }
-
-    _doDeleteItem(pkey) {
         if (this._rowCount() <= this.minRows) return;
-        this.dataStore.removeRow(pkey);
-        if (this.selectedPkey === pkey) {
-            this.selectedPkey = null;
-        }
+        this.dataStore.deleteRowAsk(pkey);
     }
 
     selectTile(pkey) {

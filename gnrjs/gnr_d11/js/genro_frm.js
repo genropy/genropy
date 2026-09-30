@@ -414,6 +414,33 @@ dojo.declare("gnr.GnrFrmHandler", null, {
         if(sourceNode.widget && sourceNode.widget.gridEditor){
             objectPop(this.gridEditors,sourceNode.attr.nodeId);
         }
+        this.forgetInvalidChild(sourceNode);
+    },
+
+    forgetInvalidChild:function(sourceNode){
+        //a torn down widget cannot be corrected any more: its entries
+        //would keep the form invalid with nothing left to fix
+        var sourceNodeId = sourceNode.getStringId();
+        var changed = false;
+        var invalidFields = this.getInvalidFields();
+        invalidFields.getNodes().slice().forEach(function(n){
+            var invalidnodes = n.getValue();
+            if(invalidnodes && (sourceNodeId in invalidnodes)){
+                objectPop(invalidnodes, sourceNodeId);
+                if(!objectNotEmpty(invalidnodes)){
+                    invalidFields.popNode(n.label);
+                }
+                changed = true;
+            }
+        });
+        var invalidDojo = this.getInvalidDojo();
+        if(invalidDojo.getNode(sourceNodeId)){
+            invalidDojo.popNode(sourceNodeId);
+            changed = true;
+        }
+        if(changed){
+            this.updateStatus();
+        }
     },
     
     showSemaphoreStatus:function(semaphoreNode){
@@ -1994,7 +2021,9 @@ dojo.declare("gnr.GnrFrmHandler", null, {
     },
     triggerDEL: function(kw) {
         var changes = this.getChangesLogger();
-        var changekey = this.getChangeKey(kw.node);
+        //the node is already out of its parent, its own fullpath ends in '#-1'
+        var parentPath = kw.where.getFullpath(null, true);
+        var changekey = this.getChangeKey(parentPath ? parentPath + '.' + kw.node.label : kw.node.label);
         if (changes.getAttr(changekey, 'isNewNode')) {
             changes.pop(changekey);
         } else {
