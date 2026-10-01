@@ -194,6 +194,18 @@ class TestGnrLocalization(BaseGnrAppTest):
         assert al.localizationDict['en_counter_s']['en'] == 'Counter %s'
         assert al.localizationDict['en_fieldname_s_promised']['en'] == '%(fieldname)s promised'
 
+    def test_autotranslate_keeps_the_edge_spaces_of_the_base(self):
+        class TrimmingTranslator:
+            def translate(self, what, **kwargs):
+                return {'Pending changes in ': 'Modifiche pendenti in', ' of ': 'di'}[what]
+        al = gl.AppLocalizer(self.app)
+        al._translator = TrimmingTranslator()
+        al.localizationDict = {'en_pending_changes_in_': {'base': 'Pending changes in '},
+                               'en__of_': {'base': ' of '}}
+        al.autoTranslate('it')
+        assert al.localizationDict['en_pending_changes_in_']['it'] == 'Modifiche pendenti in '
+        assert al.localizationDict['en__of_']['it'] == ' di '
+
 
 @pytest.mark.parametrize('catalog', [REPO / 'localization.xml'] + sorted((REPO / 'projects').rglob('localization.xml')),
                          ids=lambda p: str(p.relative_to(REPO)))

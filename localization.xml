@@ -297,7 +297,7 @@
 <en_cannot_save_blocked_form base="Cannot save. Blocked Form"></en_cannot_save_blocked_form>
 <en_cancel base="Cancel" de="Stornieren" en="Cancel" fr="Annuler" it="Annulla"></en_cancel>
 <en_delete base="Delete" de="Löschen" en="Delete" fr="Effacer" it="Cancellare"></en_delete>
-<en_pending_changes_in_ base="Pending changes in " it="Modifiche pendenti in"></en_pending_changes_in_>
+<en_pending_changes_in_ base="Pending changes in " it="Modifiche pendenti in "></en_pending_changes_in_>
 <en_discard_changes base="Discard changes" it="Annulla modifiche"></en_discard_changes>
 <en_save fr="Sauvegarder" de="Speichern" en="Save" it="Salva" base="Save"></en_save>
 <en_copy_current_record base="Copy current record" it="Copia record corrente"></en_copy_current_record>
@@ -675,7 +675,7 @@
 <en_mask base="Mask" de="Maske" en="Mask" fr="Masquer" it="Maschera"></en_mask>
 <en_values base="Values" de="Werte" en="Values" fr="Valeurs" it="Valori"></en_values>
 <en_delete_current base="Delete current" de="Strom löschen" en="Delete current" fr="Supprimer actuelle" it="Corrente Cancella"></en_delete_current>
-<en_edit_ base="Edit " de="Bearbeiten" en="Edit " fr="Éditer" it="Modifica"></en_edit_>
+<en_edit_ base="Edit " de="Bearbeiten " en="Edit " fr="Éditer " it="Modifica "></en_edit_>
 <en_save_template base="Save template" de="Vorlage speichern" en="Save template" fr="Enregistrer le modèle" it="Salva modello"></en_save_template>
 <en_new_template base="New template" de="Neue Vorlage" en="New template" fr="Nouveau modèle" it="Nuovo modello"></en_new_template>
 <en_copy_from base="Copy From" de="Kopieren Sie aus" en="Copy From" fr="Copiez De" it="Copia da"></en_copy_from>
@@ -738,7 +738,7 @@
 <en_version fr="Version" de="Version" en="Version" it="Versione" base="Version"></en_version>
 <en_date fr="Date" de="Datum" en="Date" it="Data" base="Date"></en_date>
 <en_delete_current base="Delete current" de="Strom löschen" en="Delete current" fr="Supprimer actuelle" it="Corrente Cancella"></en_delete_current>
-<en_edit_ base="Edit " de="Bearbeiten" en="Edit " fr="Éditer" it="Modifica"></en_edit_>
+<en_edit_ base="Edit " de="Bearbeiten " en="Edit " fr="Éditer " it="Modifica "></en_edit_>
 <en_save_pdf_form base="Save PDF form" it="Salva modulo PDF"></en_save_pdf_form>
 <en_save_template base="Save template" de="Vorlage speichern" en="Save template" fr="Enregistrer le modèle" it="Salva modello"></en_save_template>
 <en_new_pdf_form base="New PDF form" it="Nuovo modulo PDF"></en_new_pdf_form></component></pdftk></pdfform>
@@ -910,8 +910,8 @@
 <en_pdf_template base="Pdf Template" it="Modello Pdf"></en_pdf_template>
 <en_missing_code base="Missing code"></en_missing_code>
 <en_selected_only base="Selected only" de="Nur ausgewählte" en="Selected only" fr="Sélectionné seulement" it="Solo selezionati"></en_selected_only>
-<en_depending_from_ base="Depending from " de="Abhängig von" en="Depending from " fr="En fonction de" it="A seconda da"></en_depending_from_>
-<en_in_sync_with_ base="In sync with " en="In sync with " it="In sincronia con"></en_in_sync_with_>
+<en_depending_from_ base="Depending from " de="Abhängig von " en="Depending from " fr="En fonction de " it="A seconda da "></en_depending_from_>
+<en_in_sync_with_ base="In sync with " en="In sync with " it="In sincronia con "></en_in_sync_with_>
 <en_run_query base="Run query" de="Abfrage ausführen" en="Run query" fr="Requête exécutée" it="Interrogazione Run"></en_run_query>
 <en_only_highlighted base="Only highlighted" de="Nur hervorgehoben" en="Only highlighted" fr="Seulement en surbrillance" it="Solo evidenziato"></en_only_highlighted>
 <en_user_sets base="User sets" de="Benutzersätze" en="User sets" fr="ensembles de l'utilisateur" it="Impostazioni utente"></en_user_sets>
