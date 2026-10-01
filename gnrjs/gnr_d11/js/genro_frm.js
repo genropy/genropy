@@ -414,6 +414,33 @@ dojo.declare("gnr.GnrFrmHandler", null, {
         if(sourceNode.widget && sourceNode.widget.gridEditor){
             objectPop(this.gridEditors,sourceNode.attr.nodeId);
         }
+        this.forgetInvalidChild(sourceNode);
+    },
+
+    forgetInvalidChild:function(sourceNode){
+        //a torn down widget cannot be corrected any more: its entries
+        //would keep the form invalid with nothing left to fix
+        var sourceNodeId = sourceNode.getStringId();
+        var changed = false;
+        var invalidFields = this.getInvalidFields();
+        invalidFields.getNodes().slice().forEach(function(n){
+            var invalidnodes = n.getValue();
+            if(invalidnodes && (sourceNodeId in invalidnodes)){
+                objectPop(invalidnodes, sourceNodeId);
+                if(!objectNotEmpty(invalidnodes)){
+                    invalidFields.popNode(n.label);
+                }
+                changed = true;
+            }
+        });
+        var invalidDojo = this.getInvalidDojo();
+        if(invalidDojo.getNode(sourceNodeId)){
+            invalidDojo.popNode(sourceNodeId);
+            changed = true;
+        }
+        if(changed){
+            this.updateStatus();
+        }
     },
     
     showSemaphoreStatus:function(semaphoreNode){
@@ -635,7 +662,8 @@ dojo.declare("gnr.GnrFrmHandler", null, {
     
     load_store:function(kw){
         var currentPkey = this.getCurrentPkey();
-        if (!kw.discardChanges && this.changed && kw.destPkey &&(currentPkey=='*newrecord*' || (kw.destPkey != currentPkey))) {
+        // *loaditem* (the Item store default) reloads the item at its location: never a navigation
+        if (!kw.discardChanges && this.changed && kw.destPkey && kw.destPkey!='*loaditem*' && (currentPkey=='*newrecord*' || (kw.destPkey != currentPkey))) {
             if(kw.modifiers=='Shift' || this.autoSave){
                 if(this.isValid()){
                     this.save(kw);
@@ -1993,7 +2021,9 @@ dojo.declare("gnr.GnrFrmHandler", null, {
     },
     triggerDEL: function(kw) {
         var changes = this.getChangesLogger();
-        var changekey = this.getChangeKey(kw.node);
+        //the node is already out of its parent, its own fullpath ends in '#-1'
+        var parentPath = kw.where.getFullpath(null, true);
+        var changekey = this.getChangeKey(parentPath ? parentPath + '.' + kw.node.label : kw.node.label);
         if (changes.getAttr(changekey, 'isNewNode')) {
             changes.pop(changekey);
         } else {
@@ -2701,6 +2731,16 @@ dojo.declare("gnr.GnrValidator", null, {
 dojo.declare("gnr.formstores.Base", null, {
     recordCluster_onSaved:'reload',
 
+    writeBackBag:function(target,path,value){
+        // the replaced node keeps its attributes: _sendback decides whether a record's save sends it
+        var oldnode = target.getNode(path);
+        if(oldnode){
+            // popNode, not pop: pop resolves the value it returns, and a relation node would fire its resolver
+            target.popNode(path);
+        }
+        target.setItem(path,value,oldnode ? objectUpdate({},oldnode.attr) : null);
+    },
+
     constructor:function(kw,handlers){
         objectPop(kw, 'tag');
         this.handlers = handlers;
@@ -3369,6 +3409,10 @@ dojo.declare("gnr.formstores.Item", gnr.formstores.Base, {
                 d.forEach(function(n){
                     recordLoaded.addItem(n.label,n.getValue());
                 });
+            // a placeholder pkey (*newrecord*) is left out: reload() on it would build an empty record
+            if(kw._pkey && !/^\*.*\*$/.test(kw._pkey)){
+                form.setCurrentPkey(kw._pkey);
+            }
         }
         if(onLoading){
             var loadResult = funcApply(onLoading,{data:recordLoaded},this);
@@ -3403,29 +3447,30 @@ dojo.declare("gnr.formstores.Item", gnr.formstores.Base, {
                 return false;
             }
         }
-        var oldsubbag,path;
+        var that = this;
+        var path,destNode,destValue;
         formData.walk(function(n){
-            var v = n.getValue();
-            var kw = {dtype:n.attr.dtype};
+            var v = n.getValue('static');
             path = n.getFullpath('static',formData);
-            if('_displayedValue' in n.attr){
-                kw._displayedValue = n.attr._displayedValue;
-            }
-            if('_formattedValue' in n.attr){
-                kw._formattedValue = n.attr._formattedValue;
-            }
-            if('_valuelabel' in n.attr){
-                kw._valuelabel = n.attr._valuelabel;
-            }
+            destNode = sourceBag.getNode(path);
+            destValue = destNode? destNode.getValue('static'):undefined;
             if(v instanceof gnr.GnrBag){
-                oldsubbag = sourceBag.getItem(path);
-                if(oldsubbag){
-                    sourceBag.pop(path);
+                if(!v.hasSameValues(destValue)){
+                    that.writeBackBag(sourceBag,path,v);
                 }
-                sourceBag.setItem(path,v);
                 return '__continue__';
             }
-            sourceBag.setItem(path,n.getValue(),{dtype:n.attr.dtype},{lazySet:true});
+            if(destNode && isEqual(v,destValue)){
+                return;
+            }
+            // merged, not replaced: the destination keeps its change tracking (_loadedValue); a missing label is removed
+            var kw = {_displayedValue:n.attr._displayedValue,
+                      _formattedValue:n.attr._formattedValue,
+                      _valuelabel:n.attr._valuelabel};
+            if(n.attr.dtype){
+                kw.dtype = n.attr.dtype;
+            }
+            sourceBag.setItem(path,v,kw,{lazySet:true,_updattr:'*'});
         });
         var result = {};//{savedPkey:loadedRecordNode.label,loadedRecordNode:loadedRecordNode};
         this.saved(result);
@@ -3576,19 +3621,19 @@ dojo.declare("gnr.formstores.Collection", gnr.formstores.Base, {
             }
         }
         form.setCurrentPkey(newPkey);
-        var path,v,oldsubbag;
+        var that = this;
+        var path,v;
         formData.walk(function(n){
             v = n.getValue();
             path = n.getFullpath('static',formData);
             if(v instanceof gnr.GnrBag){
-                oldsubbag = data.getItem(path);
-                if(oldsubbag){
-                    data.pop(path);
-                }
-                data.setItem(path,v)
+                that.writeBackBag(data,path,v);
                 return '__continue__';
             }
-            data.setItem(path,n.getValue(),{dtype:n.attr.dtype},{lazySet:true});
+            data.setItem(path,n.getValue(),{dtype:n.attr.dtype,
+                                            _displayedValue:n.attr._displayedValue,
+                                            _formattedValue:n.attr._formattedValue,
+                                            _valuelabel:n.attr._valuelabel},{lazySet:true,_updattr:'*'});
         });
         var result = {};//{savedPkey:loadedRecordNode.label,loadedRecordNode:loadedRecordNode};
         this.saved(result);

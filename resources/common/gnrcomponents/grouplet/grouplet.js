@@ -97,13 +97,20 @@ var gnr_grouplet = {
             frameNode.setRelativeData('.wizard_page', 'steps');
             frameNode.setRelativeData('.wizard_showing_summary', false);
         }
-        if (targetIdx !== idx) {
-            if (targetIdx < idx) {
-                var formId = frameCode + '_step_form';
-                var form = genro.formById(formId);
-                if (form) {
-                    form.save();
-                }
+        if (targetIdx > idx) {
+            if (targetIdx == idx + 1) {
+                this.wizardNext(sourceNode, frameCode);
+            }
+            return;
+        }
+        if (targetIdx < idx) {
+            var formId = frameCode + '_step_form';
+            var form = genro.formById(formId);
+            // Like wizardNext: an unchanged step is not saved. save() checks
+            // validity before changes, so an untouched step with an empty
+            // required field would show its error on the way back.
+            if (form && form.changed) {
+                form.save();
             }
             this._wizardSetStepName(frameNode, targetIdx);
             frameNode.setRelativeData('.step_index', targetIdx);
@@ -184,14 +191,176 @@ var gnr_grouplet = {
         }
     },
 
-    panelSelectFromCode: function(sourceNode, code) {
-        if (code) {
-            var menu = sourceNode.getRelativeData('.grouplet_menu');
-            var node = menu.getNode(code);
-            if (node) {
-                sourceNode.setRelativeData('.grouplet_info', new gnr.GnrBag(node.attr));
-                sourceNode.setRelativeData('.selected_resource', node.attr.resource);
+    panelCheckMandatory: function(sourceNode, basePath, innerFormId) {
+        var menu = sourceNode.getRelativeData('.grouplet_menu');
+        var innerForm = innerFormId ? genro.formById(innerFormId) : null;
+        var readData = function(location) {
+            var path = basePath + '.' + location;
+            // the open grouplet's pending edits: an invalid inner form is not flushed into its location
+            if (innerForm && innerForm.store && innerForm.status != 'noItem'
+                    && innerForm.store.locationpath == sourceNode.absDatapath(path)) {
+                return innerForm.getFormData();
             }
+            return sourceNode.getRelativeData(path);
+        };
+        var mandatoryNodes = [];
+        var setStatus = function(node, status) {
+            if ((node.attr.mandatory_status || null) != status) {
+                // _class is what the multibutton reads, mandatory_status the tree's getLabelClass
+                node.setAttr({mandatory_status: status, _class: status ? 'grouplet_mandatory_' + status : null},
+                             true, true);
+            }
+        };
+        var markBag = function(bag) {
+            var anyMissing = false;
+            bag.forEach(function(node) {
+                var value = node.getValue('static');
+                var missing = false;
+                if (value instanceof gnr.GnrBag) {
+                    missing = markBag(value);
+                    setStatus(node, missing ? 'branch' : null);
+                } else if (node.attr.mandatory) {
+                    var data = readData(node.attr.mandatory_path);
+                    missing = node.attr.mandatory.split(',').some(function(field) {
+                        return isNullOrBlank(data instanceof gnr.GnrBag ? data.getItem(field.trim()) : null);
+                    });
+                    setStatus(node, missing ? 'missing' : null);
+                    mandatoryNodes.push(node);
+                }
+                anyMissing = anyMissing || missing;
+            }, 'static');
+            return anyMissing;
+        };
+        markBag(menu);
+        var form = sourceNode.form;
+        // a draft record only signals what is still to complete: it blocks once confirmed.
+        // The record value first: setDraft writes it before the _draft attribute isDraft reads
+        var draftNode = form ? form.getFormData().getNode('__is_draft') : null;
+        var enforced = !(draftNode ? draftNode.getValue() : (form && form.isDraft()));
+        sourceNode.setRelativeData('.mandatory_enforced', enforced);
+        var rootNode = sourceNode.getParentNode();
+        if (rootNode) {
+            genro.dom.setClass(rootNode, 'grouplet_mandatory_draft', !enforced);
         }
+        if (!form) {
+            return;
+        }
+        var applyErrors = function() {
+            mandatoryNodes.forEach(function(node) {
+                var missing = enforced && node.attr.mandatory_status == 'missing';
+                form.setFormError('grouplet_mandatory_' + node.attr.resource.replace(/\W/g, '_'),
+                                  missing ? _T('Incomplete group') + ': ' + (node.attr.grouplet_caption || node.label) : false,
+                                  false);
+            });
+        };
+        // now, for a save right after setDraft(false); again after the running load, whose reset() clears them
+        applyErrors();
+        setTimeout(applyErrors, 1);
+    },
+
+    panelLeaveGroup: function(sourceNode, resource, formId, onLeave, onStay) {
+        var form = formId ? genro.formById(formId) : null;
+        if (resource == sourceNode.getRelativeData('.selected_resource') || !form) {
+            onLeave();
+            return;
+        }
+        var pendingEditor = form.checkPendingGridEditor();
+        if (pendingEditor) {
+            // the edited cell reaches the form only when its editor closes, as in form.save
+            var that = this;
+            sourceNode.watch('grouplet_leave', function() { return !pendingEditor.grid.gnrediting; },
+                             function() { that.panelLeaveGroup(sourceNode, resource, formId, onLeave, onStay); });
+            return;
+        }
+        if (!form.changed) {
+            onLeave();
+            return;
+        }
+        if (form.isValid()) {
+            // saved now, with the current grouplet's locationpath and hooks: the switch replaces them
+            form.save();
+            onLeave();
+            return;
+        }
+        onStay();
+        genro.dlg.ask(_T('Invalid changes'), 'The current group has invalid changes.',
+                      {discard: _T('Discard and continue'), cancel: _T('Cancel')},
+                      {discard: function() {
+                          form.reload({discardChanges: true});
+                          onLeave(true);
+                      }});
+    },
+
+    panelTreeClick: function(sourceNode, treeNode, formId) {
+        var item = treeNode.item;
+        var itemInfo = item.attr;
+        if (!itemInfo.resource || !itemInfo.grouplet_caption) {
+            return;
+        }
+        var tree = sourceNode.widget;
+        var currentNode = tree.currentSelectedNode;
+        this.panelLeaveGroup(sourceNode, itemInfo.resource, formId, function(discarded) {
+            if (discarded) {
+                tree.setSelected(treeNode);
+            }
+            sourceNode.setRelativeData('.grouplet_info', new gnr.GnrBag(itemInfo), null, false, false);
+            sourceNode.setRelativeData('.selected_resource', itemInfo.resource, null, false, false);
+            sourceNode.setRelativeData('.selected_caption', itemInfo.grouplet_caption);
+            sourceNode.setRelativeData('.selected_fullpath', item.getFullpath());
+        }, function() {
+            // the tree selects the clicked node after its onClick handlers
+            setTimeout(function() { tree.setSelected(currentNode); }, 1);
+        });
+    },
+
+    panelStart: function(sourceNode, startResource, mode) {
+        // the group the panel opens on: true for the first leaf, or a resource path
+        var menu = sourceNode.getRelativeData('.grouplet_menu');
+        if (!menu || sourceNode.getRelativeData('.selected_resource')) {
+            return;
+        }
+        var node = null;
+        if (startResource === true) {
+            menu.walk(function(n) {
+                if (!node && n.attr.grouplet_caption) {
+                    node = n;
+                }
+            }, 'static');
+        } else {
+            node = menu.getNodeByAttr('resource', startResource);
+        }
+        if (!node) {
+            return;
+        }
+        if (mode == 'topic') {
+            sourceNode.setRelativeData('.selected_code', node.label);
+            return;
+        }
+        sourceNode.setRelativeData('.grouplet_info', new gnr.GnrBag(node.attr), null, false, false);
+        sourceNode.setRelativeData('.selected_resource', node.attr.resource, null, false, false);
+        sourceNode.setRelativeData('.selected_caption', node.attr.grouplet_caption);
+        sourceNode.setRelativeData('.selected_fullpath', node.getFullpath());
+        sourceNode.setRelativeData('.selected_treepath', node.getFullpath(null, menu));
+    },
+
+    panelSelectFromCode: function(sourceNode, code, formId) {
+        var menu = sourceNode.getRelativeData('.grouplet_menu');
+        var node = code ? menu.getNode(code) : null;
+        if (!node) {
+            return;
+        }
+        var currentResource = sourceNode.getRelativeData('.selected_resource');
+        this.panelLeaveGroup(sourceNode, node.attr.resource, formId, function(discarded) {
+            sourceNode.setRelativeData('.grouplet_info', new gnr.GnrBag(node.attr));
+            sourceNode.setRelativeData('.selected_resource', node.attr.resource);
+            if (discarded) {
+                sourceNode.setRelativeData('.selected_code', code);
+            }
+        }, function() {
+            var currentNode = menu.getNodeByAttr('resource', currentResource);
+            setTimeout(function() {
+                sourceNode.setRelativeData('.selected_code', currentNode ? currentNode.label : null);
+            }, 1);
+        });
     }
 };

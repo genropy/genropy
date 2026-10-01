@@ -1640,6 +1640,83 @@ dojo.declare("gnr.widgets.Dialog", gnr.widgets.baseDojo, {
         }
     },
 
+    mixin_fitToContent:function(){
+        var that = this;
+        setTimeout(function(){that._fitToContent();},1);
+    },
+
+    mixin__observeContent:function(centerNode){
+        // content rendered after onLoaded (data triggers, innerHTML) refits the dialog too
+        if(this._contentObserver){
+            return;
+        }
+        var that = this;
+        this._contentObserver = new MutationObserver(function(){
+            that.sourceNode.delayedCall(function(){that._fitToContent();},50,'fitToContent');
+        });
+        this._contentObserver.observe(centerNode,{childList:true,subtree:true,characterData:true});
+    },
+
+    mixin__fitToContent:function(){
+        var frame = dijit.byNode(this.containerNode.firstChild);
+        var center = frame && frame.getChildren ? frame.getChildren().filter(function(child){
+            return child.region=='center';
+        })[0] : null;
+        if(!center){
+            return;
+        }
+        var centerNode = center.domNode;
+        this._observeContent(centerNode);
+        if(!this.open){
+            return;
+        }
+        if(!this._fitBase){
+            this._fitBase = {w:dojo.coords(this.domNode).w,centerWidth:centerNode.clientWidth};
+        }
+        // flow content only: a nested layout has no natural height, it takes the cap
+        var layouts = '.dijitBorderContainer,.dijitStackContainer,.dijitLayoutContainer';
+        if(centerNode.matches(layouts) || centerNode.querySelector(layouts)){
+            this._fittedSize = {h:Number.MAX_SAFE_INTEGER,w:this._fitBase.w};
+            this.adjustDialogSize();
+            return;
+        }
+        centerNode.style.overflow = 'auto';
+        // a hidden copy laid out with free height measures the content's natural size
+        var padding = dojo._getPadExtents(centerNode);
+        var probe = centerNode.cloneNode(true);
+        probe.removeAttribute('id');
+        dojo.style(probe,{position:'absolute',visibility:'hidden',left:'-10000px',top:'0px',
+                          right:'auto',bottom:'auto',width:(this._fitBase.centerWidth-padding.w)+'px',
+                          height:'auto',overflow:'visible'});
+        dojo.query('.dijitContentPane',probe).forEach(function(node){node.style.height='';});
+        // an iframe in the document loads its src: a same-size placeholder measures the same
+        var iframes = centerNode.getElementsByTagName('iframe');
+        dojo.forEach(dojo._toArray(probe.getElementsByTagName('iframe')),function(iframe,idx){
+            var placeholder = document.createElement('div');
+            var original = iframes[idx];
+            var display = dojo.style(original,'display');
+            dojo.style(placeholder,{width:original.offsetWidth+'px',height:original.offsetHeight+'px',
+                                    display:display=='inline'?'inline-block':display,
+                                    verticalAlign:dojo.style(original,'verticalAlign')});
+            iframe.parentNode.replaceChild(placeholder,iframe);
+        });
+        centerNode.parentNode.appendChild(probe);
+        var contentHeight = Math.ceil(probe.getBoundingClientRect().height);
+        var contentWidth = probe.scrollWidth;
+        probe.parentNode.removeChild(probe);
+        // summed from the parts, as containerNodeResize splits them: before the first
+        // layout the frame is collapsed and the dialog height says nothing
+        var bars = 0;
+        dojo.forEach(frame.getChildren(),function(child){
+            if(child.region=='top' || child.region=='bottom'){
+                bars += child.domNode.offsetHeight;
+            }
+        });
+        this._fittedSize = {h:dojo.coords(this.titleBar).h+2+bars+contentHeight,
+                            w:this._fitBase.w+Math.max(0,contentWidth-this._fitBase.centerWidth)};
+        this.adjustDialogSize();
+    },
+
     mixin_onShowing:function(){},
 
     mixin_onWindowResize:function(e){
@@ -1697,7 +1774,14 @@ dojo.declare("gnr.widgets.Dialog", gnr.widgets.baseDojo, {
         var c = dojo.coords(this.domNode);
         var doResize = false;
         var starting;
-        if(parentRatio){
+        if(this._fittedSize){
+            // autoSize: the content decides, windowRatio (default .9) is only the cap
+            var cap = windowRatio || .9;
+            c['h'] = Math.min(this._fittedSize.h,Math.floor(mainDiv.clientHeight*cap));
+            c['w'] = Math.min(this._fittedSize.w,Math.floor(mainDiv.clientWidth*cap));
+            doResize = true;
+        }
+        else if(parentRatio){
             w = parentDialog? dojo.coords(parentDialog.domNode):w;
             c['w'] = Math.floor(w.w*parentRatio);
             c['h'] = Math.floor(w.h*parentRatio);
