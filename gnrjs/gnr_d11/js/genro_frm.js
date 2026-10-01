@@ -414,6 +414,33 @@ dojo.declare("gnr.GnrFrmHandler", null, {
         if(sourceNode.widget && sourceNode.widget.gridEditor){
             objectPop(this.gridEditors,sourceNode.attr.nodeId);
         }
+        this.forgetInvalidChild(sourceNode);
+    },
+
+    forgetInvalidChild:function(sourceNode){
+        //a torn down widget cannot be corrected any more: its entries
+        //would keep the form invalid with nothing left to fix
+        var sourceNodeId = sourceNode.getStringId();
+        var changed = false;
+        var invalidFields = this.getInvalidFields();
+        invalidFields.getNodes().slice().forEach(function(n){
+            var invalidnodes = n.getValue();
+            if(invalidnodes && (sourceNodeId in invalidnodes)){
+                objectPop(invalidnodes, sourceNodeId);
+                if(!objectNotEmpty(invalidnodes)){
+                    invalidFields.popNode(n.label);
+                }
+                changed = true;
+            }
+        });
+        var invalidDojo = this.getInvalidDojo();
+        if(invalidDojo.getNode(sourceNodeId)){
+            invalidDojo.popNode(sourceNodeId);
+            changed = true;
+        }
+        if(changed){
+            this.updateStatus();
+        }
     },
     
     showSemaphoreStatus:function(semaphoreNode){
@@ -637,7 +664,7 @@ dojo.declare("gnr.GnrFrmHandler", null, {
         var currentPkey = this.getCurrentPkey();
         // *loaditem* (the Item store default) reloads the item at its location: never a navigation
         if (!kw.discardChanges && this.changed && kw.destPkey && kw.destPkey!='*loaditem*' && (currentPkey=='*newrecord*' || (kw.destPkey != currentPkey))) {
-            if(kw.modifiers=='Shift' || this.autoSave){
+            if((kw.modifiers=='Shift' && this.pendingChangesSaveSlot!==false) || this.autoSave){
                 if(this.isValid()){
                     this.save(kw);
                 }else{
@@ -884,7 +911,7 @@ dojo.declare("gnr.GnrFrmHandler", null, {
             this.publish('pendingChangesAnswer',kw);
             return;
         }
-        saveSlot = saveSlot===undefined? true:saveSlot;
+        saveSlot = saveSlot===undefined? this.pendingChangesSaveSlot!==false:saveSlot;
         var dlg = genro.dlg.quickDialog(_T('Pending changes in ')+this.table_name.toLowerCase(),{_showParent:true,width:'26em'});
         dlg.center._('div',{innerHTML:_T("Current record has been modified."),_class:'alertBodyMessage'});
         var form = this;
@@ -1994,7 +2021,9 @@ dojo.declare("gnr.GnrFrmHandler", null, {
     },
     triggerDEL: function(kw) {
         var changes = this.getChangesLogger();
-        var changekey = this.getChangeKey(kw.node);
+        //the node is already out of its parent, its own fullpath ends in '#-1'
+        var parentPath = kw.where.getFullpath(null, true);
+        var changekey = this.getChangeKey(parentPath ? parentPath + '.' + kw.node.label : kw.node.label);
         if (changes.getAttr(changekey, 'isNewNode')) {
             changes.pop(changekey);
         } else {

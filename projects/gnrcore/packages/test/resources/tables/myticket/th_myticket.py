@@ -48,6 +48,19 @@ class Form(BaseComponent):
         )
 
 
+class FormAutoSize(BaseComponent):
+    """Intrinsic content whose height follows the record: opened with
+    dialog_autoSize, the dialog fits it after every load."""
+
+    def th_form(self, form):
+        pane = form.center.contentPane(datapath='.record', padding='12px')
+        pane.div('^.subject', font_weight='bold', margin_bottom='8px')
+        pane.div('^.description', white_space='pre-line', max_width='60em')
+
+    def th_options(self):
+        return dict(showtoolbar=False)
+
+
 class ViewWizard(View):
     """Plain view for the wizard demo: no typed addrow menu."""
 

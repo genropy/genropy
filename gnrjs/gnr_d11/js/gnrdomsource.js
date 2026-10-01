@@ -1122,7 +1122,7 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         if (bld_attrs.tooltip) {
             genro.wdg.create('tooltip', null, {label:bld_attrs.tooltip,tooltip_type:'help'}).connectOneNode(newobj.domNode || newobj);
         }
-        if (genro.src._started && this.widget && (this.widget instanceof dijit.form.ValidationTextBox)){
+        if (genro.src._started && this.widget){
             var validations = objectExtract(this.attr, 'validate_*',true);
             if (this.validationsOnChange && objectNotEmpty(validations)){
                 this.resetValidationError();
@@ -1872,7 +1872,13 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         }
     },
     getElementLabel:function(){
-        var raw = this.attr.error_label || this.attr._valuelabel || this.attr.field_name_long || this.attr.name_long || stringCapitalize(this.label);
+        //a formlet lbl lives on the labledbox wrapper (buildLblWrapper); '&nbsp;' is its placeholder
+        var wrapper = this.getLabelWrapper();
+        var wrapperLabel = wrapper ? wrapper.getAttributeFromDatasource('label') : null;
+        if(wrapperLabel=='&nbsp;'){
+            wrapperLabel = null;
+        }
+        var raw = this.attr.error_label || this.attr._valuelabel || this.attr.field_name_long || this.attr.name_long || wrapperLabel || stringCapitalize(this.label);
         if(raw && raw.indexOf('<') >= 0){
             var tmp = document.createElement('div');
             tmp.innerHTML = raw;

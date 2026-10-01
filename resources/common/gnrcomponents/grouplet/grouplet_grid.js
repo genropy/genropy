@@ -956,8 +956,12 @@ gnr.GroupletGridController = class GroupletGridController {
         const root = genro.src.newRoot();
         const band = root._('div', {_class: 'grouplet_grid__totals'});
         this.totals.forEach((t) => {
-            const item = band._('div', {_class: 'grouplet_grid__total'
-                + (t.highlight ? ' grouplet_grid__total--highlight' : '')});
+            const attrs = Object.assign({}, t.attrs);
+            const extraClass = objectPop(attrs, '_class');
+            attrs._class = 'grouplet_grid__total'
+                + (t.highlight ? ' grouplet_grid__total--highlight' : '')
+                + (extraClass ? ' ' + extraClass : '');
+            const item = band._('div', attrs);
             item._('div', {_class: 'grouplet_grid__total_label',
                            innerHTML: _T(t.label)});
             const valueKw = {_class: 'grouplet_grid__total_value',
@@ -993,6 +997,17 @@ gnr.GroupletGridController = class GroupletGridController {
             values[t.key] = result;
             this.sourceNode.setRelativeData(this._totalizePath(t.key), result);
         });
+    }
+
+    _updateCountTotals() {
+        const counts = this.totals.filter((t) => t.count);
+        if (!counts.length) return;
+        const bag = this.storebag();
+        const n = (bag instanceof gnr.GnrBag) ? bag.len() : 0;
+        counts.forEach((t) => {
+            this.sourceNode.setRelativeData(this._totalizePath(t.key), n);
+        });
+        this._computeDerivedTotals();
     }
 
     _resetTotals() {
@@ -1297,6 +1312,7 @@ gnr.GroupletGridController = class GroupletGridController {
         } else if (this.totals.length) {
             this._resetTotals();
         }
+        this._updateCountTotals();
         if (!hasBag || bag.len() === 0) {
             this._clearBody();
             return;
@@ -1346,9 +1362,11 @@ gnr.GroupletGridController = class GroupletGridController {
             this._ensureTemplate(() => this._renderTile(pkey),
                                  this._templateKeyForItem(pkey));
             this.updateCounterColumn();
+            this._updateCountTotals();
         } else if (kw.evt === 'del') {
             this._destroyTile(pkey);
             this.updateCounterColumn();
+            this._updateCountTotals();
         }
     }
 
@@ -2049,6 +2067,7 @@ gnr.GroupletGridController = class GroupletGridController {
         }
         tile.unmount();
         delete this.tiles[pkey];
+        if (this.selectedPkey === pkey) this.selectedPkey = null;
         this._updateAddBtnState();
     }
 
@@ -2099,15 +2118,8 @@ gnr.GroupletGridController = class GroupletGridController {
     }
 
     _askAndDeleteItem(pkey) {
-        this.dataStore.deleteRowAsk(pkey);
-    }
-
-    _doDeleteItem(pkey) {
         if (this._rowCount() <= this.minRows) return;
-        this.dataStore.removeRow(pkey);
-        if (this.selectedPkey === pkey) {
-            this.selectedPkey = null;
-        }
+        this.dataStore.deleteRowAsk(pkey);
     }
 
     selectTile(pkey) {
