@@ -129,3 +129,79 @@ test('Back saves an incomplete step also when a grid editor is still open', () =
     assert.equal(step.saved.length, 1);
     assert.ok(!step.published.some(p => p.topic === 'message'));
 });
+
+function createWizardWithChangedStep(context) {
+    const step = createForm(context, {formId: 'wiz_step_form', pendingChangesSaveSlot: false});
+    step.form.store = {};
+    step.form.doload_store = () => { step.form.changed = false; };
+    step.form.publish = (topic, kw) => {
+        if (topic === 'pendingChangesAnswer') step.form.pendingChangesAnswer(kw);
+    };
+    const main = createForm(context, {changed: false, childForms: {wiz_step_form: step.form}});
+    const loads = [];
+    main.form.store = {getDefaultDestPkey: () => null};
+    main.form.load_store = kw => loads.push(kw.destPkey);
+    return {step, main, loads};
+}
+
+function answer(dialog, command) {
+    dialog.children.find(c => c.tag === 'slotBar').attrs.action.call({attr: {command}});
+}
+
+test('dismissing a form asks about its changed step form, without Save', () => {
+    const context = createContext();
+    const dialogs = stubQuickDialog(context);
+    const {step, main, loads} = createWizardWithChangedStep(context);
+    main.form.load({destPkey: '*dismiss*'});
+    assert.deepEqual(loads, []);
+    assert.equal(dialogs[0].children.find(c => c.tag === 'slotBar').attrs.slots, 'discard,*,cancel');
+    answer(dialogs[0], 'cancel');
+    assert.deepEqual(loads, []);
+    assert.equal(step.form.changed, true);
+    main.form.load({destPkey: '*dismiss*'});
+    answer(dialogs[1], 'discard');
+    assert.equal(step.form.changed, false);
+    assert.deepEqual(loads, ['*dismiss*']);
+});
+
+function createConfirm(context, attrs) {
+    const data = {};
+    const recordAttrs = {_draft: true};
+    const main = createForm(context, Object.assign({
+        isValid: () => true,
+        getDataNodeAttributes: () => recordAttrs,
+        updateDraftMarker: () => {},
+        _buildInvalidMessage: () => 'invalid'
+    }, attrs));
+    Object.assign(main.form.sourceNode, {
+        getRelativeData: p => data[p],
+        setRelativeData: (p, v) => { data[p] = v; }
+    });
+    context.genro.getFrameNode = () => ({form: main.form});
+    context.genro.formById = () => null;
+    const grouplet = vm.runInContext('gnr_grouplet', context);
+    grouplet.wizardConfirm('wiz');
+    return {data, recordAttrs, main};
+}
+
+test('Confirm leaves the record a draft when the save does not start', () => {
+    const notStarted = createConfirm(createContext(), {do_save: () => undefined});
+    assert.equal(notStarted.recordAttrs._draft, true);
+    assert.equal(notStarted.data['.record.__is_draft'], true);
+    assert.equal(notStarted.data['.wizard_confirming'], false);
+    const refused = createConfirm(createContext(), {isValid: () => false});
+    assert.equal(refused.recordAttrs._draft, true);
+    assert.equal(refused.data['.wizard_confirming'], false);
+});
+
+test('Confirm marks nothing while the form is busy, and keeps the mark for a save under way', () => {
+    const busy = createConfirm(createContext(), {opStatus: 'loading'});
+    assert.equal(busy.recordAttrs._draft, true);
+    assert.equal(busy.data['.wizard_confirming'], undefined);
+    assert.equal(busy.main.saved.length, 0);
+    let form;
+    const saving = createConfirm(createContext(), {do_save: function() { form = this; this.opStatus = 'saving'; }});
+    assert.equal(form, saving.main.form);
+    assert.equal(saving.recordAttrs._draft, false);
+    assert.equal(saving.data['.wizard_confirming'], true);
+});

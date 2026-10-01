@@ -61,14 +61,28 @@ var gnr_grouplet = {
         }
     },
 
+    wizardRegisterStep: function(stepForm) {
+        var parentForm = stepForm && stepForm.getParentForm();
+        if (parentForm) {
+            parentForm.childForms[stepForm.formId] = stepForm;
+            // the step edits the parent's record: its dialogs name that record
+            stepForm.table_name = parentForm.table_name;
+        }
+    },
+
     wizardConfirm: function(frameCode) {
         var mainForm = genro.getFrameNode(frameCode).form;
         var stepForm = genro.formById(frameCode + '_step_form');
         var confirm = function() {
+            if (mainForm.opStatus) { return; }
+            var node = mainForm.sourceNode;
             mainForm.setDraft(false);
-            mainForm.sourceNode.setRelativeData('.wizard_confirming', true);
-            if (typeof mainForm.save({always: true}) == 'string') {
-                mainForm.sourceNode.setRelativeData('.wizard_confirming', false);
+            node.setRelativeData('.wizard_confirming', true);
+            mainForm.save({always: true});
+            // a save under way ends in onSaved or onSaveFailed: any other
+            // outcome saved nothing, so the record is still a draft
+            if (mainForm.opStatus != 'saving' && node.getRelativeData('.wizard_confirming')) {
+                node.setRelativeData('.wizard_confirming', false);
                 mainForm.setDraft(true);
             }
         };
