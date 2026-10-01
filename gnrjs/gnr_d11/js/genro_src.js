@@ -88,10 +88,24 @@ dojo.declare("gnr.GnrTriggerIndex", null, {
             this._collect(trienode, targets);
         }
         for (let sub of targets) {
-            if (!sub._removed) {
-                sub.node.trigger_data(sub.attr, kw);
+            if (sub._removed) {
+                continue;
             }
+            if (sub.node.isLostNode()) {
+                console.error('trigger index: subscription of a discarded source node',
+                              sub.node.attr.tag, sub.attr, this._subPath(sub));
+                this.remove(sub);
+                continue;
+            }
+            sub.node.trigger_data(sub.attr, kw);
         }
+    },
+    _subPath: function(sub) {
+        let keys = [];
+        for (let trienode = sub._trienode; trienode && trienode.parent; trienode = trienode.parent) {
+            keys.unshift(trienode.key);
+        }
+        return keys.length ? keys.join('.') : null;
     },
     _collect: function(trienode, targets) {
         if (trienode.subs) {
