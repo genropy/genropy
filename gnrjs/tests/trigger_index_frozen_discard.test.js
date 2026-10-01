@@ -162,3 +162,24 @@ test('a same-bag rebuild under freeze tears nothing down', () => {
     assert.deepEqual(line, {deleted: false, widgetDestroyed: false});
     assert.deepEqual(bar, {deleted: false, widgetDestroyed: false});
 });
+
+
+test('a queued insert discarded during another build is not mounted', () => {
+    const {genro, thermoNode} = createSrc();
+    const src = genro.src;
+    const content = thermoNode.getValue();
+    thermoNode.domNode = {};
+    const mounted = [];
+    src.buildNode = node => {
+        node.checkOnChildBuilding();
+        mounted.push(node.label);
+    };
+    src.building = true;
+    const transient = content._('div', 'transient').getParentNode();
+    content.popNode('transient');
+    src.building = false;
+    content._('div', 'current');
+    assert.equal(transient.isLostNode(), true);
+    assert.deepEqual(mounted, ['current']);
+    assert.equal(src.building, false);
+});
