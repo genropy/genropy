@@ -1,9 +1,10 @@
-"""Page discovery and the two ratchet files, shared by the suites that assert on them.
+"""Page discovery and the three ratchet files, shared by the suites that assert on them.
 
-`test_pages_documented.py` needs nothing but this module and the source tree;
-`test_pages_smoke.py` adds a running site to render every page it finds here.
-Keeping the two apart is what lets the documentation ratchet run in CI, where no
-instance is built: a check that silently skips is a check that protects nothing.
+`test_pages_documented.py` and `test_pages_framecodes.py` need nothing but this
+module and the source tree; `test_pages_smoke.py` adds a running site to render
+every page it finds here.
+Keeping the two kinds apart is what lets the source-only ratchets run in CI, where
+no instance is built: a check that silently skips is a check that protects nothing.
 """
 import ast
 import os
@@ -17,6 +18,7 @@ TESTS_DIR = os.path.dirname(os.path.abspath(__file__))
 PACKAGES_DIR = os.path.abspath(os.path.join(TESTS_DIR, *[os.pardir] * 2))
 SMOKE_RATCHET = os.path.join(TESTS_DIR, 'smoke_known_failures.txt')
 DOCSTRING_RATCHET = os.path.join(TESTS_DIR, 'docstring_debt.txt')
+FRAMECODE_RATCHET = os.path.join(TESTS_DIR, 'framecode_debt.txt')
 
 SKIP_FOLDERS = ('_resources', '__pycache__')
 
@@ -63,6 +65,36 @@ def docstring_defects(page_path):
         if node.name.startswith('test_') and not ast.get_docstring(node):
             defects.append('undocumented test method: %s' % node.name)
     return defects
+
+
+def duplicate_framecodes(source):
+    """frameCode literals the given page source uses more than once, sorted
+
+    Only string literals are seen, because only the ast is read: a commented-out
+    call builds no frame and raises nothing, and a frameCode built at runtime is
+    out of reach. Every collision this migration produced was a literal.
+    """
+    try:
+        tree = ast.parse(source)
+    except SyntaxError:
+        return []
+    counts = {}
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        for keyword in node.keywords:
+            if keyword.arg != 'frameCode':
+                continue
+            value = keyword.value
+            if isinstance(value, ast.Constant) and isinstance(value.value, str):
+                counts[value.value] = counts.get(value.value, 0) + 1
+    return sorted(code for code, count in counts.items() if count > 1)
+
+
+def framecode_collisions(page_path):
+    """frameCode values repeated by the page at the given package-relative path"""
+    with open(os.path.join(PACKAGES_DIR, page_path), encoding='utf-8') as page_file:
+        return duplicate_framecodes(page_file.read())
 
 
 def read_ratchet(ratchet_path):

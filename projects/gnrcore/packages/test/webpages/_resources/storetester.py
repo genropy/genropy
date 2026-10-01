@@ -1,8 +1,16 @@
 # -*- coding: utf-8 -*-
 
-# untitled.py
-# Created by Giovanni Porcari on 2010-08-09.
-# Copyright (c) 2010 Softwell. All rights reserved.
+"""The pieces every server-store page needs: a page to talk to, and a form to talk with
+
+A page that demonstrates the server-side store has to name a target before it can
+show anything, and picking that target by hand means reading a page id off another
+tab. `common_pagemenu` lists the pages the site register knows and publishes the
+chosen one on `.info.pageId`, which is what `pageStore()` takes;
+`common_pages_container` lays that menu out beside `common_current_store`, a live
+tree of the chosen page's store; `common_form` is the set/get pair against it.
+The RPCs under them are the store API itself, so a page mixing this in is left with
+only the case it actually wants to show.
+"""
 
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.core.gnrbag import Bag
@@ -25,9 +33,7 @@ class StoreTester(BaseComponent):
                        item_key='=.item_key',
                        _fired='^.get_item', pageId='=.info.pageId')
 
-
     def common_pagemenu(self, pane):
-        
         pane.dropdownbutton('Page', float='left').menu(storepath='.pagemenu', selected_page_id='.info.pageId',
                                                        selected_start_ts='.info.start_ts',
                                                        selected_user_agent='.info.user_agent',
@@ -42,7 +48,7 @@ class StoreTester(BaseComponent):
         fb.div('^.info.user_ip', lbl='User ip')
         fb.div('^.info.user_agent', lbl='User agent', width='200px')
         fb.div('^.info.start_ts', lbl='Start ts')
-        pane.button('Current Page', action='SET info=null; FIRE .refresh_store;')
+        pane.button('Current Page', action='SET .info=null; FIRE .refresh_store;')
         pane.dataRemote('.pagemenu.pages', 'curr_pages', cacheTime=1)
 
     def common_pages_container(self, pane, **kwargs):
@@ -55,17 +61,24 @@ class StoreTester(BaseComponent):
 
     def common_current_store(self, pane):
         pane.button('Update', fire='.refresh_store')
+        pane.div('^.store.current.info.closed', color='darkred', font_style='italic')
         box = pane.div(height='200px')
-        box.tree(storepath='.store', _fired='^.rebuld_store_tree', persist=True)
+        box.tree(storepath='.store', _fired='^.rebuld_store_tree')
         box.data('.store.current', Bag())
         box.dataRpc('.store.current', 'currentRegister', pageId='^.info.pageId',
                     _onResult='FIRE .rebuld_store_tree', _fired='^.refresh_store')
 
     def rpc_currentRegister(self, pageId=None):
-        store = self.pageStore(pageId)
+        # include_data=True, not the store's own `data`: that one is a lazy
+        # RemoteStoreBag, and a Bag node cannot hold it.
+        page_id = self.pageStore(pageId).register_item_id
+        register_item = self.site.register.page(page_id, include_data=True)
         result = Bag()
-        register_item = store.register_item
-        result['data'] = store.data
+        if register_item is None:
+            # the page picked from the menu has closed since: a normal case, not an error
+            result['info'] = Bag(dict(pageId=page_id, closed='Page %s has closed' % page_id))
+            return result
+        result['data'] = register_item['data']
         result['info'] = Bag(dict(user=register_item['user'], pageId=register_item['register_item_id'],
                                   start_ts=register_item['start_ts'], user_ip=register_item['user_ip'],
                                   user_agent=register_item['user_agent'], pagename=register_item['pagename']))
@@ -80,17 +93,20 @@ class StoreTester(BaseComponent):
         return item_value
 
     def rpc_curr_pages(self):
-        pagesDict = self.site.register_page.pages()
+        pagesDict = self.site.register.pages()
         result = Bag()
         for page_id, v in list(pagesDict.items()):
-            user = v['user'] or v['user_ip'].replace('.', '_')
+            user = v['user'] or v['user_ip']
             pagename = v['pagename'].replace('.py', '')
             connection_id = v['connection_id']
-            delta = (datetime.datetime.now() - v['start_ts']).seconds
-            result.addItem('.'.join([user, '%s (%i)' % (pagename, delta)]), None,
+            delta = int((datetime.datetime.now() - v['start_ts']).total_seconds())
+            # the label is a Bag path: a dot in it is a level separator, not a character;
+            # the real username rides in the `user` attribute
+            label = '.'.join([user.replace('.', '_'), '%s (%i)' % (pagename.replace('.', '_'), delta)])
+            result.addItem(label, None,
                            connection_id=connection_id,
                            page_id=page_id, user_ip=v['user_ip'],
                            user_agent=v['user_agent'],
                            user=user,
                            start_ts=v['start_ts'])
-        return result 
+        return result

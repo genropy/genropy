@@ -1,22 +1,36 @@
 # -*- coding: utf-8 -*-
 
-# user_store.py
-# Created by Francesco Porcari on 2010-09-08.
-# Copyright (c) 2010 Softwell. All rights reserved.
+"""Writing into another USER's store: a two-way chat over `userStore`
 
+Where the page store belongs to one open page, the user store belongs to a
+person and survives every page they have open. `self.userStore(username)`
+returns it, and `set_datachange` pushes a value into it from the server, so
+the recipient sees the change without asking for it. The case writes each
+message twice - once into the sender's own store and once into the
+recipient's, with opposite `in_out` attributes - which is what lets one page
+render both sides of the conversation. It takes TWO logged-in users to drive:
+open it as one user, address the other by username.
+"""
 
 from datetime import datetime
 
+
 class GnrCustomWebPage(object):
-    "User store"
     py_requires = "gnrcomponents/testhandler:TestHandlerFull"
 
     def pageAuthTags(self, method=None, **kwargs):
         return 'user'
 
     def test_1_send(self, pane):
+        """Send a message to another user: it lands in their store and in yours, and both are rendered
+
+        The server delivers a user-store datachange only to the pages subscribed to that
+        store under a matching path: without `setStoreSubscription` on `gnr._chat` the
+        change stays on the server and this page never sees it. Untick Subscribed and the
+        messages stop arriving; tick it again and the ones held meanwhile arrive at once.
+        """
         bc = pane.borderContainer(height='250px', datapath='test1')
-        right = bc.contentPane(region='right', width='40%')
+        bc.contentPane(region='right', width='40%')
         center = bc.contentPane(region='center')
         fb = center.formbuilder(cols=1, border_spacing='3px')
         fb.textbox(value='^.user', lbl='Talk to')
@@ -45,9 +59,20 @@ class GnrCustomWebPage(object):
                             if (scrollTop){
                                 rootnode.domNode.scrollTop = scrollTop;
                             }
-                            
+
                             """, rows="^.rows", datapath='^rows_datapath', _if='rows', lineHeight=20,
                           boxHeight=150)
+        fb.data('.subscribed', True)
+        fb.checkbox(value='^.subscribed', label='Subscribed')
+        # every kwarg without an underscore travels to the RPC: the pair is driven by topics
+        fb.dataController("genro.publish(subscribed ? 'user_store_chat_on' : 'user_store_chat_off');",
+                          subscribed='^.subscribed')
+        fb.dataRpc('dummy', 'setStoreSubscription', subscribe_user_store_chat_on=True, _onStart=True,
+                   storename='user', client_path='gnr._chat', active=True,
+                   _onResult='genro.setFastPolling(true);')
+        fb.dataRpc('dummy', 'setStoreSubscription', subscribe_user_store_chat_off=True,
+                   storename='user', client_path='gnr._chat', active=False,
+                   _onCalling='genro.setFastPolling(false);')
         fb.textbox(value='^.message', lbl='Msg')
         fb.button('send', fire='.send')
         center.dataRpc('dummy', 'send_message', user='=.user', msg='=.message', _fired='^.send', _if='user&&msg')
