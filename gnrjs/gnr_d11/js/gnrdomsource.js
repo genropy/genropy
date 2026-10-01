@@ -985,6 +985,7 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
             this[aux].call(this);
         }else{
             var attributes = this.registerNodeDynAttr(true);
+            this._appliedClass = attributes._class;
             var tag=objectPop(attributes,'tag');
             this._doBuildNode(tag, attributes, destination, ind);
             this._setDynAttributes();
@@ -1487,7 +1488,10 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
             else {
                 domnode = this.domNode;
             }
-            if (oldvalue) {
+            if (this._appliedClass !== undefined) {
+                genro.dom.removeClass(domnode, this._appliedClass);
+            }
+            else if (oldvalue) {
                 var old_class;
                 if (oldvalue instanceof gnr.GnrBag) {
                     var q = kw.pathlist.length;
@@ -1499,6 +1503,7 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
                 genro.dom.removeClass(domnode, old_class);
             }
             genro.dom.addClass(domnode, value);
+            this._appliedClass = value;
         }
         else if (attr=='style'){
             genro.dom.style(this,value);
