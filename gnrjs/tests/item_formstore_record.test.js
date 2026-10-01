@@ -227,3 +227,17 @@ test('hasSameValues compares labels and values, not attributes', () => {
     assert.equal(a.hasSameValues(new Bag({y: new Bag({z: 'k'}), x: 1})), false);
     assert.equal(a.hasSameValues(null), false);
 });
+
+test('invalid fields marked on the item form stay on its own record', () => {
+    const s = createStage();
+    s.editInner('description', '');
+    const innerRecord = s.inner.getFormData();
+    s.inner.setRecordInvalidFields(innerRecord.getNode('description'), true, {error: 'Required'});
+    assert.ok(s.inner.getDataNodeAttributes()._invalidFields.description);
+    s.store.save_memory({});
+    assert.equal(s.record.getItem('description'), '');
+    const outerRecordNode = s.record.getParentNode();
+    assert.equal(outerRecordNode.attr._invalidFields, undefined);
+    assert.equal(s.record.getNodeByAttr('_invalidFields'), undefined);
+    assert.equal(s.inner.getDataNodeAttributes()._invalidFields, undefined);
+});

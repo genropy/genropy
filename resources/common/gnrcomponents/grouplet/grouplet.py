@@ -602,10 +602,16 @@ class GroupletHandler(BaseComponent):
                             step_field=resumeStepField,
                             confirmed_ro=_confirmedReadOnly,
                             formsubscribe_onLoaded=True)
+        # the step form saves even when incomplete, so Back keeps what was
+        # typed: validity is checked by the wizard on Next and on Confirm.
+        # As a child of the surrounding form, its pending changes are asked
+        # about when that form is dismissed or navigated away.
         grouplet_kwargs.update(resource='^#ANCHOR.current_resource',
                            value=value,
                            loadOnBuilt=True, formId=step_form_id,
-                           form_modalForm=True,
+                           form_modalForm=True, form_allowSaveInvalid=True,
+                           form_pendingChangesSaveSlot=False,
+                           _onRemote="gnr_grouplet.wizardRegisterStep(this.form);",
                            grouplet_remote__wizard_build='^#ANCHOR.wizard_build')
         grouplet_kwargs['rootTag'] = 'contentPane'
         # remote_<name> reaches every step, <step>_remote_<name> only that one.
@@ -739,6 +745,8 @@ class GroupletHandler(BaseComponent):
             for label in list(top.value.keys()):
                 top.value.popNode(label)
         form.attributes['form_parentLock'] = False
+        # the record is saved by the wizard only, never from Pending changes
+        form.attributes['form_pendingChangesSaveSlot'] = False
         form.dataController("""
             var readOnly = confirmed_ro && !this.form.isNewRecord()
                            && (!this.form.isDraft() || this.form.isProtectWrite());
