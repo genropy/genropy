@@ -4,8 +4,10 @@ const path = require('node:path');
 const {test} = require('node:test');
 const vm = require('node:vm');
 
-function createContext() {
-    const context = {console, File: function() {}, gnr: {}, genro: {}, setTimeout};
+const GROUPLET_PY = path.join(__dirname, '../../resources/common/gnrcomponents/grouplet/grouplet.py');
+
+function createContext({components = false} = {}) {
+    const context = {console, File: function() {}, gnr: {}, genro: {}, setTimeout, navigator: {}, window: {}, document: {}};
     context.dojo = {
         Deferred: function() {},
         eval,
@@ -13,7 +15,11 @@ function createContext() {
         forEach: (items, callback) => Array.prototype.forEach.call(items || [], callback),
         some: (items, callback) => Array.prototype.some.call(items || [], callback),
         toJson: JSON.stringify,
-        declare(name, base, members) {
+        isIE: 0,
+        require() {},
+        provide() {},
+        declare(name, bases, members) {
+            const base = Array.isArray(bases) ? bases[0] : bases;
             function Declared(...args) {
                 if (base) base.apply(this, args);
                 if (Object.hasOwn(members, 'constructor')) members.constructor.apply(this, args);
@@ -29,12 +35,17 @@ function createContext() {
     };
     vm.createContext(context);
     const sourceDir = process.env.GNR_JS_SOURCE || path.join(__dirname, '../gnr_d11/js');
-    for (const filename of ['gnrlang.js', 'gnrbag.js', 'gnrdomsource.js', 'genro_frm.js']) {
+    const sources = ['gnrlang.js', 'gnrbag.js', 'gnrdomsource.js', 'genro_frm.js'];
+    if (components) sources.push('genro_widgets.js', 'genro_components.js');
+    for (const filename of sources) {
         vm.runInContext(readFileSync(path.join(sourceDir, filename), 'utf8'), context, {filename});
     }
     const groupletJs = path.join(__dirname, '../../resources/common/gnrcomponents/grouplet/grouplet.js');
     vm.runInContext(readFileSync(groupletJs, 'utf8'), context, {filename: 'grouplet.js'});
     context._T = str => str;
+    context.genro.evaluate = expr => vm.runInContext('(' + expr + ')', context);
+    context.genro.published = [];
+    context.genro.publish = (topic, kw) => context.genro.published.push({topic, kw});
     return context;
 }
 
@@ -104,22 +115,61 @@ test('Shift on a dismiss does not save a form that opts out of Save', () => {
     assert.equal(dialogs.length, 1);
 });
 
+test('an explicit saveSlot argument still decides over the form option', () => {
+    const context = createContext();
+    const dialogs = stubQuickDialog(context);
+    createForm(context, {pendingChangesSaveSlot: false}).form.openPendingChangesDlg({}, true);
+    createForm(context).form.openPendingChangesDlg({}, false);
+    assert.equal(dialogs[0].children.find(c => c.tag === 'slotBar').attrs.slots, 'discard,*,cancel,save');
+    assert.equal(dialogs[1].children.find(c => c.tag === 'slotBar').attrs.slots, 'discard,*,cancel');
+});
+
+test('an autoSave form still saves on a dismiss whatever the option', () => {
+    const context = createContext();
+    const dialogs = stubQuickDialog(context);
+    const auto = createForm(context, {isValid: () => true, autoSave: 500, pendingChangesSaveSlot: false});
+    auto.form.load_store({destPkey: '*dismiss*'});
+    assert.equal(auto.saved.length, 1);
+    assert.equal(dialogs.length, 0);
+});
+
+function createStepNavigation(context, step) {
+    const frameData = {step_index: 1, wizard_steps: new context.gnr.GnrBag()};
+    frameData.wizard_steps.setItem('one', null);
+    frameData.wizard_steps.setItem('two', null);
+    context.genro.getFrameNode = () => ({
+        getRelativeData: p => frameData[p.slice(1)],
+        setRelativeData: (p, v) => { frameData[p.slice(1)] = v; }
+    });
+    context.genro.formById = () => step.form;
+    return {frameData, grouplet: vm.runInContext('gnr_grouplet', context)};
+}
+
+test('Back saves a changed step at once, valid or not, and skips an unchanged one', () => {
+    for (const isValid of [true, false]) {
+        const context = createContext();
+        const step = createForm(context, {allowSaveInvalid: true, isValid: () => isValid});
+        const {frameData, grouplet} = createStepNavigation(context, step);
+        grouplet.wizardGoTo(null, 0, 'wiz');
+        assert.equal(frameData.step_index, 0);
+        assert.equal(step.saved.length, 1);
+        assert.ok(!step.published.some(p => p.topic === 'message'));
+    }
+    const context = createContext();
+    const untouched = createForm(context, {allowSaveInvalid: true, changed: false});
+    const {frameData, grouplet} = createStepNavigation(context, untouched);
+    grouplet.wizardGoTo(null, 0, 'wiz');
+    assert.equal(frameData.step_index, 0);
+    assert.equal(untouched.saved.length, 0);
+});
+
 test('Back saves an incomplete step also when a grid editor is still open', () => {
     const context = createContext();
     const step = createForm(context, {allowSaveInvalid: true});
     const grid = {gnrediting: true};
     step.form.gridEditors = {rows: {grid}};
-    const frameData = {step_index: 1, wizard_steps: new context.gnr.GnrBag()};
-    frameData.wizard_steps.setItem('one', null);
-    frameData.wizard_steps.setItem('two', null);
-    const frameNode = {
-        getRelativeData: p => frameData[p.slice(1)],
-        setRelativeData: (p, v) => { frameData[p.slice(1)] = v; }
-    };
-    context.genro.getFrameNode = () => frameNode;
-    context.genro.formById = () => step.form;
-    context.gnr_grouplet = vm.runInContext('gnr_grouplet', context);
-    context.gnr_grouplet.wizardGoTo(null, 0, 'wiz');
+    const {frameData, grouplet} = createStepNavigation(context, step);
+    grouplet.wizardGoTo(null, 0, 'wiz');
     assert.equal(frameData.step_index, 0);
     assert.equal(step.saved.length, 0);
     assert.equal(step.watches.length, 1);
@@ -130,17 +180,93 @@ test('Back saves an incomplete step also when a grid editor is still open', () =
     assert.ok(!step.published.some(p => p.topic === 'message'));
 });
 
-function createWizardWithChangedStep(context) {
-    const step = createForm(context, {formId: 'wiz_step_form', pendingChangesSaveSlot: false});
+function stepHook() {
+    const match = readFileSync(GROUPLET_PY, 'utf8').match(/_onRemote="([^"]+)"/);
+    assert.ok(match, 'groupletWizard passes an _onRemote hook to the step form');
+    return match[1];
+}
+
+function buildStepForm(context, hook) {
+    const built = [];
+    const node = {
+        _: (tag, attrs) => { built.push({tag, attrs}); return node; }
+    };
+    const sourceNode = {
+        attr: {},
+        gnrwdg: {},
+        _registerNodeId() {},
+        absDatapath: value => 'outer' + value.replace(/^\^/, ''),
+        _: node._
+    };
+    const widget = new context.gnr.widgets.GroupletForm();
+    widget.createContent(sourceNode, {
+        formId: 'wiz_step_form', loadOnBuilt: true, value: '^.record', _onRemote: hook
+    });
+    return built.find(b => b.tag === 'grouplet').attrs._onRemote;
+}
+
+test('the step form built by GroupletForm registers itself in its parent form, then loads', () => {
+    const context = createContext({components: true});
+    context.gnr_grouplet = vm.runInContext('gnr_grouplet', context);
+    const onRemote = buildStepForm(context, stepHook());
+    const main = createForm(context, {table_name: 'Ticket', childForms: {}});
+    const step = createForm(context, {formId: 'wiz_step_form', table_name: 'wiz_step_form',
+                                      getParentForm: () => main.form});
+    let loaded = 0;
+    step.form.load = () => { loaded++; };
+    context.funcCreate(onRemote, null, {form: step.form})();
+    assert.equal(main.form.childForms.wiz_step_form, step.form);
+    assert.equal(step.form.table_name, 'Ticket');
+    assert.equal(loaded, 1);
+});
+
+test('the step hook runs alongside other remote hooks declaring the same names', () => {
+    const context = createContext({components: true});
+    context.gnr_grouplet = vm.runInContext('gnr_grouplet', context);
+    const sibling = 'const frm = this.form; const parent = frm;';
+    const onRemote = buildStepForm(context, sibling + ' ' + stepHook());
+    const main = createForm(context, {childForms: {}});
+    const step = createForm(context, {formId: 'wiz_step_form', getParentForm: () => main.form});
+    step.form.load = () => {};
+    context.funcCreate(onRemote, null, {form: step.form})();
+    assert.equal(main.form.childForms.wiz_step_form, step.form);
+});
+
+test('registering a step without a parent form does nothing', () => {
+    const context = createContext();
+    const grouplet = vm.runInContext('gnr_grouplet', context);
+    const step = createForm(context, {formId: 'wiz_step_form', table_name: 'wiz_step_form',
+                                      getParentForm: () => null});
+    grouplet.wizardRegisterStep(step.form);
+    grouplet.wizardRegisterStep(null);
+    assert.equal(step.form.table_name, 'wiz_step_form');
+});
+
+test('a rebuilt step replaces the previous one in the parent form', () => {
+    const context = createContext();
+    const grouplet = vm.runInContext('gnr_grouplet', context);
+    const main = createForm(context, {childForms: {}});
+    const first = createForm(context, {formId: 'wiz_step_form', getParentForm: () => main.form});
+    const rebuilt = createForm(context, {formId: 'wiz_step_form', getParentForm: () => main.form});
+    grouplet.wizardRegisterStep(first.form);
+    grouplet.wizardRegisterStep(rebuilt.form);
+    assert.deepEqual(Object.keys(main.form.childForms), ['wiz_step_form']);
+    assert.equal(main.form.childForms.wiz_step_form, rebuilt.form);
+});
+
+function createWizard(context, {stepChanged = true} = {}) {
+    const main = createForm(context, {changed: false, table_name: 'Ticket', childForms: {}});
+    const loads = [];
+    main.form.store = {getDefaultDestPkey: () => null};
+    main.form.load_store = kw => loads.push(kw.destPkey);
+    const step = createForm(context, {formId: 'wiz_step_form', changed: stepChanged,
+                                      pendingChangesSaveSlot: false, getParentForm: () => main.form});
     step.form.store = {};
     step.form.doload_store = () => { step.form.changed = false; };
     step.form.publish = (topic, kw) => {
         if (topic === 'pendingChangesAnswer') step.form.pendingChangesAnswer(kw);
     };
-    const main = createForm(context, {changed: false, childForms: {wiz_step_form: step.form}});
-    const loads = [];
-    main.form.store = {getDefaultDestPkey: () => null};
-    main.form.load_store = kw => loads.push(kw.destPkey);
+    vm.runInContext('gnr_grouplet', context).wizardRegisterStep(step.form);
     return {step, main, loads};
 }
 
@@ -148,10 +274,10 @@ function answer(dialog, command) {
     dialog.children.find(c => c.tag === 'slotBar').attrs.action.call({attr: {command}});
 }
 
-test('dismissing a form asks about its changed step form, without Save', () => {
+test('dismissing the wizard asks about the changed step, without Save: Cancel stays, Discard closes', () => {
     const context = createContext();
     const dialogs = stubQuickDialog(context);
-    const {step, main, loads} = createWizardWithChangedStep(context);
+    const {step, main, loads} = createWizard(context);
     main.form.load({destPkey: '*dismiss*'});
     assert.deepEqual(loads, []);
     assert.equal(dialogs[0].children.find(c => c.tag === 'slotBar').attrs.slots, 'discard,*,cancel');
@@ -162,9 +288,19 @@ test('dismissing a form asks about its changed step form, without Save', () => {
     answer(dialogs[1], 'discard');
     assert.equal(step.form.changed, false);
     assert.deepEqual(loads, ['*dismiss*']);
+    assert.equal(dialogs.length, 2);
 });
 
-function createConfirm(context, attrs) {
+test('dismissing the wizard with an untouched step closes without asking', () => {
+    const context = createContext();
+    const dialogs = stubQuickDialog(context);
+    const {main, loads} = createWizard(context, {stepChanged: false});
+    main.form.load({destPkey: '*dismiss*'});
+    assert.equal(dialogs.length, 0);
+    assert.deepEqual(loads, ['*dismiss*']);
+});
+
+function createConfirm(context, attrs, {stepForm = null} = {}) {
     const data = {};
     const recordAttrs = {_draft: true};
     const main = createForm(context, Object.assign({
@@ -178,7 +314,7 @@ function createConfirm(context, attrs) {
         setRelativeData: (p, v) => { data[p] = v; }
     });
     context.genro.getFrameNode = () => ({form: main.form});
-    context.genro.formById = () => null;
+    context.genro.formById = () => stepForm;
     const grouplet = vm.runInContext('gnr_grouplet', context);
     grouplet.wizardConfirm('wiz');
     return {data, recordAttrs, main};
@@ -204,4 +340,40 @@ test('Confirm marks nothing while the form is busy, and keeps the mark for a sav
     assert.equal(form, saving.main.form);
     assert.equal(saving.recordAttrs._draft, false);
     assert.equal(saving.data['.wizard_confirming'], true);
+});
+
+test('Confirm keeps the record confirmed when the save completes at once', () => {
+    const done = createConfirm(createContext(), {do_save: function() {
+        // onSaved, as the wizard's formsubscribe_onSaved controller does
+        this.sourceNode.setRelativeData('.wizard_confirming', false);
+    }});
+    assert.equal(done.main.saved.length, 0);
+    assert.equal(done.recordAttrs._draft, false);
+    assert.equal(done.data['.record.__is_draft'], false);
+    assert.equal(done.data['.wizard_confirming'], false);
+});
+
+test('Confirm with a deferred save leaves the record a draft, never wrongly confirmed', () => {
+    const deferred = createConfirm(createContext(), {gridEditors: {rows: {grid: {gnrediting: true}}}});
+    assert.equal(deferred.main.watches.length, 1);
+    assert.equal(deferred.recordAttrs._draft, true);
+    assert.equal(deferred.data['.wizard_confirming'], false);
+});
+
+test('Confirm saves a changed step first and confirms on its reload', () => {
+    const context = createContext();
+    let stepSave;
+    const step = {isValid: () => true, changed: true, save: kw => { stepSave = kw; }};
+    const pending = createConfirm(context, {do_save: function() { this.opStatus = 'saving'; }}, {stepForm: step});
+    assert.equal(pending.recordAttrs._draft, true);
+    assert.equal(typeof stepSave.onReload, 'function');
+    stepSave.onReload();
+    assert.equal(pending.recordAttrs._draft, false);
+    assert.equal(pending.data['.wizard_confirming'], true);
+    const blockedContext = createContext();
+    const invalid = {isValid: () => false, changed: true, save: () => assert.fail('an invalid step is not saved')};
+    const blocked = createConfirm(blockedContext, {}, {stepForm: invalid});
+    assert.equal(blocked.recordAttrs._draft, true);
+    assert.equal(blocked.main.saved.length, 0);
+    assert.equal(blockedContext.genro.published[0].topic, 'floating_message');
 });
