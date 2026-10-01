@@ -13,7 +13,7 @@ class GnrCustomWebPage(object):
     def pageAuthTags(self, method=None, **kwargs):
         if getattr(self, '_page_init_error', None):
             return ''
-        return self.auth_main
+        return getattr(self, 'auth_%s' % method, self.defaultAuthTags if method == 'main' else None)
 
     def windowTitle(self):
         if getattr(self, '_page_init_error', None):
