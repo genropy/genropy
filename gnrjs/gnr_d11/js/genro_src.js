@@ -209,16 +209,16 @@ dojo.declare("gnr.GnrSrcHandler", null, {
         this.pendingBuild.push(kw);
         if (!this.building) {
             this.building = true;
-            var that = this;
-            //the queue holds the work of other callers too: a failed build
-            //must not stop it, nor leave building set for the whole page
-            var run = function(kw) {
-                genro.safetry(function() {
-                    that['_trigger_' + kw.evt](kw);
-                });
-            };
             while (this.pendingBuild.length > 0) {
-                run(this.pendingBuild.pop());
+                kw = this.pendingBuild.pop();
+                try {
+                    dojo.hitch(this, '_trigger_' + kw.evt)(kw);
+                } catch (e) {
+                    //the queue holds the work of other callers too: a failed
+                    //build must not stop it, nor leave building set for the
+                    //whole page. Rethrown on its own it stays an uncaught error
+                    setTimeout(function() { throw e; }, 0);
+                }
             }
             this.building = false;
         }

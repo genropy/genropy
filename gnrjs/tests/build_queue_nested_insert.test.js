@@ -5,7 +5,17 @@ const {test} = require('node:test');
 const vm = require('node:vm');
 
 function createSrc() {
-    const context = {console, gnr: {}, genro: {}};
+    //timers run when the test asks: an error rethrown in one is collected there
+    const timers = [];
+    const context = {console, gnr: {}, genro: {}, setTimeout: cb => timers.push(cb)};
+    const uncaught = () => timers.splice(0).flatMap(cb => {
+        try {
+            cb();
+            return [];
+        } catch (e) {
+            return [e];
+        }
+    });
     context.dojo = {
         Deferred: function() {},
         hitch: (object, method) => (typeof method === 'string' ? object[method] : method).bind(object),
@@ -37,15 +47,6 @@ function createSrc() {
     genro.isDeveloper = false;
     genro.wdg = {getHandler: () => null};
     genro._data = new context.gnr.GnrBag();
-    //genro.safetry as genro.js has it, keeping what it caught
-    const caught = [];
-    genro.safetry = cb => {
-        try {
-            return cb();
-        } catch (e) {
-            caught.push(e);
-        }
-    };
     genro.src = new context.gnr.GnrSrcHandler({});
     //a pane already on screen, inserted silently as there is no DOM to build into
     const pane = genro.src._main._('div', 'pane', {}, {doTrigger: false});
@@ -71,7 +72,7 @@ function createSrc() {
             onBuild(node);
         }
     };
-    return {genro, pane, built, caught};
+    return {genro, pane, built, timers, uncaught};
 }
 
 //what makeHiderLayer does from inside a running build: the layer, then its message
@@ -82,11 +83,11 @@ function addHider(pane) {
 }
 
 test('a parent and its child queued during a build are built together', t => {
-    const {genro, pane, built, caught} = createSrc();
+    const {genro, pane, built, uncaught} = createSrc();
     const errors = [];
     t.mock.method(console, 'error', (...args) => errors.push(args));
     pane._('div', 'host', {onBuild: () => addHider(pane)});
-    assert.deepEqual(caught, []);
+    assert.deepEqual(uncaught(), []);
     assert.deepEqual(errors, []);
     assert.deepEqual(built, ['host', 'hiderNode', 'message']);
     assert.equal(genro.src.building, false);
@@ -94,31 +95,31 @@ test('a parent and its child queued during a build are built together', t => {
 });
 
 test('a deeper queued insert waits for its queued ancestor', () => {
-    const {genro, pane, built, caught} = createSrc();
+    const {genro, pane, built, uncaught} = createSrc();
     pane._('div', 'host', {onBuild: () => {
         const hider = addHider(pane);
         hider.getValue().getItem('message')._('div', 'spinner', {});
     }});
-    assert.deepEqual(caught, []);
+    assert.deepEqual(uncaught(), []);
     assert.deepEqual(built, ['host', 'hiderNode', 'message', 'spinner']);
     assert.equal(genro.src.building, false);
 });
 
 test('a node changed while its insertion is queued is built once, with its last state', () => {
-    const {genro, pane, built, caught} = createSrc();
+    const {genro, pane, built, uncaught} = createSrc();
     let hider;
     pane._('div', 'host', {onBuild: () => {
         hider = addHider(pane);
         hider.setAttr({_class: 'hiderLayer hiderLocked'});
     }});
-    assert.deepEqual(caught, []);
+    assert.deepEqual(uncaught(), []);
     assert.deepEqual(built, ['host', 'hiderNode', 'message']);
     assert.equal(hider.attr._class, 'hiderLayer hiderLocked');
     assert.equal(genro.src.building, false);
 });
 
 test('a failed build does not stop the queue nor leave building set', () => {
-    const {genro, pane, built, caught} = createSrc();
+    const {genro, pane, built, timers, uncaught} = createSrc();
     const buildNode = genro.src.buildNode;
     genro.src.buildNode = (node, where) => {
         if (node.label == 'broken') {
@@ -130,9 +131,11 @@ test('a failed build does not stop the queue nor leave building set', () => {
         pane._('div', 'broken', {});
         pane._('div', 'sibling', {});
     }});
-    assert.deepEqual(caught.map(e => e.message), ['broken build']);
+    //the caller goes on, the error is raised again on its own, uncaught
     assert.deepEqual(built, ['host', 'sibling']);
     assert.equal(genro.src.building, false);
+    assert.equal(timers.length, 1);
+    assert.deepEqual(uncaught().map(e => e.message), ['broken build']);
     pane._('div', 'later', {});
     assert.deepEqual(built, ['host', 'sibling', 'later']);
 });
