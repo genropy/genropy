@@ -23,23 +23,27 @@
     padding: 0.3em 0.4em;
     cursor: move;
     outline: 0;
+    position: relative;
 }
 
-/* --- Dialog title text --- */
+/* --- Dialog title text: symmetric padding keeps the close button's room, so it centers on the whole bar --- */
 .gnr_dojotheme .dijitDialogTitle {
     flex: 1;
     font-weight: 600;
     color: inherit;
-    padding: 0.1em 0.4em;
+    padding: 0.1em 1.7em;
     outline: 0;
     border: none;
 }
 
-/* --- Close button: mask-image icon, circular, centered via flex --- */
+/* --- Close button: mask-image icon, circular, out of the flow on the right --- */
 .gnr_dojotheme .dijitDialogCloseIcon {
     background: none;
     background-image: none;
-    position: relative;
+    position: absolute;
+    right: 0.4em;
+    top: 50%;
+    transform: translateY(-50%);
     width: 1.3em;
     height: 1.3em;
     cursor: pointer;
