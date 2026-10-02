@@ -36,6 +36,7 @@ function createSrc() {
     const genro = context.genro;
     genro.isDeveloper = false;
     genro.wdg = {getHandler: () => null};
+    genro.safetry = cb => cb();
     genro._data = new context.gnr.GnrBag();
     genro.src = new context.gnr.GnrSrcHandler({});
     //the batch monitor shape: a pane bound to an absolute datapath, a line
