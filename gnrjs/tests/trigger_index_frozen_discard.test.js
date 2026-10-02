@@ -183,3 +183,30 @@ test('a queued insert discarded during another build is not mounted', () => {
     assert.deepEqual(mounted, ['current']);
     assert.equal(src.building, false);
 });
+
+
+test('a subscription of a discarded node is reported once and dropped', t => {
+    const {genro, lineNode, barNode, publish, indexed} = createSrc();
+    const errors = [];
+    t.mock.method(console, 'error', (...args) => errors.push(args));
+    lineNode.getParentBag().popNode('l1', false);
+    assert.equal(barNode.isLostNode(), true);
+    assert.equal(indexed(), 2);
+    assert.deepEqual(publish('gnr.batch.b1.thermo.l1'), []);
+    assert.equal(indexed(), 0);
+    assert.equal(errors.length, 2);
+    assert.deepEqual(errors.map(args => args.slice(1)).sort(),
+                     [['progressbar', 'maximum', 'gnr.batch.b1.thermo.l1'],
+                      ['progressbar', 'progress', 'gnr.batch.b1.thermo.l1']]);
+    assert.equal(genro.src.triggerIndex.root.children.gnr, undefined);
+    assert.deepEqual(publish('gnr.batch.b1.thermo.l1'), []);
+    assert.equal(errors.length, 2);
+});
+
+test('a live subscription raises no error', t => {
+    const {publish} = createSrc();
+    const errors = [];
+    t.mock.method(console, 'error', (...args) => errors.push(args));
+    assert.deepEqual(publish('gnr.batch.b1.thermo.l1').sort(), ['maximum', 'progress']);
+    assert.deepEqual(errors, []);
+});
