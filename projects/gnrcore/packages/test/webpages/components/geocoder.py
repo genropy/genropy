@@ -81,4 +81,43 @@ class GnrCustomWebPage(object):
         bc.dataController('sn.markers.center_marker.setTitle(w3w_words)',
                         w3w_words='^.w3w.words',sn=m,_delay=500)
 
-        
+    def test_3_map_marker(self, pane):
+        """Please set your Google Maps API credentials in instanceconfig.xml before using (see documentation).
+        A map bound to a center address, a zoom slider and a map-type select; type a marker name and
+        a marker address to drop a draggable marker on the map through mapNode.gnr.setMarker."""
+        pane.data('.center', 'Via omboni 10 abbiategrasso')
+        pane.data('.zoom', 10)
+        pane.data('.maptype', 'roadmap')
+        bc = pane.borderContainer(height='500px')
+        top = bc.contentPane(region='top')
+        fb = top.formbuilder(cols=3)
+        fb.geoCoderField(value='^.center', lbl='Center', selected_position='.center_position')
+        fb.div(innerHTML='^.center_position', lbl='Center position')
+        fb.filteringSelect(value='^.maptype', lbl='Map type',
+                           values='roadmap:Roadmap,hybrid:Hybrid,satellite:Satellite,terrain:Terrain')
+        fb.textbox(value='^.marker_name', lbl='Marker name')
+        fb.geoCoderField(value='^.marker_address', lbl='Marker address', selected_position='.marker')
+        fb.div(innerHTML='^.marker', lbl='Marker position')
+        fb.horizontalSlider(value='^.zoom', lbl='Zoom', minimum=4, maximum=21, width='150px', discreteValues=18)
+        m = bc.contentPane(region='center').GoogleMap(height='100%', border='1px solid silver', rounded=10,
+                                                     map_center='^.center', map_type='^.maptype',
+                                                     map_zoom='^.zoom', map_disableDefaultUI=True)
+        fb.dataController("""if(marker_name){
+                                mapNode.gnr.setMarker(mapNode, marker_name, marker, {title:marker_name, draggable:true});
+                             }""", marker='^.marker', marker_name='=.marker_name', mapNode=m)
+
+    def test_4_palette_map(self, pane):
+        """Please set your Google Maps API credentials in instanceconfig.xml before using (see documentation).
+        The same map in a floating palette (paletteMap). A palette keeps its data under gnr.palettes.<paletteCode>
+        unless it is given a datapath: here datapath='.map' makes the palette and the form share the case's data."""
+        pane.data('.map.center', 'Via omboni 10 abbiategrasso')
+        pane.data('.map.zoom', 10)
+        pane.data('.map.maptype', 'roadmap')
+        fb = pane.formbuilder(cols=3, datapath='.map')
+        fb.geoCoderField(value='^.center', lbl='Center', selected_position='.center_position')
+        fb.div(innerHTML='^.center_position', lbl='Center position')
+        fb.filteringSelect(value='^.maptype', lbl='Map type',
+                           values='roadmap:Roadmap,hybrid:Hybrid,satellite:Satellite,terrain:Terrain')
+        fb.horizontalSlider(value='^.zoom', lbl='Zoom', minimum=4, maximum=21, width='150px', discreteValues=18)
+        pane.paletteMap(paletteCode='map', datapath='.map', dockTo=False, map_center='^.center',
+                        map_type='^.maptype', map_zoom='^.zoom', map_disableDefaultUI=True)

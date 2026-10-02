@@ -41,11 +41,19 @@ introduced itself. Two steps, in this order, both cheap:
 A page label is not free text either: `setItem` splits on `.`, so a label built from
 user or register data (`'%s.%s' % (user, name)`) silently becomes two nested nodes.
 
-`glbl` throughout means `gnr_it:glbl`, a package living outside this repository that
-gnrdevelop deliberately does NOT mount: macro 2 established that mounting it
-deadlocks the sqlite of the instance the whole app/web suite boots, so pages bound
-to it render 200 against empty tables and that is the end of it. test15's own
-`model/_packages/glbl/` column injections were deleted by macro 2 and no longer exist.
+`glbl` throughout means `gnr_it:glbl`, a package tracked in this repository
+(`projects/gnr_it/packages/glbl`) that gnrdevelop deliberately does NOT mount: macro 2
+established that mounting it deadlocks the sqlite of the instance the whole app/web
+suite boots, so pages bound to it render 200 against empty tables and that is the end
+of it. test15's own `model/_packages/glbl/` column injections were deleted by macro 2
+and no longer exist.
+
+The drive cannot run everywhere either. On gnrdevelop (sqlite) `adm.userobject`
+cannot be read until #1373 lands — three of its formula columns use
+`string_to_array` — so every template bound to a table and every userobject fails
+there: `templateChunk`, `renderTemplate`, `userObjectBar`. Macro 4 drove its pages on
+`sandboxpg` (Postgres, mounts `gnrcore:test`, real `adm.pkginfo` / `adm.tblinfo` rows),
+served from the worktree with the worktree's own gnrdaemon.
 
 ## Macro 1 (done): the regression net, websocket and components
 Documentation ratchet wired into CI, render sweep with port backpressure, plus the
@@ -80,7 +88,7 @@ structure, after the page has already answered 200.
   is commented out builds no frame and raises nothing. The unit tests pin that
   distinction, with `chartjs.py` as the negative case.
 
-## Macro 4: tools, second half, and the area emptied
+## Macro 4 (done): tools, second half, and the area emptied
 - Objective: triage the remaining 24 pages of `tools` — widgets, editors, media, maps,
   templates — and leave the area empty. It is the half whose pages bind tables of
   packages the instance does not mount (`glbl`, `fatt`, `polimed`, `studio`).
@@ -120,7 +128,8 @@ structure, after the page has already answered 200.
 - Starts from: `test15/webpages/` holding exactly those eight folders and nothing else —
   no `tools/`, no `_resources/`.
 - Ends at: `test15/webpages/` holds no page and no folder; `resources/canvas.js` has
-  travelled with `chart/canvas.py` and `html/webRTC.py`, its last readers; none of the
+  travelled with `chart/canvas.py`, its one reader (`html/webRTC.py`'s `canvas.` is a
+  local node, not the resource); none of the
   three ratchets carries a `test15/...` line, `framecode_debt.txt` included — its one
   entry, `revised/gui/multibutton.py`, is the only offender in the tree and it is
   cleared here, so the file ends empty.
