@@ -4809,17 +4809,24 @@ dojo.declare("gnr.widgets.MultiButton", gnr.widgets.gnrwdg, {
                 var code;
                 var gnrwdg = this;
                 mb.forEach(function(n){
-                    //still queued for build: oneButton gives it its class,
-                    //setClass would fall back to the container
-                    if(!n.domNode){
-                        return;
-                    }
                     if('multibutton_code' in n.attr){
                         code = n.attr.multibutton_code;
                     }else{
                         code = n.attr[identifier] || n.attr['code'] || n.label;
                     }
-                    
+                    var selected = value.indexOf(code)>=0;
+                    if(!n.domNode){
+                        //still queued for build: it is built from its attributes,
+                        //while setClass would fall back to the container
+                        var classes = (n.attr._class || '').split(' ').filter(function(c){
+                            return c && c != 'multibutton_selected';
+                        });
+                        if(selected){
+                            classes.push('multibutton_selected');
+                        }
+                        n.attr._class = classes.join(' ');
+                        return;
+                    }
                     if(value.length==1 && value[0]==code){
                         if(genro.dom.isElementOverflowing(n.domNode)){
                             setTimeout(()=>{
@@ -4829,7 +4836,7 @@ dojo.declare("gnr.widgets.MultiButton", gnr.widgets.gnrwdg, {
                             
                         }
                     }
-                    genro.dom.setClass(n,'multibutton_selected',value.indexOf(code)>=0);
+                    genro.dom.setClass(n,'multibutton_selected',selected);
                 });
             } 
         }
