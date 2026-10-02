@@ -980,17 +980,21 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
             this._registerInForm();
         }
         this._isBuilding = true;
-        var aux = '_bld_' + this.attr.tag.toLowerCase();
-        if (aux in this) {
-            this[aux].call(this);
-        }else{
-            var attributes = this.registerNodeDynAttr(true);
-            this._appliedClass = attributes._class;
-            var tag=objectPop(attributes,'tag');
-            this._doBuildNode(tag, attributes, destination, ind);
-            this._setDynAttributes();
+        try{
+            var aux = '_bld_' + this.attr.tag.toLowerCase();
+            if (aux in this) {
+                this[aux].call(this);
+            }else{
+                var attributes = this.registerNodeDynAttr(true);
+                this._appliedClass = attributes._class;
+                var tag=objectPop(attributes,'tag');
+                this._doBuildNode(tag, attributes, destination, ind);
+                this._setDynAttributes();
+            }
+        }finally{
+            //left set, nodeTrigger would ignore this node from now on
+            this._isBuilding = false;
         }
-        this._isBuilding = false;
     },
     _buildChildren: function(destination) {
         if (this.attr.remote) {
@@ -1877,7 +1881,13 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         }
     },
     getElementLabel:function(){
-        var raw = this.attr.error_label || this.attr._valuelabel || this.attr.field_name_long || this.attr.name_long || stringCapitalize(this.label);
+        //a formlet lbl lives on the labledbox wrapper (buildLblWrapper); '&nbsp;' is its placeholder
+        var wrapper = this.getLabelWrapper();
+        var wrapperLabel = wrapper ? wrapper.getAttributeFromDatasource('label') : null;
+        if(wrapperLabel=='&nbsp;'){
+            wrapperLabel = null;
+        }
+        var raw = this.attr.error_label || this.attr._valuelabel || this.attr.field_name_long || this.attr.name_long || wrapperLabel || stringCapitalize(this.label);
         if(raw && raw.indexOf('<') >= 0){
             var tmp = document.createElement('div');
             tmp.innerHTML = raw;

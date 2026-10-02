@@ -664,7 +664,7 @@ dojo.declare("gnr.GnrFrmHandler", null, {
         var currentPkey = this.getCurrentPkey();
         // *loaditem* (the Item store default) reloads the item at its location: never a navigation
         if (!kw.discardChanges && this.changed && kw.destPkey && kw.destPkey!='*loaditem*' && (currentPkey=='*newrecord*' || (kw.destPkey != currentPkey))) {
-            if(kw.modifiers=='Shift' || this.autoSave){
+            if((kw.modifiers=='Shift' && this.pendingChangesSaveSlot!==false) || this.autoSave){
                 if(this.isValid()){
                     this.save(kw);
                 }else{
@@ -682,7 +682,7 @@ dojo.declare("gnr.GnrFrmHandler", null, {
             kw.default_kw = kw.default_kw || {};
             objectUpdate(kw.default_kw,objectExtract(that.store.prepareDefaults(kw.destPkey,kw.default_kw),'default_*',true));
             let prompt_dflt = new gnr.GnrBag(that.sourceNode.evaluateOnNode(kw.default_kw));
-            genro.dlg.prompt( _T(defaultPrompt.title || 'Fill parameters'),{
+            genro.dlg.prompt( _T(defaultPrompt.title || '!!Fill parameters'),{
                 widget:defaultPrompt.fields,
                 dflt:prompt_dflt,
                 cols:defaultPrompt.cols,
@@ -911,7 +911,7 @@ dojo.declare("gnr.GnrFrmHandler", null, {
             this.publish('pendingChangesAnswer',kw);
             return;
         }
-        saveSlot = saveSlot===undefined? true:saveSlot;
+        saveSlot = saveSlot===undefined? this.pendingChangesSaveSlot!==false:saveSlot;
         var dlg = genro.dlg.quickDialog(_T('Pending changes in ')+this.table_name.toLowerCase(),{_showParent:true,width:'26em'});
         dlg.center._('div',{innerHTML:_T("Current record has been modified."),_class:'alertBodyMessage'});
         var form = this;

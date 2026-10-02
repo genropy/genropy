@@ -1,0 +1,14 @@
+# Pages the frameCode check is allowed to find a collision on. One entry per
+# page, and the check fails on a stale one too, so the list only shrinks on
+# purpose.
+#
+# A collision is one frameCode literal used twice on the same page. The client
+# raises while it builds the structure, after the page has already answered 200,
+# which is why the render sweep never sees one.
+#
+# The check reads string literals off the ast, so a commented-out frameCode and
+# a frameCode built at runtime are both invisible to it. chart/chartjs.py is the
+# page that makes that worth saying: its three `frameCode='pippo'` lines are all
+# commented out, so a text search calls it a collision and this list rightly
+# does not -- a call that is commented out builds no frame and raises nothing.
+test15/webpages/revised/gui/multibutton.py

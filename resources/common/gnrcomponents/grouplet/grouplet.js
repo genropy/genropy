@@ -37,7 +37,7 @@ var gnr_grouplet = {
         // record it reloads nothing, so no load consumes wizard_saved_pkey.
         var mainForm = frameNode.form;
         var inserting = false;
-        if (!isLast && mainForm && frameNode.getRelativeData('.wizard_save_on_next')) {
+        if (!isLast && mainForm && currentNode && this._wizardSavesOn(frameNode, currentNode.label)) {
             var isNew = mainForm.isNewRecord();
             var clearMark = isNew ? null : function() {
                 frameNode.setRelativeData('.wizard_saved_pkey', null);
@@ -61,14 +61,28 @@ var gnr_grouplet = {
         }
     },
 
+    wizardRegisterStep: function(stepForm) {
+        var parentForm = stepForm && stepForm.getParentForm();
+        if (parentForm) {
+            parentForm.childForms[stepForm.formId] = stepForm;
+            // the step edits the parent's record: its dialogs name that record
+            stepForm.table_name = parentForm.table_name;
+        }
+    },
+
     wizardConfirm: function(frameCode) {
         var mainForm = genro.getFrameNode(frameCode).form;
         var stepForm = genro.formById(frameCode + '_step_form');
         var confirm = function() {
+            if (mainForm.opStatus) { return; }
+            var node = mainForm.sourceNode;
             mainForm.setDraft(false);
-            mainForm.sourceNode.setRelativeData('.wizard_confirming', true);
-            if (typeof mainForm.save({always: true}) == 'string') {
-                mainForm.sourceNode.setRelativeData('.wizard_confirming', false);
+            node.setRelativeData('.wizard_confirming', true);
+            mainForm.save({always: true});
+            // a save under way ends in onSaved or onSaveFailed: any other
+            // outcome saved nothing, so the record is still a draft
+            if (mainForm.opStatus != 'saving' && node.getRelativeData('.wizard_confirming')) {
+                node.setRelativeData('.wizard_confirming', false);
                 mainForm.setDraft(true);
             }
         };
@@ -106,15 +120,19 @@ var gnr_grouplet = {
         if (targetIdx < idx) {
             var formId = frameCode + '_step_form';
             var form = genro.formById(formId);
-            // Like wizardNext: an unchanged step is not saved. save() checks
-            // validity before changes, so an untouched step with an empty
-            // required field would show its error on the way back.
             if (form && form.changed) {
                 form.save();
             }
             this._wizardSetStepName(frameNode, targetIdx);
             frameNode.setRelativeData('.step_index', targetIdx);
         }
+    },
+
+    // saveOnNext: true on every step, or the comma-separated names of the steps that save
+    _wizardSavesOn: function(sourceNode, stepLabel) {
+        var saveOn = sourceNode.getRelativeData('.wizard_save_on_next');
+        if (!saveOn) { return false; }
+        return saveOn === true || saveOn.split(',').indexOf(stepLabel) >= 0;
     },
 
     _wizardSetStepName: function(frameNode, idx, advancing) {
@@ -152,7 +170,7 @@ var gnr_grouplet = {
         }
     },
 
-    wizardUpdateStep: function(sourceNode, idx, completeLabel, frameCode) {
+    wizardUpdateStep: function(sourceNode, idx, completeLabel, frameCode, saveLabel) {
         var steps = sourceNode.getRelativeData('.wizard_steps');
         var nodes = steps.getNodes();
         var node = nodes[idx];
@@ -160,8 +178,11 @@ var gnr_grouplet = {
         this.wizardResolveRemote(sourceNode, node.label);
         sourceNode.setRelativeData('.current_resource', node.attr.resource);
         var isLast = (idx >= nodes.length - 1);
-        sourceNode.setRelativeData('.next_label',
-            isLast ? completeLabel : nodes[idx + 1].attr.grouplet_caption);
+        var nextLabel = isLast ? completeLabel : nodes[idx + 1].attr.grouplet_caption;
+        if (!isLast && saveLabel && this._wizardSavesOn(sourceNode, node.label)) {
+            nextLabel = saveLabel;
+        }
+        sourceNode.setRelativeData('.next_label', nextLabel);
         this._updateStepperUI(nodes, idx, frameCode);
     },
 

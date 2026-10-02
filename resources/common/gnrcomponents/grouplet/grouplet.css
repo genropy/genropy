@@ -203,15 +203,72 @@
     white-space: normal;
 }
 
-/* centred under the circles: step padding 8px + half of a 26px circle,
-   less half of the 2px line */
+/* --- Per-step summary (stepSummary), on completed steps only ---
+   circle | caption, and the summary under the caption, as tall as its text */
+.wizard_step_summary {
+    display: none;
+    font-size: 11px;
+    line-height: 1.3;
+    color: var(--text-secondary, #888);
+}
+
+.wizard_stepper_vertical .wizard_step:has(.wizard_step_summary) {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    column-gap: 10px;
+    row-gap: 3px;
+}
+
+.wizard_stepper_vertical .wizard_step.completed .wizard_step_summary {
+    display: block;
+    grid-column: 2;
+    overflow-wrap: anywhere;
+}
+
+.wizard_step.completed .wizard_step_summary:empty {
+    display: none;
+}
+
+/* with summaries the rail is a 1px line; under a summary it starts below the
+   circle, runs past the summary (clipped at the step's edge) and joins the
+   connector */
+.wizard_stepper_vertical .wizard_stepper:has(.wizard_step_summary) .wizard_connector {
+    width: 1px;
+    border-radius: 0;
+}
+
+.wizard_stepper_vertical .wizard_step.completed:has(.wizard_step_summary:not(:empty)) {
+    overflow: hidden;
+}
+
+.wizard_stepper_vertical .wizard_step.completed:has(.wizard_step_summary:not(:empty)) .wizard_circle {
+    position: relative;
+}
+
+.wizard_stepper_vertical .wizard_step.completed:has(.wizard_step_summary:not(:empty)) .wizard_circle::after {
+    content: '';
+    position: absolute;
+    left: calc(50% - 1px);
+    top: calc(100% + 10px);
+    width: 1px;
+    height: 100vh;
+    background: var(--accent-color, #007AFF);
+}
+
+.wizard_stepper_vertical .wizard_step.completed:has(.wizard_step_summary:not(:empty)) + .wizard_connector {
+    height: 4px;
+    margin-top: 0;
+}
+
+/* centred under the circles: step padding 8px + half of a 30px circle
+   (26px plus its 2px borders), less half of the 2px line */
 .wizard_stepper_vertical .wizard_connector {
     flex: none;
     width: 2px;
     height: 16px;
     min-width: 0;
     max-width: none;
-    margin: 2px 0 2px 20px;
+    margin: 2px 0 2px 22px;
     border-radius: 1px;
 }
 

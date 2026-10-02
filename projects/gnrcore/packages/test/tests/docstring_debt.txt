@@ -56,9 +56,6 @@ test15/webpages/revised/gui/multibutton.py
 test15/webpages/tools/barcode_reader.py
 test15/webpages/tools/ckeditor.py
 test15/webpages/tools/clientBuilder.py
-test15/webpages/tools/clientpage.py
-test15/webpages/tools/download_tempfile.py
-test15/webpages/tools/dynamic_proxy.py
 test15/webpages/tools/dynamicpath.py
 test15/webpages/tools/embed.py
 test15/webpages/tools/floatingmessage.py
@@ -67,16 +64,8 @@ test15/webpages/tools/gettemplate.py
 test15/webpages/tools/gnrgit.py
 test15/webpages/tools/googlemap.py
 test15/webpages/tools/longclick.py
-test15/webpages/tools/messages.py
-test15/webpages/tools/newregisterexplorer.py
-test15/webpages/tools/postmessage.py
 test15/webpages/tools/print_editor.py
 test15/webpages/tools/quickthermo.py
-test15/webpages/tools/registered_users.py
-test15/webpages/tools/remote_selection.py
-test15/webpages/tools/server_store_2.py
-test15/webpages/tools/serverpath.py
-test15/webpages/tools/setclientdata.py
 test15/webpages/tools/speechinput.py
 test15/webpages/tools/statpandas.py
 test15/webpages/tools/storage.py
@@ -85,7 +74,6 @@ test15/webpages/tools/test_hviewer.py
 test15/webpages/tools/testpyvars.py
 test15/webpages/tools/textareaplugin.py
 test15/webpages/tools/tpleditor.py
-test15/webpages/tools/user_store.py
 test15/webpages/tools/userobject_frame.py
 test15/webpages/tools/xsd.py
 test15/webpages/webservices/pdftk.py

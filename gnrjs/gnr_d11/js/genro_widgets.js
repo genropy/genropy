@@ -4143,6 +4143,7 @@ dojo.declare("gnr.widgets.DateTextBox", gnr.widgets._BaseTextBox, {
         this._dojotag = 'DateTextBox';
         this._dtype = 'D';
     },
+    _pickerStartAttr: 'start_date',
     
     onChanged:function(widget, value) {
         //genro.debug('onChanged:'+value);
@@ -4161,8 +4162,18 @@ dojo.declare("gnr.widgets.DateTextBox", gnr.widgets._BaseTextBox, {
     // summary: open the TimePicker popup
     
     },
+    patch__open: function(){
+        //dijit builds the picker once, on the value or today, and reuses it: an empty
+        //field opens on the start_date/start_time reference, read now so it is current
+        this._open_replaced();
+        var reference = this.sourceNode.getAttributeFromDatasource(this.gnr._pickerStartAttr);
+        if(this._picker && !this.getValue() && reference instanceof Date && !isNaN(reference)){
+            this._picker.setValue(reference);
+        }
+    },
 
     creating: function(attributes, sourceNode) {
+        objectPop(attributes, this._pickerStartAttr);
         attributes.constraints = objectExtract(attributes, 'formatLength,datePattern,fullYear,min,max,strict,locale');
         if ('popup' in attributes && (objectPop(attributes, 'popup') === false)) {
             attributes.popupClass = null;
@@ -4379,7 +4390,10 @@ dojo.declare("gnr.widgets.TimeTextBox", gnr.widgets._BaseTextBox, {
             this._doChangeInData(widget.domNode, widget.sourceNode, null);
         }
     },
+    _pickerStartAttr: 'start_time',
+    patch__open: gnr.widgets.DateTextBox.prototype.patch__open,
     creating: function(attributes, sourceNode) {
+        objectPop(attributes, this._pickerStartAttr);
         if ('ftype' in attributes) {
             attributes.constraints['type'] = objectPop(attributes['ftype']);
         }

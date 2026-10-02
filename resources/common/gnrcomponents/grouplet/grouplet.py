@@ -433,7 +433,7 @@ class GroupletHandler(BaseComponent):
                           closeLabel=None, backLabel=None,
                           saveMainFormOnComplete=None, saveOnNext=None, resumeStepField=None,
                           grouplets_root=None, grouplet_kwargs=True, remote_kwargs=None,
-                          stepperPosition=None,
+                          stepperPosition=None, stepSummary=False, saveLabel=None,
                           _confirmedReadOnly=False, _bottomCb=None,
                           _confirmOnLast=False, **kwargs):
         frameCode = frameCode or 'grplt_wizard'
@@ -469,6 +469,7 @@ class GroupletHandler(BaseComponent):
         if has_summary:
             frame.data('.summary_editable', summary_editable)
         menu_nodes = menu.getNodes()
+        step_labels = [n.label for n in menu_nodes]
         first_node = menu_nodes[0] if menu_nodes else None
         if first_node:
             frame.data('.current_resource', first_node.attr.get('resource'))
@@ -501,6 +502,11 @@ class GroupletHandler(BaseComponent):
             item.div(str(i + 1), _class='wizard_circle')
             item.div(mnode.attr.get('grouplet_caption'),
                      _class='wizard_caption')
+            # the top stepper has no room for a summary
+            step_template = mnode.attr.get('template') if stepSummary and vertical else None
+            if step_template:
+                item.div(template=step_template, datasource=value,
+                         _class='wizard_step_summary')
         step_form_id = f'{frameCode}_step_form'
         # The reload that follows the wizard's own save (onSaved sets
         # wizard_saved_pkey before it, this load consumes it) stays on the step,
@@ -555,8 +561,15 @@ class GroupletHandler(BaseComponent):
                 SET .wizard_step_name = nodes[target] ? nodes[target].label : null;
             }
         """
+        # True saves on every advance, step names only on leaving those steps
+        if saveOnNext and saveOnNext is not True:
+            save_steps = saveOnNext.split(',') if isinstance(saveOnNext, str) else list(saveOnNext)
+            unknown = [s for s in save_steps if s not in step_labels]
+            if unknown:
+                raise ValueError(f'groupletWizard: no step {", ".join(unknown)} for saveOnNext')
+            saveOnNext = ','.join(save_steps)
         if saveOnNext:
-            frame.data('.wizard_save_on_next', True)
+            frame.data('.wizard_save_on_next', saveOnNext)
         # The current step lives in the wizard's own data and reaches the
         # record inside a save the form is already making. The one move that
         # writes it on its own is an advance past the stored step: progress is
@@ -602,17 +615,22 @@ class GroupletHandler(BaseComponent):
                             step_field=resumeStepField,
                             confirmed_ro=_confirmedReadOnly,
                             formsubscribe_onLoaded=True)
+        # the step form saves even when incomplete, so Back keeps what was
+        # typed: validity is checked by the wizard on Next and on Confirm.
+        # As a child of the surrounding form, its pending changes are asked
+        # about when that form is dismissed or navigated away.
         grouplet_kwargs.update(resource='^#ANCHOR.current_resource',
                            value=value,
                            loadOnBuilt=True, formId=step_form_id,
-                           form_modalForm=True,
+                           form_modalForm=True, form_allowSaveInvalid=True,
+                           form_pendingChangesSaveSlot=False,
+                           _onRemote="gnr_grouplet.wizardRegisterStep(this.form);",
                            grouplet_remote__wizard_build='^#ANCHOR.wizard_build')
         grouplet_kwargs['rootTag'] = 'contentPane'
         # remote_<name> reaches every step, <step>_remote_<name> only that one.
         # Both resolve where they are written, not inside the step (where #FORM
         # and relative paths would mean the step form): the wizard reads them
         # in its own context before each build (wizardResolveRemote).
-        step_labels = [n.label for n in menu_nodes]
         remote_specs = Bag()
         specs = [(None, name, v) for name, v in (remote_kwargs or {}).items()]
         for (step, name), v in step_remote.items():
@@ -683,9 +701,10 @@ class GroupletHandler(BaseComponent):
                                _ro='^.wizard_readonly', _col=_confirmOnLast,
                                _idx='^.step_index', _last='^.wizard_last_index')
         frame.dataController(
-            "gnr_grouplet.wizardUpdateStep(this, idx, _completeLabel, _frameCode);",
+            "gnr_grouplet.wizardUpdateStep(this, idx, _completeLabel, _frameCode, _saveLabel);",
             idx='^.step_index',
-            _completeLabel=completeLabel, _frameCode=frameCode, _onBuilt=True)
+            _completeLabel=completeLabel, _frameCode=frameCode,
+            _saveLabel=saveLabel, _onBuilt=True)
         if saveMainFormOnComplete:
             if has_summary:
                 frame.data('.wizard_pending_summary', False)
@@ -725,9 +744,13 @@ class GroupletHandler(BaseComponent):
                               confirmAsk=None, backToDraftAsk=None, **kwargs):
         """The wizard as the mode of a th form, called from th_form: no toolbar,
         no padlock, a save on every advance, and the last step saves and closes.
-        On a draftField table, confirmedReadOnly opens a confirmed (or
-        protect_write) record on the last step, locked and without navigation:
-        new records must start as drafts. draftConfirm (implies
+        saveOnNext may name the steps (comma-separated) whose advance saves,
+        the others save nothing; saveLabel is the Next label of those steps.
+        confirmedReadOnly opens a confirmed (or protect_write) record on the
+        last step, locked and without navigation, the record saved by an
+        advance included. On a draftField table confirmed means not a draft,
+        so new records must start as drafts; on any other table every saved
+        record is confirmed. draftConfirm (implies
         confirmedReadOnly) splits a draft's last step into Save draft (saves
         and closes) and completeLabel (confirms, saves and reloads read-only);
         a confirmed record gets Back to draft in place of Back, if backToDraft
@@ -739,6 +762,8 @@ class GroupletHandler(BaseComponent):
             for label in list(top.value.keys()):
                 top.value.popNode(label)
         form.attributes['form_parentLock'] = False
+        # the record is saved by the wizard only, never from Pending changes
+        form.attributes['form_pendingChangesSaveSlot'] = False
         form.dataController("""
             var readOnly = confirmed_ro && !this.form.isNewRecord()
                            && (!this.form.isDraft() || this.form.isProtectWrite());
@@ -1201,22 +1226,31 @@ class GroupletGridHandler(BaseComponent):
     def _gr_groupletGrid_totals(self, totals, default_format=None):
         """The `totals=` entries in the shape the JS band reads: `key` is
         where the value lives under `<controllerPath>.totalize`, a row
-        field summed or the `name` of a formula over the other totals."""
+        field summed, or the `name` of a formula over the other totals or of
+        a row count. Any other key (`hidden=` and its parameters) goes to
+        the entry's cell as an attribute."""
         result = []
         for entry in totals or []:
             entry = dict(entry)
-            field = entry.get('field')
-            formula = entry.get('formula')
-            if not (field or formula) or (formula and not entry.get('name')):
+            field = entry.pop('field', None)
+            formula = entry.pop('formula', None)
+            count = bool(entry.pop('count', False))
+            name = entry.pop('name', None)
+            if not (field or formula or count) \
+                    or (formula and not name) \
+                    or (count and (field or formula or not name)):
                 raise self.exception(
                     'generic',
                     msg='groupletGrid totals: each entry needs field=, '
-                        'or name= with formula=')
-            key = field or entry['name']
+                        'or name= with formula= or count=True')
+            key = field or name
+            label = entry.pop('label', None) or key
+            # a row count is an integer: the band's money format is not its
+            fmt = entry.pop('format', None) or (None if count else default_format)
+            highlight = bool(entry.pop('highlight', False))
             result.append(dict(key=key, field=field, formula=formula,
-                               label=entry.get('label') or key,
-                               format=entry.get('format') or default_format,
-                               highlight=bool(entry.get('highlight'))))
+                               count=count, label=label, format=fmt,
+                               highlight=highlight, attrs=entry))
         return result
 
     def _gr_groupletGrid_emitController(
