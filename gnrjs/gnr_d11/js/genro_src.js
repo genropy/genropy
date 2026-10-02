@@ -211,10 +211,22 @@ dojo.declare("gnr.GnrSrcHandler", null, {
             this.building = true;
             while (this.pendingBuild.length > 0) {
                 kw = this.pendingBuild.pop();
-                dojo.hitch(this, '_trigger_' + kw.evt)(kw);
+                try {
+                    dojo.hitch(this, '_trigger_' + kw.evt)(kw);
+                } catch (e) {
+                    //the queue holds the work of other callers too: a failed
+                    //build must not stop it, nor leave building set for the
+                    //whole page. Rethrown on its own it stays an uncaught error
+                    setTimeout(function() { throw e; }, 0);
+                }
             }
             this.building = false;
         }
+    },
+    _awaitsBuild:function(sourceNode) {
+        return this.pendingBuild.some(function(kw) {
+            return kw.evt == 'ins' && (kw.node === sourceNode || sourceNode.isChildOf(kw.node));
+        });
     },
     _trigger_ins:function(kw) {//da rivedere
         //console.log('trigger_ins',kw);
@@ -228,6 +240,10 @@ dojo.declare("gnr.GnrSrcHandler", null, {
             if (wherenode) {
                 where = wherenode.widget || wherenode.domNode;
                 if (!where) {
+                    //queued after its parent (LIFO): the parent's build makes it
+                    if (this._awaitsBuild(wherenode)) {
+                        return;
+                    }
                     console.error('Missing destination node in trigger_ins',kw);
                 }
             } else {
@@ -250,6 +266,11 @@ dojo.declare("gnr.GnrSrcHandler", null, {
     _trigger_upd:function(kw) {//da rivedere
         //console.log('trigger_upd',kw);
         var updatingNode = kw.node;
+        //not built yet: its queued insertion builds the new value, while
+        //getDomNode would hand over the first built ancestor to replace
+        if (!updatingNode.widget && !updatingNode.domNode && this._awaitsBuild(updatingNode)) {
+            return;
+        }
         genro.assert(!updatingNode._isComponentNode);
         updatingNode._onDeleting();
         if(updatingNode.externalWidget && updatingNode.externalWidget.destroy){

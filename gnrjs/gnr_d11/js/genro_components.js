@@ -4809,6 +4809,11 @@ dojo.declare("gnr.widgets.MultiButton", gnr.widgets.gnrwdg, {
                 var code;
                 var gnrwdg = this;
                 mb.forEach(function(n){
+                    //still queued for build: oneButton gives it its class,
+                    //setClass would fall back to the container
+                    if(!n.domNode){
+                        return;
+                    }
                     if('multibutton_code' in n.attr){
                         code = n.attr.multibutton_code;
                     }else{

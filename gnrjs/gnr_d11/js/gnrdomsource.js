@@ -980,16 +980,20 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
             this._registerInForm();
         }
         this._isBuilding = true;
-        var aux = '_bld_' + this.attr.tag.toLowerCase();
-        if (aux in this) {
-            this[aux].call(this);
-        }else{
-            var attributes = this.registerNodeDynAttr(true);
-            var tag=objectPop(attributes,'tag');
-            this._doBuildNode(tag, attributes, destination, ind);
-            this._setDynAttributes();
+        try{
+            var aux = '_bld_' + this.attr.tag.toLowerCase();
+            if (aux in this) {
+                this[aux].call(this);
+            }else{
+                var attributes = this.registerNodeDynAttr(true);
+                var tag=objectPop(attributes,'tag');
+                this._doBuildNode(tag, attributes, destination, ind);
+                this._setDynAttributes();
+            }
+        }finally{
+            //left set, nodeTrigger would ignore this node from now on
+            this._isBuilding = false;
         }
-        this._isBuilding = false;
     },
     _buildChildren: function(destination) {
         if (this.attr.remote) {
