@@ -433,7 +433,7 @@ class GroupletHandler(BaseComponent):
                           closeLabel=None, backLabel=None,
                           saveMainFormOnComplete=None, saveOnNext=None, resumeStepField=None,
                           grouplets_root=None, grouplet_kwargs=True, remote_kwargs=None,
-                          stepperPosition=None,
+                          stepperPosition=None, stepSummary=False, saveLabel=None,
                           _confirmedReadOnly=False, _bottomCb=None,
                           _confirmOnLast=False, **kwargs):
         frameCode = frameCode or 'grplt_wizard'
@@ -469,6 +469,7 @@ class GroupletHandler(BaseComponent):
         if has_summary:
             frame.data('.summary_editable', summary_editable)
         menu_nodes = menu.getNodes()
+        step_labels = [n.label for n in menu_nodes]
         first_node = menu_nodes[0] if menu_nodes else None
         if first_node:
             frame.data('.current_resource', first_node.attr.get('resource'))
@@ -501,6 +502,11 @@ class GroupletHandler(BaseComponent):
             item.div(str(i + 1), _class='wizard_circle')
             item.div(mnode.attr.get('grouplet_caption'),
                      _class='wizard_caption')
+            # the top stepper has no room for a summary
+            step_template = mnode.attr.get('template') if stepSummary and vertical else None
+            if step_template:
+                item.div(template=step_template, datasource=value,
+                         _class='wizard_step_summary')
         step_form_id = f'{frameCode}_step_form'
         # The reload that follows the wizard's own save (onSaved sets
         # wizard_saved_pkey before it, this load consumes it) stays on the step,
@@ -555,8 +561,15 @@ class GroupletHandler(BaseComponent):
                 SET .wizard_step_name = nodes[target] ? nodes[target].label : null;
             }
         """
+        # True saves on every advance, step names only on leaving those steps
+        if saveOnNext and saveOnNext is not True:
+            save_steps = saveOnNext.split(',') if isinstance(saveOnNext, str) else list(saveOnNext)
+            unknown = [s for s in save_steps if s not in step_labels]
+            if unknown:
+                raise ValueError(f'groupletWizard: no step {", ".join(unknown)} for saveOnNext')
+            saveOnNext = ','.join(save_steps)
         if saveOnNext:
-            frame.data('.wizard_save_on_next', True)
+            frame.data('.wizard_save_on_next', saveOnNext)
         # The current step lives in the wizard's own data and reaches the
         # record inside a save the form is already making. The one move that
         # writes it on its own is an advance past the stored step: progress is
@@ -618,7 +631,6 @@ class GroupletHandler(BaseComponent):
         # Both resolve where they are written, not inside the step (where #FORM
         # and relative paths would mean the step form): the wizard reads them
         # in its own context before each build (wizardResolveRemote).
-        step_labels = [n.label for n in menu_nodes]
         remote_specs = Bag()
         specs = [(None, name, v) for name, v in (remote_kwargs or {}).items()]
         for (step, name), v in step_remote.items():
@@ -689,9 +701,10 @@ class GroupletHandler(BaseComponent):
                                _ro='^.wizard_readonly', _col=_confirmOnLast,
                                _idx='^.step_index', _last='^.wizard_last_index')
         frame.dataController(
-            "gnr_grouplet.wizardUpdateStep(this, idx, _completeLabel, _frameCode);",
+            "gnr_grouplet.wizardUpdateStep(this, idx, _completeLabel, _frameCode, _saveLabel);",
             idx='^.step_index',
-            _completeLabel=completeLabel, _frameCode=frameCode, _onBuilt=True)
+            _completeLabel=completeLabel, _frameCode=frameCode,
+            _saveLabel=saveLabel, _onBuilt=True)
         if saveMainFormOnComplete:
             if has_summary:
                 frame.data('.wizard_pending_summary', False)
@@ -731,9 +744,13 @@ class GroupletHandler(BaseComponent):
                               confirmAsk=None, backToDraftAsk=None, **kwargs):
         """The wizard as the mode of a th form, called from th_form: no toolbar,
         no padlock, a save on every advance, and the last step saves and closes.
-        On a draftField table, confirmedReadOnly opens a confirmed (or
-        protect_write) record on the last step, locked and without navigation:
-        new records must start as drafts. draftConfirm (implies
+        saveOnNext may name the steps (comma-separated) whose advance saves,
+        the others save nothing; saveLabel is the Next label of those steps.
+        confirmedReadOnly opens a confirmed (or protect_write) record on the
+        last step, locked and without navigation, the record saved by an
+        advance included. On a draftField table confirmed means not a draft,
+        so new records must start as drafts; on any other table every saved
+        record is confirmed. draftConfirm (implies
         confirmedReadOnly) splits a draft's last step into Save draft (saves
         and closes) and completeLabel (confirms, saves and reloads read-only);
         a confirmed record gets Back to draft in place of Back, if backToDraft

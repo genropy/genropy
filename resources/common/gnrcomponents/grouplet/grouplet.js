@@ -37,7 +37,7 @@ var gnr_grouplet = {
         // record it reloads nothing, so no load consumes wizard_saved_pkey.
         var mainForm = frameNode.form;
         var inserting = false;
-        if (!isLast && mainForm && frameNode.getRelativeData('.wizard_save_on_next')) {
+        if (!isLast && mainForm && currentNode && this._wizardSavesOn(frameNode, currentNode.label)) {
             var isNew = mainForm.isNewRecord();
             var clearMark = isNew ? null : function() {
                 frameNode.setRelativeData('.wizard_saved_pkey', null);
@@ -128,6 +128,13 @@ var gnr_grouplet = {
         }
     },
 
+    // saveOnNext: true on every step, or the comma-separated names of the steps that save
+    _wizardSavesOn: function(sourceNode, stepLabel) {
+        var saveOn = sourceNode.getRelativeData('.wizard_save_on_next');
+        if (!saveOn) { return false; }
+        return saveOn === true || saveOn.split(',').indexOf(stepLabel) >= 0;
+    },
+
     _wizardSetStepName: function(frameNode, idx, advancing) {
         var nodes = frameNode.getRelativeData('.wizard_steps').getNodes();
         var node = nodes[idx];
@@ -163,7 +170,7 @@ var gnr_grouplet = {
         }
     },
 
-    wizardUpdateStep: function(sourceNode, idx, completeLabel, frameCode) {
+    wizardUpdateStep: function(sourceNode, idx, completeLabel, frameCode, saveLabel) {
         var steps = sourceNode.getRelativeData('.wizard_steps');
         var nodes = steps.getNodes();
         var node = nodes[idx];
@@ -171,8 +178,11 @@ var gnr_grouplet = {
         this.wizardResolveRemote(sourceNode, node.label);
         sourceNode.setRelativeData('.current_resource', node.attr.resource);
         var isLast = (idx >= nodes.length - 1);
-        sourceNode.setRelativeData('.next_label',
-            isLast ? completeLabel : nodes[idx + 1].attr.grouplet_caption);
+        var nextLabel = isLast ? completeLabel : nodes[idx + 1].attr.grouplet_caption;
+        if (!isLast && saveLabel && this._wizardSavesOn(sourceNode, node.label)) {
+            nextLabel = saveLabel;
+        }
+        sourceNode.setRelativeData('.next_label', nextLabel);
         this._updateStepperUI(nodes, idx, frameCode);
     },
 
