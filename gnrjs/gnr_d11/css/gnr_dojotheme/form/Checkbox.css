@@ -53,3 +53,13 @@
 .gnr_dojotheme .dijitCheckBoxCheckedFocused {
     opacity: 0.8;
 }
+
+/* --- Keyboard focus ---
+   The box is drawn by a mask, which clips any outline set on it: the ring
+   goes on the wrapper genropy puts around every checkbox, in the colors
+   of the text fields' focus. */
+.gnr_dojotheme .gnrcheckbox_wrapper:has(.dijitCheckBox input:focus-visible) {
+    border-radius: 3px;
+    box-shadow: 0 0 0 1px var(--btn-filled-bg, #406b9b),
+                0 0 0 3px rgba(124, 92, 191, 0.2);
+}
