@@ -1916,6 +1916,10 @@ dojo.declare("gnr.widgets.Dialog", gnr.widgets.baseDojo, {
                             if(!parentDialog && !this._windowConnectionResize){
                                 this._windowConnectionResize = dojo.connect(window,'onresize',widget,'onWindowResize');
                             }
+                            if (this == ds.slice(-1)[0]) {
+                                // dijit listens on keypress, which no longer fires for Tab
+                                this._modalconnects.push(dojo.connect(dojo.doc.documentElement, "onkeydown", this, "_onKey"));
+                            }
                         });
             dojo.connect(widget, "hide", widget,
                         function() {
@@ -1939,8 +1943,31 @@ dojo.declare("gnr.widgets.Dialog", gnr.widgets.baseDojo, {
         }
         dojo.connect(widget,'resize',widget,'containerNodeResize');
     },
-   versionpatch_11__onKey:function(){
-       //onkey block inactive (ckeditor)
+   versionpatch_11__onKey:function(evt){
+       // only the Tab trap of dijit's _onKey: the full one blocked every key typed outside the dialog (editors' popups)
+       if(evt.type!='keydown' || evt.keyCode!=dojo.keys.TAB){
+           return;
+       }
+       // noModal only lowers the z-index: a dialog is modal as long as its underlay blocks the page
+       var underlay = this._underlay && this._underlay.domNode;
+       if(!underlay || underlay.offsetParent===null){
+           return;
+       }
+       var node = evt.target;
+       if(node && node.closest && node.closest('.dijitPopup')){
+           return;
+       }
+       this._getFocusItems(this.domNode);
+       if(!dojo.isDescendant(node, this.domNode)){
+           dijit.focus(this._firstFocusItem);
+           dojo.stopEvent(evt);
+       }else if(node==this._lastFocusItem && !evt.shiftKey){
+           dijit.focus(this._firstFocusItem);
+           dojo.stopEvent(evt);
+       }else if(node==this._firstFocusItem && evt.shiftKey){
+           dijit.focus(this._lastFocusItem);
+           dojo.stopEvent(evt);
+       }
    },
     
     versionpatch_11__position: function() {
