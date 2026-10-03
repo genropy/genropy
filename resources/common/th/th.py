@@ -966,13 +966,20 @@ class ThLinker(BaseComponent):
                     formUrl=None,newRecordOnly=None,openIfEmpty=None,
                     _class='pbl_roundedGroup',label=None,template_kwargs=None,
                     margin=None, editEnabled=True, addEnabled=True, 
-                    clientTemplate=False,center_class=None, **kwargs):
+                    clientTemplate=False,center_class=None, flex=False, **kwargs):
         frameCode= frameCode or 'linker_%s' %field.replace('.','_')
-        if pane.attributes.get('tag') == 'ContentPane':
-            pane.attributes['overflow'] = 'hidden'
-        frame = pane.framePane(frameCode=frameCode,_class=_class,margin=margin,
-                               center_class='pbl_roundedGroupContent')
-        linkerBar = frame.top.linkerBar(field=field,
+        if flex:
+            # a flow box: its height follows the content instead of being imposed by a BorderContainer
+            frame = pane.div(_class='%s th_linkerBoxFlex' %_class,margin=margin,
+                             height=kwargs.pop('height',None),max_height=kwargs.pop('max_height',None))
+            top = frame
+        else:
+            if pane.attributes.get('tag') == 'ContentPane':
+                pane.attributes['overflow'] = 'hidden'
+            frame = pane.framePane(frameCode=frameCode,_class=_class,margin=margin,
+                                   center_class='pbl_roundedGroupContent')
+            top = frame.top
+        linkerBar = top.linkerBar(field=field,
                                         formResource=formResource,
                                         formUrl=formUrl,
                                         newRecordOnly=newRecordOnly,
@@ -985,20 +992,30 @@ class ThLinker(BaseComponent):
         center_class = center_class or 'linkerCenter'
         table = linker.attributes['table']
         related_tblobj = self.db.table(table)
-        if clientTemplate:
-            template = frame.center.contentPane(_class=center_class).templateChunk(template=template,table=table,
+        if flex:
+            center = frame.div(_class='pbl_roundedGroupContent th_linkerBoxFlexCenter',childname='center',
+                               hidden=None if template is False else '%s?=!#v' %currpkey)
+            if template is not False:
+                center = center.div(_class=center_class)
+        else:
+            center = frame.center.contentPane(_class=center_class)
+        if template is False:
+            pass
+        elif clientTemplate:
+            template = center.templateChunk(template=template,table=table,
                                       datasource='^.@%s' %field,
                                       visible=currpkey,margin='4px',
                                       **template_kwargs)
         else:
-            template = frame.center.contentPane(_class=center_class).templateChunk(template=template,table=table,
+            template = center.templateChunk(template=template,table=table,
                                       record_id='^.%s' %field,
                                       visible=currpkey,margin='4px',
                                       **template_kwargs)
         
         forbudden_dbstore = self.dbstore and (related_tblobj.attributes.get('multidb') or related_tblobj.use_dbstores() is False)
         if editEnabled and formResource or formUrl:
-            footer = frame.bottom.slotBar('*,linker_edit',padding='2px')
+            footer = (frame if flex else frame.bottom).slotBar('*,linker_edit',padding='2px',childname='footer',
+                                                                 _class='th_linkerBoxFooter')
             footer.linker_edit.slotButton('Edit',baseClass='no_background',iconClass='iconbox pencil',
                                             action='linker.publish("loadrecord");',linker=linker,
                                             forbudden_dbstore=forbudden_dbstore,hidden=forbudden_dbstore,

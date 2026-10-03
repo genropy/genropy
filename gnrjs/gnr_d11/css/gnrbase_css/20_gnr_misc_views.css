@@ -429,6 +429,48 @@
     display:none;
 }
 
+/* --- Linker box, flex mode: as tall as its content --- */
+.th_linkerBoxFlex{
+    position:relative;
+    display:flex;
+    flex-direction:column;
+    min-height:0;
+    overflow:hidden;
+}
+.th_linkerBoxFlex > .th_linkerBar{
+    flex:none;
+    height:auto !important;
+    min-height:26px;
+    padding:3px 6px;
+    border-bottom:1px solid var(--border-color, rgba(0,0,0,.08));
+}
+.th_linkerBoxFlexCenter{
+    flex:1 1 auto;
+    min-height:0;
+    overflow:auto;
+    scrollbar-gutter:stable;
+    container-type:inline-size;
+    container-name:linkerbox;
+}
+.th_linkerBoxFlexCenter > .linkerCenter{
+    margin:0;
+    border:none;
+    border-radius:0;
+    background:none;
+    padding:8px 34px 8px 10px;
+    white-space:normal;
+    overflow:visible;
+}
+.th_linkerBoxFlex > .th_linkerBoxFooter{
+    position:absolute;
+    right:4px;
+    bottom:4px;
+    background:none;
+}
+.th_linkerBoxFlex > .th_linkerBoxFooter .slotbar_elastic_spacer{
+    display:none;
+}
+
 /* --- Zoom cell (grid hyperlinks) --- */
 .gnrzoomcell {
     text-decoration: none;

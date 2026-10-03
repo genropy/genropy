@@ -55,3 +55,33 @@ class GnrCustomWebPage(object):
                         openIfEmpty=True, embedded=False)
         pane.dataController('frm.newrecord();', frm=form.js_form,
                             _onStart=True)
+
+    def test_3_flex(self, pane):
+        """Flex linker boxes are as tall as their content; max_height makes the center scroll."""
+        pane.button('Check heights', action="""
+            const failures = [];
+            document.querySelectorAll('.linkerbox_flex_test .th_linkerBoxFlex').forEach(function(box, index){
+                const center = box.querySelector('.th_linkerBoxFlexCenter');
+                const capped = box.classList.contains('linkerbox_flex_capped');
+                const scrolls = center.scrollHeight > center.clientHeight + 1;
+                if(scrolls !== capped){
+                    failures.push(index + 1);
+                }
+            });
+            this.setRelativeData('.flex_result', failures.length ?
+                'FAIL: boxes ' + failures.join(', ') : 'PASS: heights follow the content');
+        """)
+        pane.div('^.flex_result')
+        cases = (dict(label='User', _class='pbl_roundedGroup'),
+                 dict(label='User (formResource)', formResource='Form', _class='pbl_roundedGroup'),
+                 dict(label='User, max 60px', max_height='60px',
+                      _class='pbl_roundedGroup linkerbox_flex_capped'))
+        for index, case in enumerate(cases):
+            form = pane.frameForm(frameCode='linker_flex_test_%s' % index, datapath='.flex_%s' % index,
+                                  store='memory', height='220px', margin_bottom='12px', table='adm.user_tag')
+            column = form.record.div(display='flex', flex_direction='column', gap='8px', padding='6px',
+                                     _class='linkerbox_flex_test')
+            column.linkerBox(field='user_id', frameCode='linker_flex_box_%s' % index, flex=True,
+                             newRecordOnly=False, openIfEmpty=True, embedded=False, **case)
+            column.div('Content below the box follows it', _class='linkerbox_flex_below')
+            pane.dataController('frm.newrecord();', frm=form.js_form, _onStart=True)
