@@ -1,0 +1,212 @@
+<h2>groupletChunk</h2>
+<p class="lede">An HTML preview of a Bag with a pencil button that opens a full edit dialog.</p>
+
+<h3>When to use</h3>
+<p>You have a form where most fields are simple textboxes, dates, selects. But two or three sub&#8209;records &mdash; the territorio block of a comune, the anagrafica details, a stack of technical specs &mdash; deserve their own treatment. Inlining them as another formlet bloats the page; hiding them behind a tab buries them. <code>groupletChunk</code> sits in the middle: a compact read&#8209;only HTML preview of the sub&#8209;Bag in the form, with a pencil button at the bottom&#8209;right that pops a modal containing the real editor.</p>
+<p>It saves vertical space, reads better at a glance, and the edit affordance is always one click away. The dialog is built lazily &mdash; you pay nothing until the user clicks the pencil.</p>
+
+<h3>Quick example with handler</h3>
+<p>Adapted from <code>03_grouplet_chunk.py</code>. The chunk lives inside a <code>frameForm</code> bound to <code>glbl.comune</code>; the editable fields stay in the formlet, the territorio sub&#8209;block goes into the chunk.</p>
+
+<pre><code><span class="kw">from</span> gnr.core.gnrdecorator <span class="kw">import</span> public_method
+
+
+<span class="kw">class</span> <span class="cls">GnrCustomWebPage</span>(<span class="kw">object</span>):
+    py_requires = <span class="str">"gnrcomponents/grouplet/grouplet:GroupletHandler"</span>
+
+    <span class="kw">def</span> <span class="fn">main</span>(<span class="self">self</span>, root, **kwargs):
+        form = root.<span class="fn">frameForm</span>(frameCode=<span class="str">'comune_form'</span>,
+                              datapath=<span class="str">'.form'</span>, pkeyPath=<span class="str">'.comune_pkey'</span>,
+                              _anchor=<span class="kw">True</span>)
+        form.<span class="fn">formStore</span>(table=<span class="str">'glbl.comune'</span>, storeType=<span class="str">'Item'</span>,
+                       handler=<span class="str">'recordCluster'</span>)
+        fb = form.center.<span class="fn">contentPane</span>(datapath=<span class="str">'.record'</span>).<span class="fn">formlet</span>(
+            cols=<span class="num">2</span>, table=<span class="str">'glbl.comune'</span>)
+        fb.<span class="fn">field</span>(<span class="str">'denominazione'</span>, colspan=<span class="num">2</span>)
+        fb.<span class="fn">field</span>(<span class="str">'sigla_provincia'</span>)
+        fb.<span class="fn">field</span>(<span class="str">'codice_comune'</span>)
+        chunk_pane = fb.<span class="fn">div</span>(colspan=<span class="num">2</span>, lbl=<span class="str">'Territorio'</span>, height=<span class="str">'60px'</span>)
+        chunk_pane.<span class="fn">groupletChunk</span>(
+            value=<span class="str">'^#FORM.record'</span>,
+            template=<span class="str">"""
+            &lt;div style="color:#555;"&gt;
+                ${&lt;span&gt;Zona altimetrica: $zona_altimetrica&lt;/span&gt;}
+                ${&lt;span style="margin-left:8px;"&gt;Alt. $altitudine m&lt;/span&gt;}
+            &lt;/div&gt;
+            ${&lt;div style="color:#555;"&gt;Comune montano: $comune_montano&lt;/div&gt;}
+            """</span>,
+            name=<span class="str">'edit_territorio'</span>,
+            handler=<span class="self">self</span>.grp_territorio,
+            title=<span class="str">'Edit Territorio'</span>)
+
+    <span class="dec">@public_method</span>
+    <span class="kw">def</span> <span class="fn">grp_territorio</span>(<span class="self">self</span>, pane, **kwargs):
+        fb = pane.<span class="fn">formlet</span>(cols=<span class="num">2</span>, table=<span class="str">'glbl.comune'</span>)
+        fb.<span class="fn">field</span>(<span class="str">'zona_altimetrica'</span>)
+        fb.<span class="fn">field</span>(<span class="str">'altitudine'</span>)
+        fb.<span class="fn">field</span>(<span class="str">'comune_montano'</span>)
+</code></pre>
+
+<p>The preview renders the template with the current record values. Click the pencil &mdash; a modal opens with the three editable fields from <code>grp_territorio</code>. Edits commit back into the same Bag node, the template refreshes on close, the surrounding form sees the changes like any other field write.</p>
+
+<h3>Template syntax</h3>
+<p>The template is plain HTML interpolated by the <code>templateChunk</code> JS widget. Two markers exist:</p>
+<ul>
+  <li><code>$field_name</code> &mdash; substitutes the value of <code>field_name</code> from the bound Bag. Plain text substitution, no escaping flag, no formatting hooks.</li>
+  <li><code>${&lt;wrapper&gt;...$field...&lt;/wrapper&gt;}</code> &mdash; conditional block: the entire wrapper is rendered only if the <code>$field</code> inside has a non&#8209;empty value. Use this to hide labels and separators when the underlying field is empty, instead of dangling colons and orphan units.</li>
+</ul>
+<p>Everything else is standard HTML &mdash; inline styles, nested elements, whatever the documentation site allows. Keep it compact; the chunk is a preview, not a document.</p>
+
+<h3>With a resource</h3>
+<p>Same widget, but the dialog content comes from a grouplet resource instead of an inline handler. The <code>resource</code> + <code>table</code> pair points at the same files <code>pane.grouplet(...)</code> would consume.</p>
+
+<pre><code>chunk_pane.<span class="fn">groupletChunk</span>(
+    value=<span class="str">'^#FORM.record'</span>,
+    template=<span class="str">"""
+    &lt;div style="font-weight:bold;"&gt;$denominazione&lt;/div&gt;
+    &lt;div style="color:#555;"&gt;$sigla_provincia - $codice_comune&lt;/div&gt;
+    """</span>,
+    name=<span class="str">'edit_anagrafica'</span>,
+    resource=<span class="str">'anagrafica'</span>,
+    table=<span class="str">'glbl.comune'</span>,
+    title=<span class="str">'Edit Anagrafica'</span>)
+</code></pre>
+
+<p>The resource file lives at <code>tables/comune/grouplets/anagrafica.py</code> in the <code>glbl</code> package; the dialog wraps its <code>grouplet_main</code> exactly as a standalone grouplet would.</p>
+
+<h3>Auto&#8209;discovered template from <code>__info__</code></h3>
+<p>If the resource's <code>__info__()</code> returns a <code>template</code> (and optionally <code>template_virtual_columns</code>), you can omit both <code>template=</code> and <code>virtual_columns=</code> from the call site. The widget calls <code>gr_getTemplatePars()</code> server&#8209;side and fills them in for you.</p>
+
+<pre><code>chunk_pane.<span class="fn">groupletChunk</span>(
+    value=<span class="str">'^#FORM.record'</span>,
+    name=<span class="str">'edit_codici_auto'</span>,
+    resource=<span class="str">'codici'</span>,
+    table=<span class="str">'glbl.comune'</span>,
+    title=<span class="str">'Edit Codici'</span>)
+</code></pre>
+
+<p>The resource declares its own preview:</p>
+
+<pre><code><span class="kw">class</span> <span class="cls">Grouplet</span>(<span class="kw">object</span>):
+    <span class="kw">def</span> <span class="fn">__info__</span>(<span class="self">self</span>):
+        <span class="kw">return</span> <span class="fn">dict</span>(
+            caption=<span class="str">'Codici'</span>,
+            template=<span class="str">'&lt;b&gt;$sigla_provincia&lt;/b&gt; - $codice_comune'</span>,
+            template_virtual_columns=<span class="str">'sigla_provincia,codice_comune'</span>)
+
+    <span class="kw">def</span> <span class="fn">grouplet_main</span>(<span class="self">self</span>, pane, **kwargs):
+        fb = pane.<span class="fn">formlet</span>(cols=<span class="num">2</span>, table=<span class="str">'glbl.comune'</span>)
+        fb.<span class="fn">field</span>(<span class="str">'sigla_provincia'</span>)
+        fb.<span class="fn">field</span>(<span class="str">'codice_comune'</span>)
+</code></pre>
+
+<p>Now every caller of <code>resource='codici'</code> gets the same preview without copying the template string around.</p>
+
+<h3>Topic as chunk</h3>
+<p>When <code>resource</code> points at a folder (a topic, e.g. <code>territorio</code> containing several child grouplets), the dialog renders a CSS grid of all the child grouplets instead of a single one. The grid layout is controlled with the same <code>remote_grid_*</code> kwargs used by the standalone <code>grouplet</code> widget when consuming a topic.</p>
+
+<pre><code>chunk_pane.<span class="fn">groupletChunk</span>(
+    value=<span class="str">'^#FORM.record'</span>,
+    template=<span class="str">"""&lt;div style="color:#555;"&gt;
+        ${&lt;span&gt;Zona: $zona_altimetrica&lt;/span&gt;}
+        ${&lt;span&gt; | Alt. $altitudine m&lt;/span&gt;}
+    &lt;/div&gt;"""</span>,
+    name=<span class="str">'edit_territorio_topic'</span>,
+    resource=<span class="str">'territorio'</span>,
+    table=<span class="str">'glbl.comune'</span>,
+    title=<span class="str">'Territorio'</span>,
+    remote_grid_columns=<span class="num">2</span>,
+    remote_grid_collapsible=<span class="kw">True</span>)
+</code></pre>
+
+<p>The preview is still one compact box on the form; the dialog opens onto a two&#8209;column grid of collapsible cells, one per child grouplet.</p>
+
+<h3>Styling the preview box</h3>
+<p>Any <code>box_*</code> kwarg is forwarded to the outer <code>div</code> wrapping the template. Useful for a quick visual frame without touching CSS.</p>
+
+<pre><code>chunk_pane.<span class="fn">groupletChunk</span>(
+    value=<span class="str">'^#FORM.record'</span>,
+    template=<span class="str">'&lt;div&gt;$sigla_provincia - $codice_comune&lt;/div&gt;'</span>,
+    name=<span class="str">'edit_dettagli'</span>,
+    handler=<span class="self">self</span>.grp_dettagli,
+    box_padding=<span class="str">'5px'</span>,
+    box_background=<span class="str">'#f9f9f9'</span>,
+    box_border_radius=<span class="str">'4px'</span>)
+</code></pre>
+
+<h3>Parameters</h3>
+<table>
+  <thead><tr><th>Param</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><code>value</code></td><td>str</td><td>required</td>
+      <td>Data binding path. <strong>Must use absolute <code>^#FORM.record.field</code> paths, not relative <code>.field</code></strong> &mdash; the template is rendered outside the form's datapath scope.</td>
+    </tr>
+    <tr>
+      <td><code>template</code></td><td>str</td><td>None</td>
+      <td>HTML with <code>$field</code> placeholders and <code>${...}</code> conditional blocks. Optional when <code>resource</code> provides one via <code>__info__</code>.</td>
+    </tr>
+    <tr>
+      <td><code>name</code></td><td>str</td><td>required</td>
+      <td>Unique dialog identifier. Passed to <code>genro.dlg.memoryDataEditor</code> as the editor key; collisions across the page reuse the same dialog instance.</td>
+    </tr>
+    <tr>
+      <td><code>handler</code></td><td>callable</td><td>None</td>
+      <td>Method that fills the edit dialog. Mutually exclusive with <code>resource</code>; one of the two is required.</td>
+    </tr>
+    <tr>
+      <td><code>resource</code></td><td>str</td><td>None</td>
+      <td>Grouplet resource path. Points at a single grouplet file or a topic folder; the dialog content adapts accordingly.</td>
+    </tr>
+    <tr>
+      <td><code>table</code></td><td>str</td><td>None</td>
+      <td>For table&#8209;scoped resources (<code>tables/&lt;tbl&gt;/grouplets/...</code>). Same semantics as on the standalone <code>grouplet</code> widget.</td>
+    </tr>
+    <tr>
+      <td><code>title</code></td><td>str</td><td>None</td>
+      <td>Dialog title shown in the modal header.</td>
+    </tr>
+    <tr>
+      <td><code>virtual_columns</code></td><td>str</td><td>None</td>
+      <td>Comma&#8209;separated fields referenced by the template but not loaded by the main form. Auto&#8209;filled from <code>__info__.template_virtual_columns</code> when present.</td>
+    </tr>
+    <tr>
+      <td><code>box_*</code></td><td>any</td><td>&mdash;</td>
+      <td>Kwargs forwarded to the preview box container. E.g. <code>box_padding</code>, <code>box_background</code>, <code>box_border_radius</code>.</td>
+    </tr>
+    <tr>
+      <td><code>grid_columns</code></td><td>int</td><td>None</td>
+      <td>Shorthand for <code>remote_grid_columns</code> when <code>resource</code> is a topic. Convenience alias.</td>
+    </tr>
+    <tr>
+      <td><code>remote_grid_*</code></td><td>any</td><td>&mdash;</td>
+      <td>Grid layout params used by the dialog when <code>resource</code> is a topic: <code>remote_grid_columns</code>, <code>remote_grid_collapsible</code>, <code>remote_grid_template_columns</code>, <code>remote_grid_gap</code>.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Gotchas</h3>
+
+<div class="callout warn">
+  <div class="callout-title">Value path differs from <code>grouplet</code></div>
+  <p><code>groupletChunk</code> uses absolute <code>^#FORM.record.field</code> paths because the template chunk is rendered separately from the surrounding form's datapath context. Relative <code>.field</code> paths that work on <code>pane.grouplet(value='.sub')</code> will break here &mdash; the template will substitute empty strings and the dialog will write to the wrong node.</p>
+</div>
+
+<div class="callout warn">
+  <div class="callout-title"><code>grid_*</code> is a shorthand alias</div>
+  <p>When <code>resource</code> points at a topic, <code>grid_columns=2</code> is rewritten internally to <code>grouplet_remote_grid_columns=2</code> before being handed to the dialog's <code>grouplet</code>. Both forms work, but they collide: passing both <code>grid_columns=2</code> and <code>remote_grid_columns=3</code> on the same call yields undefined precedence. Pick one.</p>
+</div>
+
+<div class="callout warn">
+  <div class="callout-title">The <code>name</code> is global to the page</div>
+  <p>It's used as the key of the memory data editor instance; two chunks with the same <code>name</code> will share the dialog and stomp on each other's edits. Use distinct names per chunk (<code>edit_territorio</code>, <code>edit_anagrafica</code>, ...), not generic strings like <code>edit</code>.</p>
+</div>
+
+<h3>Reference files</h3>
+<ul>
+  <li><code>resources/common/gnrcomponents/grouplet/grouplet.py</code> &mdash; <code>gr_groupletChunk</code> at L147&#8209;194.</li>
+  <li><code>gnrjs/gnr_d20/js/genro_components.js</code> &mdash; <code>TemplateChunk</code> widget (the read&#8209;only preview half).</li>
+  <li><code>gnrjs/gnr_d20/js/genro_dlg.js</code> &mdash; <code>genro.dlg.memoryDataEditor</code> at L562 (the dialog half).</li>
+  <li><code>projects/gnrcore/packages/test/webpages/gnrwdg/test_grouplets/03_grouplet_chunk.py</code> &mdash; handler, resource, box kwargs, auto&#8209;discovered template, prospect topics.</li>
+  <li><code>projects/gnrcore/packages/test/webpages/gnrwdg/test_grouplets/05_grouplet_topic_grid.py</code> &mdash; tests 6&#8209;8: chunk with topic resource and grid kwargs.</li>
+</ul>

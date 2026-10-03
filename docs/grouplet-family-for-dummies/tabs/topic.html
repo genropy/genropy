@@ -1,0 +1,127 @@
+<h2>Topic Grid</h2>
+<p class="lede">When you point a grouplet at a folder instead of a single file, all child grouplets render as a CSS grid.</p>
+
+<h3>When to use</h3>
+<p>You have a record with a sprawling set of sub-fields that naturally cluster into themes: technical specs, anagrafica, commercial terms, territorio. Each cluster is already implemented as a grouplet that edits a fragment of the record's <code>extra_data</code> Bag. Stacking them by hand in a form means writing a layout for every screen and re-doing it when a cluster gets added.</p>
+<p>Instead, you drop the grouplets into a folder &mdash; that folder becomes a <em>topic</em> &mdash; and you point a single <code>grouplet</code> widget at the folder. The engine walks the folder, builds a menu of children, and lays them out as a CSS grid. Each cell carries the child's caption as a header and its content below.</p>
+
+<h3>Folder structure of a topic</h3>
+<p>A topic is a directory under your table's <code>grouplets/</code> folder (or under the page-level <code>resources/grouplets/</code>). Children are individual grouplet Python files; sub-directories are nested sub-topics that recurse. An optional <code>__info__.py</code> per folder carries topic metadata.</p>
+<pre><code>grouplets/
+  technical/
+    __info__.py
+    environment.py
+    dependencies.py
+    inner/             <span class="cmt"># nested sub-topic</span>
+      __info__.py
+      gamma.py
+      delta.py
+</code></pre>
+<p><code>__info__.py</code> is optional and carries metadata such as <code>caption</code>, <code>template</code>, <code>virtual_columns</code>, and <code>priority</code>. Files whose name starts with <code>__</code> are skipped during menu building.</p>
+
+<h3>Basic topic grid</h3>
+<p>Point <code>resource</code> at a folder name. The engine resolves it under <code>resources/tables/test.myticket/grouplets/technical/</code>, lists the children, and lays them out in a two-column grid.</p>
+<pre><code>pane.grouplet(
+    resource=<span class="str">'technical'</span>,
+    table=<span class="str">'test.myticket'</span>,
+    value=<span class="str">'^.data'</span>,
+    remote_grid_columns=<span class="num">2</span>)
+</code></pre>
+<p>Each cell is an <code>expandbox</code> with the child grouplet's caption as the header and its content rendered underneath. Datapath for each cell is anchored to the child's label, so a <code>environment.py</code> grouplet writes into <code>.data.environment</code>.</p>
+
+<h3>Collapsible cells</h3>
+<p>Add <code>remote_grid_collapsible=True</code> and each cell header becomes a click target that expands or collapses its content. Useful when individual grouplets are tall and the user wants to focus on one at a time.</p>
+<pre><code>pane.grouplet(
+    resource=<span class="str">'technical'</span>,
+    table=<span class="str">'test.myticket'</span>,
+    value=<span class="str">'^.data'</span>,
+    remote_grid_collapsible=<span class="kw">True</span>)
+</code></pre>
+<p>By default cells are collapsible when <code>columns &gt; 1</code> and locked open in a single column. Pass <code>remote_grid_collapsible='closed'</code> to start the cells closed.</p>
+
+<h3>Custom grid template</h3>
+<p>For uneven columns, bypass <code>remote_grid_columns</code> and supply your own <code>grid-template-columns</code>. Tune the gap between cells with <code>remote_grid_gap</code>.</p>
+<pre><code>pane.grouplet(
+    resource=<span class="str">'commercial'</span>,
+    table=<span class="str">'test.myticket'</span>,
+    value=<span class="str">'^.data'</span>,
+    remote_grid_template_columns=<span class="str">'1fr 2fr'</span>,
+    remote_grid_gap=<span class="str">'16px'</span>)
+</code></pre>
+
+<h3>Without a table (page-level)</h3>
+<p>Omit <code>table</code> to resolve the folder under <code>resources/grouplets/app/</code> at the page level. Same grid mechanics, different lookup root.</p>
+<pre><code>pane.grouplet(
+    resource=<span class="str">'app'</span>,
+    value=<span class="str">'^.record'</span>,
+    remote_grid_columns=<span class="num">3</span>)
+</code></pre>
+
+<h3>Nested sub-topics</h3>
+<p>A sub-directory inside a topic becomes a nested topic and renders as a grid <em>inside</em> the parent cell. Recursion is unbounded. Example: a <code>territorio</code> topic that holds an <code>altimetria</code> sub-topic.</p>
+<pre><code>grouplets/
+  territorio/
+    __info__.py
+    zona.py
+    altimetria/
+      __info__.py
+      quota.py
+      pendenza.py
+</code></pre>
+<pre><code>pane.grouplet(
+    resource=<span class="str">'territorio'</span>,
+    table=<span class="str">'glbl.comune'</span>,
+    value=<span class="str">'^.data'</span>,
+    remote_grid_columns=<span class="num">2</span>,
+    remote_grid_collapsible=<span class="kw">True</span>)
+</code></pre>
+<p>The nested cell carries the sub-topic caption and its content is the inner grid. Nested cells render in a <em>minimal</em> visual style (lighter chrome) to differentiate from top-level cells. The datapath for the nested grid is derived from the sub-topic name, so a child of <code>altimetria</code> writes into <code>.data.territorio.altimetria.quota</code>.</p>
+
+<h3>__info__.py</h3>
+<p>Optional per-folder metadata file. The engine looks for a <code>Grouplet</code> or <code>GroupletTopic</code> class with an <code>__info__</code> classmethod, or a plain module-level <code>info</code> dict. Recognized keys:</p>
+<ul>
+<li><code>caption</code> &mdash; header label for the cell. Falls back to the file/folder name.</li>
+<li><code>priority</code> &mdash; numeric sort order within the topic. Menus are sorted by <code>priority, caption</code>.</li>
+<li><code>template</code> &mdash; pre-baked HTML template consumed by <code>groupletChunk</code> when this grouplet is wrapped in a chunk dialog.</li>
+<li><code>virtual_columns</code> &mdash; comma-separated columns the template needs but that are not in the main form, so the chunk can hydrate them.</li>
+<li><code>tags</code> / <code>permissions</code> &mdash; gate the grouplet by user tag set or table permission. A failing check hides the cell entirely.</li>
+<li><code>is_enabled(page)</code> &mdash; module-level callback that returns <code>False</code> to hide the grouplet dynamically.</li>
+</ul>
+
+<h3>Parameters (remote_grid_*)</h3>
+<p>The <code>remote_grid_*</code> prefix is stripped server-side and the remaining suffix is passed to <code>_loadGroupletTopic</code>. All parameters are optional.</p>
+<table>
+  <thead><tr><th>Param</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td><code>remote_grid_columns</code></td><td>int</td><td><code>1</code></td><td>Number of equal-width columns in the grid.</td></tr>
+    <tr><td><code>remote_grid_template_columns</code></td><td>str</td><td>derived from <code>columns</code></td><td>Raw CSS <code>grid-template-columns</code>; overrides <code>columns</code>. Example: <code>'1fr 2fr'</code>.</td></tr>
+    <tr><td><code>remote_grid_collapsible</code></td><td>bool / str</td><td>auto*</td><td>Click-to-collapse cells. Auto <code>True</code> when <code>columns &gt; 1</code>, <code>False</code> in single column. Pass <code>'closed'</code> to start collapsed.</td></tr>
+    <tr><td><code>remote_grid_gap</code></td><td>str</td><td><code>'10px'</code></td><td>CSS gap between cells.</td></tr>
+    <tr><td><code>remote_grid_direction</code></td><td>str</td><td>auto</td><td><code>'rows'</code> or <code>'columns'</code>. Defaults to <code>'columns'</code> when <code>columns &gt; 1</code>, otherwise <code>'rows'</code>. Controls how cells flow across the grid axes.</td></tr>
+  </tbody>
+</table>
+
+<h3>Used by</h3>
+<p>Topic grids are not a separate widget. They are a rendering mode of the base <code>grouplet</code> widget, triggered when <code>resource</code> resolves to a folder rather than a single Python file. The same <code>_loadGroupletTopic</code> machinery is reused by <code>groupletChunk</code> (when the chunk's dialog points to a topic instead of a single grouplet), by <code>groupletPanel</code> in <code>multiButton</code> mode (the bar selects which topic-child to load), and by <code>groupletWizard</code> when a wizard step is itself a sub-topic &mdash; the step body renders as a nested grid of its children.</p>
+
+<h3>Gotchas</h3>
+<div class="callout warn">
+  <div class="callout-title">Resource resolution: file vs folder</div>
+  <p>If you have both <code>technical.py</code> and a <code>technical/</code> folder under the same <code>grouplets/</code> root, the file wins and you get a single grouplet rather than a topic grid. The resource loader builds a Bag where leaf nodes (files) take precedence over branch nodes (folders) with the same label. Rename one of the two: drop the <code>.py</code> file or give the folder a distinct name.</p>
+</div>
+<div class="callout warn">
+  <div class="callout-title">Skipped names</div>
+  <p>Children whose name starts with <code>__</code> are filtered out of the menu (that is how <code>__info__.py</code> and <code>__pycache__</code> stay invisible). Do not start a real grouplet file with a double underscore or it will silently disappear from the grid.</p>
+</div>
+<div class="callout warn">
+  <div class="callout-title">Sort order is priority then caption</div>
+  <p>Without <code>priority</code> in <code>__info__</code>, the menu sorts by <code>caption</code> alphabetically. If you want a specific cell order, set <code>priority</code> on each child &mdash; a missing <code>priority</code> defaults to <code>0</code>, which means a single child with <code>priority=5</code> can end up <em>after</em> several priority-zero siblings sorted by caption.</p>
+</div>
+
+<h3>Reference files</h3>
+<ul>
+  <li><code>resources/common/gnrcomponents/grouplet/grouplet.py</code> &mdash; <code>_loadGroupletTopic</code>, <code>gr_getGroupletMenu</code>, <code>_processTopicNode</code>.</li>
+  <li><code>projects/gnrcore/packages/test/webpages/gnrwdg/test_grouplets/05_grouplet_topic_grid.py</code> &mdash; topic grid tests (columns, collapsible, custom template, no-table).</li>
+  <li><code>projects/gnrcore/packages/test/webpages/gnrwdg/test_grouplets/07_grouplet_nested_topics.py</code> &mdash; nested topics in grid, panel and wizard.</li>
+  <li><code>projects/gnrcore/packages/test/resources/grouplets/</code> &mdash; page-level grouplet examples used by the no-table tests.</li>
+</ul>
