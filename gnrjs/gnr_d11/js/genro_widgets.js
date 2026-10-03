@@ -452,8 +452,8 @@ dojo.declare("gnr.widgets.baseHtml", null, {
             keeper.onclick = function(e){
                 dojo.stopEvent(e);
                 var n = genro.getDataNode(npath);
-                var currvalue = n.attr._keep;
-                sourceNode.widget.setKeeper(isNullOrBlank(currvalue));
+                //setKeeper stores false, not null: isNullOrBlank(false) never toggled it back on
+                sourceNode.widget.setKeeper(!n.attr._keep);
             }
         }
         var npath = sourceNode.absDatapath(sourceNode.attr.value);
