@@ -1935,29 +1935,18 @@ body.drag_started .grouplet_grid_tab_add.canBeDropped {
     position: relative;
     z-index: 3;
 }
-.grouplet_grid_row--entry .dijitTextBox,
-.grouplet_grid_row--entry .dijitTextArea {
+.grouplet_grid_row--entry .dijitTextBox:not(.dijitError),
+.grouplet_grid_row--entry .dijitTextArea:not(.dijitError) {
     background: var(--gg-surface);
 }
 .grouplet_grid--entry:not(.grouplet_grid--struct) > .grouplet_grid_slot_top > .grouplet_grid_entry {
     margin-bottom: var(--gg-gap);
 }
-/* Until a field of it is focused, or a row is edited in it, the entry row
-   reads as the phantom row: dashed fields, muted text, nothing flagged. A
-   required field is required of a row being typed, not of the blank one. */
-.grouplet_grid:not(.grouplet_grid--editing) > .grouplet_grid_slot_top > .grouplet_grid_entry > .grouplet_grid_row--entry:not(:focus-within) .dijitTextBox,
-.grouplet_grid:not(.grouplet_grid--editing) > .grouplet_grid_slot_top > .grouplet_grid_entry > .grouplet_grid_row--entry:not(:focus-within) .dijitComboBox,
-.grouplet_grid:not(.grouplet_grid--editing) > .grouplet_grid_slot_top > .grouplet_grid_entry > .grouplet_grid_row--entry:not(:focus-within) .dijitTextArea,
-.grouplet_grid:not(.grouplet_grid--editing) > .grouplet_grid_slot_top > .grouplet_grid_entry > .grouplet_grid_row--entry:not(:focus-within) textarea {
-    border-style: dashed;
-    border-color: var(--gg-border);
-    background: transparent;
-    box-shadow: none;
-}
-.grouplet_grid:not(.grouplet_grid--editing) > .grouplet_grid_slot_top > .grouplet_grid_entry > .grouplet_grid_row--entry:not(:focus-within) input,
-.grouplet_grid:not(.grouplet_grid--editing) > .grouplet_grid_slot_top > .grouplet_grid_entry > .grouplet_grid_row--entry:not(:focus-within) textarea {
-    color: var(--gg-text-muted);
-    background: transparent;
+/* The entry row shows its validations only while a field of it is focused:
+   a required field is required of a row being typed. */
+.grouplet_grid_row--entry:not(:focus-within) .dijitError {
+    border-color: var(--field-border, #AEAEB2);
+    background-color: var(--gg-surface);
 }
 /* Add button: a shade darker than the entry band, `↵` (Enter adds) or
    `✓` while a template row is edited. Struct: right of the entry row;
