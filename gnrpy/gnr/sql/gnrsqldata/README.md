@@ -36,10 +36,25 @@ Contains two classes:
   - `compiledQuery()` for multi-row selections
   - `compiledRecordQuery()` for single-record loading
 
+Macro expansion: every macro but `#ENV`, `#PREF` and `#THIS` comes from
+`db._macro_registry`, filled by `db.addMacro(name, regex, callback,
+contexts=...)`.  The compiler builds one `MacroExpander` per compilation
+and calls `replace_context(sql_text, context)` at seven points, whose
+context names are `formula_pre` and `formula_post` (in `getFieldAlias`),
+`join_cnd` (in `getJoin`), `where`, `columns`, `columns_final` and
+`order_by` (in `compiledQuery`).  A macro is expanded at a point when its
+`contexts` lists that name, or when it is `None`.  `#ENV`, `#PREF` and
+`#THIS` stay outside the registry: they are expanded by closures of
+`getFieldAlias`, which need the field alias being compiled.
+
+A registry macro keeps its regex and its `callback(match, compiler)`
+outside this package: `#IN_RANGE`, `#PERIOD`, `#BAG` and `#BAGCOLS` in
+`gnr/sql/gnrsqlmacros.py`, the engine specific ones in the adapter module
+that registers them.
+
 Module-level regex constants:
-`COLFINDER`, `RELFINDER`, `COLRELFINDER`, `IN_RANGEFINDER`,
-`PERIODFINDER`, `BAGEXPFINDER`, `BAGCOLSEXPFINDER`, `ENVFINDER`,
-`PREFFINDER`, `THISFINDER`.
+`COLFINDER`, `RELFINDER`, `COLRELFINDER`, `ENVFINDER`, `PREFFINDER`,
+`THISFINDER`.
 
 ### `query.py` — Query building and execution
 
@@ -139,8 +154,8 @@ Detailed notes are also appended at the end of each module.
 | 5 | `compiledQuery` — comment "It is the right behaviour ????" on distinct/count + exploding | Design |
 | 6 | `_handle_virtual_columns` — `else` branch with only `pass`, variables unassigned | Potential bug |
 | 7 | `_handle_virtual_columns` — commented-out Python 2 debug print | Dead code |
-| 8 | `expandInRange` vs legacy between — inconsistency `<=` vs `<` | Inconsistency |
-| 9 | `expandPeriod` — native SQL BETWEEN, consider deprecating in favor of range | Deprecation |
+| 8 | `gnrsqlmacros.expand_in_range` vs legacy between — inconsistency `<=` vs `<` | Inconsistency |
+| 9 | `gnrsqlmacros.expand_period` — native SQL BETWEEN, consider deprecating in favor of range | Deprecation |
 | 10 | `compiledRecordQuery` — duplicated `virtual_columns = ... or []` line | Copy-paste |
 | 11 | `_getRelationAlias` — `target_sqlcolumn` potentially `None` | Potential bug |
 

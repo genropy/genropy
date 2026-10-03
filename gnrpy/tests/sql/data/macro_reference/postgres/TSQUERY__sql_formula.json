@@ -1,0 +1,12 @@
+{
+  "env_diff": {},
+  "sqlparams": {
+    "jc_kwargs": {},
+    "probe": {
+      "field": "price_label",
+      "sql_formula": "#TSQUERY($description,:q)"
+    },
+    "q": "hello"
+  },
+  "sqltext": "SELECT  \"t0\".\"code\" AS \"code\",\n( \"t0\".\"description\" @@ websearch_to_tsquery('simple', :q) ) AS \"probe\",\n\"t0\".\"id\" AS \"pkey\"\n FROM \"invc\".\"invc_product\" AS t0\nWHERE (\"t0\".\"__del_ts\" IS NULL)"
+}

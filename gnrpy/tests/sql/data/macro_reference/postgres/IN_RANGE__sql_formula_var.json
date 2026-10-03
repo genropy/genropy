@@ -1,0 +1,16 @@
+{
+  "env_diff": {
+    "<id>_probe_hi": 500,
+    "<id>_probe_lo": 1
+  },
+  "sqlparams": {
+    "jc_kwargs": {},
+    "probe": {
+      "field": "price_label",
+      "sql_formula": "#IN_RANGE($unit_price,:lo,:hi)",
+      "var_hi": 500,
+      "var_lo": 1
+    }
+  },
+  "sqltext": "SELECT  \"t0\".\"code\" AS \"code\",\n( \n                ((:env_<id>_probe_lo IS NULL AND :env_<id>_probe_hi IS NOT NULL AND \"t0\".\"unit_price\"<=:env_<id>_probe_hi) OR\n                (:env_<id>_probe_lo IS NOT NULL AND :env_<id>_probe_hi IS NULL AND \"t0\".\"unit_price\">=:env_<id>_probe_lo) OR\n                (:env_<id>_probe_lo IS NOT NULL AND :env_<id>_probe_hi IS NOT NULL AND\n                    \"t0\".\"unit_price\" >= :env_<id>_probe_lo AND \"t0\".\"unit_price\" <= :env_<id>_probe_hi) OR\n                (:env_<id>_probe_lo IS NULL AND :env_<id>_probe_hi IS NULL))\n             ) AS \"probe\",\n\"t0\".\"id\" AS \"pkey\"\n FROM \"invc\".\"invc_product\" AS t0\nWHERE (\"t0\".\"__del_ts\" IS NULL)"
+}

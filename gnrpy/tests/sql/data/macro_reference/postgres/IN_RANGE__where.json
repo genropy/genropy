@@ -1,0 +1,9 @@
+{
+  "env_diff": {},
+  "sqlparams": {
+    "hi": 500,
+    "jc_kwargs": {},
+    "lo": 1
+  },
+  "sqltext": "SELECT  \"t0\".\"code\" AS \"code\",\n\"t0\".\"id\" AS \"pkey\"\n FROM \"invc\".\"invc_product\" AS t0\nWHERE (\n                ((:lo IS NULL AND :hi IS NOT NULL AND \"t0\".\"unit_price\"<=:hi) OR\n                (:lo IS NOT NULL AND :hi IS NULL AND \"t0\".\"unit_price\">=:lo) OR\n                (:lo IS NOT NULL AND :hi IS NOT NULL AND\n                    \"t0\".\"unit_price\" >= :lo AND \"t0\".\"unit_price\" <= :hi) OR\n                (:lo IS NULL AND :hi IS NULL))\n            ) AND (\"t0\".\"__del_ts\" IS NULL)"
+}

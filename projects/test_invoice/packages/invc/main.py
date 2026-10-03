@@ -1,12 +1,6 @@
 #!/usr/bin/env python
 # encoding: utf-8
-import re
-
 from gnr.app.gnrdbo import GnrDboTable, GnrDboPackage
-
-
-def _expand_uppercase(match, expander):
-    return 'UPPER(%s)' % match.group(1)
 
 
 class Package(GnrDboPackage):
@@ -16,13 +10,6 @@ class Package(GnrDboPackage):
 
     def config_db(self, pkg):
         pass
-
-    def registerMacros(self, db):
-        db.addMacro(
-            'UPPERCASE',
-            re.compile(r'#UPPERCASE\(([^)]+)\)'),
-            _expand_uppercase,
-        )
 
     def custom_type_money(self):
         return dict(dtype='N',size='14,2',format='#,###.00')
