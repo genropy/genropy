@@ -1086,6 +1086,8 @@ dojo.declare("gnr.widgets.GroupletForm",gnr.widgets.gnrwdg,{
             grouplets_pars['value'] =  kw.formDatapath ;
         }
         kw.controllerPath = formControllerPath;
+        // where #FORM.pkey reads it, as in FrameForm: relation= handlers inside filter on it
+        kw.pkeyPath = kw.pkeyPath || '.pkey';
         sourceNode.gnrwdg.formId = formId;
         let formdiv = sourceNode._('BoxForm',kw);
         return formdiv._('grouplet',grouplets_pars);
@@ -2212,14 +2214,13 @@ dojo.declare("gnr.widgets.QuickEditor", gnr.widgets.gnrwdg, {
         if(inCell){
             return this._createCellContent(sourceNode, kw);
         }
-        kw['constrain_margin'] = '1px';
         kw['toolbar'] = kw['toolbar'] || false;
         var boxpars = objectExtract(kw,'height,width,z_index,position,top,left,right,bottom,_class');
-        boxpars.height = boxpars.height;
+        kw['height'] = '100%';
         boxpars.position =  boxpars.position || 'relative'
         boxpars._class = (boxpars._class || '') +' quickEditorWrapper';
         var box = sourceNode._('div',boxpars);
-        var editor = box._('div',{_class:'quickEditor'})._('div',{position:'absolute',top:'1px',bottom:'2px',left:'1px',right:'1px'})._('ckeditor',kw);
+        var editor = box._('div',{_class:'quickEditor'})._('div',{position:'absolute',top:'1px',bottom:'2px',left:'1px',right:'1px'})._('joditEditor',kw);
         box._('div',{_class:'quickEditorButton fakeButton'})._('div',{_class:'dijitArrowButtonInner',height:'17px',width:'18px',
                                                             cursor:'pointer',
                                                         connect_onclick:function(){
@@ -2288,8 +2289,39 @@ dojo.declare("gnr.widgets.QuickEditor", gnr.widgets.gnrwdg, {
 
 });
 
+dojo.declare("gnr.widgets.ExtendedJoditEditor", gnr.widgets.gnrwdg, {
+    createContent:function(sourceNode, kw,children) {
+        let containerkw = objectExtract(kw,'height,width,region,title,margin');
+        objectUpdate(containerkw,objectExtract(kw,'margin_*',false,true));
+        let bc = sourceNode._('borderContainer',containerkw);
+        let css_value = objectPop(kw,'css_value');
+        let css_pars = objectExtract(kw,'css_*');
+        kw.contentStyles = css_value;
+        kw.height = '100%';
+        kw.width = '100%';
+        bc._('contentPane',{region:'center',overflow:'hidden'})._('joditEditor',kw);
+        if(css_value){
+            css_pars = objectUpdate({value:css_value,height:'100%',width:'100%',config_mode:'css',
+                                     config_lineNumbers:true,config_keyMap:'softTab'},css_pars);
+            bc._('borderContainer',{region:'right',width:'30%',splitter:true,closable:'close',
+                                    closable_background:'rgba(222, 255, 0, 1)',
+                                    closable_top:'10px',
+                                    closable_width:'14px',
+                                    closable_left:'-20px',
+                                    closable_height:'14px',
+                                    closable_padding:'2px',
+                                    closable_opacity:'1',
+                                    closable_iconClass:'smalliconbox create_edit_html_template',
+                                    border_left:'1px solid silver'})
+                ._('contentPane',{region:'center',overflow:'hidden',_lazyBuild:true})._('codemirror',css_pars);
+        }
+        return bc;
+    }
+});
+
 dojo.declare("gnr.widgets.ExtendedCkeditor", gnr.widgets.gnrwdg, {
     createContent:function(sourceNode, kw,children) {
+        genro.dev.deprecation('ExtendedCkeditor', 'ExtendedJoditEditor');
         let containerkw = objectExtract(kw,'height,width,region,title,margin');
         objectUpdate(containerkw,objectExtract(kw,'margin_*',false,true));
         let bc = sourceNode._('borderContainer',containerkw);
@@ -3052,7 +3084,7 @@ dojo.declare("gnr.widgets.GridGallery", gnr.widgets.gnrwdg, {
                     genro.dlg.prompt(_T('Edit'),{dlg_noModal:true,
                         widget:function(pane){
                             var tc = pane._('tabContainer',{height:'600px',width:'1000px',margin:'2px'});
-                            tc._('ContentPane',{title:'Content',overflow:'hidden'})._('ckeditor',{value:'^.content'});
+                            tc._('ContentPane',{title:'Content',overflow:'hidden'})._('joditEditor',{value:'^.content',height:'100%'});
                             var pane = tc._('ContentPane',{title:'Metadata',overflow:'hidden'})
                             var fb = genro.dev.formbuilder(pane._('div',{margin:'10px'}),3,{border_spacing:'1px',width:'100%',margin_bottom:'12px'});
                             fb.addField('textbox',{value:'^.iframe_src',width:'25em',lbl_text_align:'right',
@@ -4446,10 +4478,11 @@ dojo.declare("gnr.widgets.DropUploader", gnr.widgets.gnrwdg, {
 
 dojo.declare("gnr.widgets.ModalUploader", gnr.widgets.gnrwdg, {
     createContent:function(sourceNode, kw,children) {
-        let boxkwargs = objectExtract(kw,'position,top,bottom,left,right,border,width,margin,rounded,hidden');
-        let previewkwargs = objectExtract(kw,'height');
+        let boxkwargs = objectExtract(kw,'position,top,bottom,left,right,border,width,height,margin,rounded,hidden');
         boxkwargs._workspace = true;
-        let wrapper = sourceNode._('div','mu_wrapper',boxkwargs);
+        let wrapper = sourceNode._('flexbox','mu_wrapper',{direction:'column',
+                            _class:boxkwargs.height?'modalUploader modalUploader_fill':'modalUploader',
+                            ...boxkwargs});
         let label = objectPop(kw,'label') || 'Document';
         let mu_bar = wrapper._('div','mu_bar',{display:'flex',
                             style:'justify-content:space-between;align-items:center;',
@@ -4477,7 +4510,7 @@ dojo.declare("gnr.widgets.ModalUploader", gnr.widgets.gnrwdg, {
                                                 ...kw},this);
             },dest_stn:dest_stn.replace('^','=')
         });
-        wrapper._('iframe',{src:'^#WORKSPACE.preview_url',width:'100%',border:0,...previewkwargs});
+        wrapper._('iframe',{src:'^#WORKSPACE.preview_url',width:'100%',border:0,_class:'modalUploader_preview'});
         let iframeStarterKw = {script:function(scriptKwargs){
             let value = scriptKwargs.value;
             let prevurl = null;
@@ -4781,7 +4814,19 @@ dojo.declare("gnr.widgets.MultiButton", gnr.widgets.gnrwdg, {
                     }else{
                         code = n.attr[identifier] || n.attr['code'] || n.label;
                     }
-                    
+                    var selected = value.indexOf(code)>=0;
+                    if(!n.domNode){
+                        //still queued for build: it is built from its attributes,
+                        //while setClass would fall back to the container
+                        var classes = (n.attr._class || '').split(' ').filter(function(c){
+                            return c && c != 'multibutton_selected';
+                        });
+                        if(selected){
+                            classes.push('multibutton_selected');
+                        }
+                        n.attr._class = classes.join(' ');
+                        return;
+                    }
                     if(value.length==1 && value[0]==code){
                         if(genro.dom.isElementOverflowing(n.domNode)){
                             setTimeout(()=>{
@@ -4791,7 +4836,7 @@ dojo.declare("gnr.widgets.MultiButton", gnr.widgets.gnrwdg, {
                             
                         }
                     }
-                    genro.dom.setClass(n,'multibutton_selected',value.indexOf(code)>=0);
+                    genro.dom.setClass(n,'multibutton_selected',selected);
                 });
             } 
         }
@@ -5133,7 +5178,8 @@ dojo.declare("gnr.widgets.UserObjectBar", gnr.widgets.gnrwdg, {
             sourceNode.attr._workspace = true;
         }
         var userObjectPars = objectExtract(kw,'table,flags,objtype');
-        gnrwdg.newcaption  = _T(objectPop(kw,'newcaption') ||  'New empty '+userObjectPars.objtype);
+        var newcaption = objectPop(kw,'newcaption');
+        gnrwdg.newcaption  = newcaption? _T(newcaption) : _T('!!New empty $objtype').replace('$objtype',userObjectPars.objtype);
         objectUpdate(userObjectPars,objectExtract(kw,'userobject_*'));
         gnrwdg.userObjectPars = userObjectPars;
         gnrwdg.startUserObjectIdOrCode = kw.userObjectId;
@@ -5289,7 +5335,7 @@ dojo.declare("gnr.widgets.UserObjectBar", gnr.widgets.gnrwdg, {
     gnrwdg_newFromCurrent:function(){
         var code = this.sourceNode.getRelativeData(`${this.metadataPath}.code`);
         this.sourceNode.setRelativeData(this.metadataPath,new gnr.GnrBag(this.userObjectPars));
-        genro.publish('floating_message',{message:_T(`New from ${code}`)});
+        genro.publish('floating_message',{message:_T('!!New from $code').replace('$code',code)});
     },
 
 });
@@ -5308,7 +5354,8 @@ dojo.declare("gnr.widgets.UserObjectLayout", gnr.widgets.gnrwdg, {
         }
         var userObjectPars = objectExtract(kw,'table,flags,objtype');
         userObjectPars.objtype = userObjectPars.objtype || this.objtype;
-        gnrwdg.newcaption  = _T(objectPop(kw,'newcaption') || this.newcaption ||  'New '+userObjectPars.objtype);
+        var newcaption = objectPop(kw,'newcaption') || this.newcaption;
+        gnrwdg.newcaption  = newcaption? _T(newcaption) : _T('!!New $objtype').replace('$objtype',userObjectPars.objtype);
         gnrwdg.table = userObjectPars.table;
         objectUpdate(userObjectPars,objectExtract(kw,'userobject_*'));
         gnrwdg.userObjectPars = userObjectPars;

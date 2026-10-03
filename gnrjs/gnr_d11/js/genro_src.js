@@ -88,10 +88,24 @@ dojo.declare("gnr.GnrTriggerIndex", null, {
             this._collect(trienode, targets);
         }
         for (let sub of targets) {
-            if (!sub._removed) {
-                sub.node.trigger_data(sub.attr, kw);
+            if (sub._removed) {
+                continue;
             }
+            if (sub.node.isLostNode()) {
+                console.error('trigger index: subscription of a discarded source node',
+                              sub.node.attr.tag, sub.attr, this._subPath(sub));
+                this.remove(sub);
+                continue;
+            }
+            sub.node.trigger_data(sub.attr, kw);
         }
+    },
+    _subPath: function(sub) {
+        let keys = [];
+        for (let trienode = sub._trienode; trienode && trienode.parent; trienode = trienode.parent) {
+            keys.unshift(trienode.key);
+        }
+        return keys.length ? keys.join('.') : null;
     },
     _collect: function(trienode, targets) {
         if (trienode.subs) {
@@ -197,14 +211,26 @@ dojo.declare("gnr.GnrSrcHandler", null, {
             this.building = true;
             while (this.pendingBuild.length > 0) {
                 kw = this.pendingBuild.pop();
-                dojo.hitch(this, '_trigger_' + kw.evt)(kw);
+                try {
+                    dojo.hitch(this, '_trigger_' + kw.evt)(kw);
+                } catch (e) {
+                    //the queue holds the work of other callers too: a failed
+                    //build must not stop it, nor leave building set for the
+                    //whole page. Rethrown on its own it stays an uncaught error
+                    setTimeout(function() { throw e; }, 0);
+                }
             }
             this.building = false;
         }
     },
+    _awaitsBuild:function(sourceNode) {
+        return this.pendingBuild.some(function(kw) {
+            return kw.evt == 'ins' && (kw.node === sourceNode || sourceNode.isChildOf(kw.node));
+        });
+    },
     _trigger_ins:function(kw) {//da rivedere
         //console.log('trigger_ins',kw);
-        if(kw.reason=='autocreate'){
+        if(kw.reason=='autocreate' || kw.node.isLostNode()){
             return;
         }
         var node = kw.node;
@@ -214,6 +240,10 @@ dojo.declare("gnr.GnrSrcHandler", null, {
             if (wherenode) {
                 where = wherenode.widget || wherenode.domNode;
                 if (!where) {
+                    //queued after its parent (LIFO): the parent's build makes it
+                    if (this._awaitsBuild(wherenode)) {
+                        return;
+                    }
                     console.error('Missing destination node in trigger_ins',kw);
                 }
             } else {
@@ -236,6 +266,11 @@ dojo.declare("gnr.GnrSrcHandler", null, {
     _trigger_upd:function(kw) {//da rivedere
         //console.log('trigger_upd',kw);
         var updatingNode = kw.node;
+        //not built yet: its queued insertion builds the new value, while
+        //getDomNode would hand over the first built ancestor to replace
+        if (!updatingNode.widget && !updatingNode.domNode && this._awaitsBuild(updatingNode)) {
+            return;
+        }
         genro.assert(!updatingNode._isComponentNode);
         updatingNode._onDeleting();
         if(updatingNode.externalWidget && updatingNode.externalWidget.destroy){

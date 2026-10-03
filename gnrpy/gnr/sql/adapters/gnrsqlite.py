@@ -407,6 +407,10 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         return (f"('{separator}' || {fieldpath} || '{separator}') "
                 f"LIKE ('%{separator}' || {value} || '{separator}%')")
 
+    def string_join(self, expressions, separator):
+        joined = '||'.join(f"COALESCE('{separator}'||({e}),'')" for e in expressions)
+        return f"substr({joined},{len(separator) + 1})"
+
     def mask_field_sql(self, field, mode='2-4', placeholder='*'):
         """
         Returns a SQLite SQL expression for masking a field value.

@@ -39,7 +39,7 @@ This module provides:
 
 from gnr.core import gnrstring
 from gnr.core.gnrbag import Bag, BagResolver
-from gnr.sql.gnrsqldata.compiler import SqlQueryCompiler
+from gnr.sql.gnrsqldata.compiler_factory import queryCompilerClass
 from gnr.sql.gnrsql_exceptions import SelectionExecutionError, RecordDuplicateError, \
     RecordNotExistingError, RecordSelectionError
 
@@ -303,7 +303,7 @@ class SqlRecord(object):
             where = '$pkey = :pkey'
         else:
             where = ' AND '.join([f'"{self.aliasPrefix}0".{k}=:{k}' for k in self.sqlparams.keys() if self.dbtable.column(k) is not None])
-        compiler = SqlQueryCompiler(self.dbtable.model, sqlparams=self.sqlparams,
+        compiler = queryCompilerClass(self.db)(self.dbtable.model, sqlparams=self.sqlparams,
                                   joinConditions=self.joinConditions,
                                   sqlContextName=self.sqlContextName,aliasPrefix=self.aliasPrefix)
         return compiler.compiledRecordQuery(where=where,relationDict=self.relationDict,bagFields=self.bagFields,

@@ -139,5 +139,6 @@ class ViewTestQueryCondition(BaseComponent):
         return dict(fields=[dict(field='$denominazione', lbl='Denominazione',width='10em'),
                     dict(field='$sigla_provincia', lbl='Provincia', width='6em', table='glbl.provincia', 
                             condition='$regione=:rlom', condition_rlom='LOM', 
-                            tag='checkboxtext', popup=True)],
+                            tag='checkboxtext', popup=True),
+                    dict(field='$litoraneo', tag='checkbox')],
                     cols=2, isDefault=True)

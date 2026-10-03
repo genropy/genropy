@@ -442,25 +442,43 @@ dojo.declare("gnr.widgets.baseHtml", null, {
         genro.dom.addClass(sourceNode.widget.focusNode,'iskeepable');
         let keepableAuto = sourceNode.attr.keepable == '*';
         var dn = this._getKeeperRoot(sourceNode);
+        // in a formlet the keeper is a pin beside the field's own label: the
+        // labledBox holds both, so it carries keeper_on
+        var stateNode = dn.parentNode;
+        var lblTitle = null;
+        if(stateNode && stateNode.classList.contains('labledBox_content')){
+            var lbl = Array.from(stateNode.parentNode.children).find(function(c){
+                return c.classList.contains('labledBox_label');
+            });
+            lblTitle = lbl ? lbl.querySelector('.labledBox_title') : null;
+            if(lblTitle){
+                stateNode = stateNode.parentNode;
+            }
+        }
         if(!keepableAuto){
             var keeper = document.createElement('div');
             keeper.setAttribute('title','Keep this value');
-            genro.dom.addClass(keeper,'fieldkeeper');
+            genro.dom.addClass(keeper,lblTitle ? 'fieldkeeper fieldkeeper_lbl' : 'fieldkeeper');
             var keeper_in = document.createElement('div');
             keeper.appendChild(keeper_in);
-            dn.appendChild(keeper);
+            (lblTitle || dn).appendChild(keeper);
+            // the field being typed in keeps the focus
+            keeper.onmousedown = function(e){
+                e.preventDefault();
+            };
             keeper.onclick = function(e){
                 dojo.stopEvent(e);
                 var n = genro.getDataNode(npath);
-                var currvalue = n.attr._keep;
-                sourceNode.widget.setKeeper(isNullOrBlank(currvalue));
+                //setKeeper stores false, not null: isNullOrBlank(false) never toggled it back on
+                sourceNode.widget.setKeeper(!n.attr._keep);
             }
         }
         var npath = sourceNode.absDatapath(sourceNode.attr.value);
         sourceNode.widget.setKeeper = function(keepOn){
             var n = genro.getDataNode(npath);
             let v = n.getValue();
-            genro.dom.setClass(dn.parentNode,'keeper_on',keepOn);
+            genro.dom.setClass(stateNode,'keeper_on',keepOn);
+            sourceNode.widget.focusNode.tabIndex = keepOn ? -1 : sourceNode.widget.tabIndex;
             n.attr._keep = keepOn;
             if(sourceNode.form){
                 sourceNode.form.setKeptData(npath.replace(sourceNode.absDatapath()+'.',''),v,n.attr._keep);
@@ -1313,9 +1331,9 @@ dojo.declare("gnr.widgets.video", gnr.widgets.baseHtml, {
         .catch(function(err) {
             console.log("An error occurred: " + err);
             if(onErrorGetUserMedia){
-                funcApply(onErrorGetUserMedia,{e:e});
+                funcApply(onErrorGetUserMedia,{e:err});
             }else{
-                genro.dlg.alert('Not allowed video capture '+e,'Error');
+                genro.dlg.alert('Not allowed video capture '+err,'Error');
             }
         });
     },
@@ -1640,6 +1658,83 @@ dojo.declare("gnr.widgets.Dialog", gnr.widgets.baseDojo, {
         }
     },
 
+    mixin_fitToContent:function(){
+        var that = this;
+        setTimeout(function(){that._fitToContent();},1);
+    },
+
+    mixin__observeContent:function(centerNode){
+        // content rendered after onLoaded (data triggers, innerHTML) refits the dialog too
+        if(this._contentObserver){
+            return;
+        }
+        var that = this;
+        this._contentObserver = new MutationObserver(function(){
+            that.sourceNode.delayedCall(function(){that._fitToContent();},50,'fitToContent');
+        });
+        this._contentObserver.observe(centerNode,{childList:true,subtree:true,characterData:true});
+    },
+
+    mixin__fitToContent:function(){
+        var frame = dijit.byNode(this.containerNode.firstChild);
+        var center = frame && frame.getChildren ? frame.getChildren().filter(function(child){
+            return child.region=='center';
+        })[0] : null;
+        if(!center){
+            return;
+        }
+        var centerNode = center.domNode;
+        this._observeContent(centerNode);
+        if(!this.open){
+            return;
+        }
+        if(!this._fitBase){
+            this._fitBase = {w:dojo.coords(this.domNode).w,centerWidth:centerNode.clientWidth};
+        }
+        // flow content only: a nested layout has no natural height, it takes the cap
+        var layouts = '.dijitBorderContainer,.dijitStackContainer,.dijitLayoutContainer';
+        if(centerNode.matches(layouts) || centerNode.querySelector(layouts)){
+            this._fittedSize = {h:Number.MAX_SAFE_INTEGER,w:this._fitBase.w};
+            this.adjustDialogSize();
+            return;
+        }
+        centerNode.style.overflow = 'auto';
+        // a hidden copy laid out with free height measures the content's natural size
+        var padding = dojo._getPadExtents(centerNode);
+        var probe = centerNode.cloneNode(true);
+        probe.removeAttribute('id');
+        dojo.style(probe,{position:'absolute',visibility:'hidden',left:'-10000px',top:'0px',
+                          right:'auto',bottom:'auto',width:(this._fitBase.centerWidth-padding.w)+'px',
+                          height:'auto',overflow:'visible'});
+        dojo.query('.dijitContentPane',probe).forEach(function(node){node.style.height='';});
+        // an iframe in the document loads its src: a same-size placeholder measures the same
+        var iframes = centerNode.getElementsByTagName('iframe');
+        dojo.forEach(dojo._toArray(probe.getElementsByTagName('iframe')),function(iframe,idx){
+            var placeholder = document.createElement('div');
+            var original = iframes[idx];
+            var display = dojo.style(original,'display');
+            dojo.style(placeholder,{width:original.offsetWidth+'px',height:original.offsetHeight+'px',
+                                    display:display=='inline'?'inline-block':display,
+                                    verticalAlign:dojo.style(original,'verticalAlign')});
+            iframe.parentNode.replaceChild(placeholder,iframe);
+        });
+        centerNode.parentNode.appendChild(probe);
+        var contentHeight = Math.ceil(probe.getBoundingClientRect().height);
+        var contentWidth = probe.scrollWidth;
+        probe.parentNode.removeChild(probe);
+        // summed from the parts, as containerNodeResize splits them: before the first
+        // layout the frame is collapsed and the dialog height says nothing
+        var bars = 0;
+        dojo.forEach(frame.getChildren(),function(child){
+            if(child.region=='top' || child.region=='bottom'){
+                bars += child.domNode.offsetHeight;
+            }
+        });
+        this._fittedSize = {h:dojo.coords(this.titleBar).h+2+bars+contentHeight,
+                            w:this._fitBase.w+Math.max(0,contentWidth-this._fitBase.centerWidth)};
+        this.adjustDialogSize();
+    },
+
     mixin_onShowing:function(){},
 
     mixin_onWindowResize:function(e){
@@ -1697,7 +1792,14 @@ dojo.declare("gnr.widgets.Dialog", gnr.widgets.baseDojo, {
         var c = dojo.coords(this.domNode);
         var doResize = false;
         var starting;
-        if(parentRatio){
+        if(this._fittedSize){
+            // autoSize: the content decides, windowRatio (default .9) is only the cap
+            var cap = windowRatio || .9;
+            c['h'] = Math.min(this._fittedSize.h,Math.floor(mainDiv.clientHeight*cap));
+            c['w'] = Math.min(this._fittedSize.w,Math.floor(mainDiv.clientWidth*cap));
+            doResize = true;
+        }
+        else if(parentRatio){
             w = parentDialog? dojo.coords(parentDialog.domNode):w;
             c['w'] = Math.floor(w.w*parentRatio);
             c['h'] = Math.floor(w.h*parentRatio);
@@ -1814,6 +1916,10 @@ dojo.declare("gnr.widgets.Dialog", gnr.widgets.baseDojo, {
                             if(!parentDialog && !this._windowConnectionResize){
                                 this._windowConnectionResize = dojo.connect(window,'onresize',widget,'onWindowResize');
                             }
+                            if (this == ds.slice(-1)[0]) {
+                                // dijit listens on keypress, which no longer fires for Tab
+                                this._modalconnects.push(dojo.connect(dojo.doc.documentElement, "onkeydown", this, "_onKey"));
+                            }
                         });
             dojo.connect(widget, "hide", widget,
                         function() {
@@ -1837,8 +1943,31 @@ dojo.declare("gnr.widgets.Dialog", gnr.widgets.baseDojo, {
         }
         dojo.connect(widget,'resize',widget,'containerNodeResize');
     },
-   versionpatch_11__onKey:function(){
-       //onkey block inactive (ckeditor)
+   versionpatch_11__onKey:function(evt){
+       // only the Tab trap of dijit's _onKey: the full one blocked every key typed outside the dialog (editors' popups)
+       if(evt.type!='keydown' || evt.keyCode!=dojo.keys.TAB){
+           return;
+       }
+       // noModal only lowers the z-index: a dialog is modal as long as its underlay blocks the page
+       var underlay = this._underlay && this._underlay.domNode;
+       if(!underlay || underlay.offsetParent===null){
+           return;
+       }
+       var node = evt.target;
+       if(node && node.closest && node.closest('.dijitPopup')){
+           return;
+       }
+       this._getFocusItems(this.domNode);
+       if(!dojo.isDescendant(node, this.domNode)){
+           dijit.focus(this._firstFocusItem);
+           dojo.stopEvent(evt);
+       }else if(node==this._lastFocusItem && !evt.shiftKey){
+           dijit.focus(this._firstFocusItem);
+           dojo.stopEvent(evt);
+       }else if(node==this._firstFocusItem && evt.shiftKey){
+           dijit.focus(this._lastFocusItem);
+           dojo.stopEvent(evt);
+       }
    },
     
     versionpatch_11__position: function() {
@@ -1961,13 +2090,9 @@ dojo.declare("gnr.widgets.SimpleTextarea", gnr.widgets.baseDojo, {
                 bottom._('div',{_class:'TAeditorPalette',title:'Open in a floating editor',connect_onclick:function(){
                     genro.dlg.floatingEditor(textarea,{});
                 }},{'doTrigger':false})
-                tag = 'ckeditor';
+                tag = 'joditEditor';
                 objectPop(areaAttr,'tag')
                 areaAttr['toolbar'] = false;
-                areaAttr['config_height']=objectPop(areaAttr,'height');
-                areaAttr['config_width']=objectPop(areaAttr,'width');
-
-
                 this._dojotag = null;
             }
             var textarea = top._(tag,areaAttr,notrigger).getParentNode();
@@ -2130,7 +2255,7 @@ dojo.declare("gnr.widgets.SimpleTextarea", gnr.widgets.baseDojo, {
                 },
                 onEnd: () => {
                     if(dictated){
-                        genro.wdg.getHandler('ckeditor').onSpeechEnd(editorSourceNode, dictated);
+                        genro.wdg.getHandler('joditEditor').onSpeechEnd(editorSourceNode, dictated);
                     }
                     stopListening();
                 }
@@ -4063,6 +4188,7 @@ dojo.declare("gnr.widgets.DateTextBox", gnr.widgets._BaseTextBox, {
         this._dojotag = 'DateTextBox';
         this._dtype = 'D';
     },
+    _pickerStartAttr: 'start_date',
     
     onChanged:function(widget, value) {
         //genro.debug('onChanged:'+value);
@@ -4081,8 +4207,18 @@ dojo.declare("gnr.widgets.DateTextBox", gnr.widgets._BaseTextBox, {
     // summary: open the TimePicker popup
     
     },
+    patch__open: function(){
+        //dijit builds the picker once, on the value or today, and reuses it: an empty
+        //field opens on the start_date/start_time reference, read now so it is current
+        this._open_replaced();
+        var reference = this.sourceNode.getAttributeFromDatasource(this.gnr._pickerStartAttr);
+        if(this._picker && !this.getValue() && reference instanceof Date && !isNaN(reference)){
+            this._picker.setValue(reference);
+        }
+    },
 
     creating: function(attributes, sourceNode) {
+        objectPop(attributes, this._pickerStartAttr);
         attributes.constraints = objectExtract(attributes, 'formatLength,datePattern,fullYear,min,max,strict,locale');
         if ('popup' in attributes && (objectPop(attributes, 'popup') === false)) {
             attributes.popupClass = null;
@@ -4299,7 +4435,10 @@ dojo.declare("gnr.widgets.TimeTextBox", gnr.widgets._BaseTextBox, {
             this._doChangeInData(widget.domNode, widget.sourceNode, null);
         }
     },
+    _pickerStartAttr: 'start_time',
+    patch__open: gnr.widgets.DateTextBox.prototype.patch__open,
     creating: function(attributes, sourceNode) {
+        objectPop(attributes, this._pickerStartAttr);
         if ('ftype' in attributes) {
             attributes.constraints['type'] = objectPop(attributes['ftype']);
         }
@@ -5430,6 +5569,10 @@ dojo.declare("gnr.widgets.FilteringSelect", gnr.widgets.BaseCombo, {
             }else{
                 //self._isvalid=false;
                 //self.validate(false);
+                // setDisplayedValue('') reports undefined: a quiet clear must not read as a change
+                if(priorityChange===false && isNullOrBlank(value)){
+                    self._lastValueReported = undefined;
+                }
                 self.valueNode.value = null;
                 self.setDisplayedValue('')
             }
@@ -5586,8 +5729,12 @@ dojo.declare("gnr.widgets.BaseSelect", null, {
                 this.setValue(this._lastValueReported, true);
             }else{
                 if (isNullOrBlank(displayedValue)){
-                     this.setValue(null, true);
-                     this.setDisplayedValue('');
+                    // validate_select runs inside the change below: an empty field, not a wrong search
+                    this._lastDisplayedValue = '';
+                    this.setValue(null, !isNullOrBlank(this._lastValueReported));
+                    // setDisplayedValue('') reports undefined: the clear is reported once, above
+                    this._lastValueReported = undefined;
+                    this.setDisplayedValue('');
                 }else{
                     if ( isNullOrBlank(value)){
                         this.setValue(null, true);

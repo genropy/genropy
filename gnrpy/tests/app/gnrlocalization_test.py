@@ -1,7 +1,19 @@
+import glob
+import os
+import pathlib
+import re
+import xml.etree.ElementTree as ET
+
 import pytest
 import gnr.app.gnrlocalization as gl
+from gnr.core.gnrbag import Bag
+from gnr.core.gnrconfig import getGenroRoot
+from gnr.core.gnrstring import flatten
 from gnr.sql.gnrsql_exceptions import GnrSqlMissingTable
 from common import BaseGnrAppTest
+
+REPO = pathlib.Path(__file__).resolve().parents[3]
+MASK = re.compile(r'\[\d+\]')
 
 class TestGnrLocalization(BaseGnrAppTest):
     app_name = 'gnr_it'
@@ -38,7 +50,7 @@ class TestGnrLocalization(BaseGnrAppTest):
         al._languages = dict(en="English", it="Italian")
 
 
-        tr = al.translate("goober", "en")
+        al.translate("goober", "en")
 
         # FIXME: won't work with a proper al.translator
         #al.autoTranslate("it")
@@ -153,3 +165,127 @@ class TestGnrLocalization(BaseGnrAppTest):
             r = al.getTranslation(txt, 'it')
             assert r['status'] == 'OK', txt
             assert r['translation'] == translation
+
+    def test_marker_inside_T_is_collected_under_the_runtime_key(self):
+        """
+        ``_T('!!Toggle')`` and a bare ``'!!Toggle'`` must land on the same
+        lockey the runtime asks for. The scanner used to keep the marker inside
+        the key of the ``_T(...)`` form (``en__toggle``, base ``!!Toggle``), so
+        the entry it wrote was never found again and the caption stayed English.
+        """
+        for source, lockey, base in (
+                ("bar._('lightbutton',{tip:_T('!!Toggle')});", 'en_toggle', 'Toggle'),
+                ("bar._('lightbutton',{tip:_T('Toggle')});", 'en_toggle', 'Toggle'),
+                ("var defaultTip = '!!Toggle';", 'en_toggle', 'Toggle'),
+                ("let title = _T('!![it]Nazione');", 'it_nazione', 'Nazione'),
+                ("let title = _T('!!{custom_key}Some caption');", 'en_custom_key',
+                 'Some caption')):
+            m = gl.LOCREGEXP.search(source)
+            assert m, source
+            text = m.group('text_emb') or m.group('text') or m.group('text_func')
+            key = (m.group('key_emb') or m.group('key') or m.group('key_func')
+                   or flatten(text))
+            lang = (m.group('lang_emb') or m.group('lang') or m.group('lang_func')
+                    or 'en')
+            assert text == base, source
+            assert '%s_%s' % (lang, key) == lockey, source
+
+    def test_marked_literals_in_expressions_are_localized(self):
+        """
+        Captions written as a default inside an expression (``_T(kw.label ||
+        '!!...')``) or passed along as a plain argument reach the dictionary
+        only through their ``!!`` marker: without it they never get an entry
+        and the widget shows the English text on every locale.
+        """
+        al = gl.AppLocalizer(self.app)
+        expected = {'!!Drop the file to import here':
+                        'Trascina qui il file da importare',
+                    '!!Press to open the file explorer':
+                        'Premi per aprire la finestra di selezione',
+                    '!!Fill parameters': 'Compila i parametri',
+                    '!!Grouping Pars': 'Parametri di raggruppamento',
+                    '!!Toggle': 'Mostra/Nascondi',
+                    '!!Read Only': 'Sola lettura',
+                    '!!Invalid fields': 'Campi non validi',
+                    '!!Row actions': 'Azioni riga',
+                    '!!Template not yet created': 'Template non ancora creato'}
+        for txt, translation in expected.items():
+            r = al.getTranslation(txt, 'it')
+            assert r['status'] == 'OK', txt
+            assert r['translation'] == translation, txt
+
+    def test_no_marker_leaks_into_a_collected_base(self):
+        """
+        A ``base`` starting with ``!!`` is a caption filed under a key nobody
+        ever looks up, and it is what an Italian user ends up reading when the
+        fallback kicks in. The marker belongs to the source, never to the
+        collected text.
+        """
+        genroroot = getGenroRoot()
+        paths = [os.path.join(genroroot, 'localization.xml')]
+        paths += glob.glob(os.path.join(genroroot, 'projects', 'gnrcore',
+                                        'packages', '*', 'localization.xml'))
+        polluted = []
+        for path in paths:
+            if not os.path.exists(path):
+                continue
+
+            def cb(node, path=path):
+                base = node.attr.get('base')
+                if base and base.startswith('!!'):
+                    polluted.append('%s: %s' % (path, node.label))
+            Bag(path).walk(cb)
+        assert not polluted, polluted
+
+    def test_same_basename_modules_keep_their_sections(self, tmp_path):
+        (tmp_path / 'grouplet.js').write_text("var msg = '!!Please complete required fields';")
+        (tmp_path / 'grouplet.py').write_text("caption = '!!Save draft'")
+        (tmp_path / 'localization.xml').write_text(
+            '<?xml version="1.0" encoding="UTF-8"?>\n<GenRoBag>'
+            '<grouplet path="grouplet.js" ext="js"><en_please_complete_required_fields'
+            ' base="Please complete required fields" it="Completa i campi obbligatori">'
+            '</en_please_complete_required_fields></grouplet>'
+            '<grouplet path="grouplet.py" ext="py"><en_save_draft base="Save draft" it="Salva bozza">'
+            '</en_save_draft></grouplet></GenRoBag>')
+        al = gl.AppLocalizer(self.app)
+        al.slots.append(dict(roots=[str(tmp_path)], destFolder=str(tmp_path),
+                             code='samebasename', protected=False, language='en'))
+        al.buildLocalizationDict()
+
+        al.updateLocalizationFiles(localizationBlock='samebasename')
+
+        lbag = al.getLocalizationBag(str(tmp_path))
+        assert lbag.getNode('grouplet').attr['ext'] == 'js'
+        assert lbag.getNode('grouplet_py').attr['ext'] == 'py'
+        assert 'grouplet.en_please_complete_required_fields' in lbag
+        assert 'grouplet_py.en_save_draft' in lbag
+        assert al.translate('!!Please complete required fields', 'it') == 'Completa i campi obbligatori'
+        assert al.translate('!!Save draft', 'it') == 'Salva bozza'
+
+    def test_autotranslate_keeps_the_base_text_for_the_base_language(self):
+        al = gl.AppLocalizer(self.app)
+        al.localizationDict = {'en_counter_s': {'base': 'Counter %s'},
+                               'en_fieldname_s_promised': {'base': '%(fieldname)s promised'}}
+        al.autoTranslate('en')
+        assert al.localizationDict['en_counter_s']['en'] == 'Counter %s'
+        assert al.localizationDict['en_fieldname_s_promised']['en'] == '%(fieldname)s promised'
+
+    def test_autotranslate_keeps_the_edge_spaces_of_the_base(self):
+        class TrimmingTranslator:
+            def translate(self, what, **kwargs):
+                return {'Pending changes in ': 'Modifiche pendenti in', ' of ': 'di'}[what]
+        al = gl.AppLocalizer(self.app)
+        al._translator = TrimmingTranslator()
+        al.localizationDict = {'en_pending_changes_in_': {'base': 'Pending changes in '},
+                               'en__of_': {'base': ' of '}}
+        al.autoTranslate('it')
+        assert al.localizationDict['en_pending_changes_in_']['it'] == 'Modifiche pendenti in '
+        assert al.localizationDict['en__of_']['it'] == ' di '
+
+
+@pytest.mark.parametrize('catalog', [REPO / 'localization.xml'] + sorted((REPO / 'projects').rglob('localization.xml')),
+                         ids=lambda p: str(p.relative_to(REPO)))
+def test_catalog_base_language_carries_no_autotranslate_masks(catalog):
+    masked = [el.tag for el in ET.parse(catalog).iter()
+              if MASK.search(el.get('en', '')) and not MASK.search(el.get('base', ''))]
+    assert not masked

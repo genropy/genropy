@@ -5,7 +5,6 @@
 import os
 import re
 import random
-import os
 import shutil
 import mimetypes
 import hashlib
@@ -242,9 +241,6 @@ class ServiceType(BaseServiceType):
 
     #def conf_vol(self):
     #    return dict(implementation='symbolic')
-    def getServiceFactory(self,implementation=None):
-        return self.implementations.get(implementation)
-    
 class StorageNode(object):
     def __str__(self):
         return 'StorageNode %s <%s>' %(self.service.service_implementation,self.internal_path)

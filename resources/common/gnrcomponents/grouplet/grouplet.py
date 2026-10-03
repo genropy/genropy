@@ -3,6 +3,7 @@ from gnr.core.gnrdecorator import extract_kwargs, public_method
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdict import dictExtract
 from gnr.core.gnrlang import gnrImport
+from gnr.core.gnrstring import templateReplace
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.web.gnrwebstruct import struct_method
 
@@ -13,7 +14,8 @@ class GroupletHandler(BaseComponent):
     @public_method
     def gr_loadGrouplet(self, pane, resource=None, table=None,
                         handlername=None, valuepath=None,
-                        grouplets_root=None,rootTag='div', **kwargs):
+                        grouplets_root=None,rootTag='div',
+                        mandatory_enforced=None, **kwargs):
         grouplets_root = grouplets_root or 'grouplets'
         if not resource:
             if not handlername:
@@ -43,12 +45,27 @@ class GroupletHandler(BaseComponent):
         handler = getattr(self, handlername)
         box_kw = dict(datapath=valuepath, grouplet_module=grouplet_module)
         info_method = getattr(self, '__info__', None)
-        if info_method:
-            grouplet_code = info_method().get('code')
-            if grouplet_code:
-                box_kw['grouplet_code'] = grouplet_code
+        info = info_method() if info_method else {}
+        grouplet_code = info.get('code')
+        if grouplet_code:
+            box_kw['grouplet_code'] = grouplet_code
         box = pane.child(rootTag,_class='grouplet_box', **box_kw)
-        return handler(box, **kwargs)
+        result = handler(box, **kwargs)
+        if info.get('mandatory'):
+            self._groupletRequireFields(box, info['mandatory'],
+                                        enforced_path=mandatory_enforced)
+        return result
+
+    def _groupletRequireFields(self, box, mandatory, enforced_path=None):
+        # the widgets bound to the mandatory fields, so the open grouplet shows what its menu entry asks for;
+        # in a groupletPanel they are required only while the panel enforces them (not on a draft record)
+        values = {f'^.{field.strip()}' for field in mandatory.split(',')}
+        notnull = f'^{enforced_path}' if enforced_path else True
+
+        def cb(node):
+            if node.attr.get('value') in values and 'validate_notnull' not in node.attr:
+                node.attr['validate_notnull'] = notnull
+        box.walk(cb)
 
     def _loadGroupletTopic(self, pane, topic_menu, table=None,
                            valuepath=None, grouplets_root=None,
@@ -224,13 +241,68 @@ class GroupletHandler(BaseComponent):
             """, name=name, **grouplet_kwargs)
         return root
 
+    @struct_method
+    def gr_groupletChoice(self, pane, field=None, table=None, columns=None, where=None,
+                          order_by=None, rows=None, value_column='pkey', glyph=None,
+                          title=None, note=None, caption_field=None, groups=None,
+                          autoNext=True, validate_notnull=True, **kwargs):
+        """Tiles that set `field` to one value of `rows` (or of a query on `table`,
+        kwargs are its parameters). glyph, title and note: a column, a $template
+        or a callable(row). groups: dicts of caption, condition(row), _class and
+        tint (a CSS colour washed over the tiles' background).
+        In a wizard step a click also advances it (autoNext). validate_notnull
+        False leaves the choice optional."""
+        if rows is None:
+            rows = self.db.table(table).query(columns=columns or '*', where=where,
+                                              order_by=order_by, **kwargs).fetch()
+
+        def render(spec, row):
+            if callable(spec):
+                return spec(row)
+            return templateReplace(spec, row) if '$' in spec else row.get(spec)
+
+        action = f'SET .{field} = _choice;'
+        if caption_field:
+            action += f' SET .{caption_field} = _caption;'
+        if autoNext:
+            action += ' gnr_grouplet.choiceNext(this);'
+        box = pane.div(_class='grouplet_choice')
+        for group in groups or [{}]:
+            condition = group.get('condition')
+            if group.get('caption'):
+                box.div(group['caption'], _class='grouplet_choice_separator')
+            tiles_kw = dict(style=f"--grouplet-choice-tint: {group['tint']}") if group.get('tint') else {}
+            tiles = box.div(_class='grouplet_choice_tiles', **tiles_kw)
+            for row in rows:
+                if condition and not condition(row):
+                    continue
+                value = row[value_column]
+                caption = render(title, row) if title else value
+                tile = tiles.lightButton(action=action, _choice=value, _caption=caption,
+                                         _class=' '.join(filter(None, ['grouplet_choice_tile',
+                                                                       group.get('_class')])))
+                tile.dataController("genro.dom.setClass(this.getParentNode(), 'grouplet_choice_selected', current == _choice);",
+                                    current=f'^.{field}', _choice=value, _onBuilt=True)
+                if glyph:
+                    tile.div(render(glyph, row), _class='grouplet_choice_glyph')
+                text = tile.div(_class='grouplet_choice_text')
+                text.div(caption, _class='grouplet_choice_title')
+                if note:
+                    text.div(render(note, row), _class='grouplet_choice_note')
+        # without the attribute a grouplet's __info__ mandatory can still require it
+        notnull_kw = dict(validate_notnull=validate_notnull) if validate_notnull else {}
+        box.textbox(value=f'^.{field}', hidden=True, **notnull_kw)
+        return box
+
     @extract_kwargs(grouplet=dict(slice_prefix=False, pop=True))
     @struct_method
     def gr_groupletPanel(self, pane, table=None, topic=None, value=None,
                          frameCode=None, grouplets_root=None,
                          useForm=True, useRecordPath=False,
-                         menuCallback=None,
+                         menuCallback=None, startResource=None,
                          grouplet_kwargs=None, **kwargs):
+        # startResource: the group the panel opens on instead of an empty pane — True for the
+        # first leaf of the menu, or a resource path ('topic/grouplet')
         frameCode = frameCode or 'grplt_panel'
         if useRecordPath:
             grouplet_kwargs['formDatapath'] = '.record'
@@ -259,16 +331,56 @@ class GroupletHandler(BaseComponent):
         else:
             menu = self.gr_getGroupletMenu(table=table, topic=topic,
                                            grouplets_root=grouplets_root)
+        mandatory_locations = self._groupletPanel_mandatoryPaths(menu, topic=topic)
+        if mandatory_locations:
+            grouplet_kwargs['grouplet_remote_mandatory_enforced'] = '#ANCHOR.mandatory_enforced'
         if topic:
             grouplet_kwargs['grouplet_remote_topic'] = topic
-            return self._groupletPanel_topic(
+            root = self._groupletPanel_topic(
                 pane, menu, frameCode=frameCode, formId=formId,
                 useForm=useForm,
                 grouplet_kwargs=grouplet_kwargs, **kwargs)
-        return self._groupletPanel_tree(
-            pane, menu, frameCode=frameCode, formId=formId,
-            useForm=useForm,
-            grouplet_kwargs=grouplet_kwargs, **kwargs)
+        else:
+            root = self._groupletPanel_tree(
+                pane, menu, frameCode=frameCode, formId=formId,
+                useForm=useForm,
+                grouplet_kwargs=grouplet_kwargs, **kwargs)
+        if startResource:
+            root.dataController("gnr_grouplet.panelStart(this, startResource, mode);",
+                                startResource=startResource,
+                                mode='topic' if topic else 'tree', _onBuilt=100)
+        if mandatory_locations and value:
+            base = value.lstrip('^=')
+            triggers = {f'mandatory_{i}': f'^{base}.{location}'
+                        for i, location in enumerate(sorted(mandatory_locations))}
+            if formId:
+                # the open grouplet's edits, also those an invalid inner form keeps from its location
+                inner_datapath = (grouplet_kwargs.get('grouplet_datapath') or grouplet_kwargs.get('datapath')
+                                  or f'gnr.grouplet_{formId}')
+                inner_record = (grouplet_kwargs.get('grouplet_formDatapath') or grouplet_kwargs.get('formDatapath')
+                                or '.record')
+                triggers['inner_record'] = f'^{inner_datapath}{inner_record}'
+            root.dataController(
+                "gnr_grouplet.panelCheckMandatory(this, basePath, innerFormId);",
+                basePath=base, innerFormId=formId, formsubscribe_onLoaded=True,
+                _onBuilt=1, **triggers)
+        return root
+
+    def _groupletPanel_mandatoryPaths(self, menu, topic=None):
+        # the data location of a grouplet, as GroupletForm.updateFormFromGroupletMeta computes it
+        locations = set()
+
+        def cb(node):
+            if not node.attr.get('mandatory'):
+                return
+            resource = node.attr['resource']
+            if topic and resource.startswith(f'{topic}/'):
+                resource = resource[len(topic) + 1:]
+            location = node.attr.get('locationpath') or resource.replace('/', '.')
+            node.attr['mandatory_path'] = location
+            locations.add(location)
+        menu.walk(cb)
+        return locations
 
     def _groupletPanel_topic(self, pane, menu, frameCode=None,
                              formId=None, useForm=True,
@@ -281,8 +393,8 @@ class GroupletHandler(BaseComponent):
         bar.mb.multibutton(value='^.selected_code',
                            storepath='.grouplet_menu')
         bar.dataController(
-            "gnr_grouplet.panelSelectFromCode(this, code);",
-            code='^.selected_code', _onBuilt=1)
+            "gnr_grouplet.panelSelectFromCode(this, code, innerFormId);",
+            code='^.selected_code', innerFormId=formId, _onBuilt=1)
         center = frame.center.contentPane(overflow='auto')
         if useForm:
             frame.dataController("""
@@ -294,17 +406,26 @@ class GroupletHandler(BaseComponent):
                 }
             """, barId=bar_id,
                 **{f'subscribe_form_{formId}_onStatusChange': True})
-            bar.dataController("""
-                                 if(genro.formById(innerFormId).status!='noItem'){
-                                    genro.formById(innerFormId).reload()
-                                 }
-                                 """,
-                                 innerFormId=formId,
-                                 formsubscribe_onLoaded=True)
+            self._groupletPanel_innerReload(bar, formId)
             center.GroupletForm(**grouplet_kwargs)
         else:
             center.grouplet(**grouplet_kwargs)
         return frame
+
+    def _groupletPanel_innerReload(self, node, formId):
+        # the open group follows the outer record on every load, except right after the outer
+        # form's own save: an invalid edit the group still holds was not flushed and must stay
+        node.dataController("this.setRelativeData('#ANCHOR.after_save', true);",
+                            formsubscribe_onSaved=True)
+        node.dataController("""
+            var inner = genro.formById(innerFormId);
+            var keep = afterSave && inner.changed;
+            this.setRelativeData('#ANCHOR.after_save', false);
+            if(inner.status!='noItem' && !keep){
+                inner.reload();
+            }
+            """, innerFormId=formId, afterSave='=#ANCHOR.after_save',
+            formsubscribe_onLoaded=True)
 
     def _groupletPanel_tree(self, pane, menu, frameCode=None,
                             formId=None, useForm=True,
@@ -324,19 +445,16 @@ class GroupletHandler(BaseComponent):
             _class='grouplet_tree',
             selectedLabelClass='selectedTreeNode',
             openOnClick=True,
+            selectedPath='^.selected_treepath',
             nodeId=f'{frameCode}_tree',
             getLabelClass="""
-                if(!node.attr.grouplet_caption){ return 'grouplet_topic'; }
-            """,
-            connect_onClick="""
-                if($2.item.attr.resource && $2.item.attr.grouplet_caption){
-                    let itemInfo = $2.item.attr;
-                    PUT .grouplet_info = new gnr.GnrBag(itemInfo);
-                    PUT .selected_resource = itemInfo.resource;
-                    SET .selected_caption = itemInfo.grouplet_caption;
-                    SET .selected_fullpath = $2.item.getFullpath()
+                var labelClass = node.attr.grouplet_caption ? '' : 'grouplet_topic';
+                if(node.attr.mandatory_status){
+                    labelClass += ' grouplet_mandatory_' + node.attr.mandatory_status;
                 }
-            """)
+                return labelClass;
+            """,
+            connect_onClick=f"gnr_grouplet.panelTreeClick(this, $2, '{formId or ''}');")
         grouplet_kwargs['grouplet_remote__reloader'] = '^#ANCHOR.selected_fullpath'
         right = bc.borderContainer(region='center')
         top = right.contentPane(region='top',
@@ -356,33 +474,39 @@ class GroupletHandler(BaseComponent):
             """, titleId=title_id,
                 selectedResource='=.selected_resource',
                 **{f'subscribe_form_{formId}_onStatusChange': True})
-            right.dataController("""
-                                 if(genro.formById(innerFormId).status!='noItem'){
-                                    genro.formById(innerFormId).reload()
-                                 }
-                                 """,
-                                 innerFormId=formId,
-                                 formsubscribe_onLoaded=True)
+            self._groupletPanel_innerReload(right, formId)
             center.GroupletForm(**grouplet_kwargs)
         else:
             center.grouplet(**grouplet_kwargs)
         return bc
 
-    @extract_kwargs(grouplet=dict(slice_prefix=False, pop=True))
+    @extract_kwargs(grouplet=dict(slice_prefix=False, pop=True), remote=True)
     @struct_method
     def gr_groupletWizard(self, pane, table=None, topic=None, value=None,
                           frameCode=None, completeLabel=None,
-                          closeLabel=None,
-                          saveMainFormOnComplete=None,
-                          grouplets_root=None,grouplet_kwargs=True, **kwargs):
+                          closeLabel=None, backLabel=None,
+                          saveMainFormOnComplete=None, saveOnNext=None, resumeStepField=None,
+                          grouplets_root=None, grouplet_kwargs=True, remote_kwargs=None,
+                          stepperPosition=None, stepSummary=False, saveLabel=None,
+                          _confirmedReadOnly=False, _bottomCb=None,
+                          _confirmOnLast=False, **kwargs):
         frameCode = frameCode or 'grplt_wizard'
-        completeLabel = completeLabel or 'Confirm'
-        closeLabel = closeLabel or 'Close'
+        completeLabel = completeLabel or '!![en]Confirm'
+        closeLabel = closeLabel or '!![en]Close'
+        backLabel = backLabel or '!![en]Back'
         root_info = self._getGroupletsRootInfo(table=table, topic=topic,
                                                grouplets_root=grouplets_root)
         summary_template = root_info.get('summary_template')
         summary_editable = root_info.get('summary_editable', False)
         has_summary = bool(summary_template)
+        step_remote = {}
+        for key in [k for k in kwargs if '_remote_' in k]:
+            step_remote[tuple(key.split('_remote_', 1))] = kwargs.pop(key)
+        vertical = stepperPosition == 'left'
+        if vertical:
+            # the rail runs the full height, the footer sits under the step only
+            kwargs.setdefault('design', 'sidebar')
+            kwargs['_class'] = ' '.join(filter(None, [kwargs.get('_class'), 'wizard_vertical']))
         frame = pane.framePane(frameCode=frameCode, _anchor=True, **kwargs)
         menu = self.gr_getGroupletMenu(table=table, topic=topic,
                                        grouplets_root=grouplets_root)
@@ -395,16 +519,22 @@ class GroupletHandler(BaseComponent):
         total_steps = len(menu)
         frame.data('.wizard_steps', menu)
         frame.data('.step_index', 0)
+        frame.data('.wizard_last_index', total_steps - 1)
         if has_summary:
             frame.data('.summary_editable', summary_editable)
         menu_nodes = menu.getNodes()
+        step_labels = [n.label for n in menu_nodes]
         first_node = menu_nodes[0] if menu_nodes else None
         if first_node:
             frame.data('.current_resource', first_node.attr.get('resource'))
+            frame.data('.step_auto_next', bool(first_node.attr.get('autoNext')))
             frame.data('.next_label',
                        menu_nodes[1].attr.get('grouplet_caption')
                        if total_steps > 1 else completeLabel)
-        stepper_bar = frame.top.div(_class='wizard_stepper_bar')
+        if vertical:
+            stepper_bar = frame.left.div(_class='wizard_stepper_bar wizard_stepper_vertical')
+        else:
+            stepper_bar = frame.top.div(_class='wizard_stepper_bar')
         if has_summary:
             summary_caption = root_info.get('summary_caption', 'Summary')
             stepper_bar.div(summary_caption,
@@ -427,14 +557,99 @@ class GroupletHandler(BaseComponent):
             item.div(str(i + 1), _class='wizard_circle')
             item.div(mnode.attr.get('grouplet_caption'),
                      _class='wizard_caption')
+            # the top stepper has no room for a summary
+            step_template = mnode.attr.get('template') if stepSummary and vertical else None
+            if step_template:
+                item.div(template=step_template, datasource=value,
+                         _class='wizard_step_summary')
         step_form_id = f'{frameCode}_step_form'
+        # The reload that follows the wizard's own save (onSaved sets
+        # wizard_saved_pkey before it, this load consumes it) stays on the step,
+        # unless it switched read-only (a confirm). After the insert of an
+        # advance it enters the step the advance left pending: that step is
+        # built on the saved record (wizardStepForward).
+        # Another load of the same record (a reload after an rpc) stays on the
+        # step and rebuilds it, unless it switched read-only.
+        # A different or new record repositions: first step, the step stored in
+        # resumeStepField, or the last one when read-only. SET, not FIRE: FIRE
+        # leaves step_index null and the next advance would restart from 0.
+        # Already on the target step, wizard_build rebuilds it: its content
+        # still shows the record as it was.
         on_loaded_js = """
-            if(this.form.isNewRecord()){
-                FIRE .step_index = 0;
+            var pkey = this.form.getCurrentPkey();
+            var isNew = this.form.isNewRecord();
+            var ownSave = !isNew && pkey == _saved_pkey;
+            SET .wizard_saved_pkey = null;
+            SET .wizard_pending_index = null;
+            var confirmed = !isNew && !this.form.isDraft();
+            var readOnly = confirmed_ro && !isNew && pkey != _reopened
+                           && (confirmed || this.form.isProtectWrite());
+            var sameMode = !readOnly == !_was_readonly;
+            var sameRecord = !isNew && pkey == _loaded_pkey && sameMode;
+            SET .wizard_readonly = readOnly;
+            SET .wizard_confirmed = confirmed;
+            SET .wizard_loaded_pkey = pkey;
+            if(ownSave && sameMode){
+                if(_pending_index != null){
+                    SET .step_index = _pending_index;
+                }
+                return;
+            }
+            if(sameRecord){
+                var current = _steps.getNodes()[_step_index];
+                gnr_grouplet.wizardResolveRemote(this, current ? current.label : null);
+                FIRE .wizard_build;
+            }else{
+                var nodes = _steps.getNodes();
+                var target = 0;
+                if(readOnly){
+                    target = nodes.length - 1;
+                }else if(!isNew && step_field){
+                    var stored = this.form.getFormData().getItem(step_field);
+                    target = Math.max(nodes.findIndex(function(n){return n.label == stored;}), 0);
+                }
+                if(nodes[target] && _current_resource == nodes[target].attr.resource){
+                    gnr_grouplet.wizardResolveRemote(this, nodes[target].label);
+                    FIRE .wizard_build;
+                }
+                SET .step_index = target;
+                SET .wizard_step_name = nodes[target] ? nodes[target].label : null;
             }
         """
+        # True saves on every advance, step names only on leaving those steps
+        if saveOnNext and saveOnNext is not True:
+            save_steps = saveOnNext.split(',') if isinstance(saveOnNext, str) else list(saveOnNext)
+            unknown = [s for s in save_steps if s not in step_labels]
+            if unknown:
+                raise ValueError(f'groupletWizard: no step {", ".join(unknown)} for saveOnNext')
+            saveOnNext = ','.join(save_steps)
+        if saveOnNext:
+            frame.data('.wizard_save_on_next', saveOnNext)
+        # The current step lives in the wizard's own data and reaches the
+        # record inside a save the form is already making. The one move that
+        # writes it on its own is an advance past the stored step: progress is
+        # a change, looking back is not (_wizardSetStepName).
+        if resumeStepField and not has_summary:
+            frame.data('.wizard_step_field', resumeStepField)
+            pane.dataController("""
+                var record = this.form.getFormData();
+                if(step_name && record.getItem(step_field) != step_name){
+                    record.setItem(step_field, step_name);
+                }
+            """, _fired='^#FORM.controller.saving', step_name='=.wizard_step_name',
+                step_field=resumeStepField)
+        if not has_summary:
+            pane.dataController("SET .wizard_saved_pkey = $1.pkey;",
+                                formsubscribe_onSaved=True)
+            # a save followed by no load (a dismiss) must not mark the next one
+            pane.dataController("SET .wizard_saved_pkey = null; SET .wizard_loaded_pkey = null;",
+                                formsubscribe_onDismissed=True)
+        # a refused insert brings no reload to enter the pending step
+        pane.dataController("SET .wizard_pending_index = null;",
+                            formsubscribe_onSaveFailed=True)
         if has_summary:
             on_loaded_js = """
+                SET .wizard_pending_index = null;
                 SET .wizard_showing_summary = false;
                 SET .wizard_page = 'steps';
                 if(this.form.isNewRecord()){
@@ -444,14 +659,84 @@ class GroupletHandler(BaseComponent):
                 }
             """
         pane.dataController(on_loaded_js,
-                            innerFormId=step_form_id,
                             frameCode=frameCode,
+                            _saved_pkey='=.wizard_saved_pkey',
+                            _pending_index='=.wizard_pending_index',
+                            _loaded_pkey='=.wizard_loaded_pkey',
+                            _was_readonly='=.wizard_readonly',
+                            _step_index='=.step_index',
+                            _current_resource='=.current_resource',
+                            _steps='=.wizard_steps',
+                            _reopened='=#FORM.wizard_reopened',
+                            step_field=resumeStepField,
+                            confirmed_ro=_confirmedReadOnly,
                             formsubscribe_onLoaded=True)
+        if _confirmedReadOnly:
+            # <frameCode>_reopen {step}: a confirmed record opens for editing
+            # on that step, until it is saved or the form is dismissed
+            pane.dataController("""
+                SET #FORM.wizard_reopened = this.form.getCurrentPkey();
+                this.form.setLocked(false);
+                SET .wizard_readonly = false;
+                var nodes = _steps.getNodes();
+                var target = Math.max(nodes.findIndex(function(n){return n.label == step;}), 0);
+                if(nodes[target] && _current_resource == nodes[target].attr.resource){
+                    gnr_grouplet.wizardResolveRemote(this, nodes[target].label);
+                    FIRE .wizard_build;
+                }
+                SET .step_index = target;
+                SET .wizard_step_name = nodes[target] ? nodes[target].label : null;
+            """, _steps='=.wizard_steps', _current_resource='=.current_resource',
+                **{f'subscribe_{frameCode}_reopen': True})
+            # an advance saves a stored record without reloading it: reload it,
+            # to lock it again and build the next step on what was saved
+            pane.dataController("""if(!reopened || $1.pkey != reopened){ return; }
+                                   SET #FORM.wizard_reopened = null;
+                                   this.form.reload();""",
+                                reopened='=#FORM.wizard_reopened',
+                                formsubscribe_onSaved=True)
+            # an advance with nothing to save reloads nothing: reaching the last
+            # step locks the record again all the same
+            pane.dataController("""if(!reopened || idx != last || this.form.lazySaving){ return; }
+                                   SET #FORM.wizard_reopened = null;
+                                   SET .wizard_readonly = true;
+                                   this.form.setLocked(true);""",
+                                idx='^.step_index', last='=.wizard_last_index',
+                                reopened='=#FORM.wizard_reopened')
+            pane.dataController("SET #FORM.wizard_reopened = null;",
+                                formsubscribe_onDismissed=True)
+        # the step form saves even when incomplete, so Back keeps what was
+        # typed: validity is checked by the wizard on Next and on Confirm.
+        # As a child of the surrounding form, its pending changes are asked
+        # about when that form is dismissed or navigated away.
         grouplet_kwargs.update(resource='^#ANCHOR.current_resource',
                            value=value,
                            loadOnBuilt=True, formId=step_form_id,
-                           form_modalForm=True)
+                           form_modalForm=True, form_allowSaveInvalid=True,
+                           form_pendingChangesSaveSlot=False,
+                           _onRemote="gnr_grouplet.wizardRegisterStep(this.form);",
+                           grouplet_remote__wizard_build='^#ANCHOR.wizard_build')
         grouplet_kwargs['rootTag'] = 'contentPane'
+        # remote_<name> reaches every step, <step>_remote_<name> only that one.
+        # Both resolve where they are written, not inside the step (where #FORM
+        # and relative paths would mean the step form): the wizard reads them
+        # in its own context before each build (wizardResolveRemote).
+        remote_specs = Bag()
+        specs = [(None, name, v) for name, v in (remote_kwargs or {}).items()]
+        for (step, name), v in step_remote.items():
+            if step not in step_labels:
+                raise ValueError(f'groupletWizard: no step {step!r} for {step}_remote_{name}')
+            specs.append((step, name, v))
+        for step, name, remote_value in specs:
+            spec = dict(name=name, step=step)
+            if isinstance(remote_value, str) and remote_value[:1] in ('=', '^'):
+                spec['path'] = remote_value[1:]
+            else:
+                spec['value'] = remote_value
+            remote_specs.setItem(f'r_{len(remote_specs)}', None, **spec)
+            grouplet_kwargs[f'grouplet_remote_{name}'] = f'=#ANCHOR.wizard_remote.{name}'
+        if remote_specs:
+            frame.data('.wizard_remote_specs', remote_specs)
         if table:
             grouplet_kwargs['table'] = table
         if grouplets_root:
@@ -472,27 +757,46 @@ class GroupletHandler(BaseComponent):
                                      _class='wizard_step_pane').GroupletForm(
                 **grouplet_kwargs)
         bottom = frame.bottom.div(_class='wizard_bottom_bar')
+        back_kwargs = dict(_class='wizard_back_btn',
+                           action="gnr_grouplet.wizardGoTo(this, _idx-1, _frameCode);",
+                           _idx='^.step_index', _frameCode=frameCode)
+        if has_summary:
+            back_kwargs['hidden'] = '==_idx==0 || _showing'
+            back_kwargs['_showing'] = '^.wizard_showing_summary'
+        else:
+            back_kwargs['hidden'] = '==_idx==0 || _readonly'
+            back_kwargs['_readonly'] = '^.wizard_readonly'
+        bottom.lightButton(backLabel, **back_kwargs)
+        if _bottomCb:
+            _bottomCb(bottom)
         if has_summary:
             bottom.lightButton('^.next_label',
                                _class='wizard_next_btn',
                                action="gnr_grouplet.wizardNext(this, _frameCode);",
                                _frameCode=frameCode,
-                               hidden='==_showing',
-                               _showing='^.wizard_showing_summary')
+                               hidden='==_showing || _auto',
+                               _showing='^.wizard_showing_summary',
+                               _auto='^.step_auto_next')
             bottom.lightButton(closeLabel,
                                _class='wizard_close_btn',
                                action="this.form.dismiss();",
                                hidden='==!_showing',
                                _showing='^.wizard_showing_summary')
         else:
+            # with _confirmOnLast the last step's buttons come from _bottomCb
             bottom.lightButton('^.next_label',
                                _class='wizard_next_btn',
                                action="gnr_grouplet.wizardNext(this, _frameCode);",
-                               _frameCode=frameCode)
+                               _frameCode=frameCode,
+                               hidden='==_ro || (_col && _idx==_last) || _auto',
+                               _ro='^.wizard_readonly', _col=_confirmOnLast,
+                               _auto='^.step_auto_next',
+                               _idx='^.step_index', _last='^.wizard_last_index')
         frame.dataController(
-            "gnr_grouplet.wizardUpdateStep(this, idx, _completeLabel, _frameCode);",
+            "gnr_grouplet.wizardUpdateStep(this, idx, _completeLabel, _frameCode, _saveLabel);",
             idx='^.step_index',
-            _completeLabel=completeLabel, _frameCode=frameCode, _onBuilt=True)
+            _completeLabel=completeLabel, _frameCode=frameCode,
+            _saveLabel=saveLabel, _onBuilt=True)
         if saveMainFormOnComplete:
             if has_summary:
                 frame.data('.wizard_pending_summary', False)
@@ -523,6 +827,130 @@ class GroupletHandler(BaseComponent):
                 SET .wizard_showing_summary = true;
             """, **{f'subscribe_{frameCode}_show_summary': True})
         return frame
+
+    @struct_method
+    def gr_groupletWizardForm(self, form, pane=None, frameCode=None,
+                              saveOnNext=True, confirmedReadOnly=False,
+                              draftConfirm=False, backToDraft=None,
+                              saveDraftLabel=None, backToDraftLabel=None,
+                              confirmAsk=None, backToDraftAsk=None, **kwargs):
+        """The wizard as the mode of a th form, called from th_form: no toolbar,
+        no padlock, a save on every advance, and the last step saves and closes.
+        saveOnNext may name the steps (comma-separated) whose advance saves,
+        the others save nothing; saveLabel is the Next label of those steps.
+        confirmedReadOnly opens a confirmed (or protect_write) record on the
+        last step, locked and without navigation, the record saved by an
+        advance included. On a draftField table confirmed means not a draft,
+        so new records must start as drafts; on any other table every saved
+        record is confirmed. draftConfirm (implies
+        confirmedReadOnly) splits a draft's last step into Save draft (saves
+        and closes) and completeLabel (confirms, saves and reloads read-only);
+        a confirmed record gets Back to draft in place of Back, if backToDraft
+        allows it (True: everyone, a string: the user tags). On a table with no
+        drafts, publishing <frameCode>_reopen with {step} opens a confirmed
+        record for editing on that step, locked again once saved."""
+        confirmedReadOnly = confirmedReadOnly or draftConfirm
+        # Emptied, not removed: later builds still insert into the slot.
+        top = form.getNode('top')
+        if top is not None:
+            for label in list(top.value.keys()):
+                top.value.popNode(label)
+        form.attributes['form_parentLock'] = False
+        # the record is saved by the wizard only, never from Pending changes
+        form.attributes['form_pendingChangesSaveSlot'] = False
+        form.dataController("""
+            var readOnly = confirmed_ro && !this.form.isNewRecord()
+                           && this.form.getCurrentPkey() != reopened
+                           && (!this.form.isDraft() || this.form.isProtectWrite());
+            if(!!this.form.locked != readOnly){ this.form.setLocked(readOnly); }
+        """, confirmed_ro=confirmedReadOnly, reopened='=#FORM.wizard_reopened',
+            formsubscribe_onLoaded=True)
+        frameCode = frameCode or f"{form.attributes['formId']}_wizard"
+        form.dataController("this.form.save({destPkey:'*dismiss*', always:true});",
+                            **{f'subscribe_{frameCode}_complete': True})
+        bottomCb = None
+        if draftConfirm:
+            bottomCb = self._wizardDraftButtons(form, frameCode=frameCode,
+                                                backToDraft=backToDraft,
+                                                completeLabel=kwargs.get('completeLabel'),
+                                                saveDraftLabel=saveDraftLabel,
+                                                backToDraftLabel=backToDraftLabel,
+                                                confirmAsk=confirmAsk,
+                                                backToDraftAsk=backToDraftAsk)
+        if pane is None:
+            # a border region: a plain contentPane does not pass a dialog's
+            # resize down to the wizard's frame, which then stays 0 high
+            pane = form.center.borderContainer().contentPane(region='center')
+        return pane.groupletWizard(table=form.attributes.get('table'),
+                                   value='^.record', frameCode=frameCode,
+                                   saveOnNext=saveOnNext,
+                                   _confirmedReadOnly=confirmedReadOnly,
+                                   _confirmOnLast=draftConfirm,
+                                   _bottomCb=bottomCb, **kwargs)
+
+    def _wizardDraftButtons(self, form, frameCode=None, backToDraft=None,
+                            completeLabel=None, saveDraftLabel=None,
+                            backToDraftLabel=None, confirmAsk=None,
+                            backToDraftAsk=None):
+        completeLabel = completeLabel or '!![en]Confirm'
+        backToDraftLabel = backToDraftLabel or '!![en]Back to draft'
+        back_tags = None if backToDraft is True else backToDraft
+        can_back = bool(backToDraft) and self.application.checkResourcePermission(
+            back_tags, self.userTags)
+        if backToDraft:
+            # the rpc reads its permission from here, never from the client
+            with self.pageStore() as store:
+                store.setItem(f'grouplet_wizard.{frameCode}.back_to_draft_table',
+                              form.attributes.get('table'))
+                store.setItem(f'grouplet_wizard.{frameCode}.back_to_draft_tags', back_tags)
+        form.dataController(f"gnr_grouplet.wizardConfirm('{frameCode}');",
+                            _ask=confirmAsk or '!![en]Once confirmed, the record can no longer be edited.',
+                            _ask_title=completeLabel,
+                            **{f'subscribe_{frameCode}_confirm': True})
+        form.dataController("SET .wizard_confirming = false;", formsubscribe_onSaved=True)
+        # a refused confirm must not leave the record flagged for the next save
+        form.dataController("""
+            if(!confirming){ return; }
+            SET .wizard_confirming = false;
+            this.form.setDraft(true);
+        """, confirming='=.wizard_confirming', formsubscribe_onSaveFailed=True)
+        if can_back:
+            # the method object, not its name: it carries the mixin path, so the
+            # rpc finds it also on a page that got the component through a th resource
+            form.dataRpc(None, self.grouplet_wizardBackToDraft,
+                         frameCode=frameCode, pkey='=#FORM.pkey',
+                         _onResult='this.form.reload();',
+                         _ask=backToDraftAsk or '!![en]The record goes back to draft and can be edited again.',
+                         _ask_title=backToDraftLabel,
+                         **{f'subscribe_{frameCode}_back_to_draft': True})
+
+        def bottomCb(bottom):
+            if can_back:
+                bottom.lightButton(backToDraftLabel, _class='wizard_back_btn',
+                                   action="genro.publish(_fc + '_back_to_draft');",
+                                   _fc=frameCode,
+                                   hidden='==!(_ro && _c)', _ro='^.wizard_readonly',
+                                   _c='^.wizard_confirmed')
+            last_kw = dict(hidden='==_ro || _idx!=_last', _ro='^.wizard_readonly',
+                           _idx='^.step_index', _last='^.wizard_last_index',
+                           _fc=frameCode)
+            bottom.lightButton(saveDraftLabel or '!![en]Save draft',
+                               _class='wizard_save_draft_btn',
+                               action="gnr_grouplet.wizardNext(this, _fc);", **last_kw)
+            bottom.lightButton(completeLabel, _class='wizard_next_btn',
+                               action="genro.publish(_fc + '_confirm');", **last_kw)
+        return bottomCb
+
+    @public_method
+    def grouplet_wizardBackToDraft(self, frameCode=None, pkey=None):
+        store = self.pageStore()
+        table = store.getItem(f'grouplet_wizard.{frameCode}.back_to_draft_table')
+        tags = store.getItem(f'grouplet_wizard.{frameCode}.back_to_draft_tags')
+        if not (table and pkey) or not self.application.checkResourcePermission(tags, self.userTags):
+            raise self.exception('generic', msg='!![en]Not allowed to take this record back to draft')
+        with self.db.table(table).recordToUpdate(pkey) as record:
+            record['__is_draft'] = True
+        self.db.commit()
 
     def _getGroupletResources(self, table=None, topic=None,
                               grouplets_root=None):
@@ -734,7 +1162,7 @@ class GroupletGridHandler(BaseComponent):
     @extract_kwargs(
         grouplet=dict(slice_prefix=False, pop=True),
         store= dict(slice_prefix=False,pop=True),
-        additem=True, delitem=True, editmenu=True,
+        additem=True, delitem=True, editmenu=True, totals=True,
     )
     @struct_method
     def gr_groupletGrid(self, pane, datapath=None, storepath=None,
@@ -755,11 +1183,15 @@ class GroupletGridHandler(BaseComponent):
                         afterSelfDropRows=None,
                         minRows=0, maxRows=None,
                         defaultRow=None,
+                        rowTemplate=None,
+                        selectionmenu=None, rowCheckbox=False,
                         counterField=None,
+                        formulas=None, totals=None,
                         grouplet_kwargs=None,
                         additem_kwargs=None,
                         delitem_kwargs=None,
                         editmenu_kwargs=None,
+                        totals_kwargs=None,
                         store_kwargs=None,
                         nodeId=None, **kwargs):
         # Author-supplied nodeIds inside the template must bake in `rowKey`
@@ -800,6 +1232,33 @@ class GroupletGridHandler(BaseComponent):
             flavours.append('grouplet_grid--framed')
         if fillParent:
             flavours.append('grouplet_grid--fill')
+        if additem == 'phantom' and not resourceField:
+            flavours.append('grouplet_grid--phantom')
+        entry_mode = additem == 'entry' and not resourceField
+        if entry_mode:
+            flavours.append('grouplet_grid--entry')
+            if resource and not rowTemplate:
+                rowTemplate = self.gr_getTemplatePars(
+                    resource=resource, table=table,
+                    grouplets_root=grouplets_root).get('template')
+            if rowTemplate:
+                flavours.append('grouplet_grid--templated')
+        else:
+            rowTemplate = None
+        # actions on several selected rows: rows are selectable in template
+        # mode; delete is preset whenever rows can be deleted
+        if not rowTemplate or selectionmenu is False:
+            selectionmenu = {}
+        elif selectionmenu is None:
+            selectionmenu = {'delete': True} if delitem else {}
+        rowCheckbox = bool(rowCheckbox and selectionmenu)
+        if rowCheckbox:
+            flavours.append('grouplet_grid--checkbox')
+        totals_kwargs = dict(totals_kwargs or {})
+        if totals_kwargs.pop('sticky', False):
+            flavours.append('grouplet_grid--sticky-totals')
+        totals = self._gr_groupletGrid_totals(
+            totals, default_format=totals_kwargs.pop('format', None))
         extra_class = kwargs.pop('_class', None)
         if extra_class:
             flavours.append(extra_class)
@@ -847,12 +1306,23 @@ class GroupletGridHandler(BaseComponent):
                 childname=side, gg_side=side)
             # Pre-allocate placeholders: the JS adapter can only graft into
             # a leaf-empty sourceNode, never into a live one.
+            if selectionmenu and side == 'bottom':
+                slot.div(_class='grouplet_grid_selection',
+                         childname='selection', _gg_selection=True)
             if struct_mode and side == 'top':
                 slot.div(_class='grouplet_grid__struct_header',
                          childname='struct_header')
             elif struct_has_totalize and side == 'bottom':
                 slot.div(_class='grouplet_grid__struct_footer',
                          childname='struct_footer')
+            if entry_mode and side == 'top':
+                slot.div(_class='grouplet_grid_entry', childname='entry',
+                         _gg_entry=True)
+            # the totals band carries the caller's totals_* attributes
+            # (hidden, dynamic params): the JS grafts only its content
+            if totals and side == 'bottom':
+                slot.div(_class='grouplet_grid__totals', childname='totals',
+                         **totals_kwargs)
         container.div(_class='grouplet_grid_body',
                       nodeId=body_id,
                       datapath=storepath,
@@ -873,10 +1343,43 @@ class GroupletGridHandler(BaseComponent):
             titleField=titleField, emptyTitle=emptyTitle,
             defaultRow=defaultRow, minRows=minRows, maxRows=maxRows,
             counterField=counterField,
+            formulas=formulas, totals=totals,
+            rowTemplate=rowTemplate, selectionmenu=selectionmenu,
+            rowCheckbox=rowCheckbox,
             resolved_drag_code=resolved_drag_code,
             loaderrpc=self.gr_getGroupletGridTemplate,
             mapLoaderrpc=self.gr_getGroupletGridTemplateMap)
         return container
+
+    def _gr_groupletGrid_totals(self, totals, default_format=None):
+        """The `totals=` entries in the shape the JS band reads: `key` is
+        where the value lives under `<controllerPath>.totalize`, a row
+        field summed, or the `name` of a formula over the other totals or of
+        a row count. Any other key (`hidden=` and its parameters) goes to
+        the entry's cell as an attribute."""
+        result = []
+        for entry in totals or []:
+            entry = dict(entry)
+            field = entry.pop('field', None)
+            formula = entry.pop('formula', None)
+            count = bool(entry.pop('count', False))
+            name = entry.pop('name', None)
+            if not (field or formula or count) \
+                    or (formula and not name) \
+                    or (count and (field or formula or not name)):
+                raise self.exception(
+                    'generic',
+                    msg='groupletGrid totals: each entry needs field=, '
+                        'or name= with formula= or count=True')
+            key = field or name
+            label = entry.pop('label', None) or key
+            # a row count is an integer: the band's money format is not its
+            fmt = entry.pop('format', None) or (None if count else default_format)
+            highlight = bool(entry.pop('highlight', False))
+            result.append(dict(key=key, field=field, formula=formula,
+                               count=count, label=label, format=fmt,
+                               highlight=highlight, attrs=entry))
+        return result
 
     def _gr_groupletGrid_emitController(
             self, container, *,
@@ -887,6 +1390,7 @@ class GroupletGridHandler(BaseComponent):
             additem_kwargs, delitem_kwargs, editmenu_kwargs,
             layout, lazyTabs, titleField, emptyTitle,
             defaultRow, minRows, maxRows, counterField,
+            formulas, totals, rowTemplate, selectionmenu, rowCheckbox,
             resolved_drag_code,
             loaderrpc, mapLoaderrpc):
         # Resolve the container via attributeOwnerNode at runtime: a fixed
@@ -897,8 +1401,19 @@ class GroupletGridHandler(BaseComponent):
             var bodyNode = node.getValue().walk(function(n){
                 if (n.attr && n.attr._gg_body) return n;
             }, 'static');
+            var entryNode = node.getValue().walk(function(n){
+                if (n.attr && n.attr._gg_entry) return n;
+            }, 'static');
+            var selectionNode = node.getValue().walk(function(n){
+                if (n.attr && n.attr._gg_selection) return n;
+            }, 'static');
             node.gridController = new gnr.GroupletGridController(node, {
                 bodyNode: bodyNode,
+                entryNode: entryNode,
+                selectionNode: selectionNode,
+                rowTemplate: rowTemplate,
+                selectionmenu: selectionmenu,
+                rowCheckbox: rowCheckbox,
                 resource: resource,
                 handler: handler,
                 resourceField: resourceField,
@@ -924,6 +1439,8 @@ class GroupletGridHandler(BaseComponent):
                 minRows: minRows,
                 maxRows: maxRows,
                 counterField: counterField,
+                formulas: formulas,
+                totals: totals,
                 dragCode: dragCode,
                 loaderrpc: loaderrpc,
                 mapLoaderrpc: mapLoaderrpc
@@ -957,6 +1474,11 @@ class GroupletGridHandler(BaseComponent):
             minRows=minRows,
             maxRows=maxRows,
             counterField=counterField,
+            formulas=formulas or {},
+            totals=totals,
+            rowTemplate=rowTemplate,
+            selectionmenu=selectionmenu,
+            rowCheckbox=rowCheckbox,
             dragCode=resolved_drag_code,
             loaderrpc=loaderrpc,
             mapLoaderrpc=mapLoaderrpc)

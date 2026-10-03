@@ -55,6 +55,7 @@ from gnr.web.gnrwebreqresp import GnrWebRequest, GnrWebResponse
 from gnr.web.gnrwebpage_proxy.gnrbaseproxy import GnrBaseProxy
 from gnr.web.gnrwebpage_proxy.menuproxy import GnrMenuProxy
 from gnr.web.gnrwebpage_proxy.apphandler import GnrWebAppHandler
+from gnr.web.gnrwebpage_proxy.apphandler.next import GnrWebAppHandlerNext
 from gnr.web.gnrwebpage_proxy.connection import GnrWebConnection
 from gnr.web.gnrwebpage_proxy.serverbatch import GnrWebBatch
 from gnr.web.gnrwebpage_proxy.rpc import GnrWebRpc
@@ -1333,6 +1334,21 @@ class GnrWebPage(GnrBaseWebPage):
                 raise exception
         return exception(user=self.user,localizer=self.application.localizer,**kwargs)
 
+    def gnrjs_imports(self):
+        """Return the genro js modules this page loads, in load order.
+
+        The frontend's own list, with one substitution: a selected WebSocket
+        handler that names a ``client_module`` puts that module where
+        ``gnrwebsocket`` was. It takes the place of the classic client, never a
+        place beside it, so a page declares one ``gnr.GnrWebSocketHandler``.
+        """
+        gnrimports = self.frontend.gnrjs_frontend()
+        websocket_client = getattr(self.wsk, 'client_module', None)
+        if not websocket_client:
+            return gnrimports
+        return [websocket_client if name == 'gnrwebsocket' else name
+                for name in gnrimports]
+
     def build_arg_dict(self, _nodebug=False, **kwargs):
         """TODO
         
@@ -1389,7 +1405,7 @@ class GnrWebPage(GnrBaseWebPage):
         arg_dict['page_id'] = self.page_id or getUuid()
         arg_dict['bodyclasses'] = self.get_bodyclasses()
         arg_dict['gnrModulePath'] = gnrModulePath
-        gnrimports = self.frontend.gnrjs_frontend()
+        gnrimports = self.gnrjs_imports()
         if localroot:
             arg_dict['genroJsImport'] = [gnr_static_handler.url(self.gnrjsversion, 'js', '%s.js' % f, _localroot=localroot) for f in gnrimports]
         elif _nodebug is False and (self.isDeveloper()):
@@ -1485,6 +1501,8 @@ class GnrWebPage(GnrBaseWebPage):
         'codemirror6': ('js_libs', 'codemirror6', 'codemirror6.bundle.js'),
         'prosemirror': ('js_libs', 'prosemirror', 'prosemirror.bundle.js'),
         'prosemirrorCss': ('js_libs', 'prosemirror', 'prosemirror.css'),
+        'jodit': ('js_libs', 'jodit', 'jodit.min.js'),
+        'joditCss': ('js_libs', 'jodit', 'jodit.min.css'),
     }
 
     def _vendoredBundlesMtime(self):
@@ -1711,9 +1729,17 @@ class GnrWebPage(GnrBaseWebPage):
         
     @property
     def app(self):
-        """TODO"""
+        """The web application handler of this page.
+
+        The instance configuration ``<db app_handler="next"/>`` selects
+        :class:`GnrWebAppHandlerNext`; any other value, or no value at all,
+        gives :class:`GnrWebAppHandler`.
+        """
         if not hasattr(self, '_app'):
-            self._app = GnrWebAppHandler(self)
+            handler_class = GnrWebAppHandler
+            if self.application.config['db?app_handler'] == 'next':
+                handler_class = GnrWebAppHandlerNext
+            self._app = handler_class(self)
         return self._app
         
     @property

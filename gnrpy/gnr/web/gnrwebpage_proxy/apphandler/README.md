@@ -108,10 +108,10 @@ Esportazione selezioni in Excel, HTML print, PDF.
 | B4 | `export.py` | `rpc_printStaticGrid`: `not filename.lower().endswith('.html') or filename.lower().endswith('.htm')` — mancano le parentesi attorno all'`or`, quindi il `not` si applica solo al primo operando |
 | B5 | `export.py` | `rpc_printStaticGridDownload`: `result.decode('utf-8')` — in Python 3 `str` non ha `.decode()`, solleva `AttributeError` |
 | B6 | `export.py` | `_getStoreBag`: usa `self.unfreezeSelection` e `self.app.db` — dovrebbe essere `self.db` |
-| B7 | `get_selection.py` | `getSelection`: `formats[7:]` e uno slice assignment su un dict — dovrebbe essere `formats[k[7:]] = kwargs.pop(k)` |
+| B7 | `get_selection.py` | `getSelection`: `formats[7:]` e uno slice assignment su un dict — dovrebbe essere `formats[k[7:]] = kwargs.pop(k)` — **risolto in #1391** |
 | B8 | `misc.py` | `duplicateDbRows`: format string `'...table % for user %s'` — manca la `s` dopo il primo `%` |
 | B9 | `misc.py` | `deleteDbRows`: stessa format string rotta |
-| B10 | `misc.py` | `gridSelectionStruct`: `if size < 6` dovrebbe essere `elif` — quando `size < 3` entrambe le branch eseguono |
+| B10 | `misc.py` | `gridSelectionStruct`: `if size < 6` dovrebbe essere `elif` — quando `size < 3` entrambe le branch eseguono — **risolto in #1391** |
 | B11 | `related.py` | `getRelatedSelection`: `joinBag = None` sovrascrive il valore calcolato — la branch `applymethod` e dead code |
 
 ### SMELL (code smell — funziona ma e fragile o confuso)

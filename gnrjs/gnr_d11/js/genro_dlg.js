@@ -664,7 +664,7 @@ dojo.declare("gnr.GnrDlgHandler", null, {
             }
             funcApply(cb, parameters, sourceNode,argnames,argvalues);
         }
-        genro.dlg.prompt(_T(objectPop(promptkw,'title','Parameters')),promptkw,sourceNode);
+        genro.dlg.prompt(_T(objectPop(promptkw,'title','!!Parameters')),promptkw,sourceNode);
     },
 
     prompt: function(title, kw,sourceNode) {
@@ -1097,7 +1097,7 @@ dojo.declare("gnr.GnrDlgHandler", null, {
         var palette = node._('palettePane',paletteCode,paletteAttr);
         var valuepath = kw.valuepath || sourceNode.attr.innerHTML || sourceNode.attr.value;
         valuepath = '^'+sourceNode.absDatapath(valuepath);
-        palette._('ckeditor',objectUpdate(kw,{value:valuepath}));
+        palette._('joditEditor',objectUpdate(kw,{value:valuepath,height:'100%'}));
         node.unfreeze(); 
     },
 
@@ -1108,7 +1108,7 @@ dojo.declare("gnr.GnrDlgHandler", null, {
         var dlg = genro.dlg.quickDialog('Editor',objectUpdate(dlg_kw,kw));
         var valuepath = kw.valuepath || sourceNode.attr.innerHTML || sourceNode.attr.value;
         valuepath = '^'+sourceNode.absDatapath(valuepath);
-        dlg.center._('ckeditor',objectUpdate(kw,{value:valuepath}));
+        dlg.center._('joditEditor',objectUpdate(kw,{value:valuepath}));
         dlg.show_action()
     },
 
@@ -1313,7 +1313,7 @@ dojo.declare("gnr.GnrDlgHandler", null, {
         var kw = kw || {};
         var dlg_kw = objectUpdate({closable:true,autoSize:true,dialog_bottom:false},objectExtract(kw,'dlg_*'));
         var dlg = genro.dlg.quickDialog(title,dlg_kw);
-        kw.label = _T(kw.label || 'Drop the file to import here');
+        kw.label = _T(kw.label || '!!Drop the file to import here');
         kw.onUploadedMethod = method;
         kw.onResult = function(handler){
             var result = handler.currentTarget.responseText;
@@ -1331,9 +1331,9 @@ dojo.declare("gnr.GnrDlgHandler", null, {
 
     _modalUploader_uploader:function(sc,kw,dlg){
         let uploaderBc = sc._('borderContainer','uploaderPane',{pageName:'uploaderPane'});
-        let defaultLabel = 'Drop the file to import here or dblclick to open the file explorer';
+        let defaultLabel = '!!Drop the file to import here or dblclick to open the file explorer';
         if(genro.isMobile){
-            defaultLabel = 'Press to open the file explorer';
+            defaultLabel = '!!Press to open the file explorer';
         }
         kw.label = `<div style="font-size:1.1em;">${_T(kw.label || defaultLabel)}</div>`;
         kw.position = 'absolute';

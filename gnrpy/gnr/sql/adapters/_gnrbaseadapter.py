@@ -31,7 +31,7 @@ import pytz
 
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrlist import GnrNamedList
-from gnr.core.gnrclasses import GnrClassCatalog
+from gnr.core.gnrclasses import GnrClassCatalog, GnrCastingError
 from gnr.core.gnrdate import decodeDatePeriod
 from gnr.sql import AdapterCapabilities as Capabilities
 from gnr.sql import logger
@@ -971,6 +971,13 @@ class SqlDbAdapter(object):
         :param separator: the character delimiting the items"""
         return f"{value} ILIKE ANY(string_to_array({fieldpath},'{separator}'))"
 
+    def string_join(self, expressions, separator):
+        """
+        Returns a SQL expression joining the non NULL values of ``expressions``
+        with ``separator``; an empty string when all of them are NULL.
+        """
+        return f"array_to_string(ARRAY[{','.join(expressions)}],'{separator}')"
+
     def mask_field_sql(self, field, mode='2-4', placeholder='*'):
         """
         Returns a SQL expression for masking a field value for secure display.
@@ -1438,7 +1445,13 @@ class GnrWhereTranslator(object):
                         value = [encryptor.encrypt(v, 'Q') for v in value]
                     else:
                         value = encryptor.encrypt(value, 'Q')
-                onecondition = self.prepareCondition(column, op, value, dtype, sqlArgs,tblobj=tblobj,parname=parname)
+                try:
+                    onecondition = self.prepareCondition(column, op, value, dtype, sqlArgs,tblobj=tblobj,parname=parname)
+                except GnrCastingError as e:
+                    # GnrException interpolates its caption twice
+                    raise tblobj.exception('invalid_filter_value',
+                                           column=self._relPathToCaption(tblobj.fullname, column).replace('%', '%%'),
+                                           value=str(value).replace('%', '%%')) from e
 
             if onecondition:
                 if negate:
@@ -1519,10 +1532,13 @@ class GnrWhereTranslator(object):
 
     def storeArgs(self, value, dtype, sqlArgs, parname=None):
         if not dtype in ('A', 'T') and not self.checkValueIsField(value):
-            if isinstance(value, list):
-                value = [self.catalog.fromText(v, dtype) for v in value]
-            elif isinstance(value, (bytes,str)):
-                value = self.catalog.fromText(value, dtype)
+            try:
+                if isinstance(value, list):
+                    value = [self.catalog.fromText(v, dtype) for v in value]
+                elif isinstance(value, (bytes,str)):
+                    value = self.catalog.fromText(value, dtype)
+            except (ValueError, ArithmeticError) as e:
+                raise GnrCastingError(f'Invalid value {value} for dtype {dtype}'.replace('%', '%%')) from e
         argLbl = parname or 'v_%i' % len(sqlArgs)
         sqlArgs[argLbl] = value
         return argLbl
@@ -1601,6 +1617,10 @@ class GnrWhereTranslator(object):
         "!!In"
         if isinstance(value, str):
             value = value.split(',')
+        elif value is None:
+            # an IN over nothing: the empty collection is already neutralised
+            # downstream, a None reached the driver as NULL (issue #1385)
+            value = []
         values_string = self.storeArgs(value, dtype, sqlArgs, parname=parname)
         return '%s IN :%s' % (column, values_string)
 

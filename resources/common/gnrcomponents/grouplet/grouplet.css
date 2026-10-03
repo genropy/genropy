@@ -15,6 +15,33 @@
     font-weight: normal !important;
 }
 
+/* --- Mandatory grouplets: an incomplete leaf is red with the warning icon,
+   a branch holding one is red only --- */
+.grouplet_tree .grouplet_mandatory_missing,
+.grouplet_tree .grouplet_mandatory_branch,
+.multibutton.grouplet_mandatory_missing .multibutton_caption {
+    color: var(--status-error, #E53935);
+}
+
+.grouplet_tree .grouplet_mandatory_missing::after,
+.multibutton.grouplet_mandatory_missing .multibutton_caption::after {
+    content: '';
+    display: inline-block;
+    width: 1em;
+    height: 0.9em;
+    margin-left: 0.3em;
+    vertical-align: -0.1em;
+    background: var(--icon-warning) no-repeat center / contain;
+}
+
+/* on a draft record the marks only signal what is still to complete */
+.grouplet_mandatory_draft .grouplet_tree .grouplet_mandatory_missing,
+.grouplet_mandatory_draft .grouplet_tree .grouplet_mandatory_branch,
+.grouplet_mandatory_draft .multibutton.grouplet_mandatory_missing .multibutton_caption {
+    color: inherit;
+    font-style: italic;
+}
+
 /* --- Grouplet panel --- */
 .grouplet_panel_tree {
     border-right: 1px solid var(--border-color, #ccc);
@@ -126,6 +153,132 @@
     background: var(--accent-color, #007AFF);
 }
 
+/* --- Vertical stepper (stepperPosition='left') --- */
+.wizard_stepper_bar.wizard_stepper_vertical {
+    display: block;
+    width: 200px;
+    height: 100%;
+    box-sizing: border-box;
+    padding: 20px 12px;
+    border-bottom: none;
+    border-right: 1px solid var(--border-color, #ccc);
+    background: var(--surface-alt, #f9fafb);
+    overflow-y: auto;
+}
+
+.wizard_stepper_vertical .wizard_stepper {
+    flex-direction: column;
+    align-items: stretch;
+}
+
+.wizard_stepper_vertical .wizard_step {
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    padding: 6px 8px;
+    border-radius: var(--radius-md, 8px);
+    transition: background .15s;
+}
+
+.wizard_stepper_vertical .wizard_step.active {
+    background: rgba(0, 122, 255, 0.08);
+    background: color-mix(in srgb, var(--accent-color, #007AFF) 10%, transparent);
+}
+
+.wizard_stepper_vertical .wizard_step.completed:hover {
+    background: rgba(0, 0, 0, 0.04);
+    background: color-mix(in srgb, var(--text-color, #444) 6%, transparent);
+}
+
+.wizard_stepper_vertical .wizard_circle {
+    flex: none;
+}
+
+.wizard_stepper_vertical .wizard_caption {
+    margin-top: 0;
+    font-size: 0.92em;
+    line-height: 1.25;
+    text-align: left;
+    white-space: normal;
+}
+
+/* --- Per-step summary (stepSummary), on completed steps only ---
+   circle | caption, and the summary under the caption, as tall as its text */
+.wizard_step_summary {
+    display: none;
+    font-size: 11px;
+    line-height: 1.3;
+    color: var(--text-secondary, #888);
+}
+
+.wizard_stepper_vertical .wizard_step:has(.wizard_step_summary) {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    column-gap: 10px;
+    row-gap: 3px;
+}
+
+.wizard_stepper_vertical .wizard_step.completed .wizard_step_summary {
+    display: block;
+    grid-column: 2;
+    overflow-wrap: anywhere;
+}
+
+.wizard_step.completed .wizard_step_summary:empty {
+    display: none;
+}
+
+/* with summaries the rail is a 1px line; under a summary it starts below the
+   circle, runs past the summary (clipped at the step's edge) and joins the
+   connector */
+.wizard_stepper_vertical .wizard_stepper:has(.wizard_step_summary) .wizard_connector {
+    width: 1px;
+    border-radius: 0;
+}
+
+.wizard_stepper_vertical .wizard_step.completed:has(.wizard_step_summary:not(:empty)) {
+    overflow: hidden;
+}
+
+.wizard_stepper_vertical .wizard_step.completed:has(.wizard_step_summary:not(:empty)) .wizard_circle {
+    position: relative;
+}
+
+.wizard_stepper_vertical .wizard_step.completed:has(.wizard_step_summary:not(:empty)) .wizard_circle::after {
+    content: '';
+    position: absolute;
+    left: calc(50% - 1px);
+    top: calc(100% + 10px);
+    width: 1px;
+    height: 100vh;
+    background: var(--accent-color, #007AFF);
+}
+
+.wizard_stepper_vertical .wizard_step.completed:has(.wizard_step_summary:not(:empty)) + .wizard_connector {
+    height: 4px;
+    margin-top: 0;
+}
+
+/* centred under the circles: step padding 8px + half of a 30px circle
+   (26px plus its 2px borders), less half of the 2px line */
+.wizard_stepper_vertical .wizard_connector {
+    flex: none;
+    width: 2px;
+    height: 16px;
+    min-width: 0;
+    max-width: none;
+    margin: 2px 0 2px 22px;
+    border-radius: 1px;
+}
+
+/* beside the rail the step would touch its border. No border-box: dijit sets
+   this box's width and height already net of its padding, so border-box took
+   the padding off twice and left the scrollbar 32px inside the dialog edge */
+.wizard_vertical .wizard_step_pane .grouplet_box {
+    padding: 12px 16px;
+}
+
 /* The step content is the only thing in a wizard that may be taller than the
    window. Everything between the frame and here is a dijit layout pane that
    the BorderContainer sizes and clips (overflow:hidden, whatever the pane was
@@ -136,9 +289,107 @@
     overflow: auto;
 }
 
+/* --- Choice tiles (groupletChoice) --- */
+.grouplet_choice_tiles {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 6px;
+}
+
+.grouplet_choice_tile {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 5px 10px;
+    border: 1px solid var(--border-color, #dfe3dc);
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--grouplet-choice-tint, var(--surface-bg, #fff)) 7%, var(--surface-bg, #fff));
+    cursor: pointer;
+    transition: box-shadow .12s ease, transform .12s ease;
+}
+
+.grouplet_choice_tile:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, .08);
+    transform: translateY(-1px);
+}
+
+.grouplet_choice_tile::after {
+    content: '\2713';
+    margin-left: auto;
+    color: var(--accent-color, #007AFF);
+    font-weight: 700;
+    font-size: 15px;
+    visibility: hidden;
+}
+
+.grouplet_choice_selected {
+    border-color: var(--accent-color, #007AFF);
+    box-shadow: inset 0 0 0 1px var(--accent-color, #007AFF);
+}
+
+.grouplet_choice_selected::after {
+    visibility: visible;
+}
+
+.grouplet_choice_glyph {
+    flex: 0 0 42px;
+    height: 26px;
+    line-height: 26px;
+    border-radius: 7px;
+    text-align: center;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .04em;
+    color: var(--text-color, #1f2a1f);
+    background: var(--primary-lighter, #f4f6f2);
+}
+
+.grouplet_choice_selected .grouplet_choice_glyph {
+    color: var(--accent-on-color, #fff);
+    background: var(--accent-color, #007AFF);
+}
+
+.grouplet_choice_text {
+    min-width: 0;
+}
+
+.grouplet_choice_title {
+    font-weight: 600;
+    font-size: 14px;
+    line-height: 1.25;
+}
+
+.grouplet_choice_note {
+    color: var(--text-secondary, #6b7280);
+    font-size: 12px;
+    line-height: 1.35;
+}
+
+.grouplet_choice_separator {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 12px 0 8px;
+    color: var(--text-secondary, #6b7280);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .09em;
+    text-transform: uppercase;
+}
+
+.grouplet_choice_separator::before,
+.grouplet_choice_separator::after {
+    content: '';
+    flex: 1 1 auto;
+    height: 1px;
+    background: var(--border-color, #dfe3dc);
+}
+
 /* --- Bottom navigation bar --- */
 .wizard_bottom_bar {
     display: flex;
+    flex-wrap: wrap;
+    row-gap: 4px;
     justify-content: flex-end;
     align-items: center;
     padding: 10px 16px;
@@ -146,7 +397,8 @@
 }
 
 .wizard_next_btn,
-.wizard_close_btn {
+.wizard_close_btn,
+.wizard_back_btn {
     background: none;
     border: none;
     padding: 6px 12px;
@@ -158,12 +410,40 @@
 }
 
 .wizard_next_btn:hover,
-.wizard_close_btn:hover {
+.wizard_close_btn:hover,
+.wizard_back_btn:hover {
     color: var(--primary-dark, #3A3A3C);
 }
 
 .wizard_next_btn::after {
     content: '\00a0\2192';
+}
+
+/* keeps the next button on the right whether or not back is displayed */
+.wizard_back_btn {
+    margin-right: auto;
+}
+
+/* the secondary of a draft's last step: same weight as the footer's other
+   buttons, the colour tells it from the confirm next to it */
+.wizard_save_draft_btn {
+    background: none;
+    border: none;
+    padding: 6px 12px;
+    margin-right: 8px;
+    font-size: 1.05em;
+    font-weight: 600;
+    color: var(--primary-dark, #3A3A3C);
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.wizard_save_draft_btn:hover {
+    color: var(--accent-color, #007AFF);
+}
+
+.wizard_back_btn::before {
+    content: '\2190\00a0';
 }
 
 .wizard_summary {
@@ -217,6 +497,18 @@
     --gg-border: var(--border-color, #e5e7eb);
     --gg-surface: var(--surface-bg, #fff);
     --gg-surface-alt: var(--surface-alt, #f9fafb);
+    /* entry row / phantom row band: must read apart from data rows */
+    --gg-entry-bg: var(--entry-bg, var(--gray-100, #f3f4f6));
+    /* entry row lifted above the rows that scroll under it: downward only */
+    --gg-entry-shadow: var(--entry-shadow, 0 3px 4px -2px rgba(0, 0, 0, 0.18));
+    /* the selection bar, lifted above the rows it sits on: upward only */
+    --gg-selection-shadow: var(--selection-shadow, 0 -3px 4px -2px rgba(0, 0, 0, 0.18));
+    /* the entry row's add button: a veil a shade darker than the band it sits on
+       (grey, or the selection tint while a row is edited) */
+    --gg-entry-btn-bg: var(--entry-btn-bg, rgba(0, 0, 0, 0.07));
+    --gg-entry-btn-hover-bg: var(--entry-btn-hover-bg, rgba(0, 0, 0, 0.13));
+    --gg-trash-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M6 1h4l.5 1H14v1.5H2V2h3.5zM3 5h10l-.8 9.2a1 1 0 0 1-1 .8H4.8a1 1 0 0 1-1-.8zm3 2v6h1.2V7zm2.8 0v6H10V7z'/%3E%3C/svg%3E");
+    --gg-pin-icon: var(--icon-pin);
     --gg-text-muted: var(--text-secondary, #6b7280);
     /* struct= chrome (Item 12): dark header strip + spreadsheet-style
        yellow total band. Tokens are explicit so each theme can
@@ -228,6 +520,14 @@
     --gg-header-text: var(--surface-on-strong, #f9fafb);
     --gg-total-bg: var(--total-bg, #fffbe6);
     --gg-total-text: var(--total-text, #1f2937);
+    /* totals= band: the theme's strong surface. The figure to read first
+       is marked by an accent rule rather than coloured with the accent,
+       which on several themes is too dark to read on that surface; a
+       theme that can afford it sets --totals-highlight. */
+    --gg-totals-bg: var(--totals-bg, var(--gg-header-bg));
+    --gg-totals-text: var(--totals-text, var(--gg-header-text));
+    --gg-totals-highlight: var(--totals-highlight, var(--gg-totals-text));
+    --gg-totals-marker: var(--totals-marker, var(--gg-accent));
     margin: 6px 0;
 }
 
@@ -267,6 +567,54 @@
     display: none;
 }
 
+/* totals= band: one line of label/value pairs, right-aligned, in the
+   bottom slot. In frame mode it stays put while the body scrolls;
+   `totals_sticky` pins it to the foot of the scrolling ancestor when the
+   grid is not framed. */
+.grouplet_grid_slot_bottom > .grouplet_grid__totals {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    align-items: baseline;
+    gap: 4px 22px;
+    margin-top: 6px;
+    padding: 6px 14px;
+    border-radius: var(--radius-md, 8px);
+    background: var(--gg-totals-bg);
+    color: var(--gg-totals-text);
+    font-variant-numeric: tabular-nums;
+}
+
+.grouplet_grid__total {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+}
+
+.grouplet_grid__total_label {
+    font-size: 0.75em;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    opacity: 0.72;
+}
+
+.grouplet_grid__total_value {
+    font-weight: 600;
+}
+
+.grouplet_grid__total--highlight > .grouplet_grid__total_value {
+    color: var(--gg-totals-highlight);
+    font-weight: 700;
+    border-bottom: 2px solid var(--gg-totals-marker);
+}
+
+.grouplet_grid--sticky-totals > .grouplet_grid_slot_bottom {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+}
+
 /* Frame mode: container has explicit height/max_height. The wrapper
    clips overflow; the center body scrolls internally; top/bottom/left/
    right stay anchored because they sit in non-scrolling grid cells. */
@@ -275,6 +623,12 @@
 }
 .grouplet_grid--framed > .grouplet_grid_body {
     overflow: auto;
+}
+/* Cards reach the body's right edge, so its scrollbar sat against their
+   border. Not in struct mode, whose header and footer follow the rows'
+   geometry, nor in tabs, whose body is a single panel. */
+.grouplet_grid--framed:not(.grouplet_grid--struct):not(.grouplet_grid--tabs):not(.grouplet_grid--vtabs) > .grouplet_grid_body {
+    padding-right: 6px;
 }
 
 /* Body: stack verticale di default. The body's row-to-row gap (and
@@ -298,6 +652,8 @@
    sul container. */
 .grouplet_grid_container.grouplet_grid_responsive .grouplet_grid_body {
     display: grid;
+    /* a framed body is taller than its rows: without this they stretch */
+    align-content: start;
     gap: var(--gg-gap, 12px);
     grid-template-columns: repeat(auto-fill,
                                   minmax(var(--gg-min-width, 280px), 1fr));
@@ -428,13 +784,10 @@
     user-select: none;
 }
 
-/* Per-row "×" delete button — opt-in via `delitem=True`. Anchored to
-   the top-right corner of the card. Always visible (no hover gate).
-   Click publishes {action:'delete', rowKey} on the action topic.
-   The cross is drawn as two rotated 1.5px segments via ::before/::after
-   so the visible centerpoint exactly matches the box centerpoint —
-   the literal `×` glyph has asymmetric font metrics that make
-   `text-align:center` look subtly off, especially inside a hover halo. */
+/* Per-row delete button — opt-in via `delitem=True`: a light trash at
+   the top-right corner of the card, red on hover. Always visible (no
+   hover gate). Click publishes {action:'delete', rowKey} on the action
+   topic. The icon is a mask over `--x-color`, centred on the box. */
 .grouplet_grid_row_delete {
     position: absolute;
     top: 6px;
@@ -449,33 +802,20 @@
     z-index: 2;
     font-size: 0;
     color: transparent;
-    --x-color: var(--gg-text, #374151);
+    --x-color: var(--gg-text-muted, #9ca3af);
 }
 
-.grouplet_grid_row_delete > * {
-    /* Hide the inner glyph element; the cross is drawn via ::before/::after. */
-    display: none;
-}
-
-.grouplet_grid_row_delete::before,
-.grouplet_grid_row_delete::after {
+.grouplet_grid_row_delete::before {
     content: '';
     position: absolute;
     top: 50%;
     left: 50%;
-    width: 11px;
-    height: 1.5px;
+    width: 12px;
+    height: 12px;
+    transform: translate(-50%, -50%);
     background: var(--x-color);
-    border-radius: 1px;
-    transform-origin: center;
-}
-
-.grouplet_grid_row_delete::before {
-    transform: translate(-50%, -50%) rotate(45deg);
-}
-
-.grouplet_grid_row_delete::after {
-    transform: translate(-50%, -50%) rotate(-45deg);
+    -webkit-mask: var(--gg-trash-icon) center / contain no-repeat;
+    mask: var(--gg-trash-icon) center / contain no-repeat;
 }
 
 .grouplet_grid_row_delete:hover {
@@ -488,7 +828,7 @@
 }
 
 /* Struct-mode rows are flat / one-line tall — the default top:6px
-   anchor reads too high. Vertically centre the `×` on the row instead. */
+   anchor reads too high. Vertically centre the delete on the row instead. */
 .grouplet_grid--struct .grouplet_grid_row_delete {
     top: 50%;
     transform: translateY(-50%);
@@ -496,7 +836,7 @@
 
 /* Subtle delete — opt-in via `delitem_class='grouplet_grid_row_delete--subtle'`.
    Faded glyph at rest, full danger only at hover. Designed for nested
-   or dense grids where the always-on dark `×` competes with content. */
+   or dense grids where the always-on delete competes with content. */
 .grouplet_grid_row_delete--subtle {
     opacity: 0.45;
     --x-color: var(--gg-text-muted, #9ca3af);
@@ -512,7 +852,7 @@
 }
 
 /* Reveal-on-hover variant — opt-in via the CONTAINER class
-   `grouplet_grid--delete-on-hover`. Each row's `×` stays invisible
+   `grouplet_grid--delete-on-hover`. Each row's delete stays invisible
    until that row is hovered, then fades in. Pairs naturally with
    `--subtle`. Useful for very dense grids (struct mode spreadsheet)
    where always-visible per-row crosses become noise. */
@@ -1052,7 +1392,7 @@ body.drag_started .grouplet_grid_tab_add.canBeDropped {
     pointer-events: none;
 }
 
-/* In tabs mode the row-level `×` (.grouplet_grid_row_delete) and the
+/* In tabs mode the row-level delete (.grouplet_grid_row_delete) and the
    `⠿` drag handle (.grouplet_grid_row_drag) are both redundant — the
    close affordance lives on the tab chip and dragging the chip is the
    reorder gesture. Hide them on every panel so the chrome stays clean. */
@@ -1546,6 +1886,324 @@ body.drag_started .grouplet_grid_tab_add.canBeDropped {
     text-align: right;
 }
 
+/* Phantom row (`additem='phantom'`): the trailing blank row or card the
+   user types into to add one. Marked inside, not beside: a tinted dashed
+   frame, dashed fields, defaults in muted text and a placeholder in the
+   first text field. Gone when the form is locked or at maxRows. */
+/* grid > body > row: outranks the struct row reset (transparent, hover) */
+.grouplet_grid > .grouplet_grid_body > .grouplet_grid_row--phantom,
+.grouplet_grid > .grouplet_grid_body > .grouplet_grid_row--phantom:hover {
+    background: var(--gg-entry-bg);
+    cursor: text;
+    animation: none;
+}
+.grouplet_grid--phantom:not(.grouplet_grid--struct) > .grouplet_grid_body > .grouplet_grid_row--phantom {
+    border-style: dashed;
+}
+/* body > row: outranks the formlet field rule (.gnrgridbox.formlet .dijitTextBox) */
+.grouplet_grid_body > .grouplet_grid_row--phantom .dijitTextBox,
+.grouplet_grid_body > .grouplet_grid_row--phantom .dijitTextArea,
+.grouplet_grid_body > .grouplet_grid_row--phantom textarea {
+    border-style: dashed;
+    background: transparent;
+}
+.grouplet_grid_row--phantom input:not(:focus),
+.grouplet_grid_row--phantom textarea:not(:focus) {
+    color: var(--gg-text-muted);
+}
+.grouplet_grid_row--phantom input::placeholder,
+.grouplet_grid_row--phantom textarea::placeholder {
+    font-style: italic;
+}
+.lockedContainer .grouplet_grid_row--phantom,
+.grouplet_grid--at-max .grouplet_grid_row--phantom {
+    display: none;
+}
+/* Entry row (`additem='entry'`): pinned above the rows in the top slot,
+   on the alternate surface, a light shadow below. */
+.grouplet_grid > .grouplet_grid_slot_top > .grouplet_grid_entry > .grouplet_grid_row--entry,
+.grouplet_grid > .grouplet_grid_slot_top > .grouplet_grid_entry > .grouplet_grid_row--entry:hover {
+    background: var(--gg-entry-bg);
+    box-shadow: var(--gg-entry-shadow);
+    animation: none;
+}
+.grouplet_grid--templated.grouplet_grid_responsive > .grouplet_grid_body {
+    align-items: start;
+}
+/* above the body, or the rows would paint over the entry row's shadow */
+.grouplet_grid--entry > .grouplet_grid_slot_top {
+    position: relative;
+    z-index: 3;
+}
+.grouplet_grid_row--entry .dijitTextBox:not(.dijitError),
+.grouplet_grid_row--entry .dijitTextArea:not(.dijitError) {
+    background: var(--gg-surface);
+}
+.grouplet_grid--entry:not(.grouplet_grid--struct) > .grouplet_grid_slot_top > .grouplet_grid_entry {
+    margin-bottom: var(--gg-gap);
+}
+/* The entry row shows its validations only while a field of it is focused:
+   a required field is required to add a row. The active struct entry row
+   carries the current-row marker of a selected row; a card has its own
+   focus outline. */
+.grouplet_grid--struct > .grouplet_grid_slot_top > .grouplet_grid_entry > .grouplet_grid_row--entry:focus-within {
+    box-shadow: inset 2px 0 0 var(--gg-accent), var(--gg-entry-shadow);
+}
+.grouplet_grid_row--entry:not(:focus-within) .dijitError {
+    border-color: var(--field-border, #AEAEB2);
+    background-color: var(--gg-surface);
+}
+/* Cards only: until a field of it is focused, or a row is edited in it, the
+   entry card's fields are dashed, as empty slots to fill. A struct entry row
+   sits under the header as a data row and keeps the normal look. */
+.grouplet_grid:not(.grouplet_grid--struct):not(.grouplet_grid--editing) > .grouplet_grid_slot_top > .grouplet_grid_entry > .grouplet_grid_row--entry:not(:focus-within) .dijitTextBox,
+.grouplet_grid:not(.grouplet_grid--struct):not(.grouplet_grid--editing) > .grouplet_grid_slot_top > .grouplet_grid_entry > .grouplet_grid_row--entry:not(:focus-within) .dijitComboBox,
+.grouplet_grid:not(.grouplet_grid--struct):not(.grouplet_grid--editing) > .grouplet_grid_slot_top > .grouplet_grid_entry > .grouplet_grid_row--entry:not(:focus-within) .dijitTextArea,
+.grouplet_grid:not(.grouplet_grid--struct):not(.grouplet_grid--editing) > .grouplet_grid_slot_top > .grouplet_grid_entry > .grouplet_grid_row--entry:not(:focus-within) textarea {
+    border-style: dashed;
+    box-shadow: none;
+}
+/* Add button: a shade darker than the entry band, `↵` (Enter adds) or
+   `✓` while a template row is edited. Struct: right of the entry row;
+   cards: bottom right, in the card's padding. */
+.grouplet_grid_row_add {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 26px;
+    height: 20px;
+    cursor: pointer;
+    border-radius: var(--radius-sm, 4px);
+    user-select: none;
+    z-index: 2;
+    color: var(--gg-text, #374151);
+    background: var(--gg-entry-btn-bg);
+    transition: background 160ms ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.grouplet_grid_row_add:hover {
+    background: var(--gg-entry-btn-hover-bg);
+}
+.grouplet_grid_row_add_glyph {
+    display: block;
+    font-size: 13px;
+    line-height: 1;
+    /* the glyph's ink sits ~1.5px above its line box centre */
+    transform: translateY(0.12em);
+}
+.grouplet_grid_row_add_glyph::before {
+    content: '↵';
+}
+.grouplet_grid--editing .grouplet_grid_row_add_glyph {
+    transform: none;
+}
+.grouplet_grid--editing .grouplet_grid_row_add_glyph::before {
+    content: '✓';
+}
+.grouplet_grid--struct .grouplet_grid_row_add {
+    top: 50%;
+    transform: translateY(-50%);
+}
+.grouplet_grid--entry:not(.grouplet_grid--struct) .grouplet_grid_row_add {
+    top: auto;
+    bottom: 6px;
+}
+/* Template mode: the edited row's delete sits beside the save button. */
+.grouplet_grid--struct.grouplet_grid--entry.grouplet_grid--templated .grouplet_grid__struct_row {
+    padding-right: 70px;
+}
+.grouplet_grid_row_trash {
+    position: absolute;
+    right: 38px;
+    bottom: 6px;
+    width: 26px;
+    height: 20px;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    border-radius: var(--radius-sm, 4px);
+    user-select: none;
+    z-index: 2;
+    color: var(--gg-danger);
+    background: var(--gg-entry-btn-bg);
+    transition: background 160ms ease;
+}
+.grouplet_grid--editing .grouplet_grid_row_trash {
+    display: flex;
+}
+.grouplet_grid--struct .grouplet_grid_row_trash {
+    top: 50%;
+    bottom: auto;
+    transform: translateY(-50%);
+}
+/* cards: stacked over the save button, in the card's right padding */
+.grouplet_grid--entry:not(.grouplet_grid--struct) .grouplet_grid_row_trash {
+    right: 6px;
+    bottom: 32px;
+}
+.grouplet_grid_row_trash::before,
+.grouplet_grid_trash_glyph {
+    content: '';
+    display: block;
+    width: 12px;
+    height: 12px;
+    background: currentColor;
+    -webkit-mask: var(--gg-trash-icon) center / contain no-repeat;
+    mask: var(--gg-trash-icon) center / contain no-repeat;
+}
+/* rowCheckbox: a checkbox before each row's drag handle; the one for all
+   in the struct header's gutter, or at the head of the selection bar. */
+.grouplet_grid--checkbox:not(.grouplet_grid--struct) > .grouplet_grid_body > .grouplet_grid_row,
+.grouplet_grid--checkbox.grouplet_grid--struct .grouplet_grid__struct_row {
+    padding-left: calc(1.8em + 20px);
+}
+.grouplet_grid--checkbox .grouplet_grid_row_drag {
+    left: calc(0.4em + 20px);
+}
+.grouplet_grid_row_check,
+.grouplet_grid_check_all {
+    margin: 0;
+    width: 13px;
+    height: 13px;
+    cursor: pointer;
+    accent-color: var(--btn-filled-bg, #406b9b);
+}
+.grouplet_grid_row_check,
+.grouplet_grid__struct_header > .grouplet_grid_check_all {
+    position: absolute;
+    top: 50%;
+    left: 0.6em;
+    transform: translateY(-50%);
+    z-index: 2;
+}
+/* Several selected rows (`selectionmenu`): a bar below the rows, above
+   the totals, with the delete as a button and the other actions in a kebab. */
+.grouplet_grid_selection {
+    display: none;
+}
+.grouplet_grid--multi .grouplet_grid_selection {
+    display: block;
+}
+/* above the body, or the rows would paint over the bar's shadow */
+.grouplet_grid--multi > .grouplet_grid_slot_bottom {
+    position: relative;
+    z-index: 3;
+}
+.grouplet_grid_selection_bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 6px 6px 12px;
+    background: var(--gg-entry-bg);
+    border-top: 1px solid var(--gg-border, #ddd);
+    box-shadow: var(--gg-selection-shadow);
+    color: var(--gg-text-muted);
+}
+.grouplet_grid--struct .grouplet_grid_selection_bar {
+    padding-left: 1.8em;
+}
+.grouplet_grid_selection_count {
+    color: var(--gg-text, #374151);
+}
+.grouplet_grid_selection_hint {
+    margin-right: auto;
+}
+.grouplet_grid_selection_hint::before {
+    content: '· ';
+}
+.grouplet_grid_selection_delete,
+.grouplet_grid_selection_kebab {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 20px;
+    padding: 0 8px;
+    cursor: pointer;
+    border-radius: var(--radius-sm, 4px);
+    background: var(--gg-entry-btn-bg);
+    transition: background 160ms ease;
+}
+.grouplet_grid_selection_delete {
+    color: var(--gg-danger);
+}
+.grouplet_grid_selection_kebab {
+    padding: 0;
+    width: 26px;
+    justify-content: center;
+    color: var(--gg-text, #374151);
+}
+.grouplet_grid_row_trash:hover,
+.grouplet_grid_selection_delete:hover,
+.grouplet_grid_selection_kebab:hover {
+    background: var(--gg-entry-btn-hover-bg);
+}
+.grouplet_grid_selection_delete:focus-visible,
+.grouplet_grid_selection_kebab:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 1px var(--btn-filled-bg, #406b9b), 0 0 0 3px rgba(124, 92, 191, 0.2);
+}
+/* Template rows (`rowTemplate`, or the grouplet's `template`): read-only
+   one-line summaries; a click loads the row in the entry row, whose band
+   takes the selected row's tint while it is edited. */
+.grouplet_grid--templated > .grouplet_grid_body > .grouplet_grid_row {
+    cursor: pointer;
+}
+.grouplet_grid--templated:not(.grouplet_grid--struct) > .grouplet_grid_body > .grouplet_grid_row {
+    padding-top: 0.4em;
+    padding-bottom: 0.4em;
+}
+.grouplet_grid_row_summary {
+    min-height: 1.4em;
+    line-height: 1.4em;
+}
+.grouplet_grid--editing > .grouplet_grid_slot_top > .grouplet_grid_entry > .grouplet_grid_row--entry,
+.grouplet_grid--editing > .grouplet_grid_slot_top > .grouplet_grid_entry > .grouplet_grid_row--entry:hover {
+    background: var(--gg-accent-soft);
+}
+/* Struct entry: the rows' trailing gutter fits the add button; the
+   keepable columns carry their keeper as a header pin. */
+.grouplet_grid--struct.grouplet_grid--entry .grouplet_grid__struct_row {
+    padding-right: 38px;
+}
+.grouplet_grid_row--entry .grouplet_grid_kept {
+    font-weight: bold;
+}
+.grouplet_grid__struct_keep {
+    display: inline-block;
+    width: 11px;
+    height: 11px;
+    margin-left: 4px;
+    vertical-align: -1px;
+    cursor: pointer;
+    background: currentColor;
+    opacity: 0.4;
+    -webkit-mask: var(--gg-pin-icon) center / contain no-repeat;
+    mask: var(--gg-pin-icon) center / contain no-repeat;
+    transition: opacity 160ms ease;
+}
+.grouplet_grid__struct_keep:hover {
+    opacity: 0.75;
+}
+.grouplet_grid__struct_keep--on,
+.grouplet_grid__struct_keep--on:hover {
+    opacity: 1;
+}
+.lockedContainer .grouplet_grid_row--entry,
+.grouplet_grid--at-max .grouplet_grid_row--entry {
+    display: none;
+}
+.grouplet_grid_announce {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+}
+
 /* === fillParent ===
    Opt-in via `gr_groupletGrid(..., fillParent=True)`. Root stays a
    plain <div>; height: 100% cascades from the dijit ancestor. Implies
@@ -1554,6 +2212,9 @@ body.drag_started .grouplet_grid_tab_add.canBeDropped {
 .grouplet_grid--fill {
     height: 100%;
     min-height: 0;
+    /* border and outer margin would overflow the parent it fills */
+    box-sizing: border-box;
+    margin: 0;
 }
 /* Tabs/vtabs: tabbar sticks (own grid-area), only active panel scrolls. */
 .grouplet_grid--fill.grouplet_grid--tabs > .grouplet_grid_body,

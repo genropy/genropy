@@ -141,6 +141,7 @@ packages = [
 	    'gnr.app',
 	    'gnr.app.api_engine',
 	    'gnr.app.cli',
+	    'gnr.app.gnrsqltable_proxy',
 	    'gnr.core',
 	    'gnr.core.cli',
     	    'gnr.core.loghandlers',

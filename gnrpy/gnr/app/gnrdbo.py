@@ -16,6 +16,7 @@ from gnr.core.gnrdecorator import public_method,extract_kwargs
 from gnr.core.gnrdict import dictExtract
 
 from gnr.app import logger
+from gnr.app.gnrsqltable_proxy.selection import SelectionProxy
 
 mimetypes.init() # Required for python 2.6 (fixes a multithread bug)
 
@@ -632,6 +633,19 @@ class TableBase(object):
         for m in [k for k in dir(self) if k.startswith('sysFields_extra_') and not k[-1]=='_']:
             getattr(self,m)(tbl,**kwargs)
 
+    def selectionProxy(self):
+        """Return the selection proxy of this table.
+
+        The proxy holds the table level part of the getSelection flow. It is a
+        method and not a property because ``instanceMixin`` copies only
+        callables onto the table instance.
+        """
+        proxy = getattr(self, '_selection_proxy', None)
+        if proxy is None:
+            proxy = SelectionProxy(self)
+            self._selection_proxy = proxy
+        return proxy
+
     def hasProtectionColumns(self):
         result = False
         if [r for r in list(self.model.virtual_columns.keys()) if r.startswith('__protected_by_')] or self.attributes.get('protectionColumn'):
@@ -646,7 +660,7 @@ class TableBase(object):
         for field in [r for r in list(self.model.virtual_columns.keys()) if r.startswith('__protected_by_')]:
             protections.append("""( CASE WHEN $%s IS TRUE THEN '%s' ELSE NULL END )  """ %(field,field[15:]))
         if protections:
-            return "array_to_string(ARRAY[%s],',')"   %','.join(protections)
+            return self.db.adapter.string_join(protections, ',')
         else:
             return " NULL "
 
@@ -661,7 +675,7 @@ class TableBase(object):
         for field in [r for r in self.model.virtual_columns.keys() if r.startswith('__invalid_by_')]:
             invalids.append("""( CASE WHEN $%s IS TRUE THEN '%s' ELSE NULL END )  """ %(field,field[13:]))
         if invalids:
-            return "array_to_string(ARRAY[%s],',')"   %','.join(invalids)
+            return self.db.adapter.string_join(invalids, ',')
         else:
             return " NULL "
 

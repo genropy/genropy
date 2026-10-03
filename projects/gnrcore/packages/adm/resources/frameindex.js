@@ -1,44 +1,9 @@
 var loginManager = {
+    // Kept as the entry point the index page fires on login; the dialog itself
+    // is built by adm_notification.js, which the notification form reuses to
+    // preview it on a single recipient.
     notificationManager:function(notification_id){
-        genro.setData('notification.confirm',null);
-        var notification_data = genro.serverCall('_table.adm.user_notification.getNotification',{pkey:notification_id});
-        var dlg = genro.dlg.quickDialog(notification_data['title'],{_showParent:true,max_width:'900px',datapath:'notification',background:'white'});
-        var box = dlg.center._('div',{overflow:'auto',height:'500px',overflow:'auto',padding:'10px'});
-        box._('div',{innerHTML:notification_data.notification,border:'1px solid transparent',padding:'10px'});
-        var cancel_label = notification_data.cancel_button_label;
-        var slots = cancel_label?['cancel','*']:['*'];
-        if(notification_data.confirm_label){
-            slots.push('confirm_checkbox','2');
-        }
-        slots.push('confirm');
-        var bar = dlg.bottom._('slotBar',{slots:slots.join(','),height:'22px'});
-        if(cancel_label){
-            // Refusing the notification leaves nowhere to go but the logout, so the
-            // button asks before doing it. A notification with no cancel label has no
-            // button at all, and confirming is then the only way into the application.
-            bar._('button','cancel',{'label':_T(cancel_label,true),command:'cancel',action:function(){
-                genro.dlg.ask(_T('!!Warning'),
-                              '!!If you do not confirm you will be logged out of the application',
-                              null,{confirm:function(){genro.logout();}});
-            }});
-        }
-        if(notification_data.confirm_label){
-            bar._('checkbox','confirm_checkbox',{value:'^.confirm',label:_T(notification_data.confirm_label,true)})
-        }
-        bar._('button','confirm',{'label':_T(notification_data.confirm_button_label || '!!Confirm',true),command:'confirm',disabled:notification_data.confirm_label?'^.confirm?=!#v':null,action:function(){
-                                                    genro.serverCall('_table.adm.user_notification.confirmNotification',{pkey:notification_id},
-                                                            function(n_id){
-                                                                dlg.close_action();
-                                                                if(n_id){
-                                                                    loginManager.notificationManager(n_id);
-                                                                }else{
-                                                                    genro.publish('end_notification')
-                                                                }
-                                                            }
-                                                    )
-
-                                                }});
-        dlg.show_action();
+        notificationDialog.open(notification_id);
     },
 
 }
@@ -750,16 +715,27 @@ dojo.declare("gnr.FramedIndexManager", null, {
     checkStartPage:function(){
         let menubag = genro.getData('gnr.appmenu.root');
         let n = menubag.getNodeByAttr('openOnStart');
-        if(!n){
-            return;
+        if(n){
+            genro.publish('selectIframePage',{addToHistory:false,...n.attr});
         }
-        genro.publish('selectIframePage',{addToHistory:false,...n.attr});
+        if(this.pendingMenuCode){
+            let pending = this.pendingMenuCode;
+            this.pendingMenuCode = null;
+            this.handleExternalMenuCode(pending.menucode,pending.runKwargs);
+        }
     },
     handleExternalMenuCode:function(external_menucode,runKwargs){
         runKwargs = runKwargs || {}
         let menubag = genro.getData('gnr.appmenu.root');
+        if(!menubag){
+            this.pendingMenuCode = {menucode:external_menucode,runKwargs:runKwargs};
+            return;
+        }
         let n = menubag.getNodeByAttr('menucode',external_menucode);
-        inattr = n.getInheritedAttributes()
+        if(!n){
+            return;
+        }
+        let inattr = n.getInheritedAttributes()
         let kw = {name:n.label,pkg_menu:inattr.pkg_menu,"file":null,table:null,formResource:null,
                                 viewResource:null,fullpath:n.getFullpath(null,true),modifiers:null,
                     ...n.attr,...objectExtract(runKwargs,'url_*',null,true)};

@@ -162,3 +162,51 @@ test('a same-bag rebuild under freeze tears nothing down', () => {
     assert.deepEqual(line, {deleted: false, widgetDestroyed: false});
     assert.deepEqual(bar, {deleted: false, widgetDestroyed: false});
 });
+
+
+test('a queued insert discarded during another build is not mounted', () => {
+    const {genro, thermoNode} = createSrc();
+    const src = genro.src;
+    const content = thermoNode.getValue();
+    thermoNode.domNode = {};
+    const mounted = [];
+    src.buildNode = node => {
+        node.checkOnChildBuilding();
+        mounted.push(node.label);
+    };
+    src.building = true;
+    const transient = content._('div', 'transient').getParentNode();
+    content.popNode('transient');
+    src.building = false;
+    content._('div', 'current');
+    assert.equal(transient.isLostNode(), true);
+    assert.deepEqual(mounted, ['current']);
+    assert.equal(src.building, false);
+});
+
+
+test('a subscription of a discarded node is reported once and dropped', t => {
+    const {genro, lineNode, barNode, publish, indexed} = createSrc();
+    const errors = [];
+    t.mock.method(console, 'error', (...args) => errors.push(args));
+    lineNode.getParentBag().popNode('l1', false);
+    assert.equal(barNode.isLostNode(), true);
+    assert.equal(indexed(), 2);
+    assert.deepEqual(publish('gnr.batch.b1.thermo.l1'), []);
+    assert.equal(indexed(), 0);
+    assert.equal(errors.length, 2);
+    assert.deepEqual(errors.map(args => args.slice(1)).sort(),
+                     [['progressbar', 'maximum', 'gnr.batch.b1.thermo.l1'],
+                      ['progressbar', 'progress', 'gnr.batch.b1.thermo.l1']]);
+    assert.equal(genro.src.triggerIndex.root.children.gnr, undefined);
+    assert.deepEqual(publish('gnr.batch.b1.thermo.l1'), []);
+    assert.equal(errors.length, 2);
+});
+
+test('a live subscription raises no error', t => {
+    const {publish} = createSrc();
+    const errors = [];
+    t.mock.method(console, 'error', (...args) => errors.push(args));
+    assert.deepEqual(publish('gnr.batch.b1.thermo.l1').sort(), ['maximum', 'progress']);
+    assert.deepEqual(errors, []);
+});

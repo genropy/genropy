@@ -22,6 +22,7 @@
 
 import os
 import http.client
+import importlib.metadata
 import socket
 import urllib.request, urllib.parse, urllib.error
 from time import sleep
@@ -32,6 +33,14 @@ from gnr.web import logger
 CONNECTION_REFUSED = 61
 MAX_CONNECTION_ATTEMPT = 20 
 CONNECTION_ATTEMPT_DELAY = 1
+
+#: The variable that names an alternative provider. It is the one
+#: ``gnr.web.daemon`` already reads: a provider is named once and replaces the
+#: interfaces it declares an entry point for.
+DAEMON_PROVIDER_ENV = 'GNR_DAEMON_PROVIDER'
+WEBSOCKET_ENTRY_POINT_GROUP = 'gnr.web'
+WEBSOCKET_ENTRY_POINT_NAME = 'websockethandler'
+WEBSOCKET_HANDLER_INTERFACE = ('checkSocket', 'sendCommandToPage')
 
 class WebSocketHandler(object):
     def sendCommandToPage(self,page_id,command,data):
@@ -166,3 +175,52 @@ class HTTPSocketConnection(http.client.HTTPConnection):
     def close(self):
         if hasattr(self,'sock') and self.sock:
             self.sock.close()
+
+
+def websocketHandlerClass():
+    """Return the class a site builds as its ``wsk``.
+
+    ``WsgiWebSocketHandler``, the handler that talks to the ``gnrasync``
+    daemon over ``async.sock``, unless ``GNR_DAEMON_PROVIDER`` names a provider
+    that also declares a ``gnr.web:websockethandler`` entry point.
+
+    The WebSocket interface is optional for a provider: one that serves HTTP
+    and the register but terminates no socket declares nothing, and the classic
+    handler stays — with it the classic probe, which finds no ``async.sock``
+    and turns the site's WebSockets off. Two entry points for one provider, or
+    one that is not a class carrying ``checkSocket`` and ``sendCommandToPage``,
+    is a configuration statement that cannot be honoured and raises
+    ``ImportError``.
+    """
+    provider = os.environ.get(DAEMON_PROVIDER_ENV)
+    if not provider:
+        return WsgiWebSocketHandler
+    eps = importlib.metadata.entry_points(group=WEBSOCKET_ENTRY_POINT_GROUP,
+                                          name=WEBSOCKET_ENTRY_POINT_NAME)
+    matching = [ep for ep in eps
+                if provider in (ep.module, getattr(ep.dist, 'name', None))]
+    if not matching:
+        logger.info('%s=%r declares no %s:%s entry point: the classic WebSocket '
+                    'handler stays', DAEMON_PROVIDER_ENV, provider,
+                    WEBSOCKET_ENTRY_POINT_GROUP, WEBSOCKET_ENTRY_POINT_NAME)
+        return WsgiWebSocketHandler
+    if len(matching) > 1:
+        declaring = ', '.join(sorted(
+            f'{ep.module} ({getattr(ep.dist, "name", "unknown distribution")})'
+            for ep in matching))
+        raise ImportError(
+            f'{DAEMON_PROVIDER_ENV}={provider!r} matches {len(matching)} '
+            f'{WEBSOCKET_ENTRY_POINT_GROUP}:{WEBSOCKET_ENTRY_POINT_NAME} entry '
+            f'points; declared by: {declaring}')
+    handler = matching[0].load()
+    missing = [name for name in WEBSOCKET_HANDLER_INTERFACE
+               if not callable(getattr(handler, name, None))]
+    if not isinstance(handler, type) or missing:
+        raise ImportError(
+            f'{DAEMON_PROVIDER_ENV}={provider!r} names {matching[0].value!r} as '
+            f'its {WEBSOCKET_ENTRY_POINT_GROUP}:{WEBSOCKET_ENTRY_POINT_NAME}: a '
+            f'handler class with {", ".join(WEBSOCKET_HANDLER_INTERFACE)} is '
+            f'required, {", ".join(missing) or type(handler).__name__} is not there')
+    logger.info('%s=%r resolved to the WebSocket handler %s', DAEMON_PROVIDER_ENV,
+                provider, matching[0].value)
+    return handler

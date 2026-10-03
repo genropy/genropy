@@ -980,16 +980,20 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
             this._registerInForm();
         }
         this._isBuilding = true;
-        var aux = '_bld_' + this.attr.tag.toLowerCase();
-        if (aux in this) {
-            this[aux].call(this);
-        }else{
-            var attributes = this.registerNodeDynAttr(true);
-            var tag=objectPop(attributes,'tag');
-            this._doBuildNode(tag, attributes, destination, ind);
-            this._setDynAttributes();
+        try{
+            var aux = '_bld_' + this.attr.tag.toLowerCase();
+            if (aux in this) {
+                this[aux].call(this);
+            }else{
+                var attributes = this.registerNodeDynAttr(true);
+                var tag=objectPop(attributes,'tag');
+                this._doBuildNode(tag, attributes, destination, ind);
+                this._setDynAttributes();
+            }
+        }finally{
+            //left set, nodeTrigger would ignore this node from now on
+            this._isBuilding = false;
         }
-        this._isBuilding = false;
     },
     _buildChildren: function(destination) {
         if (this.attr.remote) {
@@ -1122,7 +1126,7 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         if (bld_attrs.tooltip) {
             genro.wdg.create('tooltip', null, {label:bld_attrs.tooltip,tooltip_type:'help'}).connectOneNode(newobj.domNode || newobj);
         }
-        if (genro.src._started && this.widget && (this.widget instanceof dijit.form.ValidationTextBox)){
+        if (genro.src._started && this.widget){
             var validations = objectExtract(this.attr, 'validate_*',true);
             if (this.validationsOnChange && objectNotEmpty(validations)){
                 this.resetValidationError();
@@ -1732,83 +1736,94 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
           this._pendingRemoteUpdate = true;
           return;
         }
-        
-        var remoteAttr = this.evaluateOnNode(objectExtract(this.attr,'remote_*',true));
-        async = objectPop(remoteAttr,'_async',async);
-        if(this._lastRemoteAttr && this.attr._cachedRemote && objectIsEqual(this._lastRemoteAttr,remoteAttr)){
-            return;
-        }
-        this._lastRemoteAttr = remoteAttr;
-        if(remoteAttr._if){
-            var condition = funcApply('return (' + remoteAttr._if + ')',remoteAttr,this);
-            if(!condition){
-                if ('_else' in remoteAttr){
-                    var elseval=remoteAttr._else;
-                    if (elseval && typeof(elseval)=='string'){
-                        elseval=funcCreate(elseval).call(this);
-                    }
-                    this.mergeRemoteContent(elseval);
-                }
-                return;
-            }
-        }
-        var kwargs = {};
-        for (var attrname in remoteAttr) {
-            var value = remoteAttr[attrname];
-            if (value instanceof Date) {
-                var abspath = this.absDatapath(this.attr['remote_'+attrname]);
-                var node = genro._data.getNode(abspath);
-                value = asTypedTxt(value, node.attr.dtype);
-            }
-            if (attrname.indexOf('_') != 0) {
-                kwargs[attrname] = value;
-            } else if (attrname == '_onRemote') {
-                _onRemote = funcCreate(value, attrname._onRemote, this);
-            }
-        }
-        var method = this.attr.remote;
-        var that = this;
-        kwargs.sync = !async;
-        if(objectPop(remoteAttr,'sendInheritedAttributes')){
-            kwargs._inheritedAttributes = this.getInheritedAttributes();
-        }
-        
-        if(remoteAttr._waitingMessage){
-            var waitingMessage = remoteAttr._waitingMessage===true?_T('Loading content'):remoteAttr._waitingMessage;
-            waitingMessage = '<div style="height:130px;opacity:.8;" class="waiting"></div>'+'<div style="font-size:13px">'+waitingMessage+'</div>'
-            this.setHiderLayer(true,{message:waitingMessage});
-            kwargs.sync = false;
-        }
+        //taken before anything that can re-enter: a sync rpc on the way
+        //(_T below) lets dojo deliver an async response whose triggers
+        //would otherwise start a second fetch racing this one
         this._remotebuilding = true;
-        return genro.rpc.remoteCall(method, kwargs, null, 'POST', null,
-            function(result) {
-                //that.setValue(result);
-                if(result.error){
-                    genro.dlg.alert('Error in remote '+result.error,'Error');
-                }else{
-                    that.watch('checkPendingRequirs',function(){
-                        return !objectNotEmpty(genro.dom.pendingHeaders);
-                    },function(){
-                        if(remoteAttr._waitingMessage){
-                            that.setHiderLayer(false);
+        try{
+            var remoteAttr = this.evaluateOnNode(objectExtract(this.attr,'remote_*',true));
+            async = objectPop(remoteAttr,'_async',async);
+            if(this._lastRemoteAttr && this.attr._cachedRemote && objectIsEqual(this._lastRemoteAttr,remoteAttr)){
+                return this._releaseRemoteUpdate(async);
+            }
+            this._lastRemoteAttr = remoteAttr;
+            if(remoteAttr._if){
+                var condition = funcApply('return (' + remoteAttr._if + ')',remoteAttr,this);
+                if(!condition){
+                    if ('_else' in remoteAttr){
+                        var elseval=remoteAttr._else;
+                        if (elseval && typeof(elseval)=='string'){
+                            elseval=funcCreate(elseval).call(this);
                         }
-                        var t0 = new Date();
-                        //console.log('before building dom');
-                        that.mergeRemoteContent(result);
-                        //console.log('after building dom stuck time',new Date()-t0);
-                        if (_onRemote) {
-                            _onRemote();
-                        }
-                        genro.fakeResize();
-                    });
+                        this.mergeRemoteContent(elseval);
+                    }
+                    return this._releaseRemoteUpdate(async);
                 }
-                delete that._remotebuilding;
-                if(that._pendingRemoteUpdate){
-                    delete that._pendingRemoteUpdate;
-                    that.updateRemoteContent(true,async);
+            }
+            var kwargs = {};
+            for (var attrname in remoteAttr) {
+                var value = remoteAttr[attrname];
+                if (value instanceof Date) {
+                    var abspath = this.absDatapath(this.attr['remote_'+attrname]);
+                    var node = genro._data.getNode(abspath);
+                    value = asTypedTxt(value, node.attr.dtype);
                 }
-                return result;
-            });
+                if (attrname.indexOf('_') != 0) {
+                    kwargs[attrname] = value;
+                } else if (attrname == '_onRemote') {
+                    _onRemote = funcCreate(value, attrname._onRemote, this);
+                }
+            }
+            var method = this.attr.remote;
+            var that = this;
+            kwargs.sync = !async;
+            if(objectPop(remoteAttr,'sendInheritedAttributes')){
+                kwargs._inheritedAttributes = this.getInheritedAttributes();
+            }
+        
+            if(remoteAttr._waitingMessage){
+                var waitingMessage = remoteAttr._waitingMessage===true?_T('Loading content'):remoteAttr._waitingMessage;
+                waitingMessage = '<div style="height:130px;opacity:.8;" class="waiting"></div>'+'<div style="font-size:13px">'+waitingMessage+'</div>'
+                this.setHiderLayer(true,{message:waitingMessage});
+                kwargs.sync = false;
+            }
+            return genro.rpc.remoteCall(method, kwargs, null, 'POST', null,
+                function(result) {
+                    //that.setValue(result);
+                    if(result.error){
+                        genro.dlg.alert('Error in remote '+result.error,'Error');
+                    }else{
+                        that.watch('checkPendingRequirs',function(){
+                            return !objectNotEmpty(genro.dom.pendingHeaders);
+                        },function(){
+                            if(remoteAttr._waitingMessage){
+                                that.setHiderLayer(false);
+                            }
+                            var t0 = new Date();
+                            //console.log('before building dom');
+                            that.mergeRemoteContent(result);
+                            //console.log('after building dom stuck time',new Date()-t0);
+                            if (_onRemote) {
+                                _onRemote();
+                            }
+                            genro.fakeResize();
+                        });
+                    }
+                    that._releaseRemoteUpdate(async);
+                    return result;
+                });
+        }catch(e){
+            this._releaseRemoteUpdate(async);
+            throw e;
+        }
+    },
+
+    _releaseRemoteUpdate:function(async){
+        delete this._remotebuilding;
+        if(this._pendingRemoteUpdate){
+            delete this._pendingRemoteUpdate;
+            this.updateRemoteContent(true,async);
+        }
     },
 
     getValidationError: function() {
@@ -1861,7 +1876,13 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         }
     },
     getElementLabel:function(){
-        var raw = this.attr.error_label || this.attr._valuelabel || this.attr.field_name_long || this.attr.name_long || stringCapitalize(this.label);
+        //a formlet lbl lives on the labledbox wrapper (buildLblWrapper); '&nbsp;' is its placeholder
+        var wrapper = this.getLabelWrapper();
+        var wrapperLabel = wrapper ? wrapper.getAttributeFromDatasource('label') : null;
+        if(wrapperLabel=='&nbsp;'){
+            wrapperLabel = null;
+        }
+        var raw = this.attr.error_label || this.attr._valuelabel || this.attr.field_name_long || this.attr.name_long || wrapperLabel || stringCapitalize(this.label);
         if(raw && raw.indexOf('<') >= 0){
             var tmp = document.createElement('div');
             tmp.innerHTML = raw;
