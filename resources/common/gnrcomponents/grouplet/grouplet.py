@@ -3,6 +3,7 @@ from gnr.core.gnrdecorator import extract_kwargs, public_method
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdict import dictExtract
 from gnr.core.gnrlang import gnrImport
+from gnr.core.gnrstring import templateReplace
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.web.gnrwebstruct import struct_method
 
@@ -240,6 +241,54 @@ class GroupletHandler(BaseComponent):
             """, name=name, **grouplet_kwargs)
         return root
 
+    @struct_method
+    def gr_groupletChoice(self, pane, field=None, table=None, columns=None, where=None,
+                          order_by=None, rows=None, value_column='pkey', glyph=None,
+                          title=None, note=None, caption_field=None, groups=None,
+                          autoNext=True, **kwargs):
+        """Tiles that set `field` to one value of `rows` (or of a query on `table`,
+        kwargs are its parameters). glyph, title and note: a column, a $template
+        or a callable(row). groups: dicts of caption, condition(row) and _class.
+        In a wizard step a click also advances it (autoNext)."""
+        if rows is None:
+            rows = self.db.table(table).query(columns=columns or '*', where=where,
+                                              order_by=order_by, **kwargs).fetch()
+
+        def render(spec, row):
+            if callable(spec):
+                return spec(row)
+            return templateReplace(spec, row) if '$' in spec else row.get(spec)
+
+        action = f'SET .{field} = _choice;'
+        if caption_field:
+            action += f' SET .{caption_field} = _caption;'
+        if autoNext:
+            action += ' gnr_grouplet.choiceNext(this);'
+        box = pane.div(_class='grouplet_choice')
+        for group in groups or [{}]:
+            condition = group.get('condition')
+            if group.get('caption'):
+                box.div(group['caption'], _class='grouplet_choice_separator')
+            tiles = box.div(_class='grouplet_choice_tiles')
+            for row in rows:
+                if condition and not condition(row):
+                    continue
+                value = row[value_column]
+                caption = render(title, row) if title else value
+                tile = tiles.lightButton(action=action, _choice=value, _caption=caption,
+                                         _class=' '.join(filter(None, ['grouplet_choice_tile',
+                                                                       group.get('_class')])))
+                tile.dataController("genro.dom.setClass(this.getParentNode(), 'grouplet_choice_selected', current == _choice);",
+                                    current=f'^.{field}', _choice=value, _onBuilt=True)
+                if glyph:
+                    tile.div(render(glyph, row), _class='grouplet_choice_glyph')
+                text = tile.div(_class='grouplet_choice_text')
+                text.div(caption, _class='grouplet_choice_title')
+                if note:
+                    text.div(render(note, row), _class='grouplet_choice_note')
+        box.textbox(value=f'^.{field}', validate_notnull=True, hidden=True)
+        return box
+
     @extract_kwargs(grouplet=dict(slice_prefix=False, pop=True))
     @struct_method
     def gr_groupletPanel(self, pane, table=None, topic=None, value=None,
@@ -473,6 +522,7 @@ class GroupletHandler(BaseComponent):
         first_node = menu_nodes[0] if menu_nodes else None
         if first_node:
             frame.data('.current_resource', first_node.attr.get('resource'))
+            frame.data('.step_auto_next', bool(first_node.attr.get('autoNext')))
             frame.data('.next_label',
                        menu_nodes[1].attr.get('grouplet_caption')
                        if total_steps > 1 else completeLabel)
@@ -684,8 +734,9 @@ class GroupletHandler(BaseComponent):
                                _class='wizard_next_btn',
                                action="gnr_grouplet.wizardNext(this, _frameCode);",
                                _frameCode=frameCode,
-                               hidden='==_showing',
-                               _showing='^.wizard_showing_summary')
+                               hidden='==_showing || _auto',
+                               _showing='^.wizard_showing_summary',
+                               _auto='^.step_auto_next')
             bottom.lightButton(closeLabel,
                                _class='wizard_close_btn',
                                action="this.form.dismiss();",
@@ -697,8 +748,9 @@ class GroupletHandler(BaseComponent):
                                _class='wizard_next_btn',
                                action="gnr_grouplet.wizardNext(this, _frameCode);",
                                _frameCode=frameCode,
-                               hidden='==_ro || (_col && _idx==_last)',
+                               hidden='==_ro || (_col && _idx==_last) || _auto',
                                _ro='^.wizard_readonly', _col=_confirmOnLast,
+                               _auto='^.step_auto_next',
                                _idx='^.step_index', _last='^.wizard_last_index')
         frame.dataController(
             "gnr_grouplet.wizardUpdateStep(this, idx, _completeLabel, _frameCode, _saveLabel);",

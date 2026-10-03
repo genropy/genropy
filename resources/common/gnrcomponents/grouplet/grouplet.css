@@ -289,6 +289,102 @@
     overflow: auto;
 }
 
+/* --- Choice tiles (groupletChoice) --- */
+.grouplet_choice_tiles {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 6px;
+}
+
+.grouplet_choice_tile {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 5px 10px;
+    border: 1px solid var(--border-color, #dfe3dc);
+    border-radius: 8px;
+    background: var(--surface-bg, #fff);
+    cursor: pointer;
+    transition: box-shadow .12s ease, transform .12s ease;
+}
+
+.grouplet_choice_tile:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, .08);
+    transform: translateY(-1px);
+}
+
+.grouplet_choice_tile::after {
+    content: '\2713';
+    margin-left: auto;
+    color: var(--accent-color, #007AFF);
+    font-weight: 700;
+    font-size: 15px;
+    visibility: hidden;
+}
+
+.grouplet_choice_selected {
+    border-color: var(--accent-color, #007AFF);
+    box-shadow: inset 0 0 0 1px var(--accent-color, #007AFF);
+}
+
+.grouplet_choice_selected::after {
+    visibility: visible;
+}
+
+.grouplet_choice_glyph {
+    flex: 0 0 42px;
+    height: 26px;
+    line-height: 26px;
+    border-radius: 7px;
+    text-align: center;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .04em;
+    color: var(--text-color, #1f2a1f);
+    background: var(--primary-lighter, #f4f6f2);
+}
+
+.grouplet_choice_selected .grouplet_choice_glyph {
+    color: var(--accent-on-color, #fff);
+    background: var(--accent-color, #007AFF);
+}
+
+.grouplet_choice_text {
+    min-width: 0;
+}
+
+.grouplet_choice_title {
+    font-weight: 600;
+    font-size: 14px;
+    line-height: 1.25;
+}
+
+.grouplet_choice_note {
+    color: var(--text-secondary, #6b7280);
+    font-size: 12px;
+    line-height: 1.35;
+}
+
+.grouplet_choice_separator {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 12px 0 8px;
+    color: var(--text-secondary, #6b7280);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .09em;
+    text-transform: uppercase;
+}
+
+.grouplet_choice_separator::before,
+.grouplet_choice_separator::after {
+    content: '';
+    flex: 1 1 auto;
+    height: 1px;
+    background: var(--border-color, #dfe3dc);
+}
+
 /* --- Bottom navigation bar --- */
 .wizard_bottom_bar {
     display: flex;
