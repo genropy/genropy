@@ -2158,6 +2158,12 @@ dojo.declare("gnr.GridChangeManager", null, {
         delete this.totalizeColumns[field];
     },
     calculateFormula:function(formulaKey,rowNode){
+        var values = {};
+        values[formulaKey] = this.evaluateFormula(formulaKey,rowNode);
+        this.grid.collectionStore().updateRowNode(rowNode,values);
+    },
+
+    evaluateFormula:function(formulaKey,rowNode){
         var formula = this.formulaColumns[formulaKey];
         var result;
         var pars = this.grid.rowFromBagNode(rowNode,true);
@@ -2191,7 +2197,6 @@ dojo.declare("gnr.GridChangeManager", null, {
         var dynPars = objectExtract(bagcellattr,'formula_*',true);
         dynPars = this.sourceNode.evaluateOnNode(dynPars);
         objectUpdate(pars,dynPars);
-        var values = {};
         if(formula=='#'){
             result = rowNode.attr.rowidx || this.grid.currRenderedRowIndex;
         }else{
@@ -2201,8 +2206,7 @@ dojo.declare("gnr.GridChangeManager", null, {
                 result = null;
             }
         }
-        values[formulaKey] = result;
-        this.grid.collectionStore().updateRowNode(rowNode,values);
+        return result;
     },
  
 

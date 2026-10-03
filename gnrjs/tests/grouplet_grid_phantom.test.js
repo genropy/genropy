@@ -234,6 +234,24 @@ test('a struct entry row keeps the columns pinned in its header, keepable=* alwa
     assert.deepEqual(['shop', 'cur', 'item'].map((f) => s.entry().getItem(f)), [null, 'EUR', null]);
 });
 
+test('the entry row works out its formulas as it is typed in', () => {
+    const s = entryGrid();
+    s.genro.getDataNode = (p) => s.data.getNode(p);
+    s.controller._changeMgr = {
+        formulaColumns: {total: 'qty*price', n: '#'},
+        evaluateFormula: (field, node) => node.getValue().getItem('qty') * node.getValue().getItem('price')
+    };
+    s.entry().setItem('price', 2.5);
+    assert.equal(s.entry().getItem('total'), 2.5);
+    assert.ok(!s.entry().getNode('n'), 'a counter needs a row');
+    s.entry().setItem('qty', 4);
+    assert.equal(s.entry().getItem('total'), 10);
+    s.entry().setItem('item', 'Milk');
+    s.controller._addEntry();
+    assert.equal(s.lines.getItem('r_k1.total'), 10);
+    assert.equal(s.entry().getItem('total'), null, 'the cleared row is not worked out');
+});
+
 test('a missing required field or a locked form stops the entry', () => {
     const req = entryGrid({missing: 'item'});
     req.entry().setItem('qty', 3);

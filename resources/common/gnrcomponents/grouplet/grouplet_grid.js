@@ -44,6 +44,7 @@ gnr.GroupletGridStructAdapter = class GroupletGridStructAdapter {
                 field: field,
                 name: hasName ? attr.name : field,
                 width: attr.width,
+                min_width: attr.min_width,
                 dtype: attr.dtype || 'T',
                 edit: attr.edit,
                 format: attr.format,
@@ -84,7 +85,8 @@ gnr.GroupletGridStructAdapter = class GroupletGridStructAdapter {
 
     columnsCSS() {
         // Width translation:
-        //   missing / '*' / '100%'  → minmax(0, 1fr)  (flex track)
+        //   missing / '*' / '100%'  → minmax(0, 1fr)  (flex track),
+        //                             minmax(min_width, 1fr) with a min_width
         //   anything else           passes through.
         // '100%' as a literal Grid track overflows and resolves with
         // per-container subpixel rounding — visible column drift across
@@ -92,11 +94,12 @@ gnr.GroupletGridStructAdapter = class GroupletGridStructAdapter {
         // Auto-promote the widest fixed-em cell if no flex track exists,
         // otherwise the row centres while header/footer span full width.
         const FLEX = 'minmax(0, 1fr)';
+        const flex = (c) => (c.min_width ? 'minmax(' + c.min_width + ', 1fr)' : FLEX);
         const tracks = this.cells.map(function(c) {
             const w = c.width;
-            return (!w || w === '*' || w === '100%') ? FLEX : w;
+            return (!w || w === '*' || w === '100%') ? flex(c) : w;
         });
-        if (!tracks.some((t) => t === FLEX)) {
+        if (!tracks.some((t) => t.endsWith(' 1fr)'))) {
             let bestIdx = 0;
             let bestVal = -Infinity;
             tracks.forEach(function(t, i) {
@@ -169,17 +172,23 @@ gnr.GroupletGridStructAdapter = class GroupletGridStructAdapter {
         return root;
     }
 
-    buildRowTemplate(readonly) {
+    buildRowTemplate(readonly, computed) {
         // Same sourceRoot shape the resource= flow produces, but
         // synthesised: widgets are direct children of the row (no
         // per-cell wrapper). Editable cells use the dtype→widget map
         // from gnr.Grid; readonly cells are plain divs with ^.field.
         // `readonly`: every cell is a readonly div (the template rows of
-        // a struct grid with rowTemplate=True).
+        // a struct grid with rowTemplate=True). `computed`: the fields
+        // shown as read-only editors (the entry row's formulas).
         const root = genro.src.newRoot();
         const row = root._('div', {_class: 'grouplet_grid__struct_row'});
         const Adapter = gnr.GroupletGridStructAdapter;
         this.cells.forEach(function(c) {
+            if (!readonly && computed && computed.indexOf(c.field) >= 0) {
+                row._(genro.wdg.wdgByDtype(c.dtype), objectUpdate(
+                    Adapter._editorKwargs(c), {readOnly: true, tabindex: -1}));
+                return;
+            }
             const tag = readonly ? null : Adapter._resolveWidgetTag(c);
             if (tag) {
                 row._(tag, Adapter._editorKwargs(c));
@@ -836,6 +845,10 @@ gnr.GroupletGridController = class GroupletGridController {
         if (phantomBag instanceof gnr.GnrBag) {
             phantomBag.unsubscribe(this._phantomSubscriberId());
         }
+        const entryBag = genro.getData(this.entryPath);
+        if (entryBag instanceof gnr.GnrBag) {
+            entryBag.unsubscribe(this._entrySubscriberId());
+        }
         this._teardownLayoutAffordances();
         if (this._structResizeObserver) {
             this._structResizeObserver.disconnect();
@@ -1320,6 +1333,7 @@ gnr.GroupletGridController = class GroupletGridController {
         this.templateSources = {};
         this.templateLoading = {};
         this._readonlyRowSource = null;
+        this._entryRowSource = null;
         Object.keys(this.tiles).forEach((pkey) => this._destroyTile(pkey));
         this._unmountPhantom();
         this._unmountEntry();
@@ -2481,6 +2495,8 @@ gnr.GroupletGridController = class GroupletGridController {
         // Kept fields survive (Enter, Esc, record load alike) and act as
         // defaults for the next row: alone, they are no entry.
         const bag = this._resetBlankRow(this.entryPath, true);
+        bag.subscribe(this._entrySubscriberId(),
+                      {any: () => this._calcEntryFormulas()});
         this._entryBaseline = objectUpdate({}, this.defaultRow || {});
         const kept = gnr.GroupletGridController._keptValues(bag);
         Object.keys(kept).forEach((path) => {
@@ -2498,6 +2514,28 @@ gnr.GroupletGridController = class GroupletGridController {
             });
         }
         this._syncKept();
+    }
+
+    _entrySubscriberId() {
+        return 'gg_entry_' + this.nodeId;
+    }
+
+    _calcEntryFormulas() {
+        // The entry row is no row of the store, so the change manager does
+        // not see it: its formulas are worked out here as it is typed in.
+        if (this._phantomResetting || this._entryCalculating || !this._changeMgr) return;
+        const node = genro.getDataNode(this.entryPath);
+        const formulas = this._changeMgr.formulaColumns;
+        this._entryCalculating = true;
+        try {
+            Object.keys(formulas).forEach((field) => {
+                // a counter or a running total reads the rows around it
+                if (formulas[field] === '#' || /^[+%]=/.test(formulas[field])) return;
+                node.getValue().setItem(field, this._changeMgr.evaluateFormula(field, node));
+            });
+        } finally {
+            this._entryCalculating = false;
+        }
     }
 
     _toggleKeep(field) {
@@ -2532,6 +2570,7 @@ gnr.GroupletGridController = class GroupletGridController {
     }
 
     _onEntryKeydown(e) {
+        // Listened to in the capture phase: a closed combo swallows Enter.
         // An open dropdown owns Enter (pick) and Escape (close).
         const widget = dijit.getEnclosingWidget(e.target);
         if (widget && widget._isShowingNow) return;
@@ -2550,11 +2589,13 @@ gnr.GroupletGridController = class GroupletGridController {
     _commitEntry(then) {
         const dom = this.entryTile && this.entryTile.domNode();
         if (!dom) return;
-        // A field writes its value in _onBlur, which dijit runs 100ms after
-        // focus leaves: run it now on the last field typed in (a click on
-        // the add button has already moved the focus away from it).
+        // A field writes its value in _onBlur. Moving the focus to the first
+        // field blurs the one typed in now, with its value, not later on the
+        // cleared row. The first field keeps the focus and writes it here.
         const widget = this._entryWidget;
-        if (widget && widget._onBlur && widget.domNode
+        const first = this._entryFocusTarget(dom);
+        if (first) first.focus();
+        if (widget && widget._focused && widget._onBlur && widget.domNode
                 && dom.contains(widget.domNode)) {
             widget._onBlur();
         }
@@ -2603,6 +2644,15 @@ gnr.GroupletGridController = class GroupletGridController {
         this._focusEntry();
         this._announce(_T('!!Row added'));
         return true;
+    }
+
+    _structEntryRow() {
+        if (!this._entryRowSource) {
+            const computed = Object.keys(this.formulas)
+                .concat(this.structAdapter.cells.filter((c) => c.formula).map((c) => c.field));
+            this._entryRowSource = this.structAdapter.buildRowTemplate(false, computed);
+        }
+        return this._entryRowSource;
     }
 
     _structReadonlyRow() {
@@ -2917,14 +2967,18 @@ gnr.GroupletGridController = class GroupletGridController {
         const dom = tile && tile.domNode();
         if (!dom) return;
         setTimeout(() => {
-            const editors = gnr.GroupletGridController._editors(dom)
-                .filter((ed) => ed.offsetParent !== null);
-            const el = editors.find((ed) => !ed.closest('.keeper_on')
-                && !ed.classList.contains('grouplet_grid_kept')) || editors[0];
+            const el = this._entryFocusTarget(dom);
             if (!el) return;
             el.focus();
             if (el.select) el.select();
         }, 0);
+    }
+
+    _entryFocusTarget(dom) {
+        const editors = gnr.GroupletGridController._editors(dom)
+            .filter((ed) => ed.offsetParent !== null);
+        return editors.find((ed) => !ed.closest('.keeper_on')
+            && !ed.classList.contains('grouplet_grid_kept')) || editors[0];
     }
 
     _announce(text) {
@@ -3844,6 +3898,13 @@ gnr.GroupletGridEntryTile = class GroupletGridEntryTile extends gnr.GroupletGrid
         return !this.controller.structAdapter;
     }
 
+    _resolveTemplate() {
+        super._resolveTemplate();
+        if (this.controller.structAdapter) {
+            this.templateSource = this.controller._structEntryRow();
+        }
+    }
+
     _hostNode() {
         return this.controller.entryNode;
     }
@@ -3862,7 +3923,7 @@ gnr.GroupletGridEntryTile = class GroupletGridEntryTile extends gnr.GroupletGrid
                     : domnode;
                 if (tile.tileDom) {
                     tile.tileDom.addEventListener('keydown',
-                        (e) => c._onEntryKeydown(e));
+                        (e) => c._onEntryKeydown(e), true);
                     tile.tileDom.addEventListener('focusin', (e) => {
                         c._entryWidget = dijit.getEnclosingWidget(e.target);
                     });
