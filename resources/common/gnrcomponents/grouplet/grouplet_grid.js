@@ -241,6 +241,7 @@ gnr.GroupletGridStructAdapter = class GroupletGridStructAdapter {
             values: c.values,
             format: c.format,
             validate_notnull: c.validate_notnull,
+            error_label: c.name,
             keepable: c.keepable,
             ...editRest,
             _class: 'grouplet_grid__struct_col_cell'
@@ -2627,8 +2628,7 @@ gnr.GroupletGridController = class GroupletGridController {
         }
         const missing = this._entryMissingField();
         if (missing) {
-            // its own validation message shows on focus
-            missing.widget.focus();
+            this._flagMissingField(missing);
             return false;
         }
         if (editing) {
@@ -2969,6 +2969,20 @@ gnr.GroupletGridController = class GroupletGridController {
             const v = n.getRelativeData(attr.value.replace(/^\^/, ''));
             if (v === null || v === undefined || v === '') return n;
         }, 'static');
+    }
+
+    _flagMissingField(node) {
+        // No form validates the entry row, and a blank field shows no
+        // tooltip: the error is set and published here.
+        const result = genro.vld.validate(node, node.getAttributeFromDatasource('value'),
+                                          false, true, ['notnull']);
+        node.setValidationError(result);
+        node.updateValidationStatus();
+        genro.publish('floating_message', {
+            message: (node.getElementLabel() || '').trim() + ': '
+                + node._resolveErrorMessage(result.error),
+            sound: '$onerror', messageType: 'error'});
+        node.widget.focus();
     }
 
     _focusEntry() {

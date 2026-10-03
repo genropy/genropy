@@ -30,7 +30,7 @@ function createGrid({defaultRow = {qty: 1, bought: false}, disabled = false, max
     };
     vm.createContext(context);
     const sourceDir = process.env.GNR_JS_SOURCE || path.join(__dirname, '../gnr_d11/js');
-    for (const filename of ['gnrlang.js', 'gnrbag.js', 'gnrdomsource.js']) {
+    for (const filename of ['gnrlang.js', 'gnrbag.js', 'gnrdomsource.js', 'genro_frm.js']) {
         vm.runInContext(readFileSync(path.join(sourceDir, filename), 'utf8'), context, {filename});
     }
     const gridJs = path.join(__dirname, '../../resources/common/gnrcomponents/grouplet/grouplet_grid.js');
@@ -43,7 +43,12 @@ function createGrid({defaultRow = {qty: 1, bought: false}, disabled = false, max
     data.setItem('ws', new Bag());
     data.setBackRef();
     let counter = 0;
+    const published = [];
     Object.assign(context.genro, {
+        _data: data,
+        vld: new context.gnr.GnrValidator(context.genro),
+        wdg: {getHandler: () => null},
+        publish: (topic, kw) => published.push([topic, kw]),
         getData: p => data.getItem(p),
         setData: (p, v) => data.setItem(p, v),
         time36Id: () => 'k' + (++counter),
@@ -75,7 +80,7 @@ function createGrid({defaultRow = {qty: 1, bought: false}, disabled = false, max
     });
     controller._resetPhantom();
     const phantom = () => data.getItem('ws.phantom');
-    return {controller, lines, phantom, data, genro: context.genro};
+    return {controller, lines, phantom, data, published, context, genro: context.genro};
 }
 
 const plain = bag => JSON.parse(JSON.stringify(bag.asDict()));
@@ -178,17 +183,28 @@ test('card mode: a nested field is an entry, a formula field is not', async () =
 function entryGrid({missing = null, disabled = false} = {}) {
     const s = createGrid({disabled});
     const focused = [];
+    let field;
+    if (missing) {
+        const row = new s.context.gnr.GnrDomSource();
+        row._('div', 'entry', {datapath: 'ws.entry'});
+        row.getItem('entry')._('textbox', missing, {tag: 'textbox', value: '^.' + missing, validate_notnull: true});
+        field = row.getNode('entry.' + missing);
+        field.setValidations();
+        field.widget = {focus: () => focused.push(missing)};
+        field.updateValidationClasses = () => {};
+        field.isLostNode = () => false;
+    }
     Object.assign(s.controller, {
         entry: true,
         entryPath: 'ws.entry',
         entryTile: {
             domNode: () => null,
-            tileContent: {walk: () => (missing ? {widget: {focus: () => focused.push(missing)}} : undefined)}
+            tileContent: {walk: () => field}
         },
         _announcer: {textContent: ''}
     });
     s.controller._resetEntry();
-    return {...s, focused, entry: () => s.data.getItem('ws.entry')};
+    return {...s, focused, field, entry: () => s.data.getItem('ws.entry')};
 }
 
 test('the entry row adds its values at the tail and clears, keeping the marked fields', () => {
@@ -258,6 +274,9 @@ test('a missing required field or a locked form stops the entry', () => {
     req.controller._addEntry();
     assert.equal(req.lines.len(), 0);
     assert.deepEqual(req.focused, ['item']);
+    assert.ok(req.field.hasValidationError(), 'the field shows it is missing');
+    assert.deepEqual(JSON.parse(JSON.stringify(req.published)), [['floating_message',
+        {message: 'Item: !!Required field', sound: '$onerror', messageType: 'error'}]]);
     const locked = entryGrid({disabled: true});
     locked.entry().setItem('item', 'Milk');
     locked.controller._addEntry();
