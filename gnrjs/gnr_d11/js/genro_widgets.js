@@ -5725,8 +5725,12 @@ dojo.declare("gnr.widgets.BaseSelect", null, {
                 this.setValue(this._lastValueReported, true);
             }else{
                 if (isNullOrBlank(displayedValue)){
-                     this.setValue(null, true);
-                     this.setDisplayedValue('');
+                    // validate_select runs inside the change below: an empty field, not a wrong search
+                    this._lastDisplayedValue = '';
+                    this.setValue(null, !isNullOrBlank(this._lastValueReported));
+                    // setDisplayedValue('') reports undefined: the clear is reported once, above
+                    this._lastValueReported = undefined;
+                    this.setDisplayedValue('');
                 }else{
                     if ( isNullOrBlank(value)){
                         this.setValue(null, true);
