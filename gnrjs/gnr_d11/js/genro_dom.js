@@ -430,7 +430,9 @@ dojo.declare("gnr.GnrDomHandler", null, {
             var path = kw.value;
             kw.onclick = dojo.hitch(bagnode, function(e) {
                 var v = e.target.checked;
-                this.setAttr(path, v);
+                var attributes = {};
+                attributes[path] = v;
+                this.setAttr(attributes,true,true);
             });
             kw.checked = bagnode.getAttr(path);
         }

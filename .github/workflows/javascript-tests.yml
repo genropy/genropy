@@ -14,3 +14,9 @@ jobs:
         with:
           node-version: '22'
       - run: node --test gnrjs/tests/*.test.js
+      - name: Test standalone Bag compatibility mode
+        run: node --test gnrjs/tests/*.test.js
+        env:
+          GNR_JS_BAG: genro-bag-js-mixin
+      - name: Test framework attribute callers
+        run: node --test resources/common/tests/*.test.js

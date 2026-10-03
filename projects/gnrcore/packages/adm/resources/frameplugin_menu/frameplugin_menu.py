@@ -157,7 +157,7 @@ class MenuIframes(BaseComponent):
                                             if(titleCounter === true || menuLineBadge == '#'){
                                                 updater.badgeContent = child_count || null;
                                             }
-                                            n.updAttributes(updater);
+                                            n.setAttr(updater,true,true,false);
                                         }
                                         return;
                                     }
@@ -177,7 +177,7 @@ class MenuIframes(BaseComponent):
                                         menuLineBadgeKW.table = menuLineBadgeKW.table || n.attr.table;
                                         genro.serverCall('menu.getMenuLineBadge',menuLineBadgeKW,
                                                             function(result){
-                                                                n.updAttributes({badgeContent:result});
+                                                                n.setAttr({badgeContent:result},true,true,false);
                                                             })
                                     }
                                 },'static');

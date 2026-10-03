@@ -10,8 +10,13 @@ genropatches.dojoXhr = function(transport){
     var original = {xhr: dojo.xhr, rawXhrPost: dojo.rawXhrPost,
                     rawXhrPut: dojo.rawXhrPut, cancelAll: dojo._ioCancelAll};
     var pending = new Set();
-    var handlers = ['text', 'json', 'xml', 'javascript',
+    var handlers = ['genro-bag', 'text', 'json', 'xml', 'javascript',
                     'json-comment-filtered', 'json-comment-optional'];
+
+    // Both TYTX and XML responses use UTF-8 text, including synchronous XHR.
+    dojo._contentHandlers['genro-bag'] = function(xhr){
+        return xhr.responseText;
+    };
 
     function supported(args){
         if(args.sync || args.user || args.password || args.responseType ||
@@ -130,7 +135,7 @@ genropatches.dojoXhr = function(transport){
                     if(finished){ return; }
                     xhr.responseText = text;
                     xhr.readyState = 4;
-                    if(/(?:\/|\+)xml(?:\s*;|$)/i.test(xhr.getResponseHeader('Content-Type') || 'text/xml')){
+                    if(ioArgs.handleAs !== 'genro-bag' && /(?:\/|\+)xml(?:\s*;|$)/i.test(xhr.getResponseHeader('Content-Type') || 'text/xml')){
                         var xml = new DOMParser().parseFromString(text, 'application/xml');
                         var parseErrors = xml.getElementsByTagNameNS(
                             'http://www.mozilla.org/newlayout/xml/parsererror.xml', 'parsererror').length ||
@@ -1419,7 +1424,7 @@ genropatches.tree = function() {
     dijit.Tree.prototype._expandNode_replaced=dijit.Tree.prototype._expandNode;
     dijit.Tree.prototype._collapseNode_replaced=dijit.Tree.prototype._collapseNode;
     dijit.Tree.prototype._expandNode = function(node) {
-        if(node.item && node.item._resolver && node.item._resolver.expired()){
+        if(node.item && node.item._resolver && node.item._resolver.expired){
             node.state = 'UNCHECKED';
         }
         if(node.__eventmodifier=='Shift' && node.isExpandable){
@@ -1433,7 +1438,7 @@ genropatches.tree = function() {
         }
     }
     dijit.Tree.prototype._collapseNode = function(node) {
-        if(node.item && node.item._resolver && node.item._resolver.expired()){
+        if(node.item && node.item._resolver && node.item._resolver.expired){
             node.state = 'UNCHECKED';
         }
         if(node.__eventmodifier=='Shift' && node.isExpandable){

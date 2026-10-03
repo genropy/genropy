@@ -56,7 +56,7 @@ dojo.declare("gnr.FramedIndexManager", null, {
         var rootPageName = kw.rootPageName;
         var stackWidget=this.stackSourceNode.widget;
         if(stackWidget.hasPageName(rootPageName)){
-            this.iframesbag.getNode(rootPageName,null,true).updAttributes(this.iframeBagNodeAttr(kw));
+            this.iframesbag.getNode(rootPageName,null,true).setAttr(this.iframeBagNodeAttr(kw),true,true,false);
             return rootPageName;
         }
         this.iframesbag = genro.getData('iframes');
@@ -478,7 +478,7 @@ dojo.declare("gnr.FramedIndexManager", null, {
 
     changeFrameLabel:function(kw){
         if(kw.pageName && this.iframesbag.getNode(kw.pageName)){
-            this.iframesbag.getNode(kw.pageName).updAttributes({fullname:kw.title});
+            this.iframesbag.getNode(kw.pageName).setAttr({fullname:kw.title},true,true,false);
             this.stackSourceNode.fireEvent('refreshTablist',true);
         }
     },

@@ -14,6 +14,7 @@ from gnr.core.gnrbag import Bag,BagNode
 from gnr.core.gnrdict import dictExtract
 from gnr.core.gnrlang import GnrException
 from gnr.web import logger
+from gnr.web.gnrbagtransport import transport_format, encode_envelope, CONTENT_TYPE
 from gnr.web.gnrwebpage_proxy.gnrbaseproxy import GnrBaseProxy
 
 
@@ -77,6 +78,9 @@ class GnrWebRpc(GnrBaseProxy):
             dataChanges = self.page.collectClientDatachanges()
             if dataChanges:
                 envelope.setItem('dataChanges', dataChanges)
+        if transport_format(page.application, page=page) == 'tytx':
+            page.response.content_type = CONTENT_TYPE
+            return encode_envelope(envelope, page.localize)
         page.response.content_type = "text/xml"
         t0 = time()
         xmlresult = envelope.toXml(unresolved=True,

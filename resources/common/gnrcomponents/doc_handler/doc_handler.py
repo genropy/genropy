@@ -83,7 +83,7 @@ class DocHandler(BaseComponent):
                 if(userChange){
                     var pages = GET .pages;
                     var current = GET .current;
-                    pages.getNode(current).updAttributes({caption:value});
+                    pages.getNode(current).setAttr({caption:value},true,true,false);
                 }
                 """)
             bar.revertbtn.slotButton('!!Revert',action="""this.form.reload();""",

@@ -134,7 +134,7 @@ class Form(BaseComponent):
                                             {value:'^.tags',lbl:'Tags'}],
                                     action:function(res){
                                         objectUpdate(row,res.asDict(),true);
-                                        item.updAttributes(row,true);
+                                        item.setAttr(row,true,true,false);
                                     }});
                                                 """)
         tree.column('label',header='Caption')

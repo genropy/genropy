@@ -140,7 +140,7 @@ class GnrCustomWebPage(object):
             bar.mb.formbuilder(cols=1,border_spacing='3px').filteringSelect(
                                     value='^.currentLocalizationBlock', lbl='!![en]Package', 
                                     storepath='.blocks', storeid='code', storecaption='code')
-            bar.dataController("SET .currentLocalizationBlock=blocks._nodes[0].attr.code;", 
+            bar.dataController("SET .currentLocalizationBlock=blocks.getNodes()[0].attr.code;",
                                     blocks='^.blocks', _onStart=True)
         languages = self.db.application.localizer.languages
         bar.fblang.formbuilder(cols=1,border_spacing='3px').checkboxText(value='^#FORM.enabledLanguages',values=','.join(["%s:%s" %(k,languages[k]) for k in sorted(languages.keys())]),popup=True,cols=4,lbl='!!Languages')

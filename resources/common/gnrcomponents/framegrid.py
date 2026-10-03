@@ -810,7 +810,7 @@ class EvaluationGrid(BaseComponent):
                     let rv = v.getItem(cbcell);
                     updattr[cbcell] = rv;
                 }
-                n.updAttributes(updattr,false);
+                n.setAttr(updattr,false,true,false);
             });
         """,value=value,store='^.store',grid=frame.grid.js_widget)
 

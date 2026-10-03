@@ -125,7 +125,7 @@ class ConfTreeItemForm(BaseComponent):
                                             {value:'^.fullcaption',lbl:'Full caption'}],
                                     action:function(res){
                                         objectUpdate(row,res.asDict(),true);
-                                        item.updAttributes(row,true);
+                                        item.setAttr(row,true,true,false);
                                     }});
                                                 """)
         tree.column('caption',header='Caption')

@@ -69,6 +69,10 @@ import urllib.parse
 
 import requests
 
+from gnr._bag_mode import assert_legacy_bag_allowed
+
+assert_legacy_bag_allowed()
+
 from gnr.core import gnrstring, logger
 from gnr.core.gnrclasses import GnrClassCatalog
 from gnr.core.gnrlang import GnrObject, GnrException, getUuid #setCallable

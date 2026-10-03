@@ -12,7 +12,7 @@ var pandas_commands_manager = {
             if(!(dfname in datasets_index)){
                 datasets_index[dfname] = true;
                 r = dfcommands.deepCopy();
-                r._nodes.forEach(function(n){
+                r.getNodes().forEach(function(n){
                     n.attr.default_kw.dfname = dfname;
                 });
                 result.setItem('r_'+result.len(),r,{caption:dfname});

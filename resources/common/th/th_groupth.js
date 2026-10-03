@@ -284,7 +284,7 @@ var genro_plugin_groupth = {
             });
             let prev_pkeylist = st_row._pkeylist;
             st_row._pkeylist = prev_pkeylist?prev_pkeylist+','+pkeylist:pkeylist;
-            st_node.updAttributes(st_row);
+            st_node.setAttr(st_row,true,true,false);
         });
         resultStruct.setItem('info.columnsets',columnsets);
         resultStore.forEach(function(n){
@@ -296,7 +296,7 @@ var genro_plugin_groupth = {
                 attr[klist.join('_')] = totals[keytot]
             }
             console.log('attr',attr);
-            n.updAttributes(attr);
+            n.setAttr(attr,true,true,false);
         });
         return {'struct':resultStruct,'store':resultStore};
     },
