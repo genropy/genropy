@@ -89,6 +89,10 @@ class GnrCustomWebPage(object):
     def raceProvince(self,regione=None):
         return 'MI' if regione == 'LOM' else None
 
+    @public_method
+    def raceClearProvince(self,regione=None):
+        return regione == 'LOM'
+
     def test_9_condition_null(self,pane):
         "Condition change and SET null in the same tick: caption clears, no validation error"
         pane.data('.regione','VAL')
@@ -100,7 +104,45 @@ class GnrCustomWebPage(object):
                     lbl='DbSelect',width='25em',nodeId='dbselect_condition_null')
         fb.div('^.sigla',lbl='Datastore value')
         fb.button('Set LOM / null',action="SET .regione='LOM'; SET .sigla=null;")
-        
+
+    def test_10_condition_race_validation(self,pane):
+        """A stale condition reply must not overwrite the validation state of the newer value.
+        The race ends on a blank, and notnull is a warning here so the blank reaches the
+        datastore: when the stale reply lands the node carries both required and warnings"""
+        pane.data('.regione','VAL')
+        pane.data('.sigla','AO')
+        fb = pane.formbuilder(cols=2, border_spacing='4px')
+        fb.dbSelect(table='glbl.regione',value='^.regione',lbl='Regione',width='25em')
+        fb.dbSelect(table='glbl.provincia',value='^.sigla',method=self.delayedDbSelect,
+                    condition='$regione=:regione',condition_regione='^.regione',
+                    lbl='DbSelect',width='25em',
+                    validate_notnull=True,validate_notnull_iswarning=True,
+                    validate_notnull_warning='Manca il valore',
+                    nodeId='dbselect_race_validation')
+        fb.div('^.sigla',lbl='Datastore value')
+        pane.dataRpc('.race_clear',self.raceClearProvince,regione='^.regione',
+                     _if="regione=='LOM'",_else='null')
+        pane.dataController("genro.nodeById('dbselect_race_validation').widget.setValue(null,true);",
+                            clear='^.race_clear',_if='clear')
+        fb.button('Set LOM (race to blank)',action="SET .regione='LOM';")
+
+    def test_11_widget_value_out_of_condition(self,pane):
+        """A value handed to the widget while it does not fit the current condition keeps its
+        query error: no newer fetch superseded it, so the error is installed and the datastore
+        refuses the value"""
+        pane.data('.regione','LOM')
+        pane.data('.sigla','MI')
+        fb = pane.formbuilder(cols=2, border_spacing='4px')
+        fb.dbSelect(table='glbl.regione',value='^.regione',lbl='Regione',width='25em')
+        fb.dbSelect(table='glbl.provincia',value='^.sigla',
+                    condition='$regione=:regione',condition_regione='^.regione',
+                    lbl='DbSelect',width='25em',validate_notnull=True,
+                    nodeId='dbselect_out_of_condition')
+        fb.div('^.sigla',lbl='Datastore value')
+        fb.button('Set AO on the widget',
+                  action="""var w = genro.nodeById('dbselect_out_of_condition').widget;
+                            w.clearCache(); w.setValue('AO',true);""")
+
     def test_2_clientmethod(self,pane):
         "Manually set what to display with callbackSelect"
         fb = pane.formbuilder(cols=1, border_spacing='4px')
