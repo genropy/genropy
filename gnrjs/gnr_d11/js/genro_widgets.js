@@ -5701,9 +5701,11 @@ dojo.declare("gnr.widgets.BaseSelect", null, {
                     this.setDisplayedValue('');
                 }else{
                     if ( isNullOrBlank(value)){
-                        this.setValue(null, true);
+                        var firstMatch = !this.sourceNode.attr.firstMatchDisabled;
+                        // the lookup reports the match or the miss: the clear before it is not a change
+                        this.setValue(null, !firstMatch);
                         this.sourceNode._wrongSearch = displayedValue;
-                        if(!this.sourceNode.attr.firstMatchDisabled){
+                        if(firstMatch){
                             this.setDisplayedValue(displayedValue,true);
                         }
                     }else //if(value!=lastValueReported){
