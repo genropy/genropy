@@ -271,8 +271,7 @@ test('the entry row works out its formulas as it is typed in', () => {
 test('a missing required field or a locked form stops the entry', async () => {
     const req = entryGrid({missing: 'item'});
     await tick();
-    assert.ok(req.field.isValidationRequired() && !req.field.hasValidationError(),
-              'a blank required field is marked, not flagged');
+    assert.equal(req.field.getValidationError(), 'notnull', 'a blank required field is flagged at once');
     req.entry().setItem('qty', 3);
     req.controller._addEntry();
     assert.equal(req.lines.len(), 0);

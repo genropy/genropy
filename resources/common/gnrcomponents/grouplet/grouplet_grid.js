@@ -2493,7 +2493,7 @@ gnr.GroupletGridController = class GroupletGridController {
         }
         // a row grafted while the page builds gets its widgets a tick later
         setTimeout(() => this._destroyed || this._syncKept(), 0);
-        this._markEntryRequired();
+        this._validateEntryRequired();
         this._updateAddBtnState();
         this._scheduleStructSync();
     }
@@ -2527,22 +2527,31 @@ gnr.GroupletGridController = class GroupletGridController {
             });
         }
         this._syncKept();
-        this._markEntryRequired();
+        this._validateEntryRequired();
     }
 
-    _markEntryRequired() {
-        // A blank required field is marked as required, not flagged as an
-        // error: nothing was entered in it yet. One tick: a just-grafted
-        // row gets its widgets when the framework drains its afterBuildCalls.
+    _validateEntryRequired() {
+        // A field is required to add the row: a blank one is flagged at once,
+        // red while the entry row has the focus. One tick: a just-grafted row
+        // gets its widgets when the framework drains its afterBuildCalls.
         setTimeout(() => {
             if (this._destroyed || !this.entryTile || !this.entryTile.tileContent) return;
             this.entryTile.tileContent.walk((n) => {
                 const attr = n.attr || {};
                 if (!attr.validate_notnull || !n.widget || !n.hasValidations()
                         || !isNullOrBlank(n.getAttributeFromDatasource('value'))) return;
-                n.setValidationError({warnings: [], required: true});
+                this._validateEntryField(n);
             }, 'static');
         }, 0);
+    }
+
+    _validateEntryField(node) {
+        // no form validates the entry row
+        const result = genro.vld.validate(node, node.getAttributeFromDatasource('value'),
+                                          false, true, ['notnull']);
+        node.setValidationError(result);
+        node.updateValidationStatus();
+        return result;
     }
 
     _entrySubscriberId() {
@@ -2992,12 +3001,8 @@ gnr.GroupletGridController = class GroupletGridController {
     }
 
     _flagMissingField(node) {
-        // No form validates the entry row, and a blank field shows no
-        // tooltip: the error is set and published here.
-        const result = genro.vld.validate(node, node.getAttributeFromDatasource('value'),
-                                          false, true, ['notnull']);
-        node.setValidationError(result);
-        node.updateValidationStatus();
+        // a blank field shows no tooltip: the error is published
+        const result = this._validateEntryField(node);
         genro.publish('floating_message', {
             message: (node.getElementLabel() || '').trim() + ': '
                 + node._resolveErrorMessage(result.error),
