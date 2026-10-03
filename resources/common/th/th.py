@@ -923,7 +923,6 @@ class ThLinker(BaseComponent):
         linkerpath = '#FORM.linker_%s' %field
         forbudden_dbstore = self.dbstore and (related_tblobj.attributes.get('multidb') or related_tblobj.dbtable.use_dbstores() is False)
         linker = pane.div(_class='th_linker',childname='linker',datapath=linkerpath,
-                         rounded=8,
                          onCreated='this.linkerManager = new gnr.LinkerManager(this);',
                          connect_onclick='this.linkerManager.openLinker();',
                          selfsubscribe_disable='this.linkerManager.closeLinker();',
@@ -966,8 +965,10 @@ class ThLinker(BaseComponent):
                     formUrl=None,newRecordOnly=None,openIfEmpty=None,
                     _class='pbl_roundedGroup',label=None,template_kwargs=None,
                     margin=None, editEnabled=True, addEnabled=True, 
-                    clientTemplate=False,center_class=None, flex=False, **kwargs):
+                    clientTemplate=False,center_class=None, flex=False, alwaysOpen=False, **kwargs):
         frameCode= frameCode or 'linker_%s' %field.replace('.','_')
+        if alwaysOpen:
+            _class = '%s th_linkerAlwaysOpen' %_class
         if flex:
             # a flow box: its height follows the content instead of being imposed by a BorderContainer
             frame = pane.div(_class='%s th_linkerBoxFlex' %_class,margin=margin,
@@ -1024,7 +1025,8 @@ class ThLinker(BaseComponent):
 
     @struct_method          
     def th_linkerBar(self,pane,field=None, label=None, _class='pbl_roundedGroupLabel',newRecordOnly=True, addEnabled=None, **kwargs):
-        bar = pane.slotBar('lbl,*,linkerslot,5',height='20px',
+        # min_height, not height: the bar follows the field, which the theme may make taller
+        bar = pane.slotBar('lbl,*,linkerslot,5',min_height='20px',
                            _class='%s th_linkerBar' % _class)
         linker = bar.linkerslot.linker(field=field,newRecordOnly=newRecordOnly, addEnabled=addEnabled, **kwargs)
         bar.linker = linker

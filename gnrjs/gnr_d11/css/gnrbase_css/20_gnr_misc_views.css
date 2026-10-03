@@ -399,6 +399,14 @@
     padding-top:0;
     overflow:hidden;
     text-overflow:ellipsis;
+    /* the pill around it is the field: no inner box showing through */
+    background:transparent !important;
+}
+
+.th_linkerBar{
+    box-sizing:border-box;
+    padding-top:var(--linker-bar-padding-y);
+    padding-bottom:var(--linker-bar-padding-y);
 }
 
 .th_linkerBar .slotbar_row{
@@ -440,8 +448,6 @@
 .th_linkerBoxFlex > .th_linkerBar{
     flex:none;
     height:auto !important;
-    min-height:26px;
-    padding:3px 6px;
     border-bottom:1px solid var(--border-color, rgba(0,0,0,.08));
 }
 .th_linkerBoxFlexCenter{
@@ -545,23 +551,24 @@
 
 .th_enableLinker.th_linker,.th_linkerAlwaysOpen .th_linker{
     opacity:1;
-    border:1px solid var(--border-color);
+    border:none;
+    border-radius:999px;
     background: var(--surface-bg);
+    box-shadow: inset 0 0 0 1px var(--border-color);
     -webkit-mask: none;
     mask: none;
     display: flex;
     align-items: center;
     white-space: nowrap;
-    padding-left:3px;
-    padding-right:18px;
+    padding:var(--linker-field-padding-y) 26px var(--linker-field-padding-y) 8px;
     width:auto;
     height:auto;
 }
 
 .th_enableLinker.th_linker:has(.dijitError),
 .th_linkerAlwaysOpen .th_linker:has(.dijitError) {
-    border-color: #c06060;
-    border-color: color-mix(in srgb, var(--status-error, #E53935) 60%, var(--field-border, #AEAEB2));
+    box-shadow: inset 0 0 0 1px #c06060;
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--status-error, #E53935) 60%, var(--field-border, #AEAEB2));
     background-color: #fdf0f0;
     background-color: color-mix(in srgb, var(--status-error, #E53935) 7%, var(--field-bg, white));
     overflow: visible;
@@ -576,7 +583,15 @@
     background-color: var(--accent-color, #007AFF);
     -webkit-mask: var(--icon-link) no-repeat center / contain;
     mask: var(--icon-link) no-repeat center / contain;
-    margin-right: 3px;
+    margin-right: 6px;
+}
+
+/* always open, nothing to open: the link icon has no job */
+.th_linkerAlwaysOpen .th_linker::before{
+    display: none;
+}
+.th_linkerAlwaysOpen .th_linker{
+    padding-left: 10px;
 }
 
 .th_linker{
@@ -593,14 +608,14 @@
 .th_linker:hover{
     opacity:1;
 }
-.th_linkerAdd, .th_enableLinker .hidden.th_linkerAdd{
+.th_linkerAdd, .th_enableLinker .hidden.th_linkerAdd, .th_linkerAlwaysOpen .hidden.th_linkerAdd{
 	display: none;
 }
-.th_enableLinker .th_linkerAdd{
+.th_enableLinker .th_linkerAdd, .th_linkerAlwaysOpen .th_linkerAdd{
 	background: var(--icon-add) no-repeat center center;
 	width: 14px;
 	position: absolute;
-	right: 1px;
+	right: 7px;
 	top: 0px;
 	bottom: 0;
 	display: block;

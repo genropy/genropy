@@ -294,6 +294,10 @@
     --formlet-label-font-weight: bold;
     --formlet-label-font-size: var(--form-label-font-size);
 
+    /* --- Linker (open search field in a linker bar) --- */
+    --linker-field-padding-y: 2px; /* @theme how much taller than its text the open field is */
+    --linker-bar-padding-y: 2px; /* @theme air between the open field and the bar edges */
+
     /* --- topLabelTable --- */
     --topLabelTable-border-top: none;
     --topLabelTable-separator: var(--gray-250); /* @theme */

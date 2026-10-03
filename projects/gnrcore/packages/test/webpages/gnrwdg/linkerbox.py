@@ -85,3 +85,32 @@ class GnrCustomWebPage(object):
                              newRecordOnly=False, openIfEmpty=True, embedded=False, **case)
             column.div('Content below the box follows it', _class='linkerbox_flex_below')
             pane.dataController('frm.newrecord();', frm=form.js_form, _onStart=True)
+
+    def test_4_field_air(self, pane):
+        """An open linker field never touches its bar: theme tokens give it air above and below."""
+        pane.button('Check field air', action="""
+            const failures = [];
+            document.querySelectorAll('.th_linkerBar').forEach(function(bar, index){
+                const linker = bar.querySelector('.th_linker');
+                if(!linker || !linker.offsetHeight){return;}
+                const open = linker.classList.contains('th_enableLinker') || bar.closest('.th_linkerAlwaysOpen');
+                if(!open){return;}
+                const br = bar.getBoundingClientRect();
+                const lr = linker.getBoundingClientRect();
+                if(lr.top - br.top < 1 || br.bottom - lr.bottom < 1){
+                    failures.push(index + 1);
+                }
+            });
+            this.setRelativeData('.air_result', failures.length ?
+                'FAIL: bars ' + failures.join(', ') : 'PASS: open fields keep their air');
+        """)
+        pane.div('^.air_result')
+        form = pane.frameForm(frameCode='linker_air_test', datapath='.air', store='memory',
+                              height='240px', table='adm.user_tag')
+        column = form.record.div(display='flex', flex_direction='column', gap='8px', padding='6px')
+        column.linkerBox(field='user_id', frameCode='linker_air_flex', flex=True, alwaysOpen=True,
+                         label='Flex, always open', newRecordOnly=False, embedded=False, formResource='Form')
+        classic = column.div(height='90px', position='relative')
+        classic.linkerBox(field='tag_id', frameCode='linker_air_classic', alwaysOpen=True,
+                          label='Classic, always open', newRecordOnly=False, embedded=False)
+        pane.dataController('frm.newrecord();', frm=form.js_form, _onStart=True)
