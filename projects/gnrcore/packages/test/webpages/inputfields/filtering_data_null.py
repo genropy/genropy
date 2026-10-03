@@ -11,8 +11,10 @@
   test_02_entry_row    — invoice rows with an entry row: the VAT cell is a
                          values= select with validate_notnull. Fill a row
                          and press Enter: the row is added, the entry row is
-                         cleared, and the VAT cell must not turn red nor
-                         publish "Required field".
+                         cleared and no "Required field" is published. The
+                         blank VAT cell is red while the entry row has the
+                         focus, a field required to add the next row (#1544),
+                         and quiet once the focus leaves the row.
 """
 
 from gnr.core.gnrbag import Bag
@@ -35,7 +37,7 @@ class GnrCustomWebPage(object):
                lbl='Value')
 
     def test_02_entry_row(self, pane):
-        """Add a row: the cleared entry row keeps its VAT cell quiet"""
+        """Add a row: no 'Required field' is published for the cleared VAT cell"""
         rows = Bag()
         rows.setItem('r_001', Bag(dict(description='Consulting',
                                        amount=100, vat='22')))
