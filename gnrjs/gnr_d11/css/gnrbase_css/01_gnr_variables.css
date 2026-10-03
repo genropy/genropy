@@ -332,7 +332,6 @@
     --tb-num-bg: var(--gray-200);
     --tb-num-color: #666;
     --tb-num-error-bg: #fee2e2;
-    --tb-module-color: var(--accent-color);
     --tb-func-color: #7c3aed;
     --tb-muted-color: #999;
     --tb-hash-color: #9ca3af;
@@ -420,8 +419,6 @@
     --button-in-grid-bg: var(--gray-200); /* @theme */
 
     /* --- Menudiv token (menudiv rendered as a bare inline word + chevron) --- */
-    --menutoken-color: var(--accent-color); /* @theme */
-    --menutoken-hover-color: var(--primary-color); /* @theme */
     --menutoken-disabled-color: var(--text-muted); /* @theme */
 
     /* --- Checkstrip (contiguous checkboxes as a minimal toggle strip) ---
@@ -430,7 +427,6 @@
     --checkstrip-cell-padding: .4em .5em;
     --checkstrip-gap: .2em;
     --checkstrip-color: var(--text-muted); /* @theme */
-    --checkstrip-selected-bg: var(--accent-color); /* @theme */
     --checkstrip-selected-color: var(--text-on-dark); /* @theme */
 
     /* --- Buttons: shared --- */
@@ -543,10 +539,19 @@
     /* --- Splitters --- */
     --splitter-size: 5px;
     --splitter-bg: var(--surface-light); /* @theme */
-    --splitter-line-active: var(--accent-color); /* @theme */
     --splitter-grip: var(--text-placeholder); /* @theme */
     --splitter-grip-hover: var(--text-secondary); /* @theme */
     --icon-grip-h: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 8'%3E%3Ccircle cx='4' cy='4' r='2.5'/%3E%3Ccircle cx='12' cy='4' r='2.5'/%3E%3Ccircle cx='20' cy='4' r='2.5'/%3E%3C/svg%3E");
     --icon-grip-v: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 24'%3E%3Ccircle cx='4' cy='4' r='2.5'/%3E%3Ccircle cx='4' cy='12' r='2.5'/%3E%3Ccircle cx='4' cy='20' r='2.5'/%3E%3C/svg%3E");
 
+}
+
+/* Derived from --accent-color/--primary-color: resolved on body, where themes
+   and color variants redefine them (a var() on :root freezes the default). */
+body {
+    --tb-module-color: var(--accent-color);
+    --menutoken-color: var(--accent-color); /* @theme */
+    --menutoken-hover-color: var(--primary-color); /* @theme */
+    --checkstrip-selected-bg: var(--accent-color); /* @theme */
+    --splitter-line-active: var(--accent-color); /* @theme */
 }
