@@ -2484,6 +2484,10 @@ gnr.GroupletGridController = class GroupletGridController {
             // header pins and select-all boxes are rebuilt with their slot
             this._chromeClicksWired = true;
             const container = this._containerDom();
+            // a header pin leaves the focus in the entry row
+            container.addEventListener('mousedown', (e) => {
+                if (e.target.closest('.grouplet_grid__struct_keep')) e.preventDefault();
+            });
             container.addEventListener('click', (e) => {
                 if (e.target.closest('.grouplet_grid') !== container) return;
                 const pin = e.target.closest('.grouplet_grid__struct_keep');

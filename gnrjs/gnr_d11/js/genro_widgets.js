@@ -462,6 +462,10 @@ dojo.declare("gnr.widgets.baseHtml", null, {
             var keeper_in = document.createElement('div');
             keeper.appendChild(keeper_in);
             (lblTitle || dn).appendChild(keeper);
+            // the field being typed in keeps the focus
+            keeper.onmousedown = function(e){
+                e.preventDefault();
+            };
             keeper.onclick = function(e){
                 dojo.stopEvent(e);
                 var n = genro.getDataNode(npath);
