@@ -3885,14 +3885,20 @@ gnr.GroupletGridPhantomTile = class GroupletGridPhantomTile extends gnr.Grouplet
 
     _mountBody() {
         super._mountBody();
-        // The hint goes on the first required text field, else the first one.
+        // The hint goes on the first required free-text field, else the
+        // first free-text one, else the first field it fits.
         let first = null;
+        let text = null;
         let required = null;
         this.tileContent.walk((n) => {
             const attr = n.attr || {};
-            if (gnr.GroupletGridPhantomTile.HINT_TAGS.has((attr.tag || '').toLowerCase())) {
+            const tag = (attr.tag || '').toLowerCase();
+            if (gnr.GroupletGridPhantomTile.HINT_TAGS.has(tag)) {
                 first = first || n;
-                if (attr.validate_notnull) required = required || n;
+                if (gnr.GroupletGridPhantomTile.TEXT_TAGS.has(tag)) {
+                    text = text || n;
+                    if (attr.validate_notnull) required = required || n;
+                }
             }
             // A required field would paint the blank row invalid.
             if (this.stripValidations) {
@@ -3901,7 +3907,7 @@ gnr.GroupletGridPhantomTile = class GroupletGridPhantomTile extends gnr.Grouplet
                 });
             }
         }, 'static');
-        const hint = required || first;
+        const hint = required || text || first;
         if (hint && !hint.attr.placeholder) {
             hint.attr.placeholder = _T(this.controller.additemKw.label || '!!New row');
         }
@@ -3983,3 +3989,4 @@ gnr.GroupletGridEntryTile = class GroupletGridEntryTile extends gnr.GroupletGrid
 gnr.GroupletGridPhantomTile.HINT_TAGS = new Set([
     'textbox', 'simpletextarea', 'dbselect', 'dbcombobox', 'combobox',
     'filteringselect']);
+gnr.GroupletGridPhantomTile.TEXT_TAGS = new Set(['textbox', 'simpletextarea']);

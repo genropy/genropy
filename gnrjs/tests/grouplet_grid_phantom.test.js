@@ -434,3 +434,25 @@ test('pasting adds one row per line at the tail, over the defaults', () => {
     assert.equal(s.lines.getItem('r_k2.qty'), 1);
     assert.deepEqual(Object.keys(s.controller._freshRows), ['r_k1', 'r_k2']);
 });
+
+test('the blank row hint goes on a required free-text field, else a free-text one, else the first', () => {
+    const {context} = createGrid();
+    context.gnr.GroupletGridTile.prototype._mountBody = () => {};
+    const hinted = (cells) => {
+        const content = new context.gnr.GnrDomSource();
+        cells.forEach(([label, attr]) => content._(attr.tag, label, {value: '^.' + label, ...attr}));
+        context.gnr.GroupletGridPhantomTile.prototype._mountBody.call(
+            {tileContent: content, stripValidations: true, controller: {additemKw: {}}});
+        return cells.map(([label]) => label).filter((label) => content.getNode(label).attr.placeholder);
+    };
+    assert.deepEqual(hinted([
+        ['description', {tag: 'textbox'}],
+        ['amount', {tag: 'numberTextBox'}],
+        ['vat', {tag: 'filteringSelect', validate_notnull: true}]]), ['description']);
+    assert.deepEqual(hinted([
+        ['shop', {tag: 'textbox'}],
+        ['item', {tag: 'textbox', validate_notnull: true}]]), ['item']);
+    assert.deepEqual(hinted([
+        ['customer', {tag: 'dbSelect'}],
+        ['vat', {tag: 'filteringSelect', validate_notnull: true}]]), ['customer']);
+});
