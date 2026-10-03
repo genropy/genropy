@@ -62,3 +62,30 @@ def test_onIniting_accepts_two_arguments():
 def test_onIniting_accepts_three_arguments():
     page = _make_page()
     page.onIniting(('sys', 'mytable', '1'), {})  # must not raise
+
+
+def _make_auth_page(**attrs):
+    page = GnrCustomWebPage()
+    page.defaultAuthTags = ''
+    for k, v in attrs.items():
+        setattr(page, k, v)
+    return page
+
+
+def test_pageAuthTags_gates_main():
+    assert _make_auth_page().pageAuthTags(method='main') == 'user'
+
+
+@pytest.mark.parametrize('method', ['*|login;login_checkAvatar', '*|login;login_doLogin'])
+def test_pageAuthTags_leaves_login_rpcs_ungated(method):
+    assert _make_auth_page().pageAuthTags(method=method) is None
+
+
+def test_pageAuthTags_open_on_init_error():
+    page = _make_auth_page(_page_init_error='Missing table arguments in URL')
+    assert page.pageAuthTags(method='main') == ''
+
+
+def test_pageAuthTags_honours_method_auth_attribute():
+    page = _make_auth_page(auth_workdate='admin')
+    assert page.pageAuthTags(method='workdate') == 'admin'
