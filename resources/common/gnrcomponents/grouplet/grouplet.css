@@ -1948,6 +1948,24 @@ body.drag_started .grouplet_grid_tab_add.canBeDropped {
     border-color: var(--field-border, #AEAEB2);
     background-color: var(--gg-surface);
 }
+/* Cards only: until a field of it is focused, or a row is edited in it,
+   the entry card reads as the phantom one: dashed fields, muted text.
+   A struct entry row sits under the header as a data row and keeps the
+   normal look. */
+.grouplet_grid:not(.grouplet_grid--struct):not(.grouplet_grid--editing) > .grouplet_grid_slot_top > .grouplet_grid_entry > .grouplet_grid_row--entry:not(:focus-within) .dijitTextBox,
+.grouplet_grid:not(.grouplet_grid--struct):not(.grouplet_grid--editing) > .grouplet_grid_slot_top > .grouplet_grid_entry > .grouplet_grid_row--entry:not(:focus-within) .dijitComboBox,
+.grouplet_grid:not(.grouplet_grid--struct):not(.grouplet_grid--editing) > .grouplet_grid_slot_top > .grouplet_grid_entry > .grouplet_grid_row--entry:not(:focus-within) .dijitTextArea,
+.grouplet_grid:not(.grouplet_grid--struct):not(.grouplet_grid--editing) > .grouplet_grid_slot_top > .grouplet_grid_entry > .grouplet_grid_row--entry:not(:focus-within) textarea {
+    border-style: dashed;
+    border-color: var(--gg-border);
+    background: transparent;
+    box-shadow: none;
+}
+.grouplet_grid:not(.grouplet_grid--struct):not(.grouplet_grid--editing) > .grouplet_grid_slot_top > .grouplet_grid_entry > .grouplet_grid_row--entry:not(:focus-within) input,
+.grouplet_grid:not(.grouplet_grid--struct):not(.grouplet_grid--editing) > .grouplet_grid_slot_top > .grouplet_grid_entry > .grouplet_grid_row--entry:not(:focus-within) textarea {
+    color: var(--gg-text-muted);
+    background: transparent;
+}
 /* Add button: a shade darker than the entry band, `↵` (Enter adds) or
    `✓` while a template row is edited. Struct: right of the entry row;
    cards: bottom right, in the card's padding. */
