@@ -409,6 +409,11 @@
     padding-bottom:var(--linker-bar-padding-y);
 }
 
+/* the bar label is bold, the field in the same bar is not */
+.th_linkerBar .th_linker{
+    font-weight:normal;
+}
+
 .th_linkerBar .slotbar_row{
     display:flex;
     align-items:center;
@@ -469,12 +474,51 @@
 }
 .th_linkerBoxFlex > .th_linkerBoxFooter{
     position:absolute;
-    right:4px;
+    right:3px;
     bottom:4px;
     background:none;
 }
 .th_linkerBoxFlex > .th_linkerBoxFooter .slotbar_elastic_spacer{
     display:none;
+}
+
+/* flex and always open: a regular form field, the add button beside it in the bar */
+.th_linkerBoxFlex.th_linkerAlwaysOpen .th_linker{
+    background:transparent;
+    box-shadow:none;
+    border-radius:0;
+    padding:0 22px 0 0;
+}
+.th_linkerBoxFlex.th_linkerAlwaysOpen .th_linkerField{
+    background:var(--field-bg, var(--surface-bg)) !important;
+    border:var(--formlet-field-border-width, 1px) solid var(--form-field-border, var(--border-color)) !important;
+    border-radius:var(--formlet-field-radius, 4px);
+    padding:var(--formlet-field-padding-y) var(--formlet-field-padding-x);
+}
+.th_linkerBoxFlex.th_linkerAlwaysOpen .th_linker:has(.dijitError){
+    box-shadow:none;
+    background:transparent;
+}
+.th_linkerBoxFlex.th_linkerAlwaysOpen .th_linker .dijitError.th_linkerField{
+    border-color:var(--status-error, #E53935) !important;
+    background-color:#fdf0f0 !important;
+    background-color:color-mix(in srgb, var(--status-error, #E53935) 7%, var(--field-bg, white)) !important;
+}
+/* hasDownArrow on the field shows its arrow here; without it dijit keeps the arrow hidden inline */
+.th_linkerBoxFlex.th_linkerAlwaysOpen .th_linker .dijitArrowButton{
+    display:revert;
+}
+.th_linkerBoxFlex.th_linkerAlwaysOpen .th_linkerAdd{
+    width:22px;
+}
+/* add and edit share one column on the right of the box */
+.th_linkerBoxFlex > .th_linkerBar{
+    padding-right:0;
+}
+
+/* the edit pencil of a linker box: a small glyph, not a button */
+.th_linkerBoxFooter .iconbox.pencil{
+    transform:scale(.7);
 }
 
 /* --- Zoom cell (grid hyperlinks) --- */
@@ -613,9 +657,9 @@
 }
 .th_enableLinker .th_linkerAdd, .th_linkerAlwaysOpen .th_linkerAdd{
 	background: var(--icon-add) no-repeat center center;
-	width: 14px;
+	width: 26px;
 	position: absolute;
-	right: 7px;
+	right: 0;
 	top: 0px;
 	bottom: 0;
 	display: block;
