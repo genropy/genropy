@@ -1669,10 +1669,13 @@ class GnrWsgiSite(object):
             instance_path = self.config['instance?path'] or self.config['instances.#0?path']
         self.instance_path = instance_path
         restorepath = options.restore if options else None
+        # --xpr of gnr web serve, already parsed by the server: the other commands building a site have no such option
+        experimental_config = getattr(options, 'experimental_config', None)
         restorefiles=[]
         if self.remote_db:
             instance_path = '%s:%s' %(instance_path,self.remote_db)
-        app = GnrWsgiWebApp(instance_path, site=self,restorepath=restorepath)
+        app = GnrWsgiWebApp(instance_path, site=self,restorepath=restorepath,
+                            custom_config=experimental_config)
         self.config.setItem('instances.app', app, path=instance_path)
         return app
 
