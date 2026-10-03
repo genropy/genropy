@@ -2346,6 +2346,9 @@ gnr.GroupletGridController = class GroupletGridController {
         this._phantomResetting = true;
         try {
             fields.forEach((k) => {
+                // emptied and set back, a kept value would reach its widget
+                // as a change
+                if (k in kept) return;
                 bag.setItem(k, (k in defaults) ? defaults[k] : null);
             });
             Object.keys(kept).forEach((p) => {

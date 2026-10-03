@@ -508,7 +508,7 @@
     --gg-entry-btn-bg: var(--entry-btn-bg, rgba(0, 0, 0, 0.07));
     --gg-entry-btn-hover-bg: var(--entry-btn-hover-bg, rgba(0, 0, 0, 0.13));
     --gg-trash-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M6 1h4l.5 1H14v1.5H2V2h3.5zM3 5h10l-.8 9.2a1 1 0 0 1-1 .8H4.8a1 1 0 0 1-1-.8zm3 2v6h1.2V7zm2.8 0v6H10V7z'/%3E%3C/svg%3E");
-    --gg-pin-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M10 1l5 5-1.5.5-3 3V12L9 13.5l-3-3-4 4-.5-.5 4-4-3-3L4 5.5h2.5l3-3z'/%3E%3C/svg%3E");
+    --gg-pin-icon: var(--icon-pin);
     --gg-text-muted: var(--text-secondary, #6b7280);
     /* struct= chrome (Item 12): dark header strip + spreadsheet-style
        yellow total band. Tokens are explicit so each theme can
@@ -1941,6 +1941,23 @@ body.drag_started .grouplet_grid_tab_add.canBeDropped {
 }
 .grouplet_grid--entry:not(.grouplet_grid--struct) > .grouplet_grid_slot_top > .grouplet_grid_entry {
     margin-bottom: var(--gg-gap);
+}
+/* Until a field of it is focused, or a row is edited in it, the entry row
+   reads as the phantom row: dashed fields, muted text, nothing flagged. A
+   required field is required of a row being typed, not of the blank one. */
+.grouplet_grid:not(.grouplet_grid--editing) > .grouplet_grid_slot_top > .grouplet_grid_entry > .grouplet_grid_row--entry:not(:focus-within) .dijitTextBox,
+.grouplet_grid:not(.grouplet_grid--editing) > .grouplet_grid_slot_top > .grouplet_grid_entry > .grouplet_grid_row--entry:not(:focus-within) .dijitComboBox,
+.grouplet_grid:not(.grouplet_grid--editing) > .grouplet_grid_slot_top > .grouplet_grid_entry > .grouplet_grid_row--entry:not(:focus-within) .dijitTextArea,
+.grouplet_grid:not(.grouplet_grid--editing) > .grouplet_grid_slot_top > .grouplet_grid_entry > .grouplet_grid_row--entry:not(:focus-within) textarea {
+    border-style: dashed;
+    border-color: var(--gg-border);
+    background: transparent;
+    box-shadow: none;
+}
+.grouplet_grid:not(.grouplet_grid--editing) > .grouplet_grid_slot_top > .grouplet_grid_entry > .grouplet_grid_row--entry:not(:focus-within) input,
+.grouplet_grid:not(.grouplet_grid--editing) > .grouplet_grid_slot_top > .grouplet_grid_entry > .grouplet_grid_row--entry:not(:focus-within) textarea {
+    color: var(--gg-text-muted);
+    background: transparent;
 }
 /* Add button: a shade darker than the entry band, `↵` (Enter adds) or
    `✓` while a template row is edited. Struct: right of the entry row;

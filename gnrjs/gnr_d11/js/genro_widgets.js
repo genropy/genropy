@@ -442,13 +442,26 @@ dojo.declare("gnr.widgets.baseHtml", null, {
         genro.dom.addClass(sourceNode.widget.focusNode,'iskeepable');
         let keepableAuto = sourceNode.attr.keepable == '*';
         var dn = this._getKeeperRoot(sourceNode);
+        // in a formlet the keeper is a pin beside the field's own label: the
+        // labledBox holds both, so it carries keeper_on
+        var stateNode = dn.parentNode;
+        var lblTitle = null;
+        if(stateNode && stateNode.classList.contains('labledBox_content')){
+            var lbl = Array.from(stateNode.parentNode.children).find(function(c){
+                return c.classList.contains('labledBox_label');
+            });
+            lblTitle = lbl ? lbl.querySelector('.labledBox_title') : null;
+            if(lblTitle){
+                stateNode = stateNode.parentNode;
+            }
+        }
         if(!keepableAuto){
             var keeper = document.createElement('div');
             keeper.setAttribute('title','Keep this value');
-            genro.dom.addClass(keeper,'fieldkeeper');
+            genro.dom.addClass(keeper,lblTitle ? 'fieldkeeper fieldkeeper_lbl' : 'fieldkeeper');
             var keeper_in = document.createElement('div');
             keeper.appendChild(keeper_in);
-            dn.appendChild(keeper);
+            (lblTitle || dn).appendChild(keeper);
             keeper.onclick = function(e){
                 dojo.stopEvent(e);
                 var n = genro.getDataNode(npath);
@@ -460,7 +473,7 @@ dojo.declare("gnr.widgets.baseHtml", null, {
         sourceNode.widget.setKeeper = function(keepOn){
             var n = genro.getDataNode(npath);
             let v = n.getValue();
-            genro.dom.setClass(dn.parentNode,'keeper_on',keepOn);
+            genro.dom.setClass(stateNode,'keeper_on',keepOn);
             n.attr._keep = keepOn;
             if(sourceNode.form){
                 sourceNode.form.setKeptData(npath.replace(sourceNode.absDatapath()+'.',''),v,n.attr._keep);
