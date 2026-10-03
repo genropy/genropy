@@ -5538,6 +5538,10 @@ dojo.declare("gnr.widgets.FilteringSelect", gnr.widgets.BaseCombo, {
             }else{
                 //self._isvalid=false;
                 //self.validate(false);
+                // setDisplayedValue('') reports undefined: a quiet clear must not read as a change
+                if(priorityChange===false && isNullOrBlank(value)){
+                    self._lastValueReported = undefined;
+                }
                 self.valueNode.value = null;
                 self.setDisplayedValue('')
             }
