@@ -5,6 +5,10 @@
 from gnr.core.gnrbag import Bag
 
 
+ROW_TEMPLATE = """<div>$description <span style="text-decoration:underline;cursor:pointer"
+onclick="genro.publish('rowtpl_click',{row_id:'$id'});">click me</span></div>"""
+
+
 class GnrCustomWebPage(object):
     py_requires = "gnrcomponents/testhandler:TestHandlerFull"
 
@@ -304,3 +308,32 @@ class GnrCustomWebPage(object):
             SET .test_result = summary;
             genro.nodeById('switch_test_results').domNode.innerHTML = log.join('\\n');
         """, _fired='^.run_tests')
+
+    def test_5_rowtemplate_handlers(self, pane):
+        """Grid: the literal rowTemplate keeps its onclick (row id shown, no warning),
+        the same template bound with ^ loses it with a [sanitize_js] warning"""
+        bc = pane.borderContainer(height='300px', datapath='.rowtpl_test')
+        top = bc.contentPane(region='top', height='40px', padding='5px')
+        top.formbuilder(cols=1).textbox(value='^.clicked', lbl='Last clicked row id',
+                                        readOnly=True, width='20em')
+        frame = bc.framePane('rowtpl_grid', region='center')
+        frame.data('.store', self._rowtpl_data())
+        frame.data('.bound_template', ROW_TEMPLATE)
+        frame.includedView(storepath='.store', datapath=False,
+                           struct=self._rowtpl_struct, datamode='bag',
+                           autoWidth=True)
+        bc.dataController('SET .clicked = row_id;', subscribe_rowtpl_click=True)
+
+    def _rowtpl_data(self):
+        result = Bag()
+        result['r_0'] = Bag(dict(id='A_1', description='plain id'))
+        result['r_1'] = Bag(dict(id="');alert(1);//", description='quote break-out in id'))
+        return result
+
+    def _rowtpl_struct(self, struct):
+        r = struct.view().rows()
+        r.cell('description', name='Description', width='12em')
+        r.cell('literal_tpl', name='Literal rowTemplate', width='16em',
+               rowTemplate=ROW_TEMPLATE)
+        r.cell('bound_tpl', name='Bound rowTemplate', width='16em',
+               rowTemplate='^.bound_template', template_columns='id,description')
