@@ -453,6 +453,30 @@ class SqlQueryCompiler(object):
         # --- Field is a physical column: return alias.sqlname ---
         return '%s.%s' % (self.db.adapter.asTranslator(alias), curr_tblobj.column(fld).adapted_sqlname)
 
+    def _findRuntimeRelationNode(self, segment, curr):
+        """Look up a relation segment in the active RuntimeModel.
+
+        Returns the BagNode if found, or None.
+        """
+        runtime = self.db.currentRuntimeModel
+        if not runtime:
+            return None
+        rt_tree = runtime.relation_tree_for(curr.pkg_name, curr.tbl_name)
+        if not rt_tree:
+            return None
+        return rt_tree.getNode(segment)
+
+    def _isCompositeJoin(self, from_tbl, from_column):
+        """Check if a join uses a composite (multi-column) foreign key.
+
+        A runtime relation joins on a column the static model does not
+        have, so the lookup returns None and the join is not composite.
+        """
+        col = from_tbl.column(from_column)
+        if col is None:
+            return False
+        return col.attributes.get('composed_of')
+
     def _findRelationAlias(self, pathlist, curr, basealias, newpath, parent=None):
         """Recursively resolve a relation path into the JOIN alias.
 
@@ -483,7 +507,7 @@ class SqlQueryCompiler(object):
                 a relation or a table alias.
         """
         p = pathlist.pop(0)
-        currNode = curr.getNode(p)
+        currNode = self._findRuntimeRelationNode(p, curr) or curr.getNode(p)
         if not currNode:
             tblalias = self.db.table(curr.tbl_name, pkg=curr.pkg_name).model.table_aliases[p]
             if tblalias is None:
@@ -493,7 +517,7 @@ class SqlQueryCompiler(object):
             # Branch: real relation -- build or reuse JOIN
             alias, newpath = self._getRelationAlias(currNode, newpath, basealias, parent=parent)
             basealias = alias
-            curr = curr[p]
+            curr = currNode.getValue()
 
         # Continue recursion if there are remaining path segments
         if pathlist:
@@ -587,7 +611,7 @@ class SqlQueryCompiler(object):
         if from_sqlcolumn:
             # Branch: standard single-column join
             joinerList.append((from_sqlcolumn,target_tbl.sqlnamemapper[target_column]))
-        elif from_tbl.column(from_column).attributes.get('composed_of'):
+        elif self._isCompositeJoin(from_tbl, from_column):
             # Branch: composite (multi-column) foreign key
             from_columns = from_tbl.column(from_column).composed_of
             target_columns = target_tbl.column(target_column).composed_of

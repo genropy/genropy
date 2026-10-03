@@ -85,6 +85,22 @@ class EnvMixin(GnrSqlDbBaseMixin):
 
     workdate = property(_get_workdate, _set_workdate)
 
+    # -- currentRuntimeModel property ---------------------------------------
+
+    def _get_currentRuntimeModel(self) -> Any:
+        """Return the active RuntimeModel for the current thread, or None.
+
+        The runtime model lives in its own per-thread store: it is not part
+        of ``currentEnv``, whose ``env_*`` keys become query bind parameters.
+        """
+        return self._runtime_models.get(_thread.get_ident())
+
+    def _set_currentRuntimeModel(self, runtime_model: Any) -> None:
+        """Set the active RuntimeModel for the current thread."""
+        self._runtime_models[_thread.get_ident()] = runtime_model
+
+    currentRuntimeModel = property(_get_currentRuntimeModel, _set_currentRuntimeModel)
+
     # -- locale property ----------------------------------------------------
 
     def _get_locale(self) -> str | None:
