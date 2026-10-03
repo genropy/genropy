@@ -6,222 +6,47 @@ refactoring, so every input must give the same output through both handlers:
 these tests run the same getSelection call twice, once per handler, and compare
 rows, columns and resultAttributes.
 
-The database is real: the ``test_invoice`` project on a temporary sqlite file,
-with the CSV data of projects/test_invoice/data/export imported by the same
-loader the sql suite uses.  Queries, selections and adm.userobject records are
-real too.  Only the HTTP page context is replaced by a stand-in, because the
-suite has no infrastructure that produces a live GnrWebPage: the stand-in
-carries the page services the flow needs (page store, user store, freezing,
-locale, permissions, rpc method lookup) and nothing else.
+The two handlers share no code: ``GnrWebAppHandlerNext`` is a full copy under
+``gnr.web.gnrwebpage_proxy.apphandler_next``, not a subclass, and the two tests
+at the end of this module are what keeps it so.
+
+The database, the stand-in page and the two handlers built on it come from
+``apphandler_next_common``, shared with the other flow modules.
 """
 
-import os
-import shutil
-import tempfile
+import pathlib
 
 import pytest
 
-from core.common import BaseGnrTest
-from sql.conftest import _db_pg, _import_csv_data
-
-from gnr.app.gnrapp import GnrApp
 from gnr.core.gnrbag import Bag
-from gnr.web._gnrbasewebpage import GnrBaseWebPage
 from gnr.web.gnrwebpage import GnrWebPage
+from gnr.web.gnrwebpage_proxy import apphandler_next
 from gnr.web.gnrwebpage_proxy.apphandler import GnrWebAppHandler
-from gnr.web.gnrwebpage_proxy.apphandler.next import GnrWebAppHandlerNext
+from gnr.web.gnrwebpage_proxy.apphandler_next import GnrWebAppHandlerNext
 
-
-# ---------------------------------------------------------------------------
-#  The stand-in page
-# ---------------------------------------------------------------------------
-
-class _MemoryStore:
-    """In memory replacement for the daemon backed page/user store."""
-
-    def __init__(self):
-        self.data = Bag()
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_value, tb):
-        return False
-
-    def getItem(self, path, default=None, **kwargs):
-        value = self.data[path]
-        return default if value is None else value
-
-    def setItem(self, path, value=None, **kwargs):
-        self.data.setItem(path, value)
-
-    def popNode(self, path, **kwargs):
-        return self.data.popNode(path)
-
-
-class _StandInRegister:
-    """No page is registered: every slave selection lookup finds nothing."""
-
-    def exists(self, page_id, register_name=None):
-        return False
-
-
-class _StandInSite:
-    def __init__(self, gnrapp):
-        self.gnrapp = gnrapp
-        self.register = _StandInRegister()
-
-
-class _StandInPage:
-    """The page services of the getSelection flow, and nothing more.
-
-    Freezing is not reimplemented: the four freeze methods call the real
-    GnrBaseWebPage implementations unbound, as _gnrbasewebpage_test.py does.
-    """
-
-    def __init__(self, db, connectionFolder, page_id='test_page'):
-        self.db = db
-        self.connectionFolder = connectionFolder
-        self.page_id = page_id
-        self.locale = 'en'
-        self.user = 'admin'
-        self.avatar = None
-        self.site = _StandInSite(db.application)
-        self.rpc_methods = {}
-        self.published = []
-        self._event_subscribers = {}
-        self._page_store = _MemoryStore()
-        self._user_store = _MemoryStore()
-
-    # --- proxy machinery ---
-
-    def _subscribe_event(self, event, caller):
-        self._event_subscribers.setdefault(event, []).append(caller)
-
-    @property
-    def application(self):
-        return self.site.gnrapp
-
-    # --- page services ---
-
-    @property
-    def permissionPars(self):
-        return dict(user=self.user, user_group=None)
-
-    def pageStore(self, page_id=None, triggered=True):
-        return self._page_store
-
-    def userStore(self, user=None, triggered=True):
-        return self._user_store
-
-    def getPublicMethod(self, prefix, method):
-        if callable(method):
-            return method
-        return self.rpc_methods.get(method)
-
-    def clientPublish(self, topic, **kwargs):
-        self.published.append((topic, kwargs))
-
-    # --- freezing, on the real implementations ---
-
-    def pageLocalDocument(self, docname, page_id=None):
-        return GnrBaseWebPage.pageLocalDocument(self, docname, page_id=page_id)
-
-    def freezeSelection(self, selection, name, **kwargs):
-        return GnrBaseWebPage.freezeSelection(self, selection, name, **kwargs)
-
-    def freezeSelectionUpdate(self, selection):
-        return GnrBaseWebPage.freezeSelectionUpdate(self, selection)
-
-    def unfreezeSelection(self, dbtable=None, name=None, page_id=None):
-        return GnrBaseWebPage.unfreezeSelection(self, dbtable=dbtable, name=name,
-                                                page_id=page_id)
-
-    def freezedPkeys(self, dbtable=None, name=None, page_id=None):
-        return GnrBaseWebPage.freezedPkeys(self, dbtable=dbtable, name=name,
-                                           page_id=page_id)
-
-
-# ---------------------------------------------------------------------------
-#  Fixtures
-# ---------------------------------------------------------------------------
-
-@pytest.fixture(scope='module')
-def gnr_test_config():
-    """A genro configuration for the module, as tests/sql/conftest.py does."""
-    if os.environ.get('GENRO_GNRFOLDER'):
-        yield
-        return
-    BaseGnrTest.setup_class()
-    try:
-        yield
-    finally:
-        BaseGnrTest.teardown_class()
-
-
-@pytest.fixture(scope='module')
-def db(gnr_test_config):
-    """The test_invoice application on a temporary sqlite database."""
-    tmpdir = tempfile.mkdtemp()
-    app = None
-    try:
-        app = GnrApp('test_invoice', db_attrs=dict(
-            implementation='sqlite',
-            dbname=os.path.join(tmpdir, 'testing'),
-        ))
-        app.db.model.check(applyChanges=True)
-        _import_csv_data(app.db)
-        yield app.db
-    finally:
-        if app is not None:
-            app.db.closeConnection()
-        shutil.rmtree(tmpdir, ignore_errors=True)
-
-
-@pytest.fixture(scope='module')
-def db_postgres(request, gnr_test_config):
-    """The test_invoice application on postgres.
-
-    adm.userobject carries formula columns built on ``string_to_array``, which
-    sqlite does not have, so ``loadUserObject`` — and with it every saved query
-    and saved view — can only be exercised here.
-    """
-    yield from _db_pg(request, 'postgres')
-
-
-@pytest.fixture
-def make_handlers(tmp_path):
-    """Build one handler of each class on a given database."""
-    def build(db):
-        legacy_page = _StandInPage(db, str(tmp_path / 'legacy'))
-        next_page = _StandInPage(db, str(tmp_path / 'next'))
-        return GnrWebAppHandler(legacy_page), GnrWebAppHandlerNext(next_page)
-    return build
-
-
-@pytest.fixture
-def handlers(make_handlers, db):
-    return make_handlers(db)
-
-
-@pytest.fixture
-def pg_handlers(make_handlers, db_postgres):
-    return make_handlers(db_postgres)
+from apphandler_next_common import _StandInPage, normalized_attributes
+# pytest resolves fixtures by name in the module namespace, so the shared ones
+# are imported even though nothing in this file calls them.
+from apphandler_next_common import (gnr_test_config, db, db_postgres,  # noqa: F401
+                                    db_with_external_store, make_handlers,
+                                    handlers, pg_handlers,
+                                    external_store_handlers)
 
 
 # ---------------------------------------------------------------------------
 #  Comparison helpers
 # ---------------------------------------------------------------------------
 
-VOLATILE_ATTRIBUTES = ('servertime', 'newproc')
+def _normalized(result, ignore=()):
+    """Rows as ``(label, value, attributes)`` and the stable attributes.
 
-
-def _normalized(result):
+    The node value is part of the comparison: ``gridSelectionData`` moves a
+    ``__value__`` attribute into the value of the node, so a row can differ on
+    the value alone.
+    """
     data, attributes = result
-    rows = [(node.label, dict(node.attr)) for node in data]
-    attributes = {k: v for k, v in attributes.items()
-                  if k not in VOLATILE_ATTRIBUTES}
-    return rows, attributes
+    rows = [(node.label, node.value, dict(node.attr)) for node in data]
+    return rows, normalized_attributes(attributes, ignore=ignore)
 
 
 def _run_both(handlers, **pars):
@@ -229,10 +54,15 @@ def _run_both(handlers, **pars):
     return legacy.getSelection(**pars), nxt.getSelection(**pars)
 
 
-def _assert_same(handlers, **pars):
+def _assert_same(handlers, _ignore=(), **pars):
+    """Run the same call through both handlers and compare rows and attributes.
+
+    *_ignore* names the result attributes a documented divergence covers, so
+    the rest of the case still proves equivalence.
+    """
     legacy_result, next_result = _run_both(handlers, **pars)
-    legacy_rows, legacy_attrs = _normalized(legacy_result)
-    next_rows, next_attrs = _normalized(next_result)
+    legacy_rows, legacy_attrs = _normalized(legacy_result, ignore=_ignore)
+    next_rows, next_attrs = _normalized(next_result, ignore=_ignore)
     assert next_rows == legacy_rows
     assert next_attrs == legacy_attrs
     return legacy_rows, legacy_attrs
@@ -277,7 +107,7 @@ def test_columns_as_struct_bag(handlers):
                            columns=_customer_view_bag(),
                            order_by='$account_name', limit=5)
     assert rows
-    assert 'account_name' in rows[0][1]
+    assert 'account_name' in rows[0][2]
 
 
 def test_where_bag(handlers):
@@ -286,7 +116,7 @@ def test_where_bag(handlers):
                            where=_customer_where_bag(),
                            order_by='$account_name')
     assert rows
-    assert {row[1]['state'] for row in rows} == {'NSW'}
+    assert {row[2]['state'] for row in rows} == {'NSW'}
 
 
 def test_where_bag_whereasplaintext(handlers):
@@ -303,7 +133,7 @@ def test_condition_with_kwargs(handlers):
                            condition='$state = :wanted_state', wanted_state='VIC',
                            order_by='$account_name')
     assert rows
-    assert {row[1]['state'] for row in rows} == {'VIC'}
+    assert {row[2]['state'] for row in rows} == {'VIC'}
 
 
 def test_order_by_and_limit(handlers):
@@ -420,8 +250,8 @@ def test_saved_view(pg_handlers, db_postgres):
     rows, _ = _assert_same(pg_handlers, table='invc.customer', savedView=view_id,
                            order_by='$account_name', limit=5)
     assert rows
-    assert 'account_name' in rows[0][1]
-    assert 'state' in rows[0][1]
+    assert 'account_name' in rows[0][2]
+    assert 'state' in rows[0][2]
 
 
 def test_saved_query(pg_handlers, db_postgres):
@@ -429,11 +259,14 @@ def test_saved_query(pg_handlers, db_postgres):
     data['where'] = _customer_where_bag()
     data['queryLimit'] = 5
     query_id = _new_userobject(db_postgres, 'test_saved_query', 'query', data)
-    rows, _ = _assert_same(pg_handlers, table='invc.customer',
+    # whereAsPlainText is the declared divergence of #1359, asserted by
+    # test_saved_query_where_as_plain_text_only_in_next
+    rows, _ = _assert_same(pg_handlers, _ignore=('whereAsPlainText',),
+                           table='invc.customer',
                            columns='$account_name,$state',
                            savedQuery=query_id, order_by='$account_name')
     assert rows
-    assert {row[1]['state'] for row in rows} == {'NSW'}
+    assert {row[2]['state'] for row in rows} == {'NSW'}
 
 
 def test_saved_query_with_view(pg_handlers, db_postgres):
@@ -444,10 +277,11 @@ def test_saved_query_with_view(pg_handlers, db_postgres):
     data['queryLimit'] = 4
     data['currViewPath'] = view_id
     query_id = _new_userobject(db_postgres, 'test_saved_query_both', 'query', data)
-    rows, _ = _assert_same(pg_handlers, table='invc.customer', savedQuery=query_id,
+    rows, _ = _assert_same(pg_handlers, _ignore=('whereAsPlainText',),
+                           table='invc.customer', savedQuery=query_id,
                            order_by='$account_name')
     assert rows
-    assert 'account_name' in rows[0][1]
+    assert 'account_name' in rows[0][2]
 
 
 def test_join_conditions_bag(handlers):
@@ -485,18 +319,19 @@ def test_get_record_count(handlers):
 # ---------------------------------------------------------------------------
 
 def _app_handler_for(db, tmp_path, value):
-    """Build page.app with ``db?app_handler`` set to *value* (None = absent)."""
-    confnode = db.application.config.getNode('db')
-    previous = confnode.attr.pop('app_handler', None)
+    """Build page.app with ``experimental.db?next_app_handler`` set to *value*
+    (None = absent)."""
+    confnode = db.application.config.getNode('experimental.db', autocreate=True)
+    previous = confnode.attr.pop('next_app_handler', None)
     if value is not None:
-        confnode.attr['app_handler'] = value
+        confnode.attr['next_app_handler'] = value
     try:
         page = _StandInPage(db, str(tmp_path / ('switch_%s' % value)))
         return GnrWebPage.app.fget(page)
     finally:
-        confnode.attr.pop('app_handler', None)
+        confnode.attr.pop('next_app_handler', None)
         if previous is not None:
-            confnode.attr['app_handler'] = previous
+            confnode.attr['next_app_handler'] = previous
 
 
 def test_switch_absent_gives_the_current_handler(db, tmp_path):
@@ -505,13 +340,13 @@ def test_switch_absent_gives_the_current_handler(db, tmp_path):
     assert not isinstance(handler, GnrWebAppHandlerNext)
 
 
-def test_switch_next_gives_the_new_handler(db, tmp_path):
-    handler = _app_handler_for(db, tmp_path, 'next')
+def test_switch_on_gives_the_new_handler(db, tmp_path):
+    handler = _app_handler_for(db, tmp_path, 'True')
     assert isinstance(handler, GnrWebAppHandlerNext)
 
 
-def test_switch_other_value_gives_the_current_handler(db, tmp_path):
-    handler = _app_handler_for(db, tmp_path, 'whatever')
+def test_switch_off_gives_the_current_handler(db, tmp_path):
+    handler = _app_handler_for(db, tmp_path, 'False')
     assert isinstance(handler, GnrWebAppHandler)
     assert not isinstance(handler, GnrWebAppHandlerNext)
 
@@ -526,7 +361,7 @@ def test_saved_query_loaded_by_the_proxy(pg_handlers, db_postgres):
     data['where'] = _customer_where_bag()
     data['queryLimit'] = 7
     query_id = _new_userobject(db_postgres, 'test_proxy_query', 'query', data)
-    loaded = db_postgres.table('invc.customer').selectionProxy().loadSavedQuery(query_id)
+    loaded = db_postgres.table('invc.customer').selectionProxy().loadSavedQueryRecord(query_id)
     assert loaded['queryLimit'] == 7
     assert loaded['where'].toXml() == data['where'].toXml()
 
@@ -534,7 +369,7 @@ def test_saved_query_loaded_by_the_proxy(pg_handlers, db_postgres):
 def test_saved_view_loaded_by_the_proxy(pg_handlers, db_postgres):
     viewbag = _customer_view_bag()
     view_id = _new_userobject(db_postgres, 'test_proxy_view', 'view', viewbag)
-    loaded = db_postgres.table('invc.customer').selectionProxy().loadSavedView(view_id)
+    loaded = db_postgres.table('invc.customer').selectionProxy().loadSavedViewColumns(view_id)
     assert loaded.toXml() == viewbag.toXml()
 
 
@@ -546,3 +381,806 @@ def test_selection_proxy_is_cached(db):
 def test_selection_proxy_knows_its_table(db):
     tblobj = db.table('invc.customer')
     assert tblobj.selectionProxy().tblobj is tblobj
+
+
+# ---------------------------------------------------------------------------
+#  Shared helpers of the phase 2 cases
+# ---------------------------------------------------------------------------
+
+def _first_pkeys(db, howmany):
+    """The first *howmany* pkeys of invc.customer, ordered by pkey."""
+    return [r['id'] for r in db.table('invc.customer').query(
+        columns='$id', order_by='$id', limit=howmany).fetch()]
+
+
+def _assert_same_failure(handlers, exception=Exception, **pars):
+    """Both handlers must fail the same way on the same call."""
+    failures = []
+    for handler in handlers:
+        with pytest.raises(exception) as err:
+            handler.getSelection(**pars)
+        failures.append((type(err.value).__name__, str(err.value)))
+    assert failures[1] == failures[0]
+    return failures[0]
+
+
+def _custom_order_by_bag(fieldpath, sorting):
+    entry = Bag()
+    entry['fieldpath'] = fieldpath
+    entry['sorting'] = sorting
+    bag = Bag()
+    bag['r_0'] = entry
+    return bag
+
+
+# ---------------------------------------------------------------------------
+#  A. prologue
+# ---------------------------------------------------------------------------
+
+def test_multistores_becomes_the_store_name(handlers):
+    """A2 - multiStores travels to the query as ``_storename``."""
+    name, message = _assert_same_failure(handlers, table='invc.customer',
+                                         columns='$account_name',
+                                         multiStores='not_a_store')
+    assert 'not_a_store' in message
+
+
+def test_query_extra_pars_become_query_kwargs(handlers):
+    """A3 - queryExtraPars is merged into the query kwargs."""
+    extra = Bag()
+    extra['wanted_state'] = 'VIC'
+    rows, _ = _assert_same(handlers, table='invc.customer',
+                           columns='$account_name,$state',
+                           condition='$state = :wanted_state', queryExtraPars=extra,
+                           order_by='$account_name')
+    assert rows
+    assert {row[2]['state'] for row in rows} == {'VIC'}
+
+
+def test_hard_query_limit_applies_when_limit_is_none(handlers):
+    """A4 - hardQueryLimit becomes the limit and is reported as reached."""
+    rows, attrs = _assert_same(handlers, table='invc.customer',
+                               columns='$account_name',
+                               order_by='$account_name', hardQueryLimit=3)
+    assert len(rows) == 3
+    assert attrs['hardQueryLimitOver'] is True
+
+
+def test_formula_variants_reach_the_query(handlers):
+    """A6 - formulaVariants becomes one dict kwarg per cell."""
+    variant = Bag()
+    variant['x'] = 1
+    variants = Bag()
+    variants['subtable_residential'] = variant
+    rows, _ = _assert_same(handlers, table='invc.customer', columns='$account_name',
+                           order_by='$account_name', limit=2, formulaVariants=variants)
+    assert len(rows) == 2
+
+
+def test_save_rpc_query_returns_the_serialized_query(handlers):
+    """A7 - saveRpcQuery returns the serialized query and no data."""
+    legacy_result, next_result = _run_both(handlers, table='invc.customer',
+                                           columns='$account_name',
+                                           where=_customer_where_bag(),
+                                           saveRpcQuery=True)
+    assert next_result[1]['rpcquery'] == legacy_result[1]['rpcquery']
+    assert 'sqlquery' in next_result[1]['rpcquery']
+    assert len(list(next_result[0])) == 0
+
+
+def test_check_permissions_true_uses_the_page_pars(handlers):
+    """A8 - the literal True is replaced by page.permissionPars.
+
+    A selectmethod captures what the query phase receives, so the case fails
+    if either handler forwards the literal True or drops the parameter.
+    """
+    received = {}
+
+    def make_capturing(name, handler):
+        def capturing(**pars):
+            received[name] = pars['checkPermissions']
+            return handler._default_getSelection(**pars)
+        return capturing
+
+    for name, handler in zip(('legacy', 'next'), handlers):
+        handler.page.rpc_methods['capturing_method'] = make_capturing(name, handler)
+    rows, _ = _assert_same(handlers, table='invc.customer', columns='$account_name',
+                           order_by='$account_name', limit=2, checkPermissions=True,
+                           selectmethod='capturing_method')
+    assert len(rows) == 2
+    legacy, nxt = handlers
+    assert received['legacy'] == legacy.page.permissionPars
+    assert received['next'] == nxt.page.permissionPars
+    assert received['next'] is not True
+
+
+def test_format_kwarg_is_applied_by_both(handlers):
+    """A9 - EQUIVALENCE since the frozen handler was fixed.
+
+    ``formats[7:] = kwargs.pop(k)`` put the value under a slice instead of
+    under the column name, so the requested format never reached its column.
+    Both handlers now key it by the column, and the format is applied.
+    """
+    pars = dict(table='invc.invoice', columns='$inv_number,$total',
+                order_by='$inv_number', limit=1)
+    plain, _ = _assert_same(handlers, **pars)
+    formatted, _ = _assert_same(handlers, format_total='#,###.00', **pars)
+    assert formatted[0][2]['total'] != plain[0][2]['total']
+
+
+# ---------------------------------------------------------------------------
+#  B. selectionName and frozen selections
+# ---------------------------------------------------------------------------
+
+def test_selection_name_star_uses_the_page_id(handlers):
+    """B1 - '*' is replaced by the page id."""
+    _, attrs = _assert_same(handlers, table='invc.customer', columns='$account_name',
+                            order_by='$account_name', limit=2, selectionName='*')
+    assert attrs['selectionName'] == 'test_page'
+
+
+def test_selection_name_star_prefix_is_stripped(handlers):
+    """B1 - '*name' is replaced by 'name' and never unfrozen."""
+    _, attrs = _assert_same(handlers, table='invc.customer', columns='$account_name',
+                            order_by='$account_name', limit=2, selectionName='*b1')
+    assert attrs['selectionName'] == 'b1'
+
+
+def test_named_selection_comes_from_the_pickle(handlers):
+    """B2 - a named selection already frozen skips the whole query phase."""
+    _assert_same(handlers, table='invc.customer', columns='$account_name',
+                 order_by='$account_name', limit=3, selectionName='*b2')
+    rows, attrs = _assert_same(handlers, table='invc.customer', selectionName='b2')
+    assert attrs['debug'] == 'fromPickle'
+    assert 'totalrows' not in attrs
+    assert len(rows) == 3
+
+
+def test_named_selection_is_resorted(handlers):
+    """B2 - a different sortedBy re-sorts and re-freezes the pickle."""
+    _assert_same(handlers, table='invc.customer', columns='$account_name',
+                 order_by='$account_name', limit=4, selectionName='*b2s')
+    rows, attrs = _assert_same(handlers, table='invc.customer', selectionName='b2s',
+                               sortedBy='account_name')
+    assert attrs['debug'] == 'fromPickle'
+    assert len(rows) == 4
+
+
+# ---------------------------------------------------------------------------
+#  C. new selection
+# ---------------------------------------------------------------------------
+
+def test_from_selection_takes_its_pkeys(handlers):
+    """C5 - fromSelection replaces pkeys with the frozen pkey list."""
+    _assert_same(handlers, table='invc.customer', columns='$account_name',
+                 order_by='$account_name', limit=3, selectionName='*c5')
+    rows, _ = _assert_same(handlers, table='invc.customer', columns='$account_name',
+                           fromSelection='c5')
+    assert len(rows) == 3
+
+
+def test_custom_order_by(handlers):
+    """C6 - a customOrderBy bag becomes the order_by string."""
+    rows, _ = _assert_same(handlers, table='invc.customer', columns='$account_name',
+                           customOrderBy=_custom_order_by_bag('account_name', False),
+                           limit=3)
+    names = [row[2]['account_name'] for row in rows]
+    assert names == sorted(names, reverse=True)
+
+
+def test_selectmethod_returning_false(handlers):
+    """C10 - a selectmethod returning False returns table and selectionName."""
+    for handler in handlers:
+        handler.page.rpc_methods['false_method'] = lambda **kwargs: False
+    legacy_result, next_result = _run_both(handlers, table='invc.customer',
+                                           selectmethod='false_method')
+    assert next_result[1] == legacy_result[1]
+    assert next_result[1] == dict(table='invc.customer', selectionName='')
+    assert len(list(next_result[0])) == 0
+
+
+def test_selectmethod_returning_a_list_raises(handlers):
+    """C11 - a selectmethod returning a list calls _default_getSelection()
+    with no arguments, so both handlers die on a None table object."""
+    for handler in handlers:
+        handler.page.rpc_methods['list_method'] = lambda **kwargs: ['a', 'b']
+    raised = []
+    for handler in handlers:
+        with pytest.raises(AttributeError) as err:
+            handler.getSelection(table='invc.customer', selectmethod='list_method')
+        raised.append(type(err.value))
+    assert raised[1] is raised[0]
+
+
+def test_weak_logical_deleted_retries_the_query(handlers):
+    """C12 - an empty selection is queried again with excludeLogicalDeleted='mark'."""
+    calls = {}
+
+    def make_counting(handler, name):
+        def counting(**pars):
+            calls.setdefault(name, []).append(pars['excludeLogicalDeleted'])
+            return handler._default_getSelection(**pars)
+        return counting
+
+    for name, handler in zip(('legacy', 'next'), handlers):
+        handler.page.rpc_methods['counting_method'] = make_counting(handler, name)
+    rows, _ = _assert_same(handlers, table='invc.customer', columns='$account_name',
+                           condition="$account_name = 'no such customer'",
+                           weakLogicalDeleted=True, selectmethod='counting_method')
+    assert rows == []
+    assert calls['legacy'] == [True, 'mark']
+    assert calls['next'] == calls['legacy']
+
+
+def test_external_store_column_fails_the_same_way(handlers):
+    """C13 - a ':' column asks for an external store the rows do not carry."""
+    failures = []
+    for handler in handlers:
+        with pytest.raises(KeyError) as err:
+            handler.getSelection(table='invc.customer',
+                                 columns='$account_name,invc.customer.state:name',
+                                 limit=2)
+        failures.append(str(err.value))
+    assert failures[1] == failures[0] == "'_external_store'"
+
+
+def test_apply_method_merges_its_result(handlers):
+    """C14 - the applymethod receives the apply_* kwargs and its result is merged."""
+    received = {}
+
+    def make_apply(name):
+        def apply_method(selection, **pars):
+            received[name] = pars
+            return dict(applied=len(selection))
+        return apply_method
+
+    for name, handler in zip(('legacy', 'next'), handlers):
+        handler.page.rpc_methods['apply_method'] = make_apply(name)
+    _, attrs = _assert_same(handlers, table='invc.customer', columns='$account_name',
+                            order_by='$account_name', limit=2,
+                            applymethod='apply_method', apply_extra='x')
+    assert attrs['applied'] == 2
+    assert received['next'] == received['legacy'] == dict(extra='x')
+
+
+def test_named_selection_is_frozen_and_recorded(handlers):
+    """C15 - the selection is frozen and its path stored in the user store."""
+    _assert_same(handlers, table='invc.customer', columns='$account_name',
+                 order_by='$account_name', limit=2, selectionName='*c15')
+    for handler in handlers:
+        path = handler.page.userStore().getItem(
+            'current.table.invc_customer.last_selection_path')
+        assert path
+        assert handler.page.unfreezeSelection(
+            handler.db.table('invc.customer'), 'c15') is not None
+
+
+def test_pkeys_with_only_commas_selects_nothing(handlers):
+    """D4 of the design - the ``kwargs['limit'] = 0`` branch is unreachable.
+
+    A falsy pkeys never enters the branch and a truthy one always yields at
+    least one element after ``strip(',').split(',')``, so the duplicate
+    ``limit`` keyword can never be produced.
+    """
+    rows, _ = _assert_same(handlers, table='invc.customer', columns='$account_name',
+                           pkeys=',')
+    assert rows == []
+
+
+def test_external_store_columns_are_merged_from_the_external_store(external_store_handlers):
+    """C13 - the success path of the external store queries, on a real store.
+
+    The column string is the one the client builds
+    (``gnr/web/gnrwebstruct/_helpers.py:166-170``): a ``:`` column naming the
+    relation, a ``_fkey`` alias and a literal store name aliased
+    ``_external_store``.  The store is the auxiliary store of the fixture, so
+    the store grouping, the ``tempEnv``, the fkey query and the row merge all
+    run against a real database.
+    """
+    columns = ("$inv_number,invc.customer.id:$account_name AS customer_name,"
+               "$customer_id AS invc_customer_id_fkey,'extstore' AS _external_store")
+    rows, _ = _assert_same(external_store_handlers, table='invc.invoice',
+                           columns=columns, order_by='$inv_number', limit=5)
+    assert len(rows) == 5
+    db = external_store_handlers[0].db
+    customer_tbl = db.table('invc.customer')
+    merged = 0
+    for _label, _value, attrs in rows:
+        assert attrs['_external_store'] == 'extstore'
+        fkey = attrs['invc_customer_id_fkey']
+        if not fkey:
+            continue
+        merged += 1
+        assert attrs['customer_name'] == customer_tbl.readColumns(pkey=fkey,
+                                                                  columns='$account_name')
+    assert merged
+
+
+def test_external_store_queries_on_the_proxy(db_with_external_store):
+    """The proxy merges the external rows into the selection it is given."""
+    tblobj = db_with_external_store.table('invc.invoice')
+    selection_handler = tblobj.selectionProxy()
+    columns, external_queries = selection_handler.composeSelectionColumns(
+        "$inv_number,invc.customer.id:$account_name AS customer_name,"
+        "$customer_id AS invc_customer_id_fkey,'extstore' AS _external_store")
+    assert external_queries == {'invc.customer.id': ['$account_name AS customer_name']}
+    selection = tblobj.query(columns=columns, order_by='$inv_number',
+                             limit=5).selection()
+    assert all('customer_name' not in row for row in selection.data)
+    selection_handler.mergeExternalStoreColumns(selection=selection,
+                                                external_queries=external_queries)
+    assert any(row.get('customer_name') for row in selection.data)
+
+
+# ---------------------------------------------------------------------------
+#  D. the default query executor
+# ---------------------------------------------------------------------------
+
+def test_sql_context_without_conditions(handlers):
+    """D1/D12 - an empty SQL context leaves the query untouched.
+
+    The context is checked to be empty first, then the call is compared with
+    the same call without *sqlContextName*: rows and attributes must match, so
+    a context that silently added a join condition would show.
+    """
+    for handler in handlers:
+        assert not handler._getSqlContextConditions('ctx_empty')
+    pars = dict(table='invc.customer', columns='$account_name',
+                order_by='$account_name', limit=2)
+    plain = _assert_same(handlers, **pars)
+    with_context = _assert_same(handlers, sqlContextName='ctx_empty', **pars)
+    assert with_context == plain
+    assert len(plain[0]) == 2
+
+
+def test_sql_context_join_condition(handlers):
+    """D12 - the join conditions of a SQL context are applied by the handler,
+    including the ``<context>_<value>`` hook resolved on the handler itself."""
+    joinbag = Bag(dict(target_fld='invc.customer.state', from_fld='invc.state.code',
+                       condition='$name = :sname', one_one=False, applymethod=None,
+                       params=Bag(dict(sname='dynamic'))))
+    for handler in handlers:
+        handler.page.pageStore().setItem(
+            '_sqlctx.conditions.ctx.invc_customer_state_invc_state_code', joinbag)
+        handler.ctx_dynamic = lambda: 'New South Wales'
+    rows, _ = _assert_same(handlers, table='invc.customer',
+                           columns='$account_name,@state.name',
+                           order_by='$account_name', sqlContextName='ctx', limit=5)
+    assert rows
+
+
+def test_linked_selection(handlers, db):
+    """D2 - a linked selection replaces the where with the master pkeys."""
+    pkeys = _first_pkeys(db, 2)
+    pars = Bag(dict(pkeys=','.join(pkeys), command=None, gridNodeId='grid_1',
+                    linkedPageId=None, linkedSelectionName='master_sel',
+                    masterTable='invc.customer', relationpath='$id'))
+    for handler in handlers:
+        handler.page.pageStore().setItem('linkedSelectionPars.d2', pars)
+    rows, _ = _assert_same(handlers, table='invc.customer', columns='$account_name',
+                           selectionName='d2')
+    assert len(rows) == 2
+
+
+def test_filtering_pkeys_rpc_returns_a_selection(handlers, db):
+    """D8 - a filtering rpc may return a selection, read as a pkey list."""
+    def filter_method(**kwargs):
+        return db.table('invc.customer').query(columns='$id', order_by='$id',
+                                               limit=3).selection()
+    for handler in handlers:
+        handler.page.rpc_methods['sel_filter'] = filter_method
+    rows, _ = _assert_same(handlers, table='invc.customer', columns='$account_name',
+                           filteringPkeys='sel_filter')
+    assert len(rows) == 3
+
+
+def test_filtering_pkeys_rpc_forces_the_order_by(handlers, db):
+    """D8 - forcedOrderBy on the returned selection overrides the order_by."""
+    def filter_method(**kwargs):
+        selection = db.table('invc.customer').query(columns='$id', order_by='$id',
+                                                    limit=4).selection()
+        selection.forcedOrderBy = '$account_name'
+        return selection
+    for handler in handlers:
+        handler.page.rpc_methods['forced_filter'] = filter_method
+    rows, _ = _assert_same(handlers, table='invc.customer', columns='$account_name',
+                           filteringPkeys='forced_filter', order_by='$state')
+    names = [row[2]['account_name'] for row in rows]
+    assert names == sorted(names)
+
+
+def _linked_selection_pars(command=None, linkedPageId=None, pkeys='',
+                           gridNodeId='grid_1'):
+    """The parameters the master grid writes in the store of the slave page."""
+    return Bag(dict(pkeys=pkeys, command=command, gridNodeId=gridNodeId,
+                    linkedPageId=linkedPageId, linkedSelectionName='master_sel',
+                    masterTable='invc.customer', relationpath='$id'))
+
+
+def test_linked_selection_subscribe_writes_in_the_master_page_store(handlers, db):
+    """D2 - subscribe registers the grid in the store of the *other* page."""
+    pkeys = _first_pkeys(db, 2)
+    for handler in handlers:
+        handler.page.pageStore().setItem(
+            'linkedSelectionPars.d2sub',
+            _linked_selection_pars(command='subscribe', linkedPageId='master_page',
+                                   pkeys=','.join(pkeys)))
+    rows, _ = _assert_same(handlers, table='invc.customer', columns='$account_name',
+                           selectionName='d2sub')
+    assert len(rows) == 2
+    for handler in handlers:
+        master_store = handler.page.pageStore('master_page')
+        assert master_store is not handler.page.pageStore()
+        assert master_store.getItem(
+            'slaveSelections.master_sel.test_page.grid_1') is True
+        assert handler.page.pageStore().getItem(
+            'linkedSelectionPars.d2sub.command') is None
+
+
+def test_linked_selection_unsubscribe_clears_both_stores(handlers, db):
+    """D2 - unsubscribe removes the grid from the master store and blanks the
+    parameters in the slave store, which drops the master filter."""
+    pkeys = _first_pkeys(db, 2)
+    for handler in handlers:
+        handler.page.pageStore().setItem(
+            'linkedSelectionPars.d2uns',
+            _linked_selection_pars(command='subscribe', linkedPageId='master_page',
+                                   pkeys=','.join(pkeys)))
+    # '*' prefixed: the selection is frozen under 'd2uns' and never reused, so
+    # the second call runs the query phase again and sees the new command
+    _assert_same(handlers, table='invc.customer', columns='$account_name',
+                 selectionName='*d2uns')
+    for handler in handlers:
+        assert handler.page.pageStore('master_page').getItem(
+            'slaveSelections.master_sel.test_page.grid_1') is True
+        handler.page.pageStore().setItem(
+            'linkedSelectionPars.d2uns',
+            _linked_selection_pars(command='unsubscribe', linkedPageId='master_page',
+                                   pkeys=','.join(pkeys)))
+    rows, _ = _assert_same(handlers, table='invc.customer', columns='$account_name',
+                           selectionName='*d2uns')
+    assert len(rows) > 2
+    for handler in handlers:
+        assert handler.page.pageStore('master_page').getItem(
+            'slaveSelections.master_sel') is None
+        cleared = handler.page.pageStore().getItem('linkedSelectionPars.d2uns')
+        assert [cleared[k] for k in cleared.keys()] == [None] * len(cleared)
+
+
+def test_linked_selection_opens_the_two_stores_nested(handlers, db):
+    """D2 - the slave store stays open while the master store is written.
+
+    The stand-in stores log every ``__enter__`` and ``__exit__``, so the case
+    fails if a handler stops opening one of the two, opens them in sequence
+    instead of nested, or leaves one open.
+    """
+    pkeys = _first_pkeys(db, 2)
+    for handler in handlers:
+        handler.page.pageStore().setItem(
+            'linkedSelectionPars.d2nest',
+            _linked_selection_pars(command='subscribe', linkedPageId='master_page',
+                                   pkeys=','.join(pkeys)))
+        del handler.page.store_log[:]
+    _assert_same(handlers, table='invc.customer', columns='$account_name',
+                 selectionName='d2nest')
+    for handler in handlers:
+        assert handler.page.store_log == [('enter', 'page:test_page'),
+                                          ('enter', 'page:master_page'),
+                                          ('exit', 'page:master_page'),
+                                          ('exit', 'page:test_page')]
+
+
+# ---------------------------------------------------------------------------
+#  E. output and result attributes
+# ---------------------------------------------------------------------------
+
+def test_add_classes_from_col_attrs(handlers):
+    """E2 - a column carrying _addClass adds a custom class to its rows."""
+    rows, _ = _assert_same(handlers, table='invc.customer',
+                           columns='$account_name,$subtable_residential',
+                           order_by='$account_name', limit=10)
+    assert any('subtable_residential' in (row[2].get('_customClasses') or '')
+               for row in rows)
+
+
+def test_newproc_is_always_no(handlers):
+    """E5 - the attribute name is the literal 'self.newprocess', never set."""
+    for handler in handlers:
+        _, attrs = handler.getSelection(table='invc.customer',
+                                        columns='$account_name', limit=1)
+        assert attrs['newproc'] == 'no'
+
+
+def test_total_row_count_counts_the_condition_only(handlers):
+    """E6 - totalRowCount ignores the where bag and counts on the condition."""
+    rows, attrs = _assert_same(handlers, table='invc.customer',
+                               columns='$account_name,$state',
+                               where=_customer_where_bag(),
+                               condition='$state IS NOT NULL', totalRowCount=True)
+    assert attrs['totalRowCount'] > len(rows)
+
+
+def test_prev_selected_idx(handlers, db):
+    """E8 - prevSelectedDict is translated into the row indexes."""
+    pkeys = _first_pkeys(db, 2)
+    _, attrs = _assert_same(handlers, table='invc.customer', columns='$account_name',
+                            order_by='$id', selectionName='*e8',
+                            prevSelectedDict={pkeys[0]: True})
+    assert attrs['prevSelectedIdx'] == [0]
+
+
+def test_hard_query_limit_over_on_a_frozen_selection(handlers):
+    """E10 - EQUIVALENCE since the frozen handler was fixed.
+
+    ``resultAttributes['totalrows']`` is written on the new selection path
+    only, so reading it back raised KeyError on a selection replayed from its
+    pickle. Both handlers now take the count from the selection itself.
+    """
+    _assert_same(handlers, table='invc.customer', columns='$account_name',
+                 order_by='$account_name', limit=3, selectionName='*e10')
+    _, attrs = _assert_same(handlers, table='invc.customer',
+                            selectionName='e10', hardQueryLimit=3)
+    assert attrs['hardQueryLimitOver'] is True
+
+
+def test_slave_selection_of_a_dead_page_is_dropped(handlers):
+    """E11 - a slave registered on a page that no longer exists is removed."""
+    for handler in handlers:
+        grids = Bag()
+        grids['grid_1'] = True
+        handler.page.pageStore().setItem('slaveSelections.e11.dead_page', grids)
+    _assert_same(handlers, table='invc.customer', columns='$account_name',
+                 order_by='$account_name', limit=2, selectionName='*e11')
+    for handler in handlers:
+        assert handler.page.pageStore().getItem('slaveSelections.e11.dead_page') is None
+        assert handler.page.published == []
+
+
+def test_slave_selection_of_a_live_page_is_notified(handlers):
+    """E11 - every grid of a live slave page gets a refresh publish."""
+    for handler in handlers:
+        grids = Bag()
+        grids['grid_2'] = True
+        handler.page.pageStore().setItem('slaveSelections.e11b.live_page', grids)
+        handler.page.site.register.live_pages.add('live_page')
+    _assert_same(handlers, table='invc.customer', columns='$account_name',
+                 order_by='$account_name', limit=2, selectionName='*e11b')
+    for handler in handlers:
+        assert handler.page.published == [
+            ('grid_2_refreshLinkedSelection', dict(value=True, page_id='live_page'))]
+
+
+# ---------------------------------------------------------------------------
+#  F. columns
+# ---------------------------------------------------------------------------
+
+def test_bracket_group_columns(handlers):
+    """F4 - EQUIVALENCE since the frozen handler was fixed.
+
+    ``col`` had already lost its ']' when the closing test ran, so
+    ``maintable`` was never reset and every column after the group kept the
+    prefix of the group. Both handlers now remember the end before stripping.
+    """
+    legacy, nxt = handlers
+    tblobj = legacy.db.table('invc.customer')
+    spec = '@state[name,code],$account_name'
+    legacy_columns, _ = legacy._getSelection_columns(tblobj, spec)
+    next_columns, _ = nxt._getSelection_columns(tblobj, spec)
+    assert next_columns == legacy_columns == '@state.name,@state.code,$account_name'
+
+
+def test_bracket_group_columns_query(handlers):
+    """F4 - the column list the group produces is one the database accepts."""
+    rows, _ = _assert_same(handlers, table='invc.customer',
+                           columns='@state[name],$account_name',
+                           order_by='$account_name', limit=2)
+    assert len(rows) == 2
+    assert 'account_name' in rows[0][2]
+
+
+# ---------------------------------------------------------------------------
+#  getRecordCount and the rpc query, both folded onto the proxy
+# ---------------------------------------------------------------------------
+
+def test_get_record_count_by_field(handlers):
+    legacy, nxt = handlers
+    pars = dict(field='invc.customer.state', value='NSW')
+    counted = legacy.getRecordCount(**pars)
+    assert counted > 0
+    assert nxt.getRecordCount(**pars) == counted
+
+
+def test_get_record_count_with_condition(handlers):
+    legacy, nxt = handlers
+    pars = dict(table='invc.customer', condition="$state = 'VIC'")
+    counted = legacy.getRecordCount(**pars)
+    assert counted > 0
+    assert nxt.getRecordCount(**pars) == counted
+
+
+def test_get_record_count_where_bag_and_condition(handlers):
+    legacy, nxt = handlers
+    pars = dict(table='invc.customer', where=_customer_where_bag(),
+                condition='$account_name IS NOT NULL')
+    counted = legacy.getRecordCount(**pars)
+    assert counted > 0
+    assert nxt.getRecordCount(**pars) == counted
+
+
+def test_record_count_on_the_proxy(handlers, db):
+    legacy, _ = handlers
+    tblobj = db.table('invc.customer')
+    assert tblobj.selectionProxy().countRecords(
+        where=_customer_where_bag(), customOpCb=dict) == legacy.getRecordCount(
+            table='invc.customer', where=_customer_where_bag())
+
+
+def test_rpc_query_on_the_proxy(handlers, db):
+    legacy, _ = handlers
+    tblobj = db.table('invc.customer')
+    proxy_query = tblobj.selectionProxy().serializeQuery(
+        columns='$account_name', where=_customer_where_bag(), customOpCbDict={})
+    legacy_query = legacy._prepareRpcQuery(tblobj=tblobj, columns='$account_name',
+                                           where=_customer_where_bag())
+    assert proxy_query.toXml() == legacy_query.toXml()
+
+
+# ---------------------------------------------------------------------------
+#  Saved queries: the three divergences of #1359 (postgres only)
+# ---------------------------------------------------------------------------
+
+def test_saved_query_produces_the_plain_text_in_both(pg_handlers, db_postgres):
+    """#1359 - EQUIVALENCE since #1375 (`cfdc5bdb8a`).
+
+    Legacy used to derive ``wherebag`` from the caller's where before the saved
+    query was loaded, so a saved query never got the whereAsPlainText attribute.
+    #1375 moved the load before that derivation, which is what Next already did:
+    both handlers now produce the attribute and produce the same one.
+    """
+    data = Bag()
+    data['where'] = _customer_where_bag()
+    data['queryLimit'] = 5
+    query_id = _new_userobject(db_postgres, 'test_wapt_query', 'query', data)
+    legacy, nxt = pg_handlers
+    pars = dict(table='invc.customer', columns='$account_name,$state',
+                savedQuery=query_id, order_by='$account_name')
+    legacy_rows, legacy_attrs = _normalized(legacy.getSelection(**pars))
+    next_rows, next_attrs = _normalized(nxt.getSelection(**pars))
+    assert next_rows == legacy_rows
+    assert next_attrs['whereAsPlainText']
+    assert next_attrs['whereAsPlainText'] == legacy_attrs['whereAsPlainText']
+
+
+def test_saved_query_empty_limit_falls_back_in_both(pg_handlers, db_postgres):
+    """#1359 - EQUIVALENCE since #1375 (`cfdc5bdb8a`).
+
+    A saved query with no queryLimit used to overwrite the hardQueryLimit
+    fallback in legacy, so the hard limit was bypassed.  Both handlers now
+    apply the fallback after the saved query is loaded.
+    """
+    data = Bag()
+    data['where'] = _customer_where_bag()
+    query_id = _new_userobject(db_postgres, 'test_nolimit_query', 'query', data)
+    legacy, nxt = pg_handlers
+    pars = dict(table='invc.customer', columns='$account_name,$state',
+                savedQuery=query_id, order_by='$account_name', hardQueryLimit=2)
+    legacy_rows, _ = _normalized(legacy.getSelection(**pars))
+    next_rows, _ = _normalized(nxt.getSelection(**pars))
+    assert len(next_rows) == 2
+    assert len(legacy_rows) == 2
+
+
+def test_saved_query_without_where(pg_handlers, db_postgres):
+    """C1 - a saved query whose ``where`` is empty means no filter.
+
+    Legacy leaves the whole userobject record in the ``where`` variable and
+    hands it to the where bag decoder; ``sqlWhereFromBag`` finds no condition
+    node in it and returns an empty WHERE, so the defect stays latent for
+    every record shape adm.userobject produces.  Next reads the saved where
+    whatever it contains, which gives the same rows by the intended route.
+
+    #1375 (`cfdc5bdb8a`) did not touch this one: it moved the load of the saved
+    query earlier, so legacy now derives its where bag from that userobject
+    record and reports an empty ``whereAsPlainText`` where Next reports none.
+    The rows are the same; the attribute is the visible trace of C1.
+    """
+    data = Bag()
+    data['queryLimit'] = 3
+    query_id = _new_userobject(db_postgres, 'test_nowhere_query', 'query', data)
+    rows, _ = _assert_same(pg_handlers, table='invc.customer',
+                           columns='$account_name', savedQuery=query_id,
+                           order_by='$account_name', limit=5,
+                           _ignore=('whereAsPlainText',))
+    assert len(rows) == 5
+    legacy, nxt = pg_handlers
+    pars = dict(table='invc.customer', columns='$account_name',
+                savedQuery=query_id, order_by='$account_name', limit=5)
+    _, legacy_attrs = _normalized(legacy.getSelection(**pars))
+    _, next_attrs = _normalized(nxt.getSelection(**pars))
+    assert legacy_attrs['whereAsPlainText'] == ''
+    assert 'whereAsPlainText' not in next_attrs
+
+
+def test_saved_query_plain_text_describes_the_saved_where(pg_handlers, db_postgres):
+    """#1359 - DIVERGENCE: a caller where AND a saved query carrying a WHERE.
+
+    #1359 - EQUIVALENCE since #1375 (`cfdc5bdb8a`).
+
+    Both handlers execute the saved WHERE and discard the caller's one.  Legacy
+    used to report the caller's bag in ``whereAsPlainText``, because it derived
+    the bag before the saved query was loaded; both now report the saved bag,
+    which is the filter the rows come from.
+    """
+    data = Bag()
+    data['where'] = _customer_where_bag()
+    data['queryLimit'] = 5
+    query_id = _new_userobject(db_postgres, 'test_wapt_both', 'query', data)
+    caller_where = Bag()
+    caller_where.setItem('c_1', 'VIC', column='state', op='equal')
+    legacy, nxt = pg_handlers
+    pars = dict(table='invc.customer', columns='$account_name,$state',
+                where=caller_where, savedQuery=query_id, order_by='$account_name')
+    legacy_rows, legacy_attrs = _normalized(legacy.getSelection(**pars))
+    next_rows, next_attrs = _normalized(nxt.getSelection(**pars))
+    assert next_rows == legacy_rows
+    assert {row[2]['state'] for row in next_rows} == {'NSW'}
+    tblobj = db_postgres.table('invc.customer')
+    saved_plain_text = tblobj.whereTranslator.toHtml(tblobj, data['where'])
+    assert next_attrs['whereAsPlainText'] == saved_plain_text
+    assert legacy_attrs['whereAsPlainText'] == saved_plain_text
+
+
+def test_saved_query_without_where_drops_the_plain_text_in_next(pg_handlers,
+                                                                db_postgres):
+    """#1359 - DIVERGENCE: a caller where AND a saved query with no WHERE.
+
+    Neither handler filters: legacy hands the whole userobject record to the
+    where bag decoder, which finds no condition, and Next takes the empty saved
+    WHERE.  Since #1375 (`cfdc5bdb8a`) legacy derives its bag from that record
+    rather than from the caller's, so it reports an empty ``whereAsPlainText``
+    instead of a filter that never ran; Next emits no attribute at all.
+    """
+    data = Bag()
+    data['queryLimit'] = 3
+    query_id = _new_userobject(db_postgres, 'test_wapt_nowhere', 'query', data)
+    caller_where = _customer_where_bag()
+    legacy, nxt = pg_handlers
+    pars = dict(table='invc.customer', columns='$account_name,$state',
+                savedQuery=query_id, order_by='$account_name', limit=5)
+    unfiltered_rows, _ = _normalized(nxt.getSelection(**pars))
+    legacy_rows, legacy_attrs = _normalized(
+        legacy.getSelection(where=caller_where, **pars))
+    next_rows, next_attrs = _normalized(nxt.getSelection(where=caller_where, **pars))
+    assert next_rows == legacy_rows == unfiltered_rows
+    assert legacy_attrs['whereAsPlainText'] == ''
+    assert 'whereAsPlainText' not in next_attrs
+
+
+# ---------------------------------------------------------------------------
+#  The two handlers share no code
+# ---------------------------------------------------------------------------
+
+_NEXT_PACKAGE = pathlib.Path(apphandler_next.__file__).parent
+
+_FROZEN_PACKAGE = 'gnr.web.gnrwebpage_proxy.apphandler'
+
+
+def test_next_handler_is_not_a_subclass_of_the_legacy_one():
+    """The copy is a copy: no inheritance, and no shared base but the proxy."""
+    assert not issubclass(GnrWebAppHandlerNext, GnrWebAppHandler)
+    assert not issubclass(GnrWebAppHandler, GnrWebAppHandlerNext)
+    shared = set(GnrWebAppHandlerNext.__mro__) & set(GnrWebAppHandler.__mro__)
+    assert {cls.__name__ for cls in shared} == {'GnrBaseProxy', 'object'}
+
+
+def test_no_module_of_the_next_package_imports_the_frozen_one():
+    """Nothing under ``apphandler_next`` may name the frozen package."""
+    offenders = []
+    for path in sorted(_NEXT_PACKAGE.glob('*.py')):
+        for number, line in enumerate(path.read_text(encoding='utf-8').splitlines(), 1):
+            stripped = line.strip()
+            if not (stripped.startswith('import ') or stripped.startswith('from ')):
+                continue
+            if _FROZEN_PACKAGE in stripped and '%s_next' % _FROZEN_PACKAGE not in stripped:
+                offenders.append('%s:%s: %s' % (path.name, number, stripped))
+    assert offenders == []
