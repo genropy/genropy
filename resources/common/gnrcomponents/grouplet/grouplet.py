@@ -248,7 +248,8 @@ class GroupletHandler(BaseComponent):
                           autoNext=True, validate_notnull=True, **kwargs):
         """Tiles that set `field` to one value of `rows` (or of a query on `table`,
         kwargs are its parameters). glyph, title and note: a column, a $template
-        or a callable(row). groups: dicts of caption, condition(row) and _class.
+        or a callable(row). groups: dicts of caption, condition(row), _class and
+        tint (a CSS colour washed over the tiles' background).
         In a wizard step a click also advances it (autoNext). validate_notnull
         False leaves the choice optional."""
         if rows is None:
@@ -270,7 +271,8 @@ class GroupletHandler(BaseComponent):
             condition = group.get('condition')
             if group.get('caption'):
                 box.div(group['caption'], _class='grouplet_choice_separator')
-            tiles = box.div(_class='grouplet_choice_tiles')
+            tiles_kw = dict(style=f"--grouplet-choice-tint: {group['tint']}") if group.get('tint') else {}
+            tiles = box.div(_class='grouplet_choice_tiles', **tiles_kw)
             for row in rows:
                 if condition and not condition(row):
                     continue

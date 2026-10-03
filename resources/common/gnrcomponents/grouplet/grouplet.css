@@ -303,7 +303,7 @@
     padding: 5px 10px;
     border: 1px solid var(--border-color, #dfe3dc);
     border-radius: 8px;
-    background: var(--surface-bg, #fff);
+    background: color-mix(in srgb, var(--grouplet-choice-tint, var(--surface-bg, #fff)) 7%, var(--surface-bg, #fff));
     cursor: pointer;
     transition: box-shadow .12s ease, transform .12s ease;
 }

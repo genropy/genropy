@@ -18,6 +18,8 @@ class Grouplet(BaseComponent):
         pane.groupletChoice(field='kind', rows=SHIPMENT_KINDS, value_column='code',
                             glyph='code', title='description', note='$note',
                             caption_field='kind_description',
-                            groups=[dict(condition=lambda r: r['sign'] > 0),
+                            groups=[dict(condition=lambda r: r['sign'] > 0,
+                                         tint='var(--status-ok)'),
                                     dict(caption='Returns and refunds',
-                                         condition=lambda r: r['sign'] < 0)])
+                                         condition=lambda r: r['sign'] < 0,
+                                         tint='var(--status-error)')])
