@@ -1144,6 +1144,8 @@ class GroupletGridHandler(BaseComponent):
                         afterSelfDropRows=None,
                         minRows=0, maxRows=None,
                         defaultRow=None,
+                        rowTemplate=None,
+                        selectionmenu=None, rowCheckbox=False,
                         counterField=None,
                         formulas=None, totals=None,
                         grouplet_kwargs=None,
@@ -1191,6 +1193,28 @@ class GroupletGridHandler(BaseComponent):
             flavours.append('grouplet_grid--framed')
         if fillParent:
             flavours.append('grouplet_grid--fill')
+        if additem == 'phantom' and not resourceField:
+            flavours.append('grouplet_grid--phantom')
+        entry_mode = additem == 'entry' and not resourceField
+        if entry_mode:
+            flavours.append('grouplet_grid--entry')
+            if resource and not rowTemplate:
+                rowTemplate = self.gr_getTemplatePars(
+                    resource=resource, table=table,
+                    grouplets_root=grouplets_root).get('template')
+            if rowTemplate:
+                flavours.append('grouplet_grid--templated')
+        else:
+            rowTemplate = None
+        # actions on several selected rows: rows are selectable in template
+        # mode; delete is preset whenever rows can be deleted
+        if not rowTemplate or selectionmenu is False:
+            selectionmenu = {}
+        elif selectionmenu is None:
+            selectionmenu = {'delete': True} if delitem else {}
+        rowCheckbox = bool(rowCheckbox and selectionmenu)
+        if rowCheckbox:
+            flavours.append('grouplet_grid--checkbox')
         totals_kwargs = dict(totals_kwargs or {})
         if totals_kwargs.pop('sticky', False):
             flavours.append('grouplet_grid--sticky-totals')
@@ -1243,12 +1267,18 @@ class GroupletGridHandler(BaseComponent):
                 childname=side, gg_side=side)
             # Pre-allocate placeholders: the JS adapter can only graft into
             # a leaf-empty sourceNode, never into a live one.
+            if selectionmenu and side == 'bottom':
+                slot.div(_class='grouplet_grid_selection',
+                         childname='selection', _gg_selection=True)
             if struct_mode and side == 'top':
                 slot.div(_class='grouplet_grid__struct_header',
                          childname='struct_header')
             elif struct_has_totalize and side == 'bottom':
                 slot.div(_class='grouplet_grid__struct_footer',
                          childname='struct_footer')
+            if entry_mode and side == 'top':
+                slot.div(_class='grouplet_grid_entry', childname='entry',
+                         _gg_entry=True)
             # the totals band carries the caller's totals_* attributes
             # (hidden, dynamic params): the JS grafts only its content
             if totals and side == 'bottom':
@@ -1275,6 +1305,8 @@ class GroupletGridHandler(BaseComponent):
             defaultRow=defaultRow, minRows=minRows, maxRows=maxRows,
             counterField=counterField,
             formulas=formulas, totals=totals,
+            rowTemplate=rowTemplate, selectionmenu=selectionmenu,
+            rowCheckbox=rowCheckbox,
             resolved_drag_code=resolved_drag_code,
             loaderrpc=self.gr_getGroupletGridTemplate,
             mapLoaderrpc=self.gr_getGroupletGridTemplateMap)
@@ -1319,7 +1351,7 @@ class GroupletGridHandler(BaseComponent):
             additem_kwargs, delitem_kwargs, editmenu_kwargs,
             layout, lazyTabs, titleField, emptyTitle,
             defaultRow, minRows, maxRows, counterField,
-            formulas, totals,
+            formulas, totals, rowTemplate, selectionmenu, rowCheckbox,
             resolved_drag_code,
             loaderrpc, mapLoaderrpc):
         # Resolve the container via attributeOwnerNode at runtime: a fixed
@@ -1330,8 +1362,19 @@ class GroupletGridHandler(BaseComponent):
             var bodyNode = node.getValue().walk(function(n){
                 if (n.attr && n.attr._gg_body) return n;
             }, 'static');
+            var entryNode = node.getValue().walk(function(n){
+                if (n.attr && n.attr._gg_entry) return n;
+            }, 'static');
+            var selectionNode = node.getValue().walk(function(n){
+                if (n.attr && n.attr._gg_selection) return n;
+            }, 'static');
             node.gridController = new gnr.GroupletGridController(node, {
                 bodyNode: bodyNode,
+                entryNode: entryNode,
+                selectionNode: selectionNode,
+                rowTemplate: rowTemplate,
+                selectionmenu: selectionmenu,
+                rowCheckbox: rowCheckbox,
                 resource: resource,
                 handler: handler,
                 resourceField: resourceField,
@@ -1394,6 +1437,9 @@ class GroupletGridHandler(BaseComponent):
             counterField=counterField,
             formulas=formulas or {},
             totals=totals,
+            rowTemplate=rowTemplate,
+            selectionmenu=selectionmenu,
+            rowCheckbox=rowCheckbox,
             dragCode=resolved_drag_code,
             loaderrpc=loaderrpc,
             mapLoaderrpc=mapLoaderrpc)
