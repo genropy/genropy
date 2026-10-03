@@ -77,6 +77,7 @@ def main():
                 print(f"{requested} is requested, but {installed} found")
             print("Please fix the installed packages")
             print("")
+        app.check_esm_bundles()
     if options.make_gnrdaemon:
         gnrdaemonServiceBuilder()
 

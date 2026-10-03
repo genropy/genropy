@@ -67,6 +67,15 @@ class PackageMaker(object):
         # in this file
         open(os.path.join(self.package_path, "requirements.txt"), "w").close()
 
+        # create an empty esm_requirements.txt file, hopefully developers
+        # will be reminded by its presence that dependencies can be added
+        # in this file
+        with open(os.path.join(self.package_path, "esm_requirements.txt"), "w") as fp:
+            fp.write("# please add js ESM dependencies here\n")
+            fp.write("# using syntax like 'react=react@18' (alias=dist@ver) #\n")
+            fp.write("# will allow to define the bundle name (alias) to be imported\n")
+            
+
         # create an placeholder README.md file, since it's a policy
         # that has been established to have a README for each package
         # refs #83
