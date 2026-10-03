@@ -5698,13 +5698,19 @@ dojo.declare("gnr.widgets.BaseSelect", null, {
                 this.setValue(this._lastValueReported, true);
             }else{
                 if (isNullOrBlank(displayedValue)){
-                     this.setValue(null, true);
-                     this.setDisplayedValue('');
+                    // validate_select runs inside the change below: an empty field, not a wrong search
+                    this._lastDisplayedValue = '';
+                    this.setValue(null, !isNullOrBlank(this._lastValueReported));
+                    // setDisplayedValue('') reports undefined: the clear is reported once, above
+                    this._lastValueReported = undefined;
+                    this.setDisplayedValue('');
                 }else{
                     if ( isNullOrBlank(value)){
-                        this.setValue(null, true);
+                        var firstMatch = !this.sourceNode.attr.firstMatchDisabled;
+                        // the lookup reports the match or the miss: the clear before it is not a change
+                        this.setValue(null, !firstMatch);
                         this.sourceNode._wrongSearch = displayedValue;
-                        if(!this.sourceNode.attr.firstMatchDisabled){
+                        if(firstMatch){
                             this.setDisplayedValue(displayedValue,true);
                         }
                     }else //if(value!=lastValueReported){
