@@ -474,6 +474,7 @@ dojo.declare("gnr.widgets.baseHtml", null, {
             var n = genro.getDataNode(npath);
             let v = n.getValue();
             genro.dom.setClass(stateNode,'keeper_on',keepOn);
+            sourceNode.widget.focusNode.tabIndex = keepOn ? -1 : sourceNode.widget.tabIndex;
             n.attr._keep = keepOn;
             if(sourceNode.form){
                 sourceNode.form.setKeptData(npath.replace(sourceNode.absDatapath()+'.',''),v,n.attr._keep);

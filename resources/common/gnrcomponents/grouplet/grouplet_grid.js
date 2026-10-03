@@ -2491,7 +2491,8 @@ gnr.GroupletGridController = class GroupletGridController {
                 else if (e.target.closest('.grouplet_grid_check_all')) this._onCheckAll();
             });
         }
-        this._syncKept();
+        // a row grafted while the page builds gets its widgets a tick later
+        setTimeout(() => this._destroyed || this._syncKept(), 0);
         this._markEntryRequired();
         this._updateAddBtnState();
         this._scheduleStructSync();
@@ -2592,7 +2593,9 @@ gnr.GroupletGridController = class GroupletGridController {
                 (n.widget && n.attr.value === '^.' + c.field) ? n : undefined
             ), 'static');
             if (node && node.widget.focusNode) {
-                node.widget.focusNode.classList.toggle('grouplet_grid_kept', isKept(c.field));
+                const kept = isKept(c.field);
+                node.widget.focusNode.classList.toggle('grouplet_grid_kept', kept);
+                node.widget.focusNode.tabIndex = kept ? -1 : node.widget.tabIndex;
             }
         });
     }

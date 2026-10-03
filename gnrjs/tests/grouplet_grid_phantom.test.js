@@ -459,3 +459,27 @@ test('the blank row hint goes on a required free-text field, else a free-text on
         ['customer', {tag: 'dbSelect'}],
         ['vat', {tag: 'filteringSelect', validate_notnull: true}]]), ['customer']);
 });
+
+test('Tab skips a kept struct column, and reaches it again once unpinned', () => {
+    const s = entryGrid();
+    s.controller.structAdapter = {cells: [
+        {field: 'shop', edit: true, keepable: true},
+        {field: 'item', edit: true}]};
+    s.controller._containerDom = () => ({querySelectorAll: () => []});
+    const content = new s.context.gnr.GnrDomSource();
+    const focusNodes = {};
+    ['shop', 'item'].forEach((field) => {
+        content._('textbox', field, {tag: 'textbox', value: '^.' + field});
+        const classes = new Set();
+        focusNodes[field] = {tabIndex: 0, classes,
+                             classList: {toggle: (c, on) => (on ? classes.add(c) : classes.delete(c))}};
+        content.getNode(field).widget = {tabIndex: 0, focusNode: focusNodes[field]};
+    });
+    s.controller.entryTile.tileContent = content;
+    s.controller._toggleKeep('shop');
+    assert.equal(focusNodes.shop.tabIndex, -1);
+    assert.ok(focusNodes.shop.classes.has('grouplet_grid_kept'));
+    assert.equal(focusNodes.item.tabIndex, 0);
+    s.controller._toggleKeep('shop');
+    assert.equal(focusNodes.shop.tabIndex, 0);
+});
