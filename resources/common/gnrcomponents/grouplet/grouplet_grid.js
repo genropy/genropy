@@ -774,6 +774,13 @@ gnr.GroupletGridController = class GroupletGridController {
         // the row in the entry row, Enter writes it back, Esc gives up;
         // Cmd/Shift+click selects several rows, to delete them together.
         this.rowTemplate = (this.entry && kw.rowTemplate) || null;
+        if (this.rowTemplate && this.rowTemplate.template) {
+            // {template, formats}: the compiled shape, numbers as formatted
+            const tpl = new gnr.GnrBag();
+            tpl.setItem('main', this.rowTemplate.template,
+                        {formats: this.rowTemplate.formats || {}});
+            this.rowTemplate = tpl;
+        }
         this._editingKey = null;
         this._multiKeys = null;
         this._selAnchor = null;
@@ -3786,9 +3793,10 @@ gnr.GroupletGridTile = class GroupletGridTile {
     }
 
     _usesRowTemplate() {
-        // a template string, or rowTemplate=True on a struct grid
+        // a template, or rowTemplate=True on a struct grid
         const c = this.controller;
-        return !!c.rowTemplate && (!!c.structAdapter || typeof c.rowTemplate === 'string');
+        return !!c.rowTemplate && (!!c.structAdapter || typeof c.rowTemplate === 'string'
+                                   || c.rowTemplate instanceof gnr.GnrBag);
     }
 
     _destroyBody() {
