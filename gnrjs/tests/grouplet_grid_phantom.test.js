@@ -199,7 +199,7 @@ function entryGrid({missing = null, disabled = false} = {}) {
         entryPath: 'ws.entry',
         entryTile: {
             domNode: () => null,
-            tileContent: {walk: () => field}
+            tileContent: {walk: (cb) => (field ? cb(field) : undefined)}
         },
         _announcer: {textContent: ''}
     });
@@ -268,8 +268,11 @@ test('the entry row works out its formulas as it is typed in', () => {
     assert.equal(s.entry().getItem('total'), null, 'the cleared row is not worked out');
 });
 
-test('a missing required field or a locked form stops the entry', () => {
+test('a missing required field or a locked form stops the entry', async () => {
     const req = entryGrid({missing: 'item'});
+    await tick();
+    assert.ok(req.field.isValidationRequired() && !req.field.hasValidationError(),
+              'a blank required field is marked, not flagged');
     req.entry().setItem('qty', 3);
     req.controller._addEntry();
     assert.equal(req.lines.len(), 0);

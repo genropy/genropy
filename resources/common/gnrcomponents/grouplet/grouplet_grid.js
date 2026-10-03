@@ -2492,6 +2492,7 @@ gnr.GroupletGridController = class GroupletGridController {
             });
         }
         this._syncKept();
+        this._markEntryRequired();
         this._updateAddBtnState();
         this._scheduleStructSync();
     }
@@ -2525,6 +2526,22 @@ gnr.GroupletGridController = class GroupletGridController {
             });
         }
         this._syncKept();
+        this._markEntryRequired();
+    }
+
+    _markEntryRequired() {
+        // A blank required field is marked as required, not flagged as an
+        // error: nothing was entered in it yet. One tick: a just-grafted
+        // row gets its widgets when the framework drains its afterBuildCalls.
+        setTimeout(() => {
+            if (this._destroyed || !this.entryTile || !this.entryTile.tileContent) return;
+            this.entryTile.tileContent.walk((n) => {
+                const attr = n.attr || {};
+                if (!attr.validate_notnull || !n.widget || !n.hasValidations()
+                        || !isNullOrBlank(n.getAttributeFromDatasource('value'))) return;
+                n.setValidationError({warnings: [], required: true});
+            }, 'static');
+        }, 0);
     }
 
     _entrySubscriberId() {
