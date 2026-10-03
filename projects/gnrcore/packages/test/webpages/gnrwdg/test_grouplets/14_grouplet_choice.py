@@ -20,7 +20,8 @@ class GnrCustomWebPage(object):
             stepSummary=True, region='center')
 
     def test_2_choice_alone(self, pane):
-        """The same tiles outside a wizard: a click selects, nothing advances."""
+        """The same tiles outside a wizard, optional (validate_notnull=False):
+        a click selects, nothing advances."""
         pane.grouplet(value='^.choice_alone', handler=self.grp_choice)
         pane.div('^.choice_alone.kind', margin_top='8px')
 
@@ -33,6 +34,7 @@ class GnrCustomWebPage(object):
     @public_method
     def grp_choice(self, pane, **kwargs):
         pane.groupletChoice(field='kind', value_column='code', title='description',
+                            validate_notnull=False,
                             rows=[dict(code='A', description='Alpha'),
                                   dict(code='B', description='Beta')])
 

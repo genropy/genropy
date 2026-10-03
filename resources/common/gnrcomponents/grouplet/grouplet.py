@@ -245,11 +245,12 @@ class GroupletHandler(BaseComponent):
     def gr_groupletChoice(self, pane, field=None, table=None, columns=None, where=None,
                           order_by=None, rows=None, value_column='pkey', glyph=None,
                           title=None, note=None, caption_field=None, groups=None,
-                          autoNext=True, **kwargs):
+                          autoNext=True, validate_notnull=True, **kwargs):
         """Tiles that set `field` to one value of `rows` (or of a query on `table`,
         kwargs are its parameters). glyph, title and note: a column, a $template
         or a callable(row). groups: dicts of caption, condition(row) and _class.
-        In a wizard step a click also advances it (autoNext)."""
+        In a wizard step a click also advances it (autoNext). validate_notnull
+        False leaves the choice optional."""
         if rows is None:
             rows = self.db.table(table).query(columns=columns or '*', where=where,
                                               order_by=order_by, **kwargs).fetch()
@@ -286,7 +287,9 @@ class GroupletHandler(BaseComponent):
                 text.div(caption, _class='grouplet_choice_title')
                 if note:
                     text.div(render(note, row), _class='grouplet_choice_note')
-        box.textbox(value=f'^.{field}', validate_notnull=True, hidden=True)
+        # without the attribute a grouplet's __info__ mandatory can still require it
+        notnull_kw = dict(validate_notnull=validate_notnull) if validate_notnull else {}
+        box.textbox(value=f'^.{field}', hidden=True, **notnull_kw)
         return box
 
     @extract_kwargs(grouplet=dict(slice_prefix=False, pop=True))
