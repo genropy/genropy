@@ -458,11 +458,13 @@ class TemplateEditor(TemplateEditorBase):
         editorConstrain = editorConstrain or dict()
         constrain_height = editorConstrain.pop('constrain_height',False)
         constrain_width = editorConstrain.pop('constrain_width',False)
+        # the SET macro ends its expression at the first ';', even inside a string
         bc.dataController("""var height = letterhead_center_height?letterhead_center_height+'mm': constrain_height;
                              var width = letterhead_center_width?letterhead_center_width+'mm':constrain_width;
                              SET .editor.height = height;
                              SET .editor.width = width;
-                             SET .editor.bodyStyle = objectAsStyle({height:height||null,width:width||null});
+                             var bodyStyle = (height?'height:'+height+';':'')+(width?'width:'+width+';':'');
+                             SET .editor.bodyStyle = bodyStyle;
             """,constrain_height=constrain_height,
                 constrain_width=constrain_width,
                 letterhead_center_height='^.preview.letterhead_record.center_height',

@@ -294,6 +294,47 @@ function initializeWith(sourceEditor) {
     return made.sourceEditor;
 }
 
+function initializeEditor(value) {
+    const listeners = {};
+    const editor = {
+        value,
+        container: {},
+        e: {
+            on(target, events, callback) {
+                if (typeof target === 'string') [events, callback] = [target, events];
+                for (const name of events.split(' ')) (listeners[name] ||= []).push(callback);
+                return this;
+            }
+        },
+        fire: (name) => (listeners[name] || []).forEach((callback) => callback()),
+        waitForReady: () => new Promise(() => {})
+    };
+    const handler = loadHandler({
+        document: {createElement: () => ({})},
+        Jodit: {make: () => editor}
+    });
+    const sourceNode = makeSourceNode(value);
+    const widget = {classList: {add() {}}, appendChild() {}};
+    handler.initialize(widget, create(handler, {}), sourceNode);
+    return {editor, sourceNode};
+}
+
+test('a field dropped from a tree is stored on change', () => {
+    const {editor, sourceNode} = initializeEditor('<p>Total: </p>');
+    editor.fire('drop');
+    editor.value = '<p>Total: $total</p>';
+    editor.fire('change');
+    assert.deepEqual(sourceNode.writes, [['value', '<p>Total: $total</p>']]);
+});
+
+test('a field dropped from a tree is stored on blur', () => {
+    const {editor, sourceNode} = initializeEditor('');
+    editor.fire('drop');
+    editor.value = '<p>$protocol</p>';
+    editor.fire('blur');
+    assert.deepEqual(sourceNode.writes, [['value', '<p>$protocol</p>']]);
+});
+
 test('source view uses CodeMirror, or the plain textarea for any other sourceEditor', () => {
     assert.equal(typeof initializeWith('codemirror'), 'function');
     assert.equal(initializeWith('area'), 'area');

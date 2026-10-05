@@ -7,6 +7,7 @@ under test is the one in this working tree and no struct object is faked.
 
 import inspect
 import os
+import re
 
 from core.common import BaseGnrTest
 
@@ -17,6 +18,9 @@ from gnr.web.gnrdummysite import GnrDummySite
 CHUNK_COMPONENT = 'gnrcomponents/tpleditor:ChunkEditor'
 CHUNK_TABLE = 'adm.htmltemplate'
 GRID_DATAPATHS = ('.varsgrid', '.parametersgrid')
+# the assignment macros of funcCreate (gnrlang.js): the expression ends at the first ';'
+ASSIGNMENT_MACRO = re.compile(r'(?:\W|^)(?:SET|PUT|FIRE|FIRE_AFTER|PUBLISH) \s*\^?[\w.#@$?-]+\s*=\s*([^;\r\n]*)',
+                              re.M)
 
 
 def struct_nodes(struct):
@@ -104,6 +108,18 @@ class TestChunkEditorParameters(BaseGnrTest):
         box = [node.attr['script'] for node in nodes
                if node.attr.get('tag') == 'dataController' and 'letterhead_center_width' in node.attr]
         assert len(box) == 1 and 'SET .editor.bodyStyle' in box[0]
+
+    def test_scripts_survive_the_macro_expansion(self):
+        # a truncated expression is a SyntaxError that stops the page build (#1568)
+        for pane in (self.chunk_editor_pane(), self.chunk_editor_pane(showParameters=True)):
+            for node in struct_nodes(pane):
+                code = node.attr.get('script') or node.attr.get('formula')
+                if not isinstance(code, str):
+                    continue
+                for expression in ASSIGNMENT_MACRO.findall(code.replace(';SET', '; SET')):
+                    balanced = (expression.count("'") % 2 == 0 and expression.count('"') % 2 == 0
+                                and expression.count('(') == expression.count(')'))
+                    assert balanced, f'{node.label}: truncated macro expression {expression!r}'
 
     def test_save_button_forwards_the_parameters(self):
         for pane in (self.chunk_editor_pane(), self.chunk_editor_pane(showParameters=True)):
