@@ -462,7 +462,7 @@ class TemplateEditor(TemplateEditorBase):
                              var width = letterhead_center_width?letterhead_center_width+'mm':constrain_width;
                              SET .editor.height = height;
                              SET .editor.width = width;
-                             SET .editor.bodyStyle = (height?'height:'+height+';':'')+(width?'width:'+width+';':'');
+                             SET .editor.bodyStyle = objectAsStyle({height:height||null,width:width||null});
             """,constrain_height=constrain_height,
                 constrain_width=constrain_width,
                 letterhead_center_height='^.preview.letterhead_record.center_height',
