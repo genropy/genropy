@@ -150,8 +150,8 @@
 				<en_username fr="Nom d'utilisateur" de="Benutzername" en="Username" it="Nome utente" base="Username"/>
 				<en_version fr="Version" de="Version" en="Version" it="Versione" base="Version"/>
 				<en_data fr="Données" de="Daten" en="Data" it="Data" base="Data"/>
-				<en_center_height fr="Hauteur de pointes" de="Spitzenhöhe" en="Center height" it="Altezza di punte" base="Center height"/>
-				<en_center_width fr="La largeur centrale" de="Spitzenweite" en="Center width" it="Larghezza Centro" base="Center width"/>
+				<en_center_height fr="Hauteur centrale" de="Höhe Mitte" en="Center height" it="Altezza centro" base="Center height"/>
+				<en_center_width fr="Largeur centrale" de="Breite Mitte" en="Center width" it="Larghezza centro" base="Center width"/>
 				<en_based_on fr="Basé sur" de="Basierend auf" en="Based on" it="Basato su" base="Based on"/>
 				<en_next_letterhead fr="Suivant tête" de="Nächste Brief" en="Next letterhead" it="Successivo intestata" base="Next letterhead"/>
 		</htmltemplate>
@@ -569,15 +569,37 @@
 								<en_page_sizing fr="Page dimensionnement" de="Seite Sizing" en="Page sizing" it="Pagina dimensionamento" base="Page sizing"/>
 								<en_height base="Height" de="Höhe" en="Height" fr="Hauteur" it="Altezza"/>
 								<en_width base="Width" de="Breite" en="Width" fr="Largeur" it="Larghezza"/>
-								<en_top fr="Haut" de="Top" en="Top" it="Top" base="Top"/>
-								<en_bottom fr="Bas" de="Boden" en="Bottom" it="Fondo" base="Bottom"/>
-								<en_left fr="Gauche" de="Links" en="Left" it="Uscita" base="Left"/>
-								<en_right fr="Droite" de="Recht" en="Right" it="Destra" base="Right"/>
+								<en_top fr="Haut" de="Oben" en="Top" it="Alto" base="Top"/>
+								<en_bottom fr="Bas" de="Unten" en="Bottom" it="Basso" base="Bottom"/>
+								<en_left fr="Gauche" de="Links" en="Left" it="Sinistra" base="Left"/>
+								<en_right fr="Droite" de="Rechts" en="Right" it="Destra" base="Right"/>
 								<en_s_height _tag="en__s_height" fr="%s hauteur" en="%s height" de="%s Höhe" it="%s Altezza" base="%s height"/>
 								<en_s _tag="en__s" fr="% S" en="%s" de="% S" it="% S" base="%s"/>
-								<en_center_height fr="Hauteur de pointes" de="Spitzenhöhe" en="Center height" it="Altezza di punte" base="Center height"/>
-								<en_center_width fr="La largeur centrale" de="Spitzenweite" en="Center width" it="Larghezza Centro" base="Center width"/>
+								<en_center_height fr="Hauteur centrale" de="Höhe Mitte" en="Center height" it="Altezza centro" base="Center height"/>
+								<en_center_width fr="Largeur centrale" de="Breite Mitte" en="Center width" it="Larghezza centro" base="Center width"/>
 								<en_s_width _tag="en__s_width" fr="%s Largeur" en="%s width" de="%s Breite" it="%s larghezza" base="%s width"/>
+								<en_page_sizing_mm_ fr="Dimensions de la page (mm)" de="Seitengröße (mm)" en="Page sizing (mm)" it="Dimensionamento pagina (mm)" base="Page sizing (mm)"/>
+								<en_layout_mm_ fr="Mise en page (mm)" de="Layout (mm)" en="Layout (mm)" it="Layout (mm)" base="Layout (mm)"/>
+								<en_based_on fr="Basé sur" de="Basierend auf" en="Based on" it="Basato su" base="Based on"/>
+								<en_follow_on fr="Pages suivantes" de="Folgeseiten" en="Follow on" it="Pagine seguenti" base="Follow on"/>
+								<en_type fr="Type" de="Typ" en="Type" it="Tipo" base="Type"/>
+								<en_v_ fr="V." de="V." en="V." it="V." base="V."/>
+								<en_top_height fr="Hauteur haut" de="Höhe oben" en="Top height" it="Altezza alto" base="Top height"/>
+								<en_top_left fr="Haut gauche" de="Oben links" en="Top left" it="Alto sinistra" base="Top left"/>
+								<en_top_right fr="Haut droite" de="Oben rechts" en="Top right" it="Alto destra" base="Top right"/>
+								<en_bottom_height fr="Hauteur bas" de="Höhe unten" en="Bottom height" it="Altezza basso" base="Bottom height"/>
+								<en_bottom_left fr="Bas gauche" de="Unten links" en="Bottom left" it="Basso sinistra" base="Bottom left"/>
+								<en_bottom_right fr="Bas droite" de="Unten rechts" en="Bottom right" it="Basso destra" base="Bottom right"/>
+								<en_center_left fr="Centre gauche" de="Mitte links" en="Center left" it="Centro sinistra" base="Center left"/>
+								<en_center_right fr="Centre droite" de="Mitte rechts" en="Center right" it="Centro destra" base="Center right"/>
+								<en_center_top fr="Centre haut" de="Mitte oben" en="Center top" it="Centro alto" base="Center top"/>
+								<en_center_bottom fr="Centre bas" de="Mitte unten" en="Center bottom" it="Centro basso" base="Center bottom"/>
+								<en_left_width fr="Largeur gauche" de="Breite links" en="Left width" it="Larghezza sinistra" base="Left width"/>
+								<en_left_top fr="Gauche haut" de="Links oben" en="Left top" it="Sinistra alto" base="Left top"/>
+								<en_left_bottom fr="Gauche bas" de="Links unten" en="Left bottom" it="Sinistra basso" base="Left bottom"/>
+								<en_right_width fr="Largeur droite" de="Breite rechts" en="Right width" it="Larghezza destra" base="Right width"/>
+								<en_right_top fr="Droite haut" de="Rechts oben" en="Right top" it="Destra alto" base="Right top"/>
+								<en_right_bottom fr="Droite bas" de="Rechts unten" en="Right bottom" it="Destra basso" base="Right bottom"/>
 				</th_htmltemplate>
 			</htmltemplate>
 				<install_checklist>
