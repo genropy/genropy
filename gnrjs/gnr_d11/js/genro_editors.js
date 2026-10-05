@@ -1780,6 +1780,7 @@ dojo.declare("gnr.widgets.joditEditor", gnr.widgets.baseExternalWidget, {
         editor.waitForReady().then(function(){
             editor.gnr_contentStyles(joditAttrs.contentStyles);
             editor.gnr_bodyStyle(joditAttrs.bodyStyle);
+            that.setupFieldDrop(editor);
         });
     },
     onSpeechEnd: function(sourceNode, text) {
@@ -1787,6 +1788,118 @@ dojo.declare("gnr.widgets.joditEditor", gnr.widgets.baseExternalWidget, {
         editor._gnrUserEdit = true;
         editor.s.insertNode(editor.createInside.text(text));
         this.writeValue(editor);
+    },
+    // A Genropy drag (a template variable from a tree) stops its dragstart, so neither
+    // Jodit nor the browser place it reliably: it is shown and inserted here.
+    isFieldDrag: function(editor, dataTransfer) {
+        if(editor.getReadOnly()){
+            return false;
+        }
+        var types = Array.prototype.slice.call((dataTransfer && dataTransfer.types) || []);
+        return types.indexOf('dragsourceinfo') >= 0 && types.indexOf('text/plain') >= 0
+            && types.indexOf('text/html') < 0 && types.indexOf('Files') < 0;
+    },
+    dropRange: function(editor, x, y) {
+        var doc = editor.ed;
+        var body = editor.editor;
+        var range = null;
+        if(doc.caretRangeFromPoint){
+            range = doc.caretRangeFromPoint(x, y);
+        } else if(doc.caretPositionFromPoint){
+            var position = doc.caretPositionFromPoint(x, y);
+            if(position){
+                range = doc.createRange();
+                range.setStart(position.offsetNode, position.offset);
+            }
+        }
+        var last = body.lastElementChild || body.lastChild;
+        var below = !last || (last.getBoundingClientRect && y > last.getBoundingClientRect().bottom);
+        if(!range || below || range.startContainer === body || !body.contains(range.startContainer)){
+            range = doc.createRange();
+            range.selectNodeContents(last && last.nodeType === 1 ? last : body);
+            range.collapse(false);
+        }
+        return range;
+    },
+    dropText: function(range, text) {
+        var node = range.startContainer;
+        var offset = range.startOffset;
+        if(node.nodeType === 3){
+            if(offset > 0 && /\S/.test(node.data.charAt(offset - 1))){
+                text = ' ' + text;
+            }
+            if(offset < node.data.length && /\S/.test(node.data.charAt(offset))){
+                text = text + ' ';
+            }
+        }
+        return text;
+    },
+    showDropCaret: function(editor, range) {
+        var doc = editor.ed;
+        var caret = editor._gnrDropCaret;
+        if(!caret){
+            caret = doc.createElement('div');
+            caret.className = 'gnr-jodit-dropcaret';
+            caret.style.cssText = 'position:absolute;width:2px;background:#1a73e8;pointer-events:none;z-index:10;';
+            // outside the body, so it never becomes part of the value
+            doc.documentElement.appendChild(caret);
+            editor._gnrDropCaret = caret;
+        }
+        var rect = range.getBoundingClientRect();
+        if(!rect.height){
+            var block = range.startContainer.nodeType === 1 ? range.startContainer : range.startContainer.parentNode;
+            var blockRect = block.getBoundingClientRect();
+            rect = {left: blockRect.left, top: blockRect.top, height: blockRect.height || 16};
+        }
+        var win = doc.defaultView;
+        caret.style.left = (rect.left + win.scrollX) + 'px';
+        caret.style.top = (rect.top + win.scrollY) + 'px';
+        caret.style.height = rect.height + 'px';
+    },
+    dropHighlightNode: function(editor) {
+        return editor.o.iframe ? editor.ed.documentElement : editor.editor;
+    },
+    clearFieldDrop: function(editor) {
+        var highlight = this.dropHighlightNode(editor).style;
+        highlight.boxShadow = '';
+        highlight.background = '';
+        if(editor._gnrDropCaret){
+            editor._gnrDropCaret.remove();
+            delete editor._gnrDropCaret;
+        }
+    },
+    setupFieldDrop: function(editor) {
+        var that = this;
+        // with the iframe the empty area under the content belongs to <html>, not to the body
+        var target = editor.o.iframe ? editor.ed : editor.editor;
+        editor.e.on(target, 'dragover', function(evt){
+            if(!that.isFieldDrag(editor, evt.dataTransfer)){
+                return;
+            }
+            evt.preventDefault();
+            var highlight = that.dropHighlightNode(editor).style;
+            highlight.boxShadow = 'inset 0 0 0 2px #1a73e8';
+            highlight.background = 'rgba(26, 115, 232, .05)';
+            that.showDropCaret(editor, that.dropRange(editor, evt.clientX, evt.clientY));
+        }).on(target, 'dragleave', function(evt){
+            if(!evt.relatedTarget || !target.contains(evt.relatedTarget)){
+                that.clearFieldDrop(editor);
+            }
+        }).on(target, 'drop', function(evt){
+            if(!that.isFieldDrag(editor, evt.dataTransfer)){
+                return;
+            }
+            evt.preventDefault();
+            evt.stopPropagation();
+            that.clearFieldDrop(editor);
+            var range = that.dropRange(editor, evt.clientX, evt.clientY);
+            var text = that.dropText(range, evt.dataTransfer.getData('text/plain'));
+            editor._gnrUserEdit = true;
+            editor.s.selectRange(range);
+            editor.s.insertNode(editor.createInside.text(text));
+            that.writeValue(editor);
+            return false;
+        });
     },
     setContentStyle: function(editor, id, css) {
         if(!editor.o.iframe || !editor.ed){

@@ -348,6 +348,26 @@ test('a field dropped from a tree is stored on blur', () => {
     assert.deepEqual(sourceNode.writes, [['value', '<p>$protocol</p>']]);
 });
 
+test('only a Genropy drag of plain text is a field drop, and never into a read-only editor', () => {
+    const handler = loadHandler();
+    const editor = {getReadOnly: () => false};
+    const drag = (...types) => ({types});
+    assert.equal(handler.isFieldDrag(editor, drag('text/plain', 'dragsourceinfo', 'treenode')), true);
+    assert.equal(handler.isFieldDrag(editor, drag('text/plain')), false);
+    assert.equal(handler.isFieldDrag(editor, drag('text/plain', 'dragsourceinfo', 'text/html')), false);
+    assert.equal(handler.isFieldDrag(editor, drag('Files', 'text/plain', 'dragsourceinfo')), false);
+    assert.equal(handler.isFieldDrag({getReadOnly: () => true}, drag('text/plain', 'dragsourceinfo')), false);
+});
+
+test('a dropped field is spaced from the words it would touch', () => {
+    const handler = loadHandler();
+    const at = (data, offset) => ({startContainer: {nodeType: 3, data}, startOffset: offset});
+    assert.equal(handler.dropText(at('Total:', 6), '$total'), ' $total');
+    assert.equal(handler.dropText(at('Total: ', 7), '$total'), '$total');
+    assert.equal(handler.dropText(at('ab', 1), '$x'), ' $x ');
+    assert.equal(handler.dropText({startContainer: {nodeType: 1}, startOffset: 0}, '$x'), '$x');
+});
+
 test('a resize of the enclosing pane resizes the editor, until it is destroyed', () => {
     const pane = {resize() {}};
     const {editor} = initializeEditor('', pane);
