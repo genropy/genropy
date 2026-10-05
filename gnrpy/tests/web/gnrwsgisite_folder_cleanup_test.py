@@ -222,6 +222,19 @@ def test_runcleanup_walks_the_handed_domain_and_leaves_the_thread_clean():
     assert site.currentDomain is None
 
 
+def test_runcleanup_without_a_domain_leaves_the_request_domain_alone():
+    """register_explorer calls it inside an rpc: the rest of that rpc still
+    talks to the workspace register."""
+    seen = []
+    site = _FakeSite(
+        currentDomain='acme',
+        _cleanupConnectionFolders=lambda: seen.append(site.currentDomain),
+    )
+    gws.GnrWsgiSite._runCleanup(site)
+    assert seen == ['acme']
+    assert site.currentDomain == 'acme'
+
+
 def test_runcleanup_resets_the_domain_on_failure():
     def boom():
         raise RuntimeError('cleanup failed')

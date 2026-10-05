@@ -1856,8 +1856,13 @@ class GnrWsgiSite(object):
         The on-event pass runs in a thread of its own, where currentDomain
         is unset and falls back to the root domain: the caller hands over
         the domain it claimed the cleanup on, or the register and the
-        folders of the workspace would never be the ones walked."""
-        self.currentDomain = domain or self.currentDomain
+        folders of the workspace would never be the ones walked. Without a
+        domain the walk takes the caller's, and leaves it alone: a request
+        thread still has its own rpc to finish on that register."""
+        if domain is None:
+            self._cleanupConnectionFolders()
+            return
+        self.currentDomain = domain
         try:
             self._cleanupConnectionFolders()
         finally:
