@@ -142,7 +142,7 @@ class SiteRegisterClient(object):
         self.site = site
         self.siteregisterserver_uri = None
         self.siteregister_uri = None
-        self.storage_path = os.path.join(self.site.site_path, self.STORAGE_PATH)
+        self.storage_path = self.registerStoragePath()
         self.errors = Pyro4.errors
         Pyro4.config.SERIALIZER = 'pickle'
         daemonconfig = self.site.config.getAttr('gnrdaemon')
@@ -154,6 +154,9 @@ class SiteRegisterClient(object):
             params = sitedaemon_bag.getAttr('params')
             sitedaemon_pid = params.get('pid')
             if sitedaemon_pid and pid_exists(sitedaemon_pid):
+                if self.site.multidomain:
+                    logger.error('sitedaemon mode serves every workspace of %s from one register: '
+                                 'users and stores of different tenants are merged', self.site.site_name)
                 self.hmac_key = sitedaemonconfig.get('hmac_key') or daemonconfig['hmac_key']
                 self.siteregisterserver_uri = params.get('main_uri')
                 self.siteregister_uri = params.get('register_uri')
@@ -187,6 +190,20 @@ class SiteRegisterClient(object):
                     raise Exception('GnrDaemon timout')
         logger.debug(f'creating proxy {self.siteregister_uri} - {self.siteregisterserver_uri}')
         self.initSiteRegister()
+
+    def registerStoragePath(self):
+        """Freeze file of this domain's register.
+
+        The root domain keeps the site-level file; a workspace freezes in its
+        own data folder, or every register of the site would dump to one file
+        and restore another tenant's sessions.
+        """
+        site = self.site
+        if site.multidomain and site.currentDomain != site.rootDomain:
+            folder = site.domainDataFolder()
+            os.makedirs(folder, exist_ok=True)
+            return os.path.join(folder, self.STORAGE_PATH)
+        return os.path.join(site.site_path, self.STORAGE_PATH)
 
     def initSiteRegister(self):
         self.newSiteRegisterProxy()

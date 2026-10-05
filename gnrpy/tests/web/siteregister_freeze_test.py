@@ -12,7 +12,6 @@ the freeze file exists, and it is only written when the daemon is stopped with
 
 import os
 
-import pytest
 
 from gnr.web.daemon.siteregister import SiteRegister
 
@@ -94,6 +93,7 @@ def test_the_freeze_file_is_consumed_by_the_load(tmp_path):
 
 
 def test_loading_a_missing_file_is_not_a_crash(tmp_path):
+    """A register that starts after another one consumed the file answers
+    False, like on an empty file, instead of dying on the open."""
     reg = _register(tmp_path, name='never-written.pik')
-    with pytest.raises(FileNotFoundError):
-        reg.load()
+    assert reg.load() is False

@@ -472,9 +472,6 @@ class GnrWsgiSite(object):
             # serves the site: there is no daemon to reach and no config word to
             # write, so the site has WebSockets because the provider says so.
             self.websockets = True
-        self.allConnectionsFolder = os.path.join(self.site_path, 'data', '_connections')
-        self.allUsersFolder = os.path.join(self.site_path, 'data', '_users')
-
         self.homepage = self.config['wsgi?homepage'] or self.default_uri + 'index'
         self.indexpage = self.config['wsgi?homepage'] or '/index'
         self._guest_counter = 0
@@ -680,6 +677,26 @@ class GnrWsgiSite(object):
         if self.multidomain:
             return f'{self.default_uri}{self.currentDomain}/'
         return self.default_uri
+
+    def domainDataFolder(self, *parts):
+        """Data folder of the current domain.
+
+        The root domain, and every single-domain site, keep ``data`` itself;
+        a workspace owns ``data/_domains/<domain>``, so what a connection or
+        a user writes never crosses the tenant boundary.
+        """
+        domain = self.currentDomain
+        if self.multidomain and domain and domain != self.rootDomain:
+            return os.path.join(self.site_path, 'data', '_domains', domain, *parts)
+        return os.path.join(self.site_path, 'data', *parts)
+
+    @property
+    def allConnectionsFolder(self):
+        return self.domainDataFolder('_connections')
+
+    @property
+    def allUsersFolder(self):
+        return self.domainDataFolder('_users')
 
     @property
     def rootDomainHomeUri(self):
@@ -1761,10 +1778,9 @@ class GnrWsgiSite(object):
 
     def dropConnectionFolder(self, connection_id=None):
         """:param connection_id: TODO"""
-        pathlist = ['data', '_connections']
+        connectionFolder = self.allConnectionsFolder
         if connection_id:
-            pathlist.append(connection_id)
-        connectionFolder = os.path.join(self.site_path, *pathlist)
+            connectionFolder = os.path.join(connectionFolder, connection_id)
         for root, dirs, files in os.walk(connectionFolder, topdown=False):
             for name in files:
                 os.remove(os.path.join(root, name))
