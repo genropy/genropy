@@ -103,7 +103,7 @@ class Form(BaseComponent):
                             page_margin_left='^.main.page.left',
                             page_margin_right='^.main.page.right',
                             side_left='^.layout.left?width',
-                            side_right='^.layout.left?width',
+                            side_right='^.layout.right?width',
                             datapath='#FORM.record.data')
 
     def htmltemplate_mainInfo(self, bc):
