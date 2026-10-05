@@ -1015,7 +1015,10 @@ class ThLinker(BaseComponent):
         
         forbudden_dbstore = self.dbstore and (related_tblobj.attributes.get('multidb') or related_tblobj.use_dbstores() is False)
         if editEnabled and formResource or formUrl:
-            footer = (frame if flex else frame.bottom).slotBar('*,linker_edit',padding='2px',childname='footer',
+            # flex: footer and linker bar share one container, so the footer needs a name of its own;
+            # framePane: the bottom bar keeps its default name, applications reach it as frame.bottom.bar
+            footer = (frame if flex else frame.bottom).slotBar('*,linker_edit',padding='2px',
+                                                                 childname='footer' if flex else 'bar',
                                                                  _class='th_linkerBoxFooter')
             footer.linker_edit.slotButton('Edit',baseClass='no_background',iconClass='iconbox pencil',
                                             action='linker.publish("loadrecord");',linker=linker,
