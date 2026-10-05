@@ -16,11 +16,7 @@ def main():
     if site.multidomain:
         domains += list(site.db.dbstores)
     for domain in domains:
-        site.currentDomain = domain
-        try:
-            site._runCleanup()
-        finally:
-            site.currentDomain = None
+        site._runCleanup(domain=domain)
 
 if __name__ == "__main__":
     main()

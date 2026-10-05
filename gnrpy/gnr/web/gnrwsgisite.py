@@ -1847,11 +1847,25 @@ class GnrWsgiSite(object):
             return
         if not won:
             return
-        Thread(target=self._runCleanup, daemon=True).start()
+        Thread(target=self._runCleanup, kwargs=dict(domain=self.currentDomain),
+               daemon=True).start()
 
-    def _runCleanup(self):
-        """Worker thread: drops stale pages/connections from the register
-        and removes their filesystem folders under _connections/.
+    def _runCleanup(self, domain=None):
+        """Clean the folders of one domain, in whatever thread.
+
+        The on-event pass runs in a thread of its own, where currentDomain
+        is unset and falls back to the root domain: the caller hands over
+        the domain it claimed the cleanup on, or the register and the
+        folders of the workspace would never be the ones walked."""
+        self.currentDomain = domain or self.currentDomain
+        try:
+            self._cleanupConnectionFolders()
+        finally:
+            self.currentDomain = None
+
+    def _cleanupConnectionFolders(self):
+        """Drops stale pages/connections from the register of the current
+        domain and removes their filesystem folders under _connections/.
 
         Walks _connections/ once. For each entry:
         - if not in live connections AND old enough -> rmtree
