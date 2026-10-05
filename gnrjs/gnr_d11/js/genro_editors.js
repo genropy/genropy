@@ -1817,7 +1817,11 @@ dojo.declare("gnr.widgets.joditEditor", gnr.widgets.baseExternalWidget, {
         if(!range || below || range.startContainer === body || !body.contains(range.startContainer)){
             var block = last && last.nodeType === 1 ? last : body;
             range = doc.createRange();
-            if(block.lastChild && block.lastChild.nodeName === 'BR'){
+            if(block !== body && !/^(P|DIV|H[1-6]|PRE|BLOCKQUOTE)$/.test(block.nodeName)){
+                // a table, a list or an image closing the content: the field goes after it, not inside
+                range.setStartAfter(block);
+                range.collapse(true);
+            } else if(block.lastChild && block.lastChild.nodeName === 'BR'){
                 range.setStartBefore(block.lastChild);
                 range.collapse(true);
             } else {

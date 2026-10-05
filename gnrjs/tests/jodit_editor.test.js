@@ -378,6 +378,29 @@ test('a dropped field is spaced from the words it would touch', () => {
     assert.equal(handler.dropText(inElement([field, invisible, selectionMarker], 3), '$total'), ' $total');
 });
 
+test('a field dropped below the content goes after a closing table, list or image, inside a closing paragraph', () => {
+    const handler = loadHandler();
+    const dropBelow = (nodeName) => {
+        const last = {nodeType: 1, nodeName, lastChild: null, getBoundingClientRect: () => ({bottom: 10})};
+        const range = {
+            setStartAfter(node) { this.after = node; },
+            setStartBefore(node) { this.before = node; },
+            selectNodeContents(node) { this.inside = node; },
+            collapse() {}
+        };
+        const editor = {ed: {createRange: () => range}, editor: {lastElementChild: last, contains: () => true}};
+        return [handler.dropRange(editor, 0, 50), last];
+    };
+    for (const nodeName of ['TABLE', 'UL', 'IMG']) {
+        const [range, last] = dropBelow(nodeName);
+        assert.equal(range.after, last, nodeName);
+        assert.equal(range.inside, undefined, nodeName);
+    }
+    const [range, last] = dropBelow('P');
+    assert.equal(range.inside, last);
+    assert.equal(range.after, undefined);
+});
+
 test('a resize of the enclosing pane resizes the editor, until it is destroyed', () => {
     const pane = {resize() {}};
     const {editor} = initializeEditor('', pane);
