@@ -105,9 +105,11 @@ class TestChunkEditorParameters(BaseGnrTest):
         assert editors[0].attr['value'] == '^.data.content'
         assert editors[0].attr['css_value'] == '^.data.content_css'
         assert editors[0].attr['bodyStyle'] == '^.editor.bodyStyle'
-        box = [node.attr['script'] for node in nodes
-               if node.attr.get('tag') == 'dataController' and 'letterhead_center_width' in node.attr]
-        assert len(box) == 1 and 'SET .editor.bodyStyle' in box[0]
+        box = [node for node in nodes
+               if node.attr.get('tag') == 'dataFormula' and node.attr.get('path') == '.editor.bodyStyle']
+        assert len(box) == 1
+        assert box[0].attr['height'] == '^.editor.height'
+        assert box[0].attr['width'] == '^.editor.width'
 
     def test_scripts_survive_the_macro_expansion(self):
         # a truncated expression is a SyntaxError that stops the page build (#1568)

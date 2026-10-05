@@ -1772,6 +1772,11 @@ dojo.declare("gnr.widgets.joditEditor", gnr.widgets.baseExternalWidget, {
                 .on('change', function(){ that.onEditorChange(editor); })
                 .on('blur', function(){ that.writeValue(editor); })
                 .on('afterSetMode', function(){ that.onModeChange(editor); });
+        // Jodit sizes its workplace on window resize only: built in a hidden page it stays 150px high
+        var parentWidget = dijit.getEnclosingWidget(widget);
+        if(parentWidget){
+            editor._gnrParentResize = dojo.connect(parentWidget, 'resize', function(){ editor.e.fire('resize'); });
+        }
         editor.waitForReady().then(function(){
             editor.gnr_contentStyles(joditAttrs.contentStyles);
             editor.gnr_bodyStyle(joditAttrs.bodyStyle);
@@ -1995,6 +2000,9 @@ dojo.declare("gnr.widgets.joditEditor", gnr.widgets.baseExternalWidget, {
     },
     mixin_destroy: function() {
         this.gnr.writeValue(this);
+        if(this._gnrParentResize){
+            dojo.disconnect(this._gnrParentResize);
+        }
         this.destruct();
     }
 });

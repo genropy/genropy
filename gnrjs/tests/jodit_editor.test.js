@@ -5,11 +5,22 @@ const {test} = require('node:test');
 const vm = require('node:vm');
 
 function loadHandler(globals) {
-    const context = {console, gnr: {widgets: {}}, genro: {locale: () => 'it-IT'}, ...globals};
+    const context = {console, gnr: {widgets: {}}, genro: {locale: () => 'it-IT'},
+                     dijit: {getEnclosingWidget: () => null}, ...globals};
     context.dojo = {
         eval,
         hitch: (object, method) => (typeof method === 'string' ? object[method] : method).bind(object),
         forEach: (items, callback) => Array.prototype.forEach.call(items || [], callback),
+        connect(target, event, callback) {
+            const wrapped = target[event];
+            target[event] = function(...args) {
+                const result = wrapped && wrapped.apply(this, args);
+                callback.apply(this, args);
+                return result;
+            };
+            return [target, event, wrapped];
+        },
+        disconnect([target, event, wrapped]) { target[event] = wrapped; },
         declare(name, base, members) {
             function Declared(...args) {
                 if (base) base.apply(this, args);
@@ -294,7 +305,7 @@ function initializeWith(sourceEditor) {
     return made.sourceEditor;
 }
 
-function initializeEditor(value) {
+function initializeEditor(value, parentWidget) {
     const listeners = {};
     const editor = {
         value,
@@ -304,14 +315,16 @@ function initializeEditor(value) {
                 if (typeof target === 'string') [events, callback] = [target, events];
                 for (const name of events.split(' ')) (listeners[name] ||= []).push(callback);
                 return this;
-            }
+            },
+            fire: (name) => (listeners[name] || []).forEach((callback) => callback())
         },
         fire: (name) => (listeners[name] || []).forEach((callback) => callback()),
         waitForReady: () => new Promise(() => {})
     };
     const handler = loadHandler({
         document: {createElement: () => ({})},
-        Jodit: {make: () => editor}
+        Jodit: {make: () => editor},
+        dijit: {getEnclosingWidget: () => parentWidget || null}
     });
     const sourceNode = makeSourceNode(value);
     const widget = {classList: {add() {}}, appendChild() {}};
@@ -333,6 +346,20 @@ test('a field dropped from a tree is stored on blur', () => {
     editor.value = '<p>$protocol</p>';
     editor.fire('blur');
     assert.deepEqual(sourceNode.writes, [['value', '<p>$protocol</p>']]);
+});
+
+test('a resize of the enclosing pane resizes the editor, until it is destroyed', () => {
+    const pane = {resize() {}};
+    const {editor} = initializeEditor('', pane);
+    let resized = 0;
+    editor.e.on('resize', () => { resized += 1; });
+    pane.resize();
+    assert.equal(resized, 1);
+    editor.gnr = {writeValue() {}};
+    editor.destruct = () => {};
+    editor.destroy();
+    pane.resize();
+    assert.equal(resized, 1);
 });
 
 test('source view uses CodeMirror, or the plain textarea for any other sourceEditor', () => {

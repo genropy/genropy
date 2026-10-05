@@ -1712,6 +1712,8 @@ function macroExpand_GET(fnc) {
     fnc = fnc.replace(macroGET, "$1this.getRelativeData('$2')");
     return fnc;
 }
+// SET, PUT, FIRE, FIRE_AFTER and PUBLISH end their expression at the first ';' or line end, even
+// inside a string: SET .x = 'a;b' breaks the script, so compute such a value in a var first.
 function macroExpand_SET(fnc) {
     var macroSET = /(\W|^)SET (?:\s*)(\^?[\w\.\#\@\$\?-]+)(?:\s*)=(?:\s*)([^;\r\n]*)(;?)/gm;
     fnc = fnc.replace(/;SET/g, '; SET').replace(macroSET, "$1this.setRelativeData('$2', $3)$4 ");
