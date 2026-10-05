@@ -4,6 +4,10 @@ import hashlib
 import secrets
 from datetime import datetime, timezone
 
+from gnr.core.gnrlang import GnrException
+
+USER_RECORD_EXCLUDED = ('md5pwd', 'avatar_secret_2fa', 'avatar_last_2fa_otp')
+
 
 class Table(object):
     def config_db(self, pkg):
@@ -24,6 +28,10 @@ class Table(object):
         tbl.column('created_by', size='22', group='_',
                    name_long='!!Created By').relation('adm.user.id',
                    relation_name='api_tokens', onDelete='setnull')
+        tbl.column('user_id', size='22', group='_',
+                   name_long='!!User').relation('adm.user.id',
+                   relation_name='user_api_tokens', mode='foreignkey',
+                   onDelete='cascade')
         tbl.column('notes', dtype='T', name_long='!!Notes')
         tbl.column('token_hint', size='8', name_long='!!Token Hint')
         tbl.formulaColumn('all_tags',
@@ -104,7 +112,8 @@ class Table(object):
         Returns None if invalid, expired, or inactive.
         """
         records = self.query(
-            columns='$id,$description,$expires_ts,$is_active,$all_tags,$group_code',
+            columns='$id,$description,$expires_ts,$is_active,$all_tags,$group_code,'
+                    '$user_id,@user_id.username AS username',
             where='$token=:t AND $is_active=:a',
             t=self._hash_token(token_value), a=True
         ).fetch()
@@ -114,15 +123,51 @@ class Table(object):
         expires_ts = record['expires_ts']
         if expires_ts and expires_ts < datetime.now(timezone.utc):
             return None
+        result = {
+            'token_id': record['id'],
+            'auth_tags': record.get('all_tags', ''),
+            'group_code': record.get('group_code', ''),
+            'description': record['description']
+        }
+        if record['user_id']:
+            result = self.userTokenInfo(result, record['username'])
+            if result is None:
+                return None
+        self.packagesTokenInfo(result)
         # Piggy-back the last_used_ts update on the caller's commit instead of
         # forcing a synchronous commit on every Bearer-authenticated request.
         self.db.deferToCommit(self.raw_update,
                               record={'id': record['id'],
                                       'last_used_ts': datetime.now(timezone.utc)},
                               _deferredId=record['id'])
-        return {
-            'token_id': record['id'],
-            'auth_tags': record.get('all_tags', ''),
-            'group_code': record.get('group_code', ''),
-            'description': record['description']
-        }
+        return result
+
+    def userTokenInfo(self, token_info, username):
+        """Add the identity of the token's user to token_info.
+
+        Returns None when the user's status is not 'conf'. The values are
+        copied: the cached result of authenticate is never modified."""
+        auth = self.db.application.packages['adm'].authenticate(username)
+        if (auth.get('status') or 'conf') != 'conf':
+            return None
+        tags = set(filter(None, (auth.get('tags') or '').split(',')))
+        tags.update(filter(None, (token_info['auth_tags'] or '').split(',')))
+        user_record = {k: v for k, v in auth['user_record'].items()
+                       if k not in USER_RECORD_EXCLUDED}
+        return dict(token_info,
+                    user=username,
+                    user_id=auth['user_id'],
+                    user_name=auth['user_name'],
+                    user_record=user_record,
+                    auth_tags=','.join(sorted(tags)),
+                    group_code=auth['group_code'])
+
+    def packagesTokenInfo(self, token_info):
+        """Broadcast onApiTokenValidation and merge each package's dict
+        into token_info under the '<pkgId>_' prefix."""
+        for pkgId, values in self.db.application.pkgBroadcast('onApiTokenValidation', token_info):
+            for k, v in values.items():
+                key = f'{pkgId}_{k}'
+                if key in token_info:
+                    raise GnrException(f'onApiTokenValidation: package {pkgId} overwrites key {key}')
+                token_info[key] = v
