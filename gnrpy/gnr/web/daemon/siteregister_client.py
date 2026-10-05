@@ -515,7 +515,7 @@ class RegisterResolver(BagResolver):
         connectionsDict = self.register.connections(user=user, include_data=True)
         result = Bag()
         for connection_id, connection in list(connectionsDict.items()):
-            delta = (datetime.now() - connection['start_ts']).seconds
+            delta = (datetime.now() - connection['start_ts']).total_seconds()
             user = connection['user'] or 'Anonymous'
             connection_name = connection['connection_name']
             itemlabel = ('%s (%i)' % (connection_name, delta)).replace('.', '_').replace('@', '_')
@@ -531,7 +531,7 @@ class RegisterResolver(BagResolver):
         pagesDict = self.register.pages(connection_id=connection_id, include_data=True)
         result = Bag()
         for page_id, page in list(pagesDict.items()):
-            delta = (datetime.now() - page['start_ts']).seconds
+            delta = (datetime.now() - page['start_ts']).total_seconds()
             pagename = page['pagename'].replace('.py', '')
             itemlabel = ('%s (%i)' % (pagename, delta)).replace('.', '_').replace('@', '_')
             item = Bag()
