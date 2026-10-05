@@ -189,20 +189,20 @@ dojo.declare("gnr.GnrSrcHandler", null, {
             //sees this content again, and externalWidgets hang off no dijit
             //parent, so no destroyRecursive reaches them either
             if (kw.evt == 'del') {
+                this.cleanupNodeSubscriptions(kw.node);
                 kw.node._onDeleting();
                 this._onDeletingContent(kw.node._value);
                 this.deleteChildrenExternalWidget(kw.node);
                 if (kw.node.externalWidget && kw.node.externalWidget.destroy) {
                     kw.node.externalWidget.destroy();
                 }
-                this.cleanupNodeSubscriptions(kw.node);
             } else if (kw.evt == 'upd' && kw.oldvalue !== kw.node._value) {
                 //the discarded content only: this node is not dying, it is
                 //frozen and rebuilds on unfreeze, and tearing it down here
                 //would take it off screen before that
+                this.cleanupContentSubscriptions(kw.oldvalue);
                 this._onDeletingContent(kw.oldvalue);
                 this.deleteContentExternalWidget(kw.oldvalue);
-                this.cleanupContentSubscriptions(kw.oldvalue);
             }
             return;
         }
@@ -272,6 +272,11 @@ dojo.declare("gnr.GnrSrcHandler", null, {
             return;
         }
         genro.assert(!updatingNode._isComponentNode);
+        if (kw.oldvalue !== kw.node._value) {
+            //on a same-bag rebuild the content is kept, not discarded: its
+            //data* nodes are already stripped and would never resubscribe
+            this.cleanupContentSubscriptions(kw.oldvalue);
+        }
         updatingNode._onDeleting();
         if(updatingNode.externalWidget && updatingNode.externalWidget.destroy){
             updatingNode.externalWidget.destroy();
@@ -281,11 +286,6 @@ dojo.declare("gnr.GnrSrcHandler", null, {
             console.log('missing destination in rebuild');
         }
         this._onDeletingContent(kw.oldvalue);
-        if (kw.oldvalue !== kw.node._value) {
-            //on a same-bag rebuild the content is kept, not discarded: its
-            //data* nodes are already stripped and would never resubscribe
-            this.cleanupContentSubscriptions(kw.oldvalue);
-        }
         var domNode = kw.node.getDomNode();//get the domnode
         var newNode = document.createElement('div');
         var widget = kw.node.widget;
@@ -377,6 +377,7 @@ dojo.declare("gnr.GnrSrcHandler", null, {
     
     _trigger_del:function(kw) {//da rivedere
         var deletingNode = kw.node;
+        this.cleanupNodeSubscriptions(deletingNode);
         deletingNode._onDeleting();
         if(deletingNode._isComponentNode){
             this.deleteNodeContent(deletingNode);
@@ -404,7 +405,6 @@ dojo.declare("gnr.GnrSrcHandler", null, {
                 deletingNode.externalWidget.destroy();
             }
         }
-        this.cleanupNodeSubscriptions(deletingNode);
     },
 
     cleanupNodeSubscriptions:function(node){

@@ -68,7 +68,7 @@ function createSrc() {
         }
         return (trienode.subs || []).length;
     }
-    return {genro, paneNode, thermoNode, lineNode, barNode, publish, indexed};
+    return {context, genro, paneNode, thermoNode, lineNode, barNode, publish, indexed};
 }
 
 test('the line widget is indexed under its absolute datapath', () => {
@@ -210,3 +210,52 @@ test('a live subscription raises no error', t => {
     assert.deepEqual(publish('gnr.batch.b1.thermo.l1').sort(), ['maximum', 'progress']);
     assert.deepEqual(errors, []);
 });
+
+
+test('nested queued deletion removes descendant subscriptions before hooks detach them', () => {
+    const {genro, paneNode, thermoNode, lineNode, barNode, indexed} = createSrc();
+    thermoNode._onDeleting = function() {
+        this.getValue('static').popNode('l1');
+    };
+    lineNode._onDeleting = function() {
+        this.getValue('static').popNode('bar');
+    };
+    paneNode.getParentBag().popNode(paneNode.label);
+    assert.equal(barNode.isLostNode(), true);
+    assert.equal(indexed(), 0);
+    assert.equal(genro.src._subscribedNodes[barNode.getStringId()], undefined);
+});
+
+for (const frozen of [false, true]) {
+    test(`deletion hooks cannot publish to dying descendants (frozen=${frozen})`, () => {
+        const {genro, paneNode, thermoNode, barNode, publish, indexed} = createSrc();
+        const fired = [];
+        thermoNode._onDeleting = () => fired.push(...publish('gnr.batch.b1.thermo.l1'));
+        if (frozen) paneNode.freeze();
+        thermoNode.getParentBag().popNode(thermoNode.label);
+        assert.deepEqual(fired, []);
+        assert.equal(indexed(), 0);
+        assert.equal(genro.src._subscribedNodes[barNode.getStringId()], undefined);
+    });
+
+    test(`replacement cleans discarded content before hooks mutate it (frozen=${frozen})`, () => {
+        const {context, genro, thermoNode, lineNode, barNode, indexed} = createSrc();
+        lineNode._onDeleting = function() {
+            this.getValue('static').popNode('bar');
+        };
+        if (frozen) {
+            thermoNode.freeze();
+        } else {
+            context.document = {createElement: () => ({})};
+            context.dojo.query = () => [];
+            genro.assert = assert.ok;
+            thermoNode.domNode = {childNodes: []};
+            thermoNode.getParentBuiltObj = () => ({});
+            genro.src.buildNode = () => {};
+        }
+        thermoNode.clearValue();
+        assert.equal(barNode.isLostNode(), true);
+        assert.equal(indexed(), 0);
+        assert.equal(genro.src._subscribedNodes[barNode.getStringId()], undefined);
+    });
+}
