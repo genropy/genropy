@@ -59,7 +59,7 @@ class GnrCustomWebPage(object):
         r.cell('nome',edit=True,name='Name')
         r.cell('eta',edit=True,name='Age',dtype='L')
         r.cell('peso',edit=True,name='Weight',dtype='L')
-        r.cell('altezza',edit=True,name='Height',dtype='L')#(peso||0)/((altezza||1)*(altezza||1))
+        r.cell('altezza',edit=True,name='Height',dtype='L')
         r.cell('bmi',formula='(peso||0)/((altezza/100||1)*(altezza/100||1))',name='BMI',dtype='N',calculated=True)
 
     def getTestData(self):
@@ -90,7 +90,6 @@ class GnrCustomWebPage(object):
         bc.data('.testData',self.getTestData())
         fb = bc.contentPane(region='top').formbuilder()
         fb.button('Configurations',action="PUBLISH myconfigurator_open")
-        #pane = fb.palettePane(title='Params',paletteCode='params',dockButton=True)
         bc.chartPane(value='^.testData',
                     region='center',
                     captionField='nome',
