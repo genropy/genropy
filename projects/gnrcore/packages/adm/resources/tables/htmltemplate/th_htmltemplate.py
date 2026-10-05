@@ -159,7 +159,8 @@ class Form(BaseComponent):
 
     def htmltemplate_sizing(self, pane):
         fl = pane.formlet(cols='repeat(3, 5em)')
-        fl.menudiv(value='^.design', values='headline:Headline,sidebar:Sidebar', lbl='!!Design', colspan=3)
+        fl.filteringSelect(value='^.design', values='headline:Headline,sidebar:Sidebar', lbl='!!Design', colspan=3,
+                           width='10em', box_c_display='block')
         for part in ('height', 'top', 'left', 'width', 'bottom', 'right'):
             fl.numberTextBox(value='^.page.%s' % part, lbl='!!%s' % part.title())
 
