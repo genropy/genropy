@@ -107,14 +107,18 @@ class Form(BaseComponent):
                             datapath='#FORM.record.data')
 
     def htmltemplate_mainInfo(self, bc):
-        self.htmltemplate_form(bc.borderContainer(region='top', height='250px',splitter=True))
-        
+        self.htmltemplate_form(bc.contentPane(region='top', padding='2px'))
         center = bc.roundedGroupFrame(region='center',datapath='^#FORM.currentEditedArea',overflow='hidden')
         center.center.contentPane(overflow='hidden').joditEditor(value='^.html',nodeId='htmlEditor',
                     disabled='^#FORM.currentEditedArea?=isNullOrBlank(#v)||#v=="dummy"',toolbar='standard',
                     height='100%')
         bottom = center.bottom
-        bar = bottom.slotBar('picker_flib,5,atcPalette,*,5,showBackground,5,zoomfactor,5',_class='pbl_roundedGroupBottom')
+        bar = bottom.slotBar('picker_flib,5,atcPalette,*,editedArea,10,showBackground,5,zoomfactor,5',
+                             _class='pbl_roundedGroupBottom')
+        bar.dataFormula('#FORM.currentEditedAreaCaption',
+                        "area && area!='dummy' ? area.split('.').slice(-2).join(' · ') : ''",
+                        area='^#FORM.currentEditedArea')
+        bar.editedArea.div('^#FORM.currentEditedAreaCaption', color='#888', font_size='.9em')
         bar.showBackground.div(margin_top='1px').checkbox(value='^#FORM.showBackground',label='Background letterheads',default=True)
         if 'flib' in self.db.packages:
             self.mixinComponent('flib:FlibPicker')
@@ -126,24 +130,29 @@ class Form(BaseComponent):
         bar.zoomfactor.horizontalSlider(value='^zoomFactor', minimum=0, maximum=1,
                                 intermediateChanges=True, width='15em', float='right')
 
-    def htmltemplate_form(self,bc):
-        left = bc.borderContainer(region='left', width='25em')
-        self.htmltemplate_tplInfo(left.roundedGroup(region='top',title='!!Info',height='135px'))        
-        self.htmltemplate_basePageParams(left.roundedGroup(region='center', datapath='.data.main.page',title='!!Page sizing'))
-        tc = bc.tabContainer(region='center', selectedPage='^.data.main.design',margin='2px')
-        self.htmltemplate_headLineOpt(tc.contentPane(title='Headline', pageName='headline'))
-        self.htmltemplate_sideBarOpt(tc.contentPane(title='Sidebar', pageName='sidebar'))
-        
+    def htmltemplate_form(self, pane):
+        box = pane.gridbox(columns='4fr 3fr', gap='4px')
+        self.htmltemplate_tplInfo(self._htmltemplate_group(box, '!!Info')[1])
+        self.htmltemplate_basePageParams(self._htmltemplate_group(box, '!!Page sizing (mm)',
+                                                                  datapath='.data.main.page')[1])
+        self.htmltemplate_layout(*self._htmltemplate_group(box, '!!Layout (mm)', colspan=2))
+
+    def _htmltemplate_group(self, box, title, **kwargs):
+        # roundedGroup is absolutely positioned and would collapse the auto-sized top region
+        group = box.div(_class='pbl_roundedGroup', **kwargs)
+        header = group.div(_class='pbl_roundedGroupLabel').div(display='flex', align_items='center', gap='12px')
+        header.div(title)
+        return header, group.div(_class='pbl_roundedGroupContent')
 
     def htmltemplate_tplInfo(self, pane):
-        fb = pane.formbuilder(cols=2, border_spacing='3px')
-        fb.field('name', width='12em',colspan=2)
-        fb.field('based_on', width='12em',hasDownArrow=True,colspan=2,lbl='Based on',condition='$id!=:curr_id',
-                    condition_curr_id='=#FORM.record.id')
-        fb.dataRpc('#FORM.backgroundLetterhead',self.loadBasedOn,letterhead_id='^.based_on',_if='letterhead_id',_else='return "";')
-        fb.field('type_code', width='7em',hasDownArrow=True,lbl='Type')
-        fb.field('version', width='3em',lbl='V.')
-        fb.field('next_letterhead_id', width='12em',hasDownArrow=True,lbl='Follow on',colspan=2)
+        fl = pane.formlet(cols=2)
+        fl.field('name', colspan=2)
+        fl.field('based_on', hasDownArrow=True, lbl='!!Based on', condition='$id!=:curr_id',
+                 condition_curr_id='=#FORM.record.id')
+        fl.field('next_letterhead_id', hasDownArrow=True, lbl='!!Follow on')
+        fl.field('type_code', hasDownArrow=True, lbl='!!Type')
+        fl.field('version', lbl='!!V.')
+        pane.dataRpc('#FORM.backgroundLetterhead',self.loadBasedOn,letterhead_id='^.based_on',_if='letterhead_id',_else='return "";')
 
     @public_method
     def loadBasedOn(self,letterhead_id=None,**kwargs):
@@ -155,86 +164,44 @@ class Form(BaseComponent):
                                         self_closed_tags=['meta', 'br', 'img'])
         return basehtml.replace('letterhead_page','')
 
-
     def htmltemplate_basePageParams(self, pane):
-        fb = pane.formbuilder(cols=2, border_spacing='4px')
-        fb.numbertextBox(value='^.height', lbl='!!Height', width='5em')
-        fb.numbertextBox(value='^.width', lbl='!!Width', width='5em')
-        fb.numbertextBox(value='^.top', lbl='!!Top', width='5em')
-        fb.numbertextBox(value='^.bottom', lbl='!!Bottom', width='5em')
-        fb.numbertextBox(value='^.left', lbl='!!Left', width='5em')
-        fb.numbertextBox(value='^.right', lbl='!!Right', width='5em')
+        fl = pane.formlet(cols=2)
+        for part in ('height', 'width', 'top', 'bottom', 'left', 'right'):
+            fl.numberTextBox(value='^.%s' % part, lbl='!!%s' % part.title())
 
-    def htmltemplate_headLineOpt(self, pane):
-        fb = pane.formbuilder(cols=3, border_spacing='4px', datapath='.data.layout')
-        for i in ('top', 'center', 'bottom'):
-            if i != 'center':
-                fb.numbertextBox(value='^.%s?height' % i, lbl='!!%s height' % i.title(),
-                                 width='4em')
-                fb.dataController("""this.setRelativeData("#FORM._temp.data.layout.regions.%s",
-                                                      parseInt((val||0)*3.779527559)+'px',
-                                                      {show:val!=0});""" % i,
-                                  val="^.%s?height" % i)
-                fb.dataController(
-                        "if(_triggerpars.kw.reason!=true){SET .%s?height = dojo.number.round(parseFloat(heightpx.slice(0,-2))/3.779527559,2);}" % i
-                        ,
-                        heightpx="^#FORM._temp.data.layout.regions.%s" % i)
-            else:
-                fb.div()
-            for j in ('left', 'right'):
-                data_path = '%s.%s?width' % (i, j)
-                temp_path = '%s.regions.%s' % (i, j)
-                fb.numberTextbox(value='^.%s' % data_path,
-                                 lbl='!!%s' % j.title(),
-                                 width='5em')
-                fb.dataController("""this.setRelativeData('#FORM._temp.data.layout.%s',
-                                                    parseInt((val||0)*3.779527559)+'px',
-                                                    {show:val!=0});""" % temp_path,
-                                  val="^.%s" % data_path)
-                fb.dataController(
-                        "if(_triggerpars.kw.reason!=true){SET .%s = dojo.number.round(parseFloat(val.slice(0,-2))/3.779527559,2);}" % data_path
-                        ,
-                        val="^#FORM._temp.data.layout.%s" % temp_path)
-        fb.numbertextBox(value='^#FORM.record.center_height', lbl='!!Center height', width='5em',readOnly=True)
-        fb.br()
-        fb.numbertextBox(value='^#FORM.record.center_width', lbl='!!Center width', width='5em',readOnly=True)
+    def htmltemplate_layout(self, header, pane):
+        header.div(font_weight='normal').multiButton(value='^.data.main.design',
+                                                     values='headline:Headline,sidebar:Sidebar')
+        layout = pane.div(datapath='.data.layout')
+        for design, bands, band_size, sides, side_size in (('headline', ('top', 'bottom'), 'height', ('left', 'right'), 'width'),
+                                                           ('sidebar', ('left', 'right'), 'width', ('top', 'bottom'), 'height')):
+            fl = layout.formlet(cols=5, hidden='^#FORM.record.data.main.design?=#v!="%s"' % design)
+            for row, band in enumerate(bands):
+                self._htmltemplate_regionSize(layout, fl, band, band_size, temp_path='regions.%s' % band,
+                                              lbl='!!%s %s' % (band.title(), band_size))
+                for side in sides:
+                    self._htmltemplate_regionSize(layout, fl, '%s.%s' % (band, side), side_size,
+                                                  temp_path='%s.regions.%s' % (band, side),
+                                                  lbl='!!%s %s' % (band.title(), side))
+                if row == 0:
+                    for side in sides:
+                        self._htmltemplate_regionSize(layout, fl, 'center.%s' % side, side_size,
+                                                      temp_path='center.regions.%s' % side,
+                                                      lbl='!!Center %s' % side)
+            fl.numberTextBox(value='^#FORM.record.center_height', lbl='!!Center height', readOnly=True)
+            fl.numberTextBox(value='^#FORM.record.center_width', lbl='!!Center width', readOnly=True)
 
+    def _htmltemplate_regionSize(self, layout, fl, path, size, temp_path=None, lbl=None):
+        data_path = '%s?%s' % (path, size)
+        fl.numberTextBox(value='^.%s' % data_path, lbl=lbl)
+        layout.dataController("""this.setRelativeData('#FORM._temp.data.layout.%s',
+                                                parseInt((val||0)*3.779527559)+'px',
+                                                {show:val!=0});""" % temp_path,
+                              val='^.%s' % data_path)
+        layout.dataController(
+                "if(_triggerpars.kw.reason!=true){SET .%s = dojo.number.round(parseFloat(val.slice(0,-2))/3.779527559,2);}" % data_path,
+                val='^#FORM._temp.data.layout.%s' % temp_path)
 
-    def htmltemplate_sideBarOpt(self, pane):
-        fb = pane.formbuilder(cols=3, border_spacing='4px', datapath='.data.layout')
-        for i in ('left', 'center', 'right'):
-            if i != 'center':
-                fb.numbertextBox(value='^.%s?width' % i, lbl='!!%s width' % i.title(),
-                                 width='4em')
-                fb.dataController("""this.setRelativeData("#FORM._temp.data.layout.regions.%s",
-                                                      parseInt((val||0)*3.779527559)+'px',
-                                                      {show:val!=0});""" % i,
-                                  val="^.%s?width" % i)
-                fb.dataController(
-                        "if(_triggerpars.kw.reason!=true){SET .%s?width = dojo.number.round(parseFloat(heightpx.slice(0,-2))/3.779527559,2);}" % i
-                        ,
-                        heightpx="^#FORM._temp.data.layout.regions.%s" % i)
-            else:
-                fb.div()
-            for j in ('top', 'bottom'):
-                data_path = '%s.%s?height' % (i, j)
-                temp_path = '%s.regions.%s' % (i, j)
-                fb.numberTextbox(value='^.%s' % data_path,
-                                 lbl='!!%s' % j.title(),
-                                 width='5em')
-                fb.dataController("""this.setRelativeData('#FORM._temp.data.layout.%s',
-                                                    parseInt((val||0)*3.779527559)+'px',
-                                                    {show:val!=0});""" % temp_path,
-                                  val="^.%s" % data_path)
-                fb.dataController(
-                        "if(_triggerpars.kw.reason!=true){SET .%s = dojo.number.round(parseFloat(val.slice(0,-2))/3.779527559,2);}" % data_path
-                        ,
-                        val="^#FORM._temp.data.layout.%s" % temp_path)
-        fb.numbertextBox(value='^#FORM.record.center_height', lbl='!!Center height', width='5em',readOnly=True)
-        fb.br()
-        fb.numbertextBox(value='^#FORM.record.center_width', lbl='!!Center width', width='5em',readOnly=True)
-
-    
     @public_method
     def th_onLoading(self, record, newrecord, loadingParameters, recInfo):
         if newrecord:
