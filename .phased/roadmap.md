@@ -41,11 +41,19 @@ introduced itself. Two steps, in this order, both cheap:
 A page label is not free text either: `setItem` splits on `.`, so a label built from
 user or register data (`'%s.%s' % (user, name)`) silently becomes two nested nodes.
 
-`glbl` throughout means `gnr_it:glbl`, a package living outside this repository that
-gnrdevelop deliberately does NOT mount: macro 2 established that mounting it
-deadlocks the sqlite of the instance the whole app/web suite boots, so pages bound
-to it render 200 against empty tables and that is the end of it. test15's own
-`model/_packages/glbl/` column injections were deleted by macro 2 and no longer exist.
+`glbl` throughout means `gnr_it:glbl`, a package tracked in this repository
+(`projects/gnr_it/packages/glbl`) that gnrdevelop deliberately does NOT mount: macro 2
+established that mounting it deadlocks the sqlite of the instance the whole app/web
+suite boots, so pages bound to it render 200 against empty tables and that is the end
+of it. test15's own `model/_packages/glbl/` column injections were deleted by macro 2
+and no longer exist.
+
+The drive cannot run everywhere either. On gnrdevelop (sqlite) `adm.userobject`
+cannot be read until #1373 lands — three of its formula columns use
+`string_to_array` — so every template bound to a table and every userobject fails
+there: `templateChunk`, `renderTemplate`, `userObjectBar`. Macro 4 drove its pages on
+`sandboxpg` (Postgres, mounts `gnrcore:test`, real `adm.pkginfo` / `adm.tblinfo` rows),
+served from the worktree with the worktree's own gnrdaemon.
 
 ## Macro 1 (done): the regression net, websocket and components
 Documentation ratchet wired into CI, render sweep with port backpressure, plus the
@@ -80,39 +88,32 @@ structure, after the page has already answered 200.
   is commented out builds no frame and raises nothing. The unit tests pin that
   distinction, with `chartjs.py` as the negative case.
 
-## Macro 4: tools, second half, and the area emptied
-- Objective: triage the remaining 24 pages of `tools` — widgets, editors, media, maps,
-  templates — and leave the area empty. It is the half whose pages bind tables of
-  packages the instance does not mount (`glbl`, `fatt`, `polimed`, `studio`).
-- Starts from: `test15/webpages/tools/` holding exactly those 24 pages;
-  `test15/webpages/_resources/` holding the four files above; the three ratchets in
-  place; `storetester.py` and `test_proxy.py` already under `test`.
-- Ends at: neither `test15/webpages/tools/` nor `test15/webpages/_resources/` exists —
-  `demotpl1.html` travels with `gettemplate.py`, the one page that reads it, and
-  `demotpl2.html`, `protovis-sample3.js` and `test.html` go, having no reader at all
-  (`test` carries its own `resources/test.html`). The `test15/resources/` files these
-  24 pages read travel with them: `test_hviewer.css`/`test_hviewer.js`,
-  `tplnotable.xml`, and the `tables/_packages/glbl/**` th resources with their `tpl/`
-  templates, which `gettemplate.py` addresses by name. `resources/mycomponent.py` and
-  `resources/bagfields/alfa.py` go too, nothing references either. `test/webpages/tools/`
-  holds the merged set.
+## Macro 4 (done): tools, second half, and the area emptied
+The remaining 24 pages of `tools`: 9 deleted as dead (`ckeditor` among them — the
+widget is deprecated for `joditEditor`, and four of its seven cases already exist in
+`test`), 5 promoted, 6 folded into a counterpart under `test`, and 4 rewritten. The
+pages bound to unmounted packages (`glbl`, `fatt`, `studio`) were rewritten onto
+`adm.pkginfo` / `adm.tblinfo`, the only tables every instance fills by itself at db
+setup, rather than promoted against empty tables: most of them failed while the page
+was building, not merely showing no rows.
 - Delivers: `test15/webpages/` reduced to macro 5's eight folders, consumed by macro 5.
-- Consumes: the promotion recipe and the two original ratchets from macro 1, the
-  frameCode ratchet from macro 3.
-- Requires of earlier work: the frameCode check must cover `test15` as well as `test` —
-  these 24 pages carry frames and grids where macro 3's pages carry forms, so they are
-  the ones most likely to introduce a collision while being folded; and BOTH macro 1
-  ratchets must keep one line per page path, because macro 4 removes its lines by path
-  and a line left behind for a deleted page goes stale and reds CI.
-- Policy on defects found while promoting: a frameCode collision, or a page that stops
-  rendering, is FIXED in that page, never recorded — every ratchet only shrinks, so a
-  new `test/...` line is not an option in either file. The ratchets exist for pages
-  still sitting in `test15`, not for pages this programme moves.
-- Open decisions: what to do with the pages bound to unmounted packages — promote them
-  against empty tables as the sweep already tolerates (mounting `gnr_it:glbl` is
-  foreclosed, see the header), rewrite them onto a mounted table, or drop them; whether
-  test15's `ckeditor.py` (7 cases) folds into the existing `test/webpages/tools/ckeditor.py`
-  or replaces it.
+- Ends at: neither `test15/webpages/tools/` nor `test15/webpages/_resources/` exists, and
+  `test15/resources/` holds exactly `canvas.js` and the th resources of `nodetbl` and
+  `recursive`. What the 24 pages read did NOT travel as planned: test15's
+  `tables/_packages/glbl/**` th resources were deleted — `th_provincia` and `th_comune`
+  duplicated `test`'s own copies, and `th_regione`'s classes pointed at columns no
+  model defines, so the `inlineedit` cases of `test` that read them went too (the
+  page's two bagGrid cases now live in `components/Grid/bag_grid.py`);
+  `test_hviewer.css`/`.js` were deleted, unread; `gettemplate`'s templates were
+  rewritten onto the adm tables under `test/resources/tables/_packages/adm/` and
+  `test/webpages/_resources/demotpl1.html`, and `tplnotable.xml` was deleted with the
+  `templateGrid` case that read it. `test`'s copy of `th_provincia.py` keeps
+  `ViewTestGraph`, which `chart/chartjs.py` reads in macro 5.
+- Two cases left `gettemplate` because framework defects break them, each to come back
+  with its fix: the templateGrid case (genropy/genropy#1510) and the client-side chunk
+  over a many relation with dotted pkeys (#1511). `storage` writes and copies only
+  inside `site:storage_test/` and no longer includes the `StorageTree` component, whose
+  own RPCs accept any path (#1519). Other defects found on the way are #1512-#1517.
 
 ## Macro 5: chart and the leftovers
 - Objective: the last 13 pages — `chart` 4, `dd` 2, `html` 2, and one each of
@@ -120,7 +121,8 @@ structure, after the page has already answered 200.
 - Starts from: `test15/webpages/` holding exactly those eight folders and nothing else —
   no `tools/`, no `_resources/`.
 - Ends at: `test15/webpages/` holds no page and no folder; `resources/canvas.js` has
-  travelled with `chart/canvas.py` and `html/webRTC.py`, its last readers; none of the
+  travelled with `chart/canvas.py`, its one reader (`html/webRTC.py`'s `canvas.` is a
+  local node, not the resource); none of the
   three ratchets carries a `test15/...` line, `framecode_debt.txt` included — its one
   entry, `revised/gui/multibutton.py`, is the only offender in the tree and it is
   cleared here, so the file ends empty.
