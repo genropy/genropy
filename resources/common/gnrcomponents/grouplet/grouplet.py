@@ -3,6 +3,7 @@ from gnr.core.gnrdecorator import extract_kwargs, public_method
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdict import dictExtract
 from gnr.core.gnrlang import gnrImport
+from gnr.core.gnrstring import templateReplace
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.web.gnrwebstruct import struct_method
 
@@ -240,6 +241,59 @@ class GroupletHandler(BaseComponent):
             """, name=name, **grouplet_kwargs)
         return root
 
+    @struct_method
+    def gr_groupletChoice(self, pane, field=None, table=None, columns=None, where=None,
+                          order_by=None, rows=None, value_column='pkey', glyph=None,
+                          title=None, note=None, caption_field=None, groups=None,
+                          autoNext=True, validate_notnull=True, **kwargs):
+        """Tiles that set `field` to one value of `rows` (or of a query on `table`,
+        kwargs are its parameters). glyph, title and note: a column, a $template
+        or a callable(row). groups: dicts of caption, condition(row), _class and
+        tint (a CSS colour washed over the tiles' background).
+        In a wizard step a click also advances it (autoNext). validate_notnull
+        False leaves the choice optional."""
+        if rows is None:
+            rows = self.db.table(table).query(columns=columns or '*', where=where,
+                                              order_by=order_by, **kwargs).fetch()
+
+        def render(spec, row):
+            if callable(spec):
+                return spec(row)
+            return templateReplace(spec, row) if '$' in spec else row.get(spec)
+
+        action = f'SET .{field} = _choice;'
+        if caption_field:
+            action += f' SET .{caption_field} = _caption;'
+        if autoNext:
+            action += ' gnr_grouplet.choiceNext(this);'
+        box = pane.div(_class='grouplet_choice')
+        for group in groups or [{}]:
+            condition = group.get('condition')
+            if group.get('caption'):
+                box.div(group['caption'], _class='grouplet_choice_separator')
+            tiles_kw = dict(style=f"--grouplet-choice-tint: {group['tint']}") if group.get('tint') else {}
+            tiles = box.div(_class='grouplet_choice_tiles', **tiles_kw)
+            for row in rows:
+                if condition and not condition(row):
+                    continue
+                value = row[value_column]
+                caption = render(title, row) if title else value
+                tile = tiles.lightButton(action=action, _choice=value, _caption=caption,
+                                         _class=' '.join(filter(None, ['grouplet_choice_tile',
+                                                                       group.get('_class')])))
+                tile.dataController("genro.dom.setClass(this.getParentNode(), 'grouplet_choice_selected', current == _choice);",
+                                    current=f'^.{field}', _choice=value, _onBuilt=True)
+                if glyph:
+                    tile.div(render(glyph, row), _class='grouplet_choice_glyph')
+                text = tile.div(_class='grouplet_choice_text')
+                text.div(caption, _class='grouplet_choice_title')
+                if note:
+                    text.div(render(note, row), _class='grouplet_choice_note')
+        # without the attribute a grouplet's __info__ mandatory can still require it
+        notnull_kw = dict(validate_notnull=validate_notnull) if validate_notnull else {}
+        box.textbox(value=f'^.{field}', hidden=True, **notnull_kw)
+        return box
+
     @extract_kwargs(grouplet=dict(slice_prefix=False, pop=True))
     @struct_method
     def gr_groupletPanel(self, pane, table=None, topic=None, value=None,
@@ -473,6 +527,7 @@ class GroupletHandler(BaseComponent):
         first_node = menu_nodes[0] if menu_nodes else None
         if first_node:
             frame.data('.current_resource', first_node.attr.get('resource'))
+            frame.data('.step_auto_next', bool(first_node.attr.get('autoNext')))
             frame.data('.next_label',
                        menu_nodes[1].attr.get('grouplet_caption')
                        if total_steps > 1 else completeLabel)
@@ -527,7 +582,7 @@ class GroupletHandler(BaseComponent):
             SET .wizard_saved_pkey = null;
             SET .wizard_pending_index = null;
             var confirmed = !isNew && !this.form.isDraft();
-            var readOnly = confirmed_ro && !isNew
+            var readOnly = confirmed_ro && !isNew && pkey != _reopened
                            && (confirmed || this.form.isProtectWrite());
             var sameMode = !readOnly == !_was_readonly;
             var sameRecord = !isNew && pkey == _loaded_pkey && sameMode;
@@ -612,9 +667,44 @@ class GroupletHandler(BaseComponent):
                             _step_index='=.step_index',
                             _current_resource='=.current_resource',
                             _steps='=.wizard_steps',
+                            _reopened='=#FORM.wizard_reopened',
                             step_field=resumeStepField,
                             confirmed_ro=_confirmedReadOnly,
                             formsubscribe_onLoaded=True)
+        if _confirmedReadOnly:
+            # <frameCode>_reopen {step}: a confirmed record opens for editing
+            # on that step, until it is saved or the form is dismissed
+            pane.dataController("""
+                SET #FORM.wizard_reopened = this.form.getCurrentPkey();
+                this.form.setLocked(false);
+                SET .wizard_readonly = false;
+                var nodes = _steps.getNodes();
+                var target = Math.max(nodes.findIndex(function(n){return n.label == step;}), 0);
+                if(nodes[target] && _current_resource == nodes[target].attr.resource){
+                    gnr_grouplet.wizardResolveRemote(this, nodes[target].label);
+                    FIRE .wizard_build;
+                }
+                SET .step_index = target;
+                SET .wizard_step_name = nodes[target] ? nodes[target].label : null;
+            """, _steps='=.wizard_steps', _current_resource='=.current_resource',
+                **{f'subscribe_{frameCode}_reopen': True})
+            # an advance saves a stored record without reloading it: reload it,
+            # to lock it again and build the next step on what was saved
+            pane.dataController("""if(!reopened || $1.pkey != reopened){ return; }
+                                   SET #FORM.wizard_reopened = null;
+                                   this.form.reload();""",
+                                reopened='=#FORM.wizard_reopened',
+                                formsubscribe_onSaved=True)
+            # an advance with nothing to save reloads nothing: reaching the last
+            # step locks the record again all the same
+            pane.dataController("""if(!reopened || idx != last || this.form.lazySaving){ return; }
+                                   SET #FORM.wizard_reopened = null;
+                                   SET .wizard_readonly = true;
+                                   this.form.setLocked(true);""",
+                                idx='^.step_index', last='=.wizard_last_index',
+                                reopened='=#FORM.wizard_reopened')
+            pane.dataController("SET #FORM.wizard_reopened = null;",
+                                formsubscribe_onDismissed=True)
         # the step form saves even when incomplete, so Back keeps what was
         # typed: validity is checked by the wizard on Next and on Confirm.
         # As a child of the surrounding form, its pending changes are asked
@@ -684,8 +774,9 @@ class GroupletHandler(BaseComponent):
                                _class='wizard_next_btn',
                                action="gnr_grouplet.wizardNext(this, _frameCode);",
                                _frameCode=frameCode,
-                               hidden='==_showing',
-                               _showing='^.wizard_showing_summary')
+                               hidden='==_showing || _auto',
+                               _showing='^.wizard_showing_summary',
+                               _auto='^.step_auto_next')
             bottom.lightButton(closeLabel,
                                _class='wizard_close_btn',
                                action="this.form.dismiss();",
@@ -697,8 +788,9 @@ class GroupletHandler(BaseComponent):
                                _class='wizard_next_btn',
                                action="gnr_grouplet.wizardNext(this, _frameCode);",
                                _frameCode=frameCode,
-                               hidden='==_ro || (_col && _idx==_last)',
+                               hidden='==_ro || (_col && _idx==_last) || _auto',
                                _ro='^.wizard_readonly', _col=_confirmOnLast,
+                               _auto='^.step_auto_next',
                                _idx='^.step_index', _last='^.wizard_last_index')
         frame.dataController(
             "gnr_grouplet.wizardUpdateStep(this, idx, _completeLabel, _frameCode, _saveLabel);",
@@ -754,7 +846,9 @@ class GroupletHandler(BaseComponent):
         confirmedReadOnly) splits a draft's last step into Save draft (saves
         and closes) and completeLabel (confirms, saves and reloads read-only);
         a confirmed record gets Back to draft in place of Back, if backToDraft
-        allows it (True: everyone, a string: the user tags)."""
+        allows it (True: everyone, a string: the user tags). On a table with no
+        drafts, publishing <frameCode>_reopen with {step} opens a confirmed
+        record for editing on that step, locked again once saved."""
         confirmedReadOnly = confirmedReadOnly or draftConfirm
         # Emptied, not removed: later builds still insert into the slot.
         top = form.getNode('top')
@@ -766,9 +860,11 @@ class GroupletHandler(BaseComponent):
         form.attributes['form_pendingChangesSaveSlot'] = False
         form.dataController("""
             var readOnly = confirmed_ro && !this.form.isNewRecord()
+                           && this.form.getCurrentPkey() != reopened
                            && (!this.form.isDraft() || this.form.isProtectWrite());
             if(!!this.form.locked != readOnly){ this.form.setLocked(readOnly); }
-        """, confirmed_ro=confirmedReadOnly, formsubscribe_onLoaded=True)
+        """, confirmed_ro=confirmedReadOnly, reopened='=#FORM.wizard_reopened',
+            formsubscribe_onLoaded=True)
         frameCode = frameCode or f"{form.attributes['formId']}_wizard"
         form.dataController("this.form.save({destPkey:'*dismiss*', always:true});",
                             **{f'subscribe_{frameCode}_complete': True})
@@ -1087,6 +1183,8 @@ class GroupletGridHandler(BaseComponent):
                         afterSelfDropRows=None,
                         minRows=0, maxRows=None,
                         defaultRow=None,
+                        rowTemplate=None,
+                        selectionmenu=None, rowCheckbox=False,
                         counterField=None,
                         formulas=None, totals=None,
                         grouplet_kwargs=None,
@@ -1134,6 +1232,28 @@ class GroupletGridHandler(BaseComponent):
             flavours.append('grouplet_grid--framed')
         if fillParent:
             flavours.append('grouplet_grid--fill')
+        if additem == 'phantom' and not resourceField:
+            flavours.append('grouplet_grid--phantom')
+        entry_mode = additem == 'entry' and not resourceField
+        if entry_mode:
+            flavours.append('grouplet_grid--entry')
+            if resource and not rowTemplate:
+                rowTemplate = self.gr_getTemplatePars(
+                    resource=resource, table=table,
+                    grouplets_root=grouplets_root).get('template')
+            if rowTemplate:
+                flavours.append('grouplet_grid--templated')
+        else:
+            rowTemplate = None
+        # actions on several selected rows: rows are selectable in template
+        # mode; delete is preset whenever rows can be deleted
+        if not rowTemplate or selectionmenu is False:
+            selectionmenu = {}
+        elif selectionmenu is None:
+            selectionmenu = {'delete': True} if delitem else {}
+        rowCheckbox = bool(rowCheckbox and selectionmenu)
+        if rowCheckbox:
+            flavours.append('grouplet_grid--checkbox')
         totals_kwargs = dict(totals_kwargs or {})
         if totals_kwargs.pop('sticky', False):
             flavours.append('grouplet_grid--sticky-totals')
@@ -1186,12 +1306,18 @@ class GroupletGridHandler(BaseComponent):
                 childname=side, gg_side=side)
             # Pre-allocate placeholders: the JS adapter can only graft into
             # a leaf-empty sourceNode, never into a live one.
+            if selectionmenu and side == 'bottom':
+                slot.div(_class='grouplet_grid_selection',
+                         childname='selection', _gg_selection=True)
             if struct_mode and side == 'top':
                 slot.div(_class='grouplet_grid__struct_header',
                          childname='struct_header')
             elif struct_has_totalize and side == 'bottom':
                 slot.div(_class='grouplet_grid__struct_footer',
                          childname='struct_footer')
+            if entry_mode and side == 'top':
+                slot.div(_class='grouplet_grid_entry', childname='entry',
+                         _gg_entry=True)
             # the totals band carries the caller's totals_* attributes
             # (hidden, dynamic params): the JS grafts only its content
             if totals and side == 'bottom':
@@ -1218,6 +1344,8 @@ class GroupletGridHandler(BaseComponent):
             defaultRow=defaultRow, minRows=minRows, maxRows=maxRows,
             counterField=counterField,
             formulas=formulas, totals=totals,
+            rowTemplate=rowTemplate, selectionmenu=selectionmenu,
+            rowCheckbox=rowCheckbox,
             resolved_drag_code=resolved_drag_code,
             loaderrpc=self.gr_getGroupletGridTemplate,
             mapLoaderrpc=self.gr_getGroupletGridTemplateMap)
@@ -1262,7 +1390,7 @@ class GroupletGridHandler(BaseComponent):
             additem_kwargs, delitem_kwargs, editmenu_kwargs,
             layout, lazyTabs, titleField, emptyTitle,
             defaultRow, minRows, maxRows, counterField,
-            formulas, totals,
+            formulas, totals, rowTemplate, selectionmenu, rowCheckbox,
             resolved_drag_code,
             loaderrpc, mapLoaderrpc):
         # Resolve the container via attributeOwnerNode at runtime: a fixed
@@ -1273,8 +1401,19 @@ class GroupletGridHandler(BaseComponent):
             var bodyNode = node.getValue().walk(function(n){
                 if (n.attr && n.attr._gg_body) return n;
             }, 'static');
+            var entryNode = node.getValue().walk(function(n){
+                if (n.attr && n.attr._gg_entry) return n;
+            }, 'static');
+            var selectionNode = node.getValue().walk(function(n){
+                if (n.attr && n.attr._gg_selection) return n;
+            }, 'static');
             node.gridController = new gnr.GroupletGridController(node, {
                 bodyNode: bodyNode,
+                entryNode: entryNode,
+                selectionNode: selectionNode,
+                rowTemplate: rowTemplate,
+                selectionmenu: selectionmenu,
+                rowCheckbox: rowCheckbox,
                 resource: resource,
                 handler: handler,
                 resourceField: resourceField,
@@ -1337,6 +1476,9 @@ class GroupletGridHandler(BaseComponent):
             counterField=counterField,
             formulas=formulas or {},
             totals=totals,
+            rowTemplate=rowTemplate,
+            selectionmenu=selectionmenu,
+            rowCheckbox=rowCheckbox,
             dragCode=resolved_drag_code,
             loaderrpc=loaderrpc,
             mapLoaderrpc=mapLoaderrpc)

@@ -23,6 +23,14 @@ var gnr_grouplet = {
         }});
     },
 
+    // a groupletChoice inside a wizard step: the step form is <frameCode>_step_form
+    choiceNext: function(sourceNode) {
+        var match = /^(.+)_step_form$/.exec(sourceNode.form ? sourceNode.form.formId : '');
+        if (match) {
+            setTimeout(function() { gnr_grouplet.wizardNext(sourceNode, match[1]); }, 1);
+        }
+    },
+
     wizardStepForward: function(frameCode) {
         var frameNode = genro.getFrameNode(frameCode);
         var idx = frameNode.getRelativeData('.step_index');
@@ -177,6 +185,7 @@ var gnr_grouplet = {
         if (!node) { return; }
         this.wizardResolveRemote(sourceNode, node.label);
         sourceNode.setRelativeData('.current_resource', node.attr.resource);
+        sourceNode.setRelativeData('.step_auto_next', !!node.attr.autoNext);
         var isLast = (idx >= nodes.length - 1);
         var nextLabel = isLast ? completeLabel : nodes[idx + 1].attr.grouplet_caption;
         if (!isLast && saveLabel && this._wizardSavesOn(sourceNode, node.label)) {

@@ -88,10 +88,12 @@ class TemplateEditorBase(BaseComponent):
         
     def te_renderTemplate(self, templateBuilder, record_id=None, extraData=None, locale=None,contentOnly=False,**kwargs):
         if record_id:
-            record = templateBuilder.data_tblobj.record(pkey=record_id,ignoreMissing=record_id=='*sample*',
-                                                        virtual_columns=templateBuilder.virtual_columns,
-                                                        ).output('bag')
-                                                        
+            sqlrecord = templateBuilder.data_tblobj.record(pkey=record_id,ignoreMissing=True,
+                                                        virtual_columns=templateBuilder.virtual_columns)
+            if record_id != '*sample*' and not sqlrecord.result:
+                # the record was deleted while shown (e.g. a chunk refreshed by a cascade delete)
+                return ''
+            record = sqlrecord.output('bag')
         else:
             record = templateBuilder.data_tblobj.record(pkey='*sample*',ignoreMissing=True,
                                                         virtual_columns=templateBuilder.virtual_columns).output('sample')

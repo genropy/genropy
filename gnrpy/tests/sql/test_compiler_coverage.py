@@ -380,6 +380,32 @@ class TestFormulaSelect:
 # Formula columns with SQL expressions
 # ===================================================================
 
+class TestFormulaSqlThisRelation:
+    """1505: #THIS.@relation.column inside a sql_formula is expanded.
+
+    The column is a sqlparams override of the display_total formula column,
+    so the test model does not change.
+    """
+
+    @pytest.fixture(params=['False', 'True'], ids=['legacy', 'next'])
+    def sql_compiler(self, request, db_sqlite):
+        with next_sql_compiler_flag(db_sqlite, request.param):
+            yield request.param
+
+    @pytest.mark.usefixtures('sql_compiler')
+    def test_this_relation_in_sql_formula_sqlite(self, db_sqlite):
+        tbl = db_sqlite.table('invc.invoice')
+        q = tbl.query(columns='$customer_name,$this_customer', limit=5,
+                      where='$customer_id IS NOT NULL',
+                      this_customer=dict(field='display_total', dtype='T',
+                                         sql_formula='#THIS.@customer_id.account_name'))
+        assert '#THIS' not in q.sqltext
+        rows = q.fetch()
+        assert rows
+        for row in rows:
+            assert row['this_customer'] == row['customer_name']
+
+
 class TestFormulaSql:
 
     def test_line_total_pg(self, db_pg):
