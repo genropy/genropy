@@ -985,7 +985,7 @@ class SiteRegister(BaseRemoteObject):
                        if page['user'].startswith('guest_')
                        else self.page_max_age)
             last_refresh_ts = page.get('last_refresh_ts') or page.get('start_ts')
-            if (now - last_refresh_ts).seconds > max_age:
+            if (now - last_refresh_ts).total_seconds() > max_age:
                 page_id = page['register_item_id']
                 self.drop_page(page_id)
                 dropped.append(page_id)
@@ -1002,7 +1002,7 @@ class SiteRegister(BaseRemoteObject):
                    if connection['user'].startswith('guest_')
                    else self.connection_max_age)
         last_refresh_ts = connection.get('last_refresh_ts') or connection.get('start_ts')
-        if (datetime.now() - last_refresh_ts).seconds > max_age:
+        if (datetime.now() - last_refresh_ts).total_seconds() > max_age:
             self.drop_connection(connection_id, cascade=True)
             return True
         return False
