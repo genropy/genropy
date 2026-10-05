@@ -1086,7 +1086,7 @@ class SiteRegister(BaseRemoteObject):
         user_register_data = self.user_register.get_item_data(user)
         lastBatchUpdate = user_register_data.getItem('lastBatchUpdate')
         if lastBatchUpdate:
-            if (datetime.now() - lastBatchUpdate).seconds < 5:
+            if (datetime.now() - lastBatchUpdate).total_seconds() < 5:
                 envelope.setItem('runningBatch', True)
             else:
                 user_register_data.setItem('lastBatchUpdate', None)

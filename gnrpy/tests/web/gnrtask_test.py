@@ -187,6 +187,22 @@ class TestGnrTaskBasics(BaseGnrTest):
         assert task.is_due(timestamp=now, last_scheduled_ts=past_enough) == "*"
         assert task.is_due(timestamp=now, last_scheduled_ts=not_enough) is False
 
+    def test_task_is_due_frequency_counts_whole_days(self):
+        """A frequency above a day was never reached, and one below it was
+        missed in the first hours after each day boundary (#1571)."""
+        now = datetime(2024, 1, 3, 0, 30, tzinfo=timezone.utc)
+        task = gnrtask.GnrTask(
+            name="freq",
+            action="run",
+            db="test",
+            table_name="tbl",
+            schedule={"frequency": 2880},
+        )
+        assert task.is_due(timestamp=now, last_scheduled_ts=now - timedelta(days=2, minutes=1)) == "*"
+        assert task.is_due(timestamp=now, last_scheduled_ts=now - timedelta(days=1)) is False
+        task.schedule = {"frequency": 10}
+        assert task.is_due(timestamp=now, last_scheduled_ts=now - timedelta(days=1, minutes=1)) == "*"
+
     def test_task_is_due_matches_calendar_schedule(self):
         ts = datetime(2024, 4, 1, 12, 15, tzinfo=timezone.utc)
         task = gnrtask.GnrTask(

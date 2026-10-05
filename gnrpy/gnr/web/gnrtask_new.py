@@ -191,7 +191,7 @@ class GnrTask:
             return '*'
 
         if self.schedule.get("frequency", None):
-            if last_scheduled_ts is None or (timestamp - last_scheduled_ts.replace(tzinfo=timezone.utc)).seconds/60. >= self.schedule.get('frequency'):
+            if last_scheduled_ts is None or (timestamp - last_scheduled_ts.replace(tzinfo=timezone.utc)).total_seconds()/60. >= self.schedule.get('frequency'):
                 return '*'
             else:
                 return False
