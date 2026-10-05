@@ -362,10 +362,20 @@ test('only a Genropy drag of plain text is a field drop, and never into a read-o
 test('a dropped field is spaced from the words it would touch', () => {
     const handler = loadHandler();
     const at = (data, offset) => ({startContainer: {nodeType: 3, data}, startOffset: offset});
+    const inElement = (childNodes, offset) => ({startContainer: {nodeType: 1, childNodes}, startOffset: offset});
     assert.equal(handler.dropText(at('Total:', 6), '$total'), ' $total');
     assert.equal(handler.dropText(at('Total: ', 7), '$total'), '$total');
     assert.equal(handler.dropText(at('ab', 1), '$x'), ' $x ');
-    assert.equal(handler.dropText({startContainer: {nodeType: 1}, startOffset: 0}, '$x'), '$x');
+    assert.equal(handler.dropText(inElement([], 0), '$x'), '$x');
+    // at the end of a block, after the text node of a field dropped before
+    assert.equal(handler.dropText(inElement([{nodeType: 3, data: '$protocol'}], 1), '$total'), ' $total');
+    assert.equal(handler.dropText(inElement([{nodeType: 1, hasAttribute: () => false}], 1), '$total'), '$total');
+    const field = {nodeType: 3, data: '$protocol', previousSibling: null};
+    const invisible = {nodeType: 3, data: '\uFEFF', previousSibling: field};
+    const selectionMarker = {nodeType: 1, hasAttribute: (name) => name === 'data-jodit-selection_marker',
+                             previousSibling: invisible};
+    assert.equal(handler.dropText(inElement([field, invisible], 2), '$total'), ' $total');
+    assert.equal(handler.dropText(inElement([field, invisible, selectionMarker], 3), '$total'), ' $total');
 });
 
 test('a resize of the enclosing pane resizes the editor, until it is destroyed', () => {

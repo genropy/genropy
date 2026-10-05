@@ -1815,22 +1815,53 @@ dojo.declare("gnr.widgets.joditEditor", gnr.widgets.baseExternalWidget, {
         var last = body.lastElementChild || body.lastChild;
         var below = !last || (last.getBoundingClientRect && y > last.getBoundingClientRect().bottom);
         if(!range || below || range.startContainer === body || !body.contains(range.startContainer)){
+            var block = last && last.nodeType === 1 ? last : body;
             range = doc.createRange();
-            range.selectNodeContents(last && last.nodeType === 1 ? last : body);
-            range.collapse(false);
+            if(block.lastChild && block.lastChild.nodeName === 'BR'){
+                range.setStartBefore(block.lastChild);
+                range.collapse(true);
+            } else {
+                range.selectNodeContents(block);
+                range.collapse(false);
+            }
         }
         return range;
     },
-    dropText: function(range, text) {
+    // Jodit surrounds the caret with \uFEFF text nodes, and with marker spans while the editor is not focused
+    isCursorMarker: function(node) {
+        if(node.nodeType === 3){
+            return !node.data.replace(/\uFEFF/g, '');
+        }
+        return node.nodeType === 1 && node.hasAttribute('data-jodit-selection_marker');
+    },
+    // the visible character next to the drop point, on the given side
+    charAround: function(range, side) {
         var node = range.startContainer;
         var offset = range.startOffset;
+        var step = function(n){ return side < 0 ? n.previousSibling : n.nextSibling; };
         if(node.nodeType === 3){
-            if(offset > 0 && /\S/.test(node.data.charAt(offset - 1))){
-                text = ' ' + text;
+            var text = (side < 0 ? node.data.slice(0, offset) : node.data.slice(offset)).replace(/\uFEFF/g, '');
+            if(text){
+                return side < 0 ? text.charAt(text.length - 1) : text.charAt(0);
             }
-            if(offset < node.data.length && /\S/.test(node.data.charAt(offset))){
-                text = text + ' ';
-            }
+            node = step(node);
+        } else {
+            node = node.childNodes[side < 0 ? offset - 1 : offset];
+        }
+        while(node && this.isCursorMarker(node)){
+            node = step(node);
+        }
+        if(node && node.nodeType === 3){
+            return side < 0 ? node.data.charAt(node.data.length - 1) : node.data.charAt(0);
+        }
+        return '';
+    },
+    dropText: function(range, text) {
+        if(/\S/.test(this.charAround(range, -1))){
+            text = ' ' + text;
+        }
+        if(/\S/.test(this.charAround(range, 1))){
+            text = text + ' ';
         }
         return text;
     },
@@ -1894,9 +1925,14 @@ dojo.declare("gnr.widgets.joditEditor", gnr.widgets.baseExternalWidget, {
             that.clearFieldDrop(editor);
             var range = that.dropRange(editor, evt.clientX, evt.clientY);
             var text = that.dropText(range, evt.dataTransfer.getData('text/plain'));
+            var field = editor.createInside.text(text);
             editor._gnrUserEdit = true;
             editor.s.selectRange(range);
-            editor.s.insertNode(editor.createInside.text(text));
+            editor.s.insertNode(field);
+            // the <br> Jodit keeps in an empty block would push the field onto a second line
+            if(field.nextSibling && field.nextSibling.nodeName === 'BR' && !field.nextSibling.nextSibling){
+                field.nextSibling.remove();
+            }
             that.writeValue(editor);
             return false;
         });
