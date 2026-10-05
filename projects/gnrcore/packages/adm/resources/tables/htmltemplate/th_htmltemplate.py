@@ -26,7 +26,6 @@ class Form(BaseComponent):
     def th_form(self, form):
         bc = form.center.borderContainer()
         bc.css('.printRegion', 'margin:.5mm;border:.3mm dotted silver;cursor:pointer;')
-        bc.css('.letterheadLayout .labledBox_title', 'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;')
         bc.data('zoomFactor', .5)
         #self.editorDialog(bc)
         self.htmltemplate_controllers(bc)
@@ -46,7 +45,7 @@ class Form(BaseComponent):
                                                                     -webkit-box-shadow:8px 8px 15px gray;
                                                                     """,
                                         zoom='^zoomFactor', margin='10px')
-        layers = page.contentPane(region='center',overflow='hidden')
+        layers = page.contentPane(region='center',overflow='hidden',_class='^#FORM.highlightedBand')
         layers.div('^#FORM.backgroundLetterhead',position='absolute',top=0,left=0,right=0,bottom=0,
                     _class='backgroundLetterhead',visible='^#FORM.showBackground')
         layer_1 = layers.div(position='absolute',top=0,left=0,right=0,bottom=0,z_index=1)
@@ -81,7 +80,7 @@ class Form(BaseComponent):
     def _htmltemplate_subRegions(self, parentBc, region=None, design=None):
         subregions = dict(sidebar=('top', 'bottom', 'center'), headline=('left', 'right', 'center'))
         bc = parentBc.borderContainer(region=region, splitter=(region != 'center'),
-                                      _class='hideSplitter', datapath='.layout.%s' % region,
+                                      _class='hideSplitter letterheadBand_%s' % region, datapath='.layout.%s' % region,
                                       regions='^.regions')
         for subregion in subregions[design]:
             bc.contentPane(region=subregion, _class='printRegion {region}_{subregion}'.format(region=region,subregion=subregion), splitter=(subregion != 'center'),
@@ -108,7 +107,7 @@ class Form(BaseComponent):
                             datapath='#FORM.record.data')
 
     def htmltemplate_mainInfo(self, bc):
-        self.htmltemplate_form(bc.contentPane(region='top', padding='2px'))
+        self.htmltemplate_form(bc.borderContainer(region='top', height='15em', splitter=True))
         center = bc.roundedGroupFrame(region='center',datapath='^#FORM.currentEditedArea',overflow='hidden')
         center.center.contentPane(overflow='hidden').joditEditor(value='^.html',nodeId='htmlEditor',
                     disabled='^#FORM.currentEditedArea?=isNullOrBlank(#v)||#v=="dummy"',toolbar='standard',
@@ -131,19 +130,12 @@ class Form(BaseComponent):
         bar.zoomfactor.horizontalSlider(value='^zoomFactor', minimum=0, maximum=1,
                                 intermediateChanges=True, width='15em', float='right')
 
-    def htmltemplate_form(self, pane):
-        box = pane.div(display='flex', flex_wrap='wrap', gap='4px')
-        self.htmltemplate_tplInfo(self._htmltemplate_group(box, '!!Info', flex='1 1 22em')[1])
-        self.htmltemplate_basePageParams(self._htmltemplate_group(box, '!!Page sizing (mm)', flex='0 0 auto',
-                                                                  datapath='.data.main.page')[1])
-        self.htmltemplate_layout(*self._htmltemplate_group(box, '!!Layout (mm)', flex='1 1 100%'))
-
-    def _htmltemplate_group(self, box, title, **kwargs):
-        # roundedGroup is absolutely positioned and would collapse the auto-sized top region
-        group = box.div(_class='pbl_roundedGroup', **kwargs)
-        header = group.div(_class='pbl_roundedGroupLabel').div(display='flex', align_items='center', gap='12px')
-        header.div(title)
-        return header, group.div(_class='pbl_roundedGroupContent')
+    def htmltemplate_form(self, bc):
+        self.htmltemplate_tplInfo(bc.roundedGroup(region='left', width='45%', title='!!Info'))
+        tc = bc.tabContainer(region='center', margin='2px', selectedPage='^#FORM.letterheadTab')
+        self.htmltemplate_sizing(tc.contentPane(title='!!Sizing', pageName='sizing', datapath='.data.main'))
+        self.htmltemplate_layout(tc.stackContainer(title='!!Layout', pageName='layout',
+                                                   selectedPage='^.data.main.design'))
 
     def htmltemplate_tplInfo(self, pane):
         fl = pane.formlet(cols=2)
@@ -165,49 +157,48 @@ class Form(BaseComponent):
                                         self_closed_tags=['meta', 'br', 'img'])
         return basehtml.replace('letterhead_page','')
 
-    def htmltemplate_basePageParams(self, pane):
+    def htmltemplate_sizing(self, pane):
         fl = pane.formlet(cols='repeat(3, 5em)')
+        fl.menudiv(value='^.design', values='headline:Headline,sidebar:Sidebar', lbl='!!Design', colspan=3)
         for part in ('height', 'top', 'left', 'width', 'bottom', 'right'):
-            fl.numberTextBox(value='^.%s' % part, lbl='!!%s' % part.title())
+            fl.numberTextBox(value='^.page.%s' % part, lbl='!!%s' % part.title())
 
-    def htmltemplate_layout(self, header, pane):
-        header.div(font_weight='normal', _class='mobile_bar').multiButton(value='^.data.main.design',
-                                                                          values='headline:Headline,sidebar:Sidebar')
-        layout = pane.div(datapath='.data.layout', _class='letterheadLayout', padding='7px')
-        for design, bands, band_size, sides, side_size in (('headline', ('top', 'bottom'), 'height', ('left', 'right'), 'width'),
-                                                           ('sidebar', ('left', 'right'), 'width', ('top', 'bottom'), 'height')):
-            rows = layout.div(hidden='^#FORM.record.data.main.design?=#v!="%s"' % design,
-                              display='flex', flex_direction='column', row_gap='7px')
-            for row, band in enumerate(bands):
-                # band and center wrap as whole groups, never leaving a field alone on a line
-                line = rows.div(display='flex', flex_wrap='wrap', gap='7px 20px')
-                fl = line.formlet(cols='repeat(3, 8.5em)', padding='0')
-                self._htmltemplate_regionSize(layout, fl, band, band_size, temp_path='regions.%s' % band,
-                                              lbl='!!%s %s' % (band.title(), band_size))
+    def htmltemplate_layout(self, sc):
+        sc.dataFormula('#FORM.highlightedBand',
+                       "'letterhead_band_'+(tab=='layout' && (design=='sidebar' ? sidebar : headline) || 'none')",
+                       tab='^#FORM.letterheadTab', design='^.data.main.design',
+                       headline='^#FORM.layoutBand.headline', sidebar='^#FORM.layoutBand.sidebar')
+        for design, bands, band_size, sides, side_size in (
+                ('headline', (('top', '!!Header'), ('center', '!!Center'), ('bottom', '!!Footer')), 'height',
+                 ('left', 'right'), 'width'),
+                ('sidebar', (('left', '!!Left'), ('center', '!!Center'), ('right', '!!Right')), 'width',
+                 ('top', 'bottom'), 'height')):
+            tc = sc.tabContainer(pageName=design, tabPosition='left-h', datapath='.data.layout',
+                                 selectedPage='^#FORM.layoutBand.%s' % design, _class='letterheadBands')
+            for band, title in bands:
+                pane = tc.contentPane(title=title, pageName=band)
+                fl = pane.formlet(cols='repeat(%i, max-content)' % (2 if band == 'center' else 3))
+                if band != 'center':
+                    self._htmltemplate_regionSize(pane, fl, band, band_size, temp_path='regions.%s' % band,
+                                                  lbl='!!%s' % band_size.title())
                 for side in sides:
-                    self._htmltemplate_regionSize(layout, fl, '%s.%s' % (band, side), side_size,
+                    self._htmltemplate_regionSize(pane, fl, '%s.%s' % (band, side), side_size,
                                                   temp_path='%s.regions.%s' % (band, side),
-                                                  lbl='!!%s %s' % (band.title(), side))
-                fl = line.formlet(cols='repeat(2, 8em)', padding='0')
-                if row == 0:
-                    for side in sides:
-                        self._htmltemplate_regionSize(layout, fl, 'center.%s' % side, side_size,
-                                                      temp_path='center.regions.%s' % side,
-                                                      lbl='!!Center %s' % side)
-                else:
+                                                  lbl='!!%s' % side.title())
+                if band == 'center':
                     fl.numberTextBox(value='^#FORM.record.center_height', lbl='!!Center height', readOnly=True,
                                      width='5em', box_c_display='block')
                     fl.numberTextBox(value='^#FORM.record.center_width', lbl='!!Center width', readOnly=True,
                                      width='5em', box_c_display='block')
 
-    def _htmltemplate_regionSize(self, layout, fl, path, size, temp_path=None, lbl=None):
+    def _htmltemplate_regionSize(self, pane, fl, path, size, temp_path=None, lbl=None):
         data_path = '%s?%s' % (path, size)
         fl.numberTextBox(value='^.%s' % data_path, lbl=lbl, width='5em', box_c_display='block')
-        layout.dataController("""this.setRelativeData('#FORM._temp.data.layout.%s',
+        pane.dataController("""this.setRelativeData('#FORM._temp.data.layout.%s',
                                                 parseInt((val||0)*3.779527559)+'px',
                                                 {show:val!=0});""" % temp_path,
-                              val='^.%s' % data_path)
-        layout.dataController(
+                            val='^.%s' % data_path)
+        pane.dataController(
                 "if(_triggerpars.kw.reason!=true){SET .%s = dojo.number.round(parseFloat(val.slice(0,-2))/3.779527559,2);}" % data_path,
                 val='^#FORM._temp.data.layout.%s' % temp_path)
 
