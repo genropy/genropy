@@ -2295,25 +2295,18 @@ dojo.declare("gnr.widgets.ExtendedJoditEditor", gnr.widgets.gnrwdg, {
         objectUpdate(containerkw,objectExtract(kw,'margin_*',false,true));
         let css_value = objectPop(kw,'css_value');
         let css_pars = objectExtract(kw,'css_*');
-        if(css_value){
-            containerkw.onCreated = function(widget){
-                dojo.connect(widget,'startup',function(){ widget.showHideRegion('right',false); });
-            };
-        }
         let bc = sourceNode._('borderContainer',containerkw);
         kw.contentStyles = css_value;
         kw.height = '100%';
         kw.width = '100%';
-        if(css_value){
-            let bcNode = bc.getParentNode();
-            kw.config_extraButtons = [{name:'gnrCss', text:'CSS', tooltip:_T('Edit the CSS'),
-                                       exec:function(){ bcNode.widget.showHideRegion('right','toggle'); }}];
-        }
         bc._('contentPane',{region:'center',overflow:'hidden'})._('joditEditor',kw);
         if(css_value){
             css_pars = objectUpdate({value:css_value,height:'100%',width:'100%',config_mode:'css',
                                      config_lineNumbers:true,config_keyMap:'softTab'},css_pars);
-            bc._('borderContainer',{region:'right',width:'30%',splitter:true,border_left:'1px solid silver'})
+            bc._('borderContainer',{region:'right',width:'30%',splitter:true,closable:'close',
+                                    closable_bottom:'12px',closable_label:'CSS',
+                                    closable__class:'jodit_css_opener',closable_tip:_T('Edit the CSS'),
+                                    border_left:'1px solid silver'})
                 ._('contentPane',{region:'center',overflow:'hidden',_lazyBuild:true})._('codemirror',css_pars);
         }
         return bc;
