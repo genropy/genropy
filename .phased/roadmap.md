@@ -132,8 +132,11 @@ was building, not merely showing no rows.
 - Requires of earlier work: the frameCode check must be a RATCHET against a committed
   list, not a hard failure — its one offender lives here, and a hard failure would have
   made macro 3 fix a page outside its own scope.
-- Open decisions: whether `revised/gui/multibutton.py` folds case-by-case into
-  `test/webpages/components/multibutton.py`, which macro 2 already touched.
+- Open decisions (answered): `revised/gui/multibutton.py` did not fold case by case —
+  every case but two duplicated one already in `test/webpages/components/multibutton.py`;
+  those two came over as `test_9_multibutton_dark_container` and
+  `test_10_multibutton_insert` (rewritten onto `adm.pkginfo` / `adm.tblinfo`) and the
+  test15 page went whole, its frameCode collision with it.
 
 ## Macro 6: retire test15
 - Objective: delete the package and collapse the suites onto one package.
