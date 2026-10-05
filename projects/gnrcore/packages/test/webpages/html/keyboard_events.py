@@ -37,7 +37,7 @@ class GnrCustomWebPage(object):
                     var row = new gnr.GnrBag();
                     columns.forEach(function(c){row.setItem(c,evt[c]) });
                     data.setItem('#id',row,{_customClasses:'event_type_'+evt.type},{_position:'<'});
-                    if(data.len()>10){data.popNode('#11');}
+                    if(data.len()>10){data.popNode('#10');}
                     SET .logdata = data;
                 }
                 evt.target.value = null;
