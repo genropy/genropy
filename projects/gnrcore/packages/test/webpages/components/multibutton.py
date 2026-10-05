@@ -115,6 +115,14 @@ class GnrCustomWebPage(object):
         mbtbl = pane.multibutton(value='^.table_selected',caption='tblid', deleteAction=True)
         mbtbl.store(table='adm.tblinfo',where='$pkgid=:pkg',pkg='^.package')
 
+    def test_11_multibutton_minimal(self,pane):
+        "minimal=True gives the light text-button look of mobile_bar without the wrapper: the two rows must match"
+        fb = pane.formbuilder(cols=1,border_spacing='6px')
+        fb.multibutton(value='^.minimal',values='pippo:Pippo,pluto:Pluto,paperino:Paperino',minimal=True,lbl='minimal')
+        fb.div(_class='mobile_bar',lbl='mobile_bar').multibutton(value='^.minimal',values='pippo:Pippo,pluto:Pluto,paperino:Paperino')
+        fb.multibutton(value='^.minimal_scroll',minimal=True,itemsMaxWidth='300px',lbl='itemsMaxWidth',
+                        values='pippo:Pippo,pluto:Pluto,paperino:Paperino,mario:Mario,l:luca,c:Cesare,p:Pancrazio,o:Ortensia')
+
     def getmbdata(self):
         "Bag of code/caption items shared by test_2_multibutton_storepath and test_3_multibutton_items_path"
         result = Bag()
