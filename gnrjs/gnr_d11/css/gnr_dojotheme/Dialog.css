@@ -26,12 +26,15 @@
     position: relative;
 }
 
-/* --- Dialog title text: symmetric padding keeps the close button's room, so it centers on the whole bar --- */
+/* --- Dialog title text: symmetric padding keeps the close button's room, so it centers on the whole bar;
+       min-height holds the bar at the button's height, since the button is out of the flow and an empty title would collapse it --- */
 .gnr_dojotheme .dijitDialogTitle {
     flex: 1;
     font-weight: 600;
     color: inherit;
     padding: 0.1em 1.7em;
+    min-height: 1.3em;
+    box-sizing: border-box;
     outline: 0;
     border: none;
 }
