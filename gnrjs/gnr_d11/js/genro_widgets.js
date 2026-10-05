@@ -1954,7 +1954,9 @@ dojo.declare("gnr.widgets.Dialog", gnr.widgets.baseDojo, {
            return;
        }
        var node = evt.target;
-       if(node && node.closest && node.closest('.dijitPopup')){
+       // a popup, a palette or another dialog sits above the underlay: the trap has no say there
+       var above = node && node.closest && node.closest('.dijitPopup,.dojoxFloatingPane,.dijitDialog');
+       if(above && above!==this.domNode){
            return;
        }
        this._getFocusItems(this.domNode);
