@@ -1165,7 +1165,9 @@ class SiteRegister(BaseRemoteObject):
                 os.remove(loadedpath)
             os.rename(self.storage_path, loadedpath)
             return True
-        except EOFError:
+        except (EOFError, FileNotFoundError):
+            # the file may be empty, or already taken by a register that
+            # restored before this one
             return False
 
     def pendingProcessCommands(self):
