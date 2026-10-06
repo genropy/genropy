@@ -13,6 +13,8 @@ minimal fake, the same technique used in
 
 import logging
 
+import pytest
+
 from gnr.web import gnrtask
 from gnr.web.daemon import handler
 from gnr.web.daemon.handler import GnrDaemon
@@ -65,18 +67,30 @@ class _FakeChild:
 
 
 class _FakeSchedulerHandler(_FakeChild):
+    created = []
+
     def __init__(self, parent, sitename=None):
         super().__init__(sitename=sitename)
         self.parent = parent
         self.sitename = sitename
+        self.checked = False
+        _FakeSchedulerHandler.created.append(self)
+
+    def checkSchedulerProcess(self):
+        self.checked = True
 
 
 class _FakeNewSiteDaemon(_FakeDaemon):
-    """Bag of attributes accessed when a new site register is added (#1557)."""
+    """Bag of attributes accessed when a site register is added or stopped
+    (#1557, #1567)."""
+
+    startTaskScheduler = GnrDaemon.startTaskScheduler
+    stopTaskScheduler = GnrDaemon.stopTaskScheduler
 
     def __init__(self):
         super().__init__(siteregisters={})
         self.siteregisters_process = {}
+        self.task_schedulers = {}
         self.sockets = None
         self.main_uri = 'PYRO:daemon@localhost:40404'
         self.host = 'localhost'
@@ -89,32 +103,76 @@ class _FakeNewSiteDaemon(_FakeDaemon):
         pass
 
 
-def test_addsiteregister_supervises_the_legacy_task_scheduler(monkeypatch):
+@pytest.fixture
+def new_site_daemon(monkeypatch):
+    _FakeSchedulerHandler.created = []
     monkeypatch.setattr(gnrtask, 'USE_ASYNC_TASKS', False)
     monkeypatch.setattr(handler, 'Process', _FakeChild)
     monkeypatch.setattr(handler, 'GnrTaskSchedulerHandler', _FakeSchedulerHandler)
-    fake = _FakeNewSiteDaemon()
+    return _FakeNewSiteDaemon()
+
+
+def test_addsiteregister_supervises_the_legacy_task_scheduler(new_site_daemon):
+    fake = new_site_daemon
 
     GnrDaemon.addSiteRegister(fake, 'asp4|example.com')
 
-    scheduler = fake.siteregisters_process['asp4|example.com']['task_scheduler']
+    scheduler = fake.task_schedulers['asp4']
     assert isinstance(scheduler, _FakeSchedulerHandler)
     assert scheduler.started
     assert scheduler.parent is fake
     assert scheduler.sitename == 'asp4'
+    assert 'task_scheduler' not in fake.siteregisters_process['asp4|example.com']
 
 
-def test_register_stop_terminates_a_scheduler_whose_child_is_dead():
+def test_one_task_scheduler_per_site_across_workspaces(new_site_daemon):
+    fake = new_site_daemon
+
+    GnrDaemon.addSiteRegister(fake, 'asp4')
+    GnrDaemon.addSiteRegister(fake, 'asp4|ws1')
+    GnrDaemon.addSiteRegister(fake, 'other')
+
+    assert [s.sitename for s in _FakeSchedulerHandler.created] == ['asp4', 'other']
+
+
+def test_addsiteregister_revives_a_dead_site_scheduler(new_site_daemon):
+    fake = new_site_daemon
+    GnrDaemon.addSiteRegister(fake, 'asp4')
+    scheduler = fake.task_schedulers['asp4']
+
+    GnrDaemon.addSiteRegister(fake, 'asp4|ws1')
+
+    assert scheduler.checked
+    assert _FakeSchedulerHandler.created == [scheduler]
+
+
+def test_site_scheduler_outlives_a_workspace_and_ends_with_the_last(new_site_daemon):
+    fake = new_site_daemon
+    GnrDaemon.addSiteRegister(fake, 'asp4')
+    GnrDaemon.addSiteRegister(fake, 'asp4|ws1')
+    scheduler = fake.task_schedulers['asp4']
+
+    GnrDaemon.onRegisterStop(fake, 'asp4|ws1')
+    assert not scheduler.terminated
+    assert fake.task_schedulers['asp4'] is scheduler
+
+    GnrDaemon.onRegisterStop(fake, 'asp4')
+    assert scheduler.terminated
+    assert 'asp4' not in fake.task_schedulers
+
+
+def test_register_stop_terminates_a_child_reported_not_alive(new_site_daemon):
     """A supervisor reports not alive while its child is down: stopping the
-    register must still end it, or its monitor restarts an orphan scheduler."""
-    scheduler = _FakeSchedulerHandler(None, sitename='asp4')
+    register must still end it, or its monitor restarts an orphan process."""
+    fake = new_site_daemon
+    supervisor = _FakeChild()
     register = _FakeChild()
-    fake = _FakeDaemon(siteregisters={'asp4': {}})
+    fake.siteregisters = {'asp4': {'sitename': 'asp4'}}
     fake.siteregisters_process = {'asp4': {'register': register,
-                                           'task_scheduler': scheduler}}
+                                           'cron': supervisor}}
 
     GnrDaemon.onRegisterStop(fake, 'asp4')
 
-    assert scheduler.terminated
+    assert supervisor.terminated
     assert not register.terminated
     assert 'asp4' not in fake.siteregisters_process
