@@ -126,11 +126,11 @@ dojo.declare("gnr.GnrDevHandler", null, {
         return !!(mainGenro && mainGenro._connectionLost);
     },
     setConnectionLost:function(){
+        genro.polling_enabled = false;
         if(this.isConnectionLost()){
             return false;
         }
         (genro.mainGenroWindow || window).genro._connectionLost = true;
-        genro.polling_enabled = false;
         return true;
     },
     handleRpcHttpError:function(response, ioArgs) {

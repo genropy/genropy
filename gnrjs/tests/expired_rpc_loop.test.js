@@ -115,3 +115,12 @@ test('a lost connection stops polling and asks the server for no translation', (
     assert.equal(context._T('Another label'), 'Another label');
     assert.equal(calls.server, 0);
 });
+
+test('a window still stops polling when another window already marked the connection lost', () => {
+    const {genro, calls} = createPage('http400');
+    genro.mainGenroWindow = {genro: {_connectionLost: true}};
+    genro.polling_enabled = true;
+    genro.dev.handleRpcHttpError({}, {xhr: {status: 400}});
+    assert.equal(genro.polling_enabled, false);
+    assert.equal(calls.alert, 0);
+});
