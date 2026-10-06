@@ -121,6 +121,18 @@ dojo.declare("gnr.GnrDevHandler", null, {
         duration = duration || 50;
         dojo.publish("standardDebugger", {message: msg, type:level.toUpperCase(), duration:duration});
     },
+    isConnectionLost:function(){
+        var mainGenro = (genro.mainGenroWindow || window).genro;
+        return !!(mainGenro && mainGenro._connectionLost);
+    },
+    setConnectionLost:function(){
+        if(this.isConnectionLost()){
+            return false;
+        }
+        (genro.mainGenroWindow || window).genro._connectionLost = true;
+        genro.polling_enabled = false;
+        return true;
+    },
     handleRpcHttpError:function(response, ioArgs) {
         if(response.dojoType=='cancel'){
             return;
@@ -134,13 +146,17 @@ dojo.declare("gnr.GnrDevHandler", null, {
         var readyState = xhr.readyState;
         var responseText = xhr.responseText;
         if (status == 400) {
-            genro.dlg.alert('Client HTTP error','Error',null,null,{confirmCb:genro.pageReload});
+            if(this.setConnectionLost()){
+                genro.dlg.alert('Client HTTP error','Error',null,null,{confirmCb:genro.pageReload});
+            }
             return;
         }
         else if (status == 412) {
-            var mainGenroWindow = genro.mainGenroWindow.genro;
-            mainGenroWindow.polling_enabled = false;
-            mainGenroWindow.dlg.alert('No longer existing page','Error',null,null,{confirmCb:genro.pageReload});
+            if(this.setConnectionLost()){
+                var mainGenroWindow = genro.mainGenroWindow.genro;
+                mainGenroWindow.polling_enabled = false;
+                mainGenroWindow.dlg.alert('No longer existing page','Error',null,null,{confirmCb:genro.pageReload});
+            }
             return;
         } else {
             console.log('handleRpcHttpError');
@@ -198,10 +214,9 @@ dojo.declare("gnr.GnrDevHandler", null, {
             return;
         }
         if (error == 'expired') {
-            if(this._expiredDialog){
+            if(!this.setConnectionLost()){
                 return;
             }
-            this._expiredDialog = true;
             genro.dlg.message('expired session');
 
             genro.dlg.ask('Expired session',

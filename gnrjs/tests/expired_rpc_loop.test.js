@@ -4,10 +4,13 @@ const path = require('node:path');
 const {test} = require('node:test');
 const vm = require('node:vm');
 
-// Every rpc answers expired, as on a page whose session is gone. A failed rpc
+// Every rpc fails. 'expired': as on a page whose session is gone, a failed rpc
 // returns {error} to a sync caller and queues handleRpcError, as
-// genro_rpc.js resultHandler does with setTimeout.
-function createPage() {
+// genro_rpc.js resultHandler does with setTimeout. 'http400': the sync xhr
+// calls handleRpcHttpError on the same stack, as genro_rpc.js errorHandler does.
+const SERVER_CALL_CAP = 50;
+
+function createPage(failure = 'expired') {
     const context = {console, gnr: {}, genro: {}};
     context.dojo = {
         declare(name, base, members) {
@@ -29,18 +32,31 @@ function createPage() {
     }
     const genro = context.genro;
     const queue = [];
-    const calls = {server: 0, ask: 0, message: 0};
+    const calls = {server: 0, ask: 0, message: 0, alert: 0};
+    genro.mainGenroWindow = {genro};
     genro._pageLocals = {};
     genro.locale = () => 'it-IT';
     genro.getFromStorage = () => null;
     genro.setInStorage = () => {};
     genro.serverCall = () => {
         calls.server++;
+        if (calls.server > SERVER_CALL_CAP) {
+            throw new Error('server call cap reached');
+        }
+        if (failure === 'http400') {
+            genro.dev.handleRpcHttpError({}, {xhr: {status: 400}});
+            return undefined;
+        }
         queue.push(() => genro.dev.handleRpcError('expired'));
         return {error: 'expired'};
     };
     genro.dlg = {
         message: () => { calls.message++; },
+        alert: (msg, title) => {
+            calls.alert++;
+            context._T(title);
+            context._T(msg);
+        },
         ask: (title, msg) => {
             calls.ask++;
             context._T(msg);
@@ -79,5 +95,23 @@ test('an expired rpc does not feed itself through the dialog translations', () =
     genro.dev.handleRpcError('expired');
     assert.equal(drain(1000), 0);
     assert.equal(calls.ask, 1);
-    assert.equal(calls.server, 2);
+    assert.equal(calls.server, 0);
+});
+
+test('a sync http error does not recurse through the dialog translations', () => {
+    const {context, calls} = createPage('http400');
+    assert.equal(context._T('Some label'), 'Some label');
+    assert.equal(calls.server, 1);
+    assert.equal(calls.alert, 1);
+});
+
+test('a lost connection stops polling and asks the server for no translation', () => {
+    const {context, genro, calls} = createPage('http400');
+    genro.polling_enabled = true;
+    genro.dev.handleRpcHttpError({}, {xhr: {status: 400}});
+    genro.dev.handleRpcHttpError({}, {xhr: {status: 400}});
+    assert.equal(calls.alert, 1);
+    assert.equal(genro.polling_enabled, false);
+    assert.equal(context._T('Another label'), 'Another label');
+    assert.equal(calls.server, 0);
 });
