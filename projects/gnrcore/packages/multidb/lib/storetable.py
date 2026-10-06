@@ -1,4 +1,5 @@
 from gnr.app.gnrdbo import GnrDboTable
+from gnr.app import pkglog as logger
 
 
 class StoreTable(GnrDboTable):
@@ -82,4 +83,11 @@ class StoreTable(GnrDboTable):
     def trigger_onDeleted_multidb(self,record):
         if record['dbstore']:
             self.db.stores_handler.refresh_dbstores()
-            self.db.application.site.domains.remove(record['dbstore'])
+            site = self.db.application.site
+            site.domains.remove(record['dbstore'])
+            if site.multidomain:
+                domainIdentifier = site.get_domainIdentifier(record['dbstore'])
+                try:
+                    site.register.gnrdaemon_proxy.siteregister_stop(domainIdentifier)
+                except Exception:
+                    logger.exception('Unable to stop the site register of %s', domainIdentifier)
