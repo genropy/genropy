@@ -825,12 +825,19 @@ dojo.declare('gnr.GenroClient', null, {
         }, 100);
     },
 
-    setFastPolling:function(fast){
+    setFastPolling:function(fast,requester){
+        requester = requester || this.page_id;
         if(this.root_page_id){
-            return this.mainGenroWindow.genro.setFastPolling(fast);
+            return this.mainGenroWindow.genro.setFastPolling(fast,requester);
         }
-        this.fast_polling = fast;
-        this.setAutoPolling(fast);
+        this._fast_polling_requests = this._fast_polling_requests || {};
+        if(fast){
+            this._fast_polling_requests[requester] = true;
+        }else{
+            delete this._fast_polling_requests[requester];
+        }
+        this.fast_polling = objectNotEmpty(this._fast_polling_requests);
+        this.setAutoPolling(this.fast_polling);
     },
 
     setAutoPolling:function(fast){

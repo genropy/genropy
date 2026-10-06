@@ -220,13 +220,13 @@ dojo.declare("gnr.GnrRpcHandler", null, {
             delay: 0,
             message: 'Server not responding...'
         });
-        genro.setFastPolling(true);
+        genro.setFastPolling(true, '_server_unavailable');
     },
 
     _hideServerUnavailable: function() {
         this._server_unavailable = false;
         genro.lockScreen(false, '_server_unavailable');
-        genro.setFastPolling(false);
+        genro.setFastPolling(false, '_server_unavailable');
         genro.dlg.alert(_T('Server connection restored. You can resume your operations.'),
                         _T('Connection restored'));
     },

@@ -52,6 +52,7 @@ function createWindow(clock, mainGenro) {
     Object.assign(genro, {
         auto_polling: 30,
         user_polling: 3,
+        page_id: mainGenro ? 'iframe' : 'root',
         root_page_id: mainGenro ? 'root' : null,
         dom: {addClass: () => {}, removeClass: () => {}},
         dlg: {alert: (msg, title) => alerts.push(title)},
@@ -115,4 +116,32 @@ test('setFastPolling called inside an iframe drives the root page polling', () =
     assert.equal(root.genro.fast_polling, false);
     assert.deepEqual([...root.intervals.values()], [30000]);
     assert.equal(iframe.intervals.size, 0);
+});
+
+test('an iframe dropping its fast polling keeps the one the root page asked for', () => {
+    const {root, iframe} = createPage();
+    root.genro.setFastPolling(true);
+    iframe.genro.setFastPolling(true);
+    iframe.genro.setFastPolling(false);
+    assert.equal(root.genro.fast_polling, true);
+    assert.deepEqual([...root.intervals.values()], [2000]);
+
+    root.genro.setFastPolling(false);
+    assert.equal(root.genro.fast_polling, false);
+    assert.deepEqual([...root.intervals.values()], [30000]);
+});
+
+test('an iframe dropping its fast polling during an outage keeps the outage fast polling', () => {
+    const {clock, root, iframe} = createPage();
+    iframe.genro.setFastPolling(true);
+    root.genro.rpc._onServerError();
+    clock.now += 6000;
+    root.genro.rpc._onServerError();
+    iframe.genro.setFastPolling(false);
+    assert.equal(root.genro.fast_polling, true);
+    assert.deepEqual([...root.intervals.values()], [2000]);
+
+    root.genro.rpc._onServerSuccess();
+    assert.equal(root.genro.fast_polling, false);
+    assert.deepEqual([...root.intervals.values()], [30000]);
 });
