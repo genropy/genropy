@@ -2189,6 +2189,9 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
             if (col._owner_package){
                 kw._owner_package = col._owner_package;
             }
+            if (col.hierarchical_field_of){
+                kw.hierarchical_field_of = col.hierarchical_field_of;
+            }
             if(kw.field.length>63){
                 var hashname = 'relation_'+stringHash(kw.field)+'_'+kw.field.split('.').slice(-1);
                 kw.queryfield = kw.field +' AS '+hashname;

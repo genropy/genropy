@@ -268,7 +268,8 @@ class FrameGridTools(BaseComponent):
         gth.dataController("""
         if(_reason=='node'){
             PUT .output = null;
-            SET .output = genro.groupth.groupCellInfoFromStruct(struct).group_by_cols.length>1?'tree':'grid'
+            var group_by_cols = genro.groupth.groupCellInfoFromStruct(struct).group_by_cols;
+            SET .output = group_by_cols.length>1 || group_by_cols.some(cell=>cell.hierarchical_field_of)?'tree':'grid';
         }
         """,struct='^.grid.struct')
         gth.dataController(f"""
