@@ -198,6 +198,10 @@ dojo.declare("gnr.GnrDevHandler", null, {
             return;
         }
         if (error == 'expired') {
+            if(this._expiredDialog){
+                return;
+            }
+            this._expiredDialog = true;
             genro.dlg.message('expired session');
 
             genro.dlg.ask('Expired session',

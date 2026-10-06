@@ -75,7 +75,7 @@ function _T(str,lazy){
     }
     var toTranslate = noLocMarker?'!!'+str:str;
     var result = genro.serverCall('getRemoteTranslation',{txt:toTranslate,language:language}) || {};
-    var localizedString = result['translation'];
+    var localizedString = result['translation'] || str;
     if(result.status=='OK'){
         localsdict[str] = localizedString;
         genro.setInStorage('local',localekey,localsdict);
