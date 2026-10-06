@@ -103,6 +103,30 @@
 	height: 40px;
 }
 
+.slotbarOpener.jodit_css_opener{
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	left: -17px;
+	width: 16px;
+	height: 46px;
+	opacity: 1;
+	background: var(--roundedgroup-surface, #fff);
+	color: var(--accent-color);
+	border: 1px solid var(--border-strong);
+	border-right: 0;
+	border-radius: var(--radius-md) 0 0 var(--radius-md);
+}
+.slotbarOpener.jodit_css_opener:hover{
+	background: var(--accent-color);
+	color: var(--accent-on-color);
+}
+.jodit_css_opener .slotbarOpener_label_vertical{
+	writing-mode: vertical-rl;
+	transform: rotate(180deg);
+	font-size: 10px;
+	letter-spacing: .04em;
+}
 .slotbarOpener.tab_opener{
 	display: flex;
 	align-items: center;

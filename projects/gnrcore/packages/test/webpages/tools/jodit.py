@@ -2,6 +2,8 @@
 
 "Jodit HTML editor"
 
+from gnr.core.gnrbag import Bag
+
 SAMPLE_HTML = (
     '<h2>Jodit editor</h2>'
     '<p>Type <strong>here</strong>, or press <em>Source</em> in the toolbar '
@@ -137,3 +139,26 @@ class GnrCustomWebPage(object):
         fb = pane.formbuilder(cols=1)
         fb.quickEditor(value='^.html', lbl='Quick', height='80px', width='400px')
         fb.textbox(value='^.other', lbl='Next field')
+
+    def test_12_drop_field(self, pane):
+        "Template variables dragged from the tree are inserted where they are dropped, also in ExtendedJoditEditor"
+        fields = Bag()
+        for code, caption in (('protocol', 'Protocol'), ('date', 'Date'), ('total', 'Total')):
+            fields.setItem(code, None, caption=caption, code=code)
+        pane.data('.fields', fields)
+        pane.data('.html', '<p>Invoice  of </p>')
+        pane.data('.extended', '<p>Total: </p>')
+        bc = pane.borderContainer(height='420px', width='950px')
+        bc.contentPane(region='left', width='150px', splitter=True).tree(
+            storepath='.fields', hideValues=True, draggable=True, labelAttribute='code',
+            onDrag="dragValues['text/plain'] = '$'+treeItem.attr.code;")
+        center = bc.borderContainer(region='center')
+        top = center.contentPane(region='top', height='200px')
+        top.joditEditor(value='^.html', height='120px', toolbar='minimal')
+        top.simpleTextarea(value='^.html', readOnly=True, height='50px', width='95%', margin_top='6px',
+                           font_family='monospace', font_size='12px')
+        bottom = center.borderContainer(region='center')
+        bottom.ExtendedJoditEditor(value='^.extended', region='center', bodyStyle='width:12cm;')
+        bottom.contentPane(region='bottom', height='60px').simpleTextarea(
+            value='^.extended', readOnly=True, height='50px', width='95%',
+            font_family='monospace', font_size='12px')
