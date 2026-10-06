@@ -20,7 +20,7 @@ from gnr.core.gnrbag import Bag
 from gnr.core.gnrsys import expandpath
 from gnr.core.gnrconfig import gnrConfigPath
 from gnr.app.pathresolver import PathResolver
-from gnr.web.daemon.processes import GnrCronHandler, GnrDaemonServiceManager
+from gnr.web.daemon.processes import GnrCronHandler, GnrDaemonServiceManager, GnrTaskSchedulerHandler
 from gnr.web import gnrtask
 from gnr.web import logger
 
@@ -46,10 +46,6 @@ def createHeartBeat(site_url=None,interval=None,**kwargs):
     time.sleep(interval)
     server.start()
 
-def createTaskScheduler(sitename, interval=None):
-    scheduler = gnrtask.GnrTaskScheduler(sitename, interval=interval)
-    scheduler.start()
-    
 def getFullOptions(options=None):
     gnr_path = gnrConfigPath()
     enviroment_path = os.path.join(gnr_path,'environment.xml')
@@ -193,7 +189,7 @@ class GnrDaemon(object):
         self.siteregisters.pop(sitename,None)
         process_dict = self.siteregisters_process.pop(sitename,None) or {}
         for name, process in list(process_dict.items()):
-            if name!='register' and process and process.is_alive():
+            if name!='register' and process:
                 process.terminate()
 
     def ping(self,**kwargs):
@@ -300,8 +296,7 @@ class GnrDaemon(object):
 
             if not gnrtask.USE_ASYNC_TASKS and self.hasSysPackageAndIsPrimary(sitename):
                 logger.info("Starting task scheduler")
-                taskScheduler = Process(name='ts_%s' %sitename, target=createTaskScheduler,kwargs=dict(sitename=sitename))
-                taskScheduler.daemon = True
+                taskScheduler = GnrTaskSchedulerHandler(self, sitename=sitename)
                 taskScheduler.start()
                 siteregister_processes_dict['task_scheduler'] = taskScheduler
             sitedict = siteregister_processes_dict
