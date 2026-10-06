@@ -1,7 +1,17 @@
 from types import SimpleNamespace
 
+from core.common import BaseGnrTest
+
 from gnr.core.gnrbag import Bag
 from gnr.web.gnrwebpage import GnrWebPage
+
+
+def setup_module(module):
+    BaseGnrTest.setup_class()
+
+
+def teardown_module(module):
+    BaseGnrTest.teardown_class()
 
 
 def _page(db, temp_tenant_schema=None, pageArgs=None, call_kwargs=None):
