@@ -78,6 +78,15 @@ AUTH_EXPIRED = 2
 AUTH_FORBIDDEN = -1
 PAGE_TIMEOUT = 60
 PAGE_REFRESH = 20
+LOGIN_COMPONENT = 'login:LoginComponent'
+# they authenticate by themselves, so the login dialog can call them without a session
+LOGIN_RPCS = ('login_checkAvatar', 'login_doLogin', 'login_checkOTPCode')
+
+
+def isLoginRpc(method):
+    mixin_info, _, name = (method or '').rpartition(';')
+    return name in LOGIN_RPCS and mixin_info in ('', '*|%s' % LOGIN_COMPONENT)
+
 
 ATTRIBUTES_SIMPLEWEBPAGE = ('_workdate','_language','_call_args','_call_kwargs','user','connection_id','user_ip','dbstore','user_agent','siteName')
 
@@ -651,7 +660,7 @@ class GnrWebPage(GnrBaseWebPage):
             logger.warning('page %s vanished from the register: serverstore changes discarded (%s)',
                            self.page_id, ','.join(sorted(_serverstore_changes)))
         auth = AUTH_OK
-        if method not in ('doLogin', 'onClosePage'):
+        if method not in ('doLogin', 'onClosePage') and not isLoginRpc(method):
             auth = self._checkAuth(method=method, **kwargs)
             #if auth == AUTH_OK:
             #    auth = self._checkRootPage()
@@ -2566,7 +2575,7 @@ class GnrWebPage(GnrBaseWebPage):
                 _auth = AUTH_OK if self.deferredMainPageAuthTags(page) else AUTH_FORBIDDEN
         if _auth == AUTH_NOT_LOGGED:
             root.clear()
-            self.mixinComponent('login:LoginComponent',safeMode=True,only_callables=False)
+            self.mixinComponent(LOGIN_COMPONENT,safeMode=True,only_callables=False)
             self.loginDialog(root, **kwargs)
         elif _auth == AUTH_FORBIDDEN:
             redirect = self.forbiddenRedirectPage
