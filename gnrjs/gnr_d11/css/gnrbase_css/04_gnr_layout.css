@@ -107,6 +107,7 @@
 	display: flex;
 	align-items: center;
 	justify-content: center;
+	box-sizing: content-box;
 	width: 16px;
 	height: auto;
 	padding: 6px 0;
@@ -137,10 +138,7 @@
 	white-space: nowrap;
 }
 .slotbarOpener_left.grouper_opener{
-	right: -18px;
-}
-.closedSide > .slotbarOpener_left.grouper_opener{
-	right: -19px;
+	right: -20px;
 	border-left: 2px solid var(--accent-on-color);
 }
 
