@@ -190,6 +190,9 @@ dojo.declare("gnr.GnrRpcHandler", null, {
     },
 
     _onServerError: function() {
+        if (genro.root_page_id) {
+            return genro.mainGenroWindow.genro.rpc._onServerError();
+        }
         if (!this._server_error_since) {
             this._server_error_since = new Date();
         }
@@ -200,6 +203,9 @@ dojo.declare("gnr.GnrRpcHandler", null, {
     },
 
     _onServerSuccess: function() {
+        if (genro.root_page_id) {
+            return genro.mainGenroWindow.genro.rpc._onServerSuccess();
+        }
         if (this._server_error_since) {
             this._server_error_since = null;
             if (this._server_unavailable) {

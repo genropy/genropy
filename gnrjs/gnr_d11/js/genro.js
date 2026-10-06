@@ -826,6 +826,9 @@ dojo.declare('gnr.GenroClient', null, {
     },
 
     setFastPolling:function(fast){
+        if(this.root_page_id){
+            return this.mainGenroWindow.genro.setFastPolling(fast);
+        }
         this.fast_polling = fast;
         this.setAutoPolling(fast);
     },
