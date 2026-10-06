@@ -11,7 +11,17 @@ from datetime import datetime, timezone
 
 import pytest
 
+from core.common import BaseGnrTest
+
 from gnr.web import gnrtask_new
+
+
+def setup_module(module):
+    BaseGnrTest.setup_class()
+
+
+def teardown_module(module):
+    BaseGnrTest.teardown_class()
 
 
 class _AckRequest:
