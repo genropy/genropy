@@ -646,7 +646,7 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
         }
         sourceNode.attr.draggable_column = true;
         var onDropCall = function(dropInfo, col) {
-            this.widget.moveColumn(col, dropInfo.column);
+            this.widget.moveColumn(col, dropInfo.column < col ? dropInfo.column + 1 : dropInfo.column);
         };
         sourceNode.attr['onDrop_selfdragcolumn_' + sourceNode._id] = onDropCall;
         if(sourceNode.attr.configurable){
@@ -1405,6 +1405,53 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
             condition = 'td.dojoxGrid-cell[idx="' + idx + '"], th.dojoxGrid-cell[idx="' + idx + '"]';
         }
         return dojo.query(condition, this.domNode);
+    },
+    mixin_columnDropTarget:function(x) {
+        var headers = dojo.query('th.dojoxGrid-cell', this.domNode);
+        var target = null;
+        for (var i = 0; i < headers.length; i++) {
+            var rect = headers[i].getBoundingClientRect();
+            if (!rect.width) {
+                continue;
+            }
+            target = {column:parseInt(headers[i].getAttribute('idx')), after:x > rect.left + rect.width / 2};
+            if (x < rect.right) {
+                break;
+            }
+        }
+        return target;
+    },
+    mixin_columnDropOutline:function(idx, after) {
+        var outline = this.columnNodelist(idx, true);
+        var header = dojo.query('th.dojoxGrid-cell[idx="' + idx + '"]', this.domNode)[0];
+        if (!header) {
+            return outline;
+        }
+        var gridRect = this.domNode.getBoundingClientRect();
+        var headerRect = header.getBoundingClientRect();
+        var edge = (after ? headerRect.right : headerRect.left) - gridRect.left;
+        outline.push(this._columnDropOverlay('grid_column_dropbar', edge - 1, headerRect.top - gridRect.top,
+                                             3, gridRect.bottom - headerRect.top));
+        if (!this.rowCount) {
+            outline.push(this._columnDropOverlay('grid_column_dropzone', headerRect.left - gridRect.left,
+                                                 headerRect.bottom - gridRect.top, headerRect.width,
+                                                 gridRect.bottom - headerRect.bottom));
+        }
+        return outline;
+    },
+    mixin__columnDropOverlay:function(className, left, top, width, height) {
+        this._columnDropOverlays = this._columnDropOverlays || {};
+        var node = this._columnDropOverlays[className];
+        if (!node) {
+            node = this._columnDropOverlays[className] = document.createElement('div');
+            node.className = className;
+            this.domNode.appendChild(node);
+        }
+        node.style.left = left + 'px';
+        node.style.top = top + 'px';
+        node.style.width = width + 'px';
+        node.style.height = height + 'px';
+        return node;
     },
     mixin_rowIdByIndex: function(idx) {
         if (idx !== null) {
@@ -2189,6 +2236,9 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
             if (col._owner_package){
                 kw._owner_package = col._owner_package;
             }
+            if (col.hierarchical_field_of){
+                kw.hierarchical_field_of = col.hierarchical_field_of;
+            }
             if(kw.field.length>63){
                 var hashname = 'relation_'+stringHash(kw.field)+'_'+kw.field.split('.').slice(-1);
                 kw.queryfield = kw.field +' AS '+hashname;
@@ -2382,8 +2432,13 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
             dropInfo.outline = widget.domNode;
         }
         else if (dropmode == 'column') {
-            dropInfo.column = event.cellIndex;
-            dropInfo.outline = widget.columnNodelist(event.cellIndex, true);
+            var target = widget.columnDropTarget(event.clientX);
+            genro.dom._dragOverRefresh = true;
+            if (target) {
+                // the index after which the drop inserts: -1 is the first position
+                dropInfo.column = target.after ? target.column : target.column - 1;
+                dropInfo.outline = widget.columnDropOutline(target.column, target.after);
+            }
         } else {
             dropInfo.row = event.rowIndex;
             if (dropmode == 'cell') {
