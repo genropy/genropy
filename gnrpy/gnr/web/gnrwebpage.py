@@ -2390,7 +2390,7 @@ class GnrWebPage(GnrBaseWebPage):
         return self._package_folder
     package_folder = property(_get_package_folder)
     
-    def rpc_main(self, _auth=AUTH_OK, debugger=None,windowTitle=None,_parent_page_id=None,_root_page_id=None,branchIdentifier=None, **kwargs):
+    def rpc_main(self, _auth=AUTH_OK, debugger=None,windowTitle=None,_parent_page_id=None,_root_page_id=None,branchIdentifier=None, _forbidden_from=None, **kwargs):
         """The first method loaded in a Genro application
         
         :param _auth: the page authorizations. For more information, check the :ref:`auth` page
@@ -2569,11 +2569,8 @@ class GnrWebPage(GnrBaseWebPage):
             self.mixinComponent('login:LoginComponent',safeMode=True,only_callables=False)
             self.loginDialog(root, **kwargs)
         elif _auth == AUTH_FORBIDDEN:
-            redirect = self.forbiddenRedirectPage
+            redirect = self._forbiddenRedirectUrl()
             if redirect:
-                params = urllib.parse.urlencode(self.pageArgs)
-                if params:
-                    redirect = '%s?%s' % (redirect, params)
                 return (page,dict(redirect=redirect))
             self.forbiddenPage(root, **kwargs)
         if not self.isGuest:
@@ -3035,6 +3032,19 @@ class GnrWebPage(GnrBaseWebPage):
             return self.forbidden_redirect()
         if self.avatar_rootpage:
             return self.avatar_rootpage
+
+    def _forbiddenRedirectUrl(self):
+        redirect = self.forbiddenRedirectPage
+        if not redirect:
+            return
+        params = dict(self.pageArgs)
+        # paths already rejected in this redirect chain: landing on one again would loop
+        rejected = [p for p in (params.pop('_forbidden_from', None) or '').split(',') if p]
+        rejected.append(self.request.path_info)
+        if urllib.parse.urlsplit(redirect).path in rejected:
+            return
+        params['_forbidden_from'] = ','.join(rejected)
+        return '%s%s%s' % (redirect, '&' if '?' in redirect else '?', urllib.parse.urlencode(params))
 
     def isLocalizer(self):
         """TODO"""
