@@ -202,6 +202,9 @@ class TestGnrTaskBasics(BaseGnrTest):
         assert task.is_due(timestamp=now, last_scheduled_ts=now - timedelta(days=1)) is False
         task.schedule = {"frequency": 10}
         assert task.is_due(timestamp=now, last_scheduled_ts=now - timedelta(days=1, minutes=1)) == "*"
+        assert task.is_due(timestamp=now, last_scheduled_ts=now + timedelta(minutes=1)) is False
+        task.schedule = {"frequency": 360}
+        assert task.is_due(timestamp=now, last_scheduled_ts=now - timedelta(days=3, minutes=51)) == "*"
 
     def test_task_is_due_matches_calendar_schedule(self):
         ts = datetime(2024, 4, 1, 12, 15, tzinfo=timezone.utc)

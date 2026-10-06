@@ -1835,7 +1835,11 @@ dojo.declare("gnr.GnrFrmHandler", null, {
                     this._getRecordCluster(value, changesOnly, data, false, currpath);
                 }
                 else if (value instanceof gnr.GnrBag) {
-                    var isRealChange = false;
+                    var bagpath = node.getFullpath(null, this.getFormData());
+                    var isRealChange = this.getChangesLogger().getNodes().some(function(change) {
+                        var path = change.attr._dataPath;
+                        return path == bagpath || (path && path.indexOf(bagpath + '.') == 0);
+                    });
                     var gridEditorChanged = false;
                     if(objectNotEmpty(this.gridEditors)){
                         for(var k in this.gridEditors){
@@ -1852,7 +1856,7 @@ dojo.declare("gnr.GnrFrmHandler", null, {
 
                     //sendBag = sendBag || (sendback == true) || isNewRecord || value.getNodeByAttr('_loadedValue')!=null;
                     var hasLoadedValue = value.getNodeByAttr('_loadedValue')!=null;
-                    if (gridEditorChanged || (sendback == true) || isNewRecord || hasLoadedValue) {
+                    if (isRealChange || gridEditorChanged || (sendback == true) || isNewRecord || hasLoadedValue) {
                         value = value.deepCopy();
                         if(hasLoadedValue){
                             isRealChange = true;

@@ -638,6 +638,9 @@
    below covers cards-stack mode. */
 .grouplet_grid_container {
     --gg-gap: 12px;
+    --gg-entry-action-width: 2em;
+    --gg-entry-action-height: 1.6em;
+    --gg-entry-action-gap: 0.5em;
 }
 .grouplet_grid_body {
     display: flex;
@@ -2006,9 +2009,21 @@ body.drag_started .grouplet_grid_tab_add.canBeDropped {
     top: 50%;
     transform: translateY(-50%);
 }
+.grouplet_grid--entry:not(.grouplet_grid--struct) .grouplet_grid_row--entry {
+    padding-right: calc(var(--gg-entry-action-width) + 2 * var(--gg-entry-action-gap));
+}
+.grouplet_grid--entry:not(.grouplet_grid--struct) .grouplet_grid_row_add,
+.grouplet_grid--entry:not(.grouplet_grid--struct) .grouplet_grid_row_trash {
+    right: var(--gg-entry-action-gap);
+    width: var(--gg-entry-action-width);
+    height: var(--gg-entry-action-height);
+}
 .grouplet_grid--entry:not(.grouplet_grid--struct) .grouplet_grid_row_add {
     top: auto;
-    bottom: 6px;
+    bottom: var(--gg-entry-action-gap);
+}
+.grouplet_grid--entry:not(.grouplet_grid--struct) .grouplet_grid_row_add_glyph {
+    font-size: 1em;
 }
 /* Template mode: the edited row's delete sits beside the save button. */
 .grouplet_grid--struct.grouplet_grid--entry.grouplet_grid--templated .grouplet_grid__struct_row {
@@ -2041,8 +2056,7 @@ body.drag_started .grouplet_grid_tab_add.canBeDropped {
 }
 /* cards: stacked over the save button, in the card's right padding */
 .grouplet_grid--entry:not(.grouplet_grid--struct) .grouplet_grid_row_trash {
-    right: 6px;
-    bottom: 32px;
+    bottom: calc(var(--gg-entry-action-height) + 2 * var(--gg-entry-action-gap));
 }
 .grouplet_grid_row_trash::before,
 .grouplet_grid_trash_glyph {
