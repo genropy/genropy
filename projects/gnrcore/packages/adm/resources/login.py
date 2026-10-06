@@ -229,6 +229,8 @@ class LoginComponent(BaseComponent):
         waiting2fa = self.pageStore().getItem('waiting2fa')
         if waiting2fa:
             return {'error':'Waiting authentication code'}
+        if not guestName and not self.login_isChecked(login):
+            return {'error':'Invalid login'}
         kwargs.pop('authenticate',None)
         self.doLogin(login=login,guestName=guestName,rootenv=rootenv,**kwargs)
         if login['error']:
@@ -241,6 +243,7 @@ class LoginComponent(BaseComponent):
         rootenv['login_date'] = date.today()
         self.login_enforceWorkdate(rootenv)
         rootenv['language'] = rootenv['language'] or self.language
+        self.login_setChecked(None)
         self.connectionStore().setItem('defaultRootenv',rootenv) #no need to be locked because it's just one set
         return self.login_newWindow(rootenv=rootenv)
 
@@ -248,6 +251,7 @@ class LoginComponent(BaseComponent):
     def login_checkAvatar(self,password=None,user=None,group_code=None,serverTimeDelta=None,**kwargs):
         logger.info("Checking login for user: %s", user)
         result = Bag()
+        self.login_setChecked(None)
         try:
             avatar = self.application.getAvatar(user, password=password,group_code=group_code,authenticate=True)
             if not avatar:
@@ -256,6 +260,7 @@ class LoginComponent(BaseComponent):
         except GnrRestrictedAccessException as e:
             logger.exception(e)
             return Bag(login_error_msg=e.description)
+        self.login_setChecked(user,group_code)
         status = getattr(avatar,'status',None)
         if not status:
             avatar.extra_kwargs['status'] = 'conf'
@@ -277,6 +282,16 @@ class LoginComponent(BaseComponent):
         logger.info("User %s logged in", user)
         return result
     
+    def login_setChecked(self,user,group_code=None):
+        with self.pageStore() as ps:
+            ps.setItem('login_checked',Bag(dict(user=user,group_code=group_code or None)) if user else None)
+
+    def login_isChecked(self,login):
+        checked = self.pageStore().getItem('login_checked')
+        if not checked or not login or not login['user']:
+            return False
+        return checked['user']==login['user'] and checked['group_code']==(login['group_code'] or None)
+
     def login_require2fa(self,avatar):
         service = self.getService('2fa')
         if not service:
