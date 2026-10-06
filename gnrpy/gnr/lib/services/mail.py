@@ -28,7 +28,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.image import MIMEImage
 from email.mime.application import MIMEApplication
-from email.utils import formatdate
+from email.utils import formatdate, make_msgid
 import re, html.entities
 import mimetypes
 
@@ -195,6 +195,25 @@ class MailService(GnrBaseService):
         else:
             to = to_address
         return to, cc, bcc
+
+    def set_address_headers(self, msg, from_address=None, to_address=None, reply_to=None):
+        """Set the From, To, Date, Message-ID and Reply-To headers on ``msg``.
+
+        Receiving servers usually flag as spam a message without these headers.
+
+        :param msg: the message built by :meth:`build_base_message`, modified in place
+        :param from_address: the email sender, also used as Message-ID domain
+        :param to_address: the email receiver
+        :param reply_to: the reply-to address"""
+        if from_address:
+            msg['From'] = from_address
+        if to_address:
+            msg['To'] = to_address
+        msg['Date'] = formatdate(localtime=True)
+        domain = from_address.split('@')[-1] if from_address and '@' in from_address else None
+        msg['Message-ID'] = make_msgid(domain=domain)
+        if reply_to:
+            msg.add_header('reply-to', reply_to)
 
     def build_base_message(self, subject, body, attachments=None, html=None, charset=None):
         """Add???
