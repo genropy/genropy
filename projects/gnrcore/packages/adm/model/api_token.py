@@ -110,6 +110,11 @@ class Table(object):
 
         Returns dict with auth_tags, description, token_id if valid.
         Returns None if invalid, expired, or inactive.
+
+        A token stands either for a group (group_code: tags shared by
+        anonymous clients) or for a user (user_id): with user_id the
+        identity comes from authenticate and the token's group_code is
+        not used. Packages add their own keys through onApiTokenValidation.
         """
         records = self.query(
             columns='$id,$description,$expires_ts,$is_active,$all_tags,$group_code,'
@@ -145,10 +150,12 @@ class Table(object):
     def userTokenInfo(self, token_info, username):
         """Add the identity of the token's user to token_info.
 
-        Returns None when the user's status is not 'conf'. The values are
-        copied: the cached result of authenticate is never modified."""
+        Returns None when the user is not found or its status is not
+        'conf' (an empty status counts as 'conf', as in the web login).
+        The values are copied: the cached result of authenticate is never
+        modified."""
         auth = self.db.application.packages['adm'].authenticate(username)
-        if (auth.get('status') or 'conf') != 'conf':
+        if not auth or (auth.get('status') or 'conf') != 'conf':
             return None
         tags = set(filter(None, (auth.get('tags') or '').split(',')))
         tags.update(filter(None, (token_info['auth_tags'] or '').split(',')))
@@ -164,8 +171,10 @@ class Table(object):
 
     def packagesTokenInfo(self, token_info):
         """Broadcast onApiTokenValidation and merge each package's dict
-        into token_info under the '<pkgId>_' prefix."""
-        for pkgId, values in self.db.application.pkgBroadcast('onApiTokenValidation', token_info):
+        into token_info under the '<pkgId>_' prefix. Each hook receives a
+        copy, so it cannot write keys without the prefix."""
+        broadcast = self.db.application.pkgBroadcast('onApiTokenValidation', dict(token_info))
+        for pkgId, values in broadcast:
             for k, v in values.items():
                 key = f'{pkgId}_{k}'
                 if key in token_info:

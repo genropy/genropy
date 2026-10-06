@@ -145,6 +145,25 @@ def test_packages_add_prefixed_keys(data, monkeypatch):
     assert result['user'] == 'tk_conf'
 
 
+def test_hook_receives_a_copy(data, monkeypatch):
+    db = data['db']
+
+    def hook(token_info):
+        token_info['auth_tags'] = 'HACKED'
+        return None
+
+    monkeypatch.setattr(db.application.packages['sys'], 'onApiTokenValidation',
+                        hook, raising=False)
+    _, token_value = _token(db, user_id=data['user_conf'])
+    assert _validate(db, token_value)['auth_tags'] != 'HACKED'
+
+
+def test_unknown_user_is_refused(data):
+    db = data['db']
+    assert db.table('adm.api_token').userTokenInfo(
+        {'auth_tags': ''}, 'tk_nobody') is None
+
+
 def test_package_cannot_overwrite_existing_keys(data, monkeypatch):
     db = data['db']
     monkeypatch.setattr(db.application.packages['sys'], 'onApiTokenValidation',
