@@ -1828,7 +1828,7 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
         }
         //cell = sourceNode.evaluateOnNode(cell);
 
-        cell.name = '<div '+ ((sourceNode.attr.draggable_column)?'draggable="true"' :'' )+ ' class="cellHeaderContent" >'+cell_name || '&nbsp;'+'</div>';
+        cell.name = '<div '+ ((sourceNode.attr.draggable_column)?'draggable="true"' :'' )+ ' class="cellHeaderContent" >'+(cell_name || '&nbsp;')+'</div>';
         if (cell.field) {
             if(cell.field.indexOf(':')>=0 && !cell._customGetter){
                 var f = cell.field.split(':');
