@@ -224,7 +224,7 @@ class FrameGridTools(BaseComponent):
         default_closable = dict(closable_bottom='12px',
             closable_iconClass='sigma_icon',
             closable_tip='!!Group by',
-            closable__class='tab_opener')
+            closable__class='tab_opener grouper_opener')
         default_closable.update(closable_kwargs)
         box_kwargs.setdefault('border_right','1px solid silver')
         box_kwargs.update(default_closable)

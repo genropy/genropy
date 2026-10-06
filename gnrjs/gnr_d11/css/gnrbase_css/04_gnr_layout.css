@@ -117,8 +117,8 @@
 	border: 1px solid var(--accent-color);
 }
 .slotbarOpener_left.tab_opener{
-	right: -19px;
-	border-left: 2px solid color-mix(in srgb, var(--accent-color) 65%, black);
+	right: -17px;
+	border-left: 0;
 	border-radius: 0 var(--radius-md) var(--radius-md) 0;
 }
 .slotbarOpener_right.tab_opener{
@@ -135,6 +135,13 @@
 	font-size: 10px;
 	letter-spacing: .04em;
 	white-space: nowrap;
+}
+.slotbarOpener_left.grouper_opener{
+	right: -18px;
+}
+.closedSide > .slotbarOpener_left.grouper_opener{
+	right: -19px;
+	border-left: 2px solid var(--accent-on-color);
 }
 
 .slotCaption {
