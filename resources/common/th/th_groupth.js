@@ -312,15 +312,25 @@ var genro_plugin_groupth = {
         });
         return {'struct':resultStruct,'store':resultStore};
     },
+    addGridColumnCb:function(grid,kw){
+        var sourceGrid = genro.wdgById(kw.data.gridId);
+        if(!sourceGrid || sourceGrid===grid || sourceGrid.sourceNode.attr.table!=grid.sourceNode.attr.table){
+            return;
+        }
+        var cell = sourceGrid.cellmap[kw.data.field];
+        if(!cell || cell.calculated){
+            return;
+        }
+        this.addColumnCb(grid,{column:kw.column,data:{fieldpath:cell.caption_field || cell.original_field,
+                                                     dtype:cell.caption_field?'T':cell.dtype,
+                                                     fullcaption:cell.original_name || cell.name,
+                                                     hierarchical_field_of:cell.hierarchical_field_of}});
+    },
+
     addColumnCb:function(grid,kw){
-        var treeNode = kw.treeNode;
         var data = kw.data;
         var column = kw.column;
         var fieldcellattr = kw.fieldcellattr;
-        var n = treeNode.getRelativeData(treeNode.attr.storepath).getNode(data.fieldpath);
-        /* if(n && n.attributeOwnerNode('mode','M')){
-            genro.publish('floating_message',{messageType:'warning',message:_T('This kind of relation is not allowed in group by totalization')});
-        } */
         var dtype = data.dtype;
         var that = this;
         var dflt = new gnr.GnrBag(data);
