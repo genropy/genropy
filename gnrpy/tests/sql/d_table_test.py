@@ -35,7 +35,9 @@ gnrlogger = logging.getLogger('gnr')
 hdlr = logging.FileHandler('logs.log')
 gnrlogger.addHandler(hdlr)
 
+from gnr.core.gnrlang import GnrException
 from gnr.sql.gnrsql import GnrSqlDb
+from gnr.sql.gnrsqltable import GnrSqlBusinessLogicException
 
 from .common import BaseGnrSqlTest, configureDb
 
@@ -192,6 +194,16 @@ class BaseSql(BaseGnrSqlTest):
         with tempfile.NamedTemporaryFile(delete=True) as tmpdbfile:
             self.db.saveModel(tmpdbfile.name)
         assert self.db.model.src['packages.video.tables.people?pkey'] == 'id'
+
+    def test_exception_unknown_name(self):
+        tbl = self.db.table('video.movie')
+        with pytest.raises(GnrException) as excinfo:
+            tbl.exception('no_such_name')
+        assert 'no_such_name' in str(excinfo.value)
+
+    def test_exception_business_logic(self):
+        exc = self.db.table('video.movie').exception('business_logic', msg='refused')
+        assert isinstance(exc, GnrSqlBusinessLogicException)
 
     def teardown_class(cls):
         cls.db.closeConnection()
