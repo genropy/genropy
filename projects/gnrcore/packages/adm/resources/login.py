@@ -98,15 +98,12 @@ class LoginComponent(BaseComponent):
                                 validate_onAccept="""genro.publish('onUserEntered',{username:value})""")
             tbpwd = fb.PasswordTextBox(value='^_login.password',lbl='!!Password',hidden=self.external_verified_user,
                                     nodeId='tb_login_pwd',autocomplete='current-password')
-            fb.dbSelect(value='^_login.group_code',table='adm.group',
-                        condition="""$code IN :all_groups 
-                                    AND (:secret_2fa IS NOT NULL OR $require_2fa IS NOT TRUE)""",
-                        condition_secret_2fa='=gnr.avatar.secret_2fa',
-                    condition_all_groups='^.all_groups?=#v || []',
+            fb.filteringSelect(value='^_login.group_code',storepath='gnr.avatar.login_groups',
+                    storeid='.code',storecaption='.description',
                     validate_notnull='^.group_selector_mandatory',
                     disabled='^.group_selector?=!#v',
                     hidden='^.group_selector?=!#v',
-                    lbl='!![en]Group',hasDownArrow=True,
+                    lbl='!![en]Group',
                     validate_onAccept="""
                     if(userChange){
                         let avatar_group_code = GET gnr.avatar.group_code;
@@ -225,14 +222,15 @@ class LoginComponent(BaseComponent):
         
 
     @public_method
-    def login_doLogin(self, rootenv=None,login=None,guestName=None, **kwargs):
+    def login_doLogin(self, rootenv=None,login=None, **kwargs):
         waiting2fa = self.pageStore().getItem('waiting2fa')
         if waiting2fa:
             return {'error':'Waiting authentication code'}
-        if not guestName and not self.login_isChecked(login):
+        if not self.login_isChecked(login):
             return {'error':'Invalid login'}
         kwargs.pop('authenticate',None)
-        self.doLogin(login=login,guestName=guestName,rootenv=rootenv,**kwargs)
+        kwargs.pop('guestName',None)
+        self.doLogin(login=login,rootenv=rootenv,**kwargs)
         if login['error']:
             return dict(error=login['error'])
         rootenv['user'] = self.avatar.user
@@ -272,6 +270,7 @@ class LoginComponent(BaseComponent):
         except GnrRestrictedAccessException as e:
             logger.exception(e)
             return Bag(login_error_msg=e.description)
+        result['avatar.login_groups'] = self.login_selectableGroups(avatar,result['rootenv.all_groups'])
         if self.login_require2fa(avatar):
             result['waiting2fa'] = avatar.user_id
             with self.pageStore() as ps:
@@ -291,6 +290,19 @@ class LoginComponent(BaseComponent):
         if not checked or not login or not login['user']:
             return False
         return checked['user']==login['user'] and checked['group_code']==(login['group_code'] or None)
+
+    def login_selectableGroups(self,avatar,all_groups):
+        groups = Bag()
+        if not all_groups:
+            return groups
+        where = '$code IN :all_groups'
+        if avatar.extra_kwargs.get('secret_2fa') is None:
+            where = f'{where} AND $require_2fa IS NOT TRUE'
+        rows = self.db.table('adm.group').query(columns='$code,$description',where=where,
+                                                all_groups=all_groups,order_by='$description').fetch()
+        for i,r in enumerate(rows):
+            groups.setItem(f'r_{i}',Bag(code=r['code'],description=r['description'] or r['code']))
+        return groups
 
     def login_require2fa(self,avatar):
         service = self.getService('2fa')
