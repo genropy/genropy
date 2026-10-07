@@ -653,7 +653,7 @@
    ha passato min_width + cols>1), il body diventa una CSS-grid responsiva.
    --gg-cols, --gg-min-width, --gg-gap sono custom properties settate inline
    sul container. */
-.grouplet_grid_container.grouplet_grid_responsive .grouplet_grid_body {
+.grouplet_grid_container.grouplet_grid_responsive > .grouplet_grid_body {
     display: grid;
     /* a framed body is taller than its rows: without this they stretch */
     align-content: start;
@@ -935,33 +935,28 @@ body.drag_started .grouplet_grid_container {
     overflow: hidden;
 }
 
-/* --- Drop target highlight ---
-   Target row: scales up slightly + thicker accent border + soft tint
-   + lift shadow. No infinite animation — the lift itself reads as
-   "this is the receiver". Same visual language as :focus-within and
-   .selected, just amplified. Transition is on the row so it eases in
-   smoothly when dragover enters and back out on dragleave. */
+/* The global reset suppresses outlines with !important. */
 .grouplet_grid_row.canBeDropped,
-.grouplet_grid_row.cannotBeDropped {
-    transform: scale(1.015);
-    box-shadow: var(--shadow-md, 0 2px 8px rgba(0,0,0,0.08));
-    transition: transform 200ms ease, box-shadow 200ms ease,
-                background-color 200ms ease, border-color 200ms ease;
+.grouplet_grid_body.canBeDropped,
+.grouplet_grid_footer.canBeDropped,
+.grouplet_grid_tab_add.canBeDropped {
+    outline: 2px solid var(--color-success, #4CAF50) !important;
+    transition: none;
+    outline-offset: -2px;
 }
 
-.grouplet_grid_row.canBeDropped {
-    background: var(--gg-accent-soft);
-    border: 2px solid var(--gg-accent);
-}
-
-/* Drop forbidden: payload comes from a non-matching dragCode (e.g.
-   another isolated grid). Same enlargement language but in danger
-   tones, plus a not-allowed cursor. The drop handler rejects the
-   payload silently. */
-.grouplet_grid_row.cannotBeDropped {
-    background: var(--gg-danger-soft);
-    border: 2px solid var(--gg-danger);
+.grouplet_grid_row.cannotBeDropped,
+.grouplet_grid_body.cannotBeDropped,
+.grouplet_grid_footer.cannotBeDropped,
+.grouplet_grid_tab_add.cannotBeDropped {
+    outline: 2px solid var(--gg-danger) !important;
+    transition: none;
+    outline-offset: -2px;
     cursor: not-allowed;
+}
+
+.grouplet_grid_body--drop:empty {
+    min-height: 38px;
 }
 
 /* --- Just-dropped flash ---
@@ -974,20 +969,6 @@ body.drag_started .grouplet_grid_container {
     border-color: var(--gg-accent);
     transition: background-color 260ms ease-out,
                 border-color 260ms ease-out;
-}
-
-/* --- Add-button ("+") drop target ---
-   Dropping a dragged card on the "+" appends it at the tail, or makes it
-   the first row when the grid is empty. The "+" is the only accepter for
-   the "append / empty grid" case — the rows themselves handle drop-to-
-   reorder. Listening on this leaf element keeps the DnD wiring clear of
-   the row drag handles. The highlight is gated on `body.drag_started` so
-   a stray class left by an aborted drag is invisible once the drag ends. */
-body.drag_started .grouplet_grid_footer.canBeDropped,
-body.drag_started .grouplet_grid_tab_add.canBeDropped {
-    outline: 2px solid var(--gg-accent);
-    outline-offset: -2px;
-    background: var(--gg-accent-soft);
 }
 
 /* --- Phantom add cell ---
@@ -1846,23 +1827,6 @@ body.drag_started .grouplet_grid_tab_add.canBeDropped {
 .grouplet_grid--struct .grouplet_grid_row.selected:hover {
     background: var(--gg-accent-soft);
     box-shadow: inset 2px 0 0 var(--gg-accent);
-}
-
-/* Drop-target feedback in struct mode: a thick accent line on top
-   of the target row marks where the dragged row will land. No
-   scale, no tint, no gap — just a horizontal rule in accent color.
-   Invalid state uses the same rule in danger color so the 'no drop'
-   state remains visible. */
-.grouplet_grid--struct .grouplet_grid_row.canBeDropped,
-.grouplet_grid--struct .grouplet_grid_row.cannotBeDropped {
-    transform: none;
-    background: transparent;
-}
-.grouplet_grid--struct .grouplet_grid_row.canBeDropped {
-    box-shadow: inset 0 3px 0 var(--gg-accent);
-}
-.grouplet_grid--struct .grouplet_grid_row.cannotBeDropped {
-    box-shadow: inset 0 3px 0 var(--gg-danger);
 }
 
 /* Tabular numerals + monospace digits for numeric columns: same
