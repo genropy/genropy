@@ -857,29 +857,37 @@ class TableBase(object):
         if commit:
             self.db.commit()
 
-    def sysRecord(self,syscode):
-        return self.cachedRecord(syscode,keyField='__syscode',createCb=self._sysRecordCreateCb)
+    def sysRecord(self,syscode,currentConnection=False):
+        if not currentConnection:
+            return self.cachedRecord(syscode,keyField='__syscode',createCb=self._sysRecordCreateCb)
+        record = self.record(__syscode=syscode,ignoreMissing=True).output('dict')
+        return dict(record or self._sysRecordCreate(syscode) or record)
 
     def _sysRecordCreateCb(self,syscode,**extra_fields):
-        sysRecord_masterfield = self.attributes.get('sysRecord_masterfield') or self.pkey
         with self.db.tempEnv(connectionName='system'):
-            record = getattr(self,'sysRecord_%s' %syscode)()
-            if not record:
-                return
-            record['__syscode'] = syscode
-            masterfield_value = record[sysRecord_masterfield]
-            if masterfield_value is not None:
-                oldrecord = self.query(where='$%s=:mv' %sysRecord_masterfield,mv=masterfield_value,
-                                            addPkeyColumn=False).fetch()
-                if oldrecord:
-                    oldrecord = oldrecord[0]
-                    record = dict(oldrecord)
-                    record['__syscode'] = syscode
-                    self.update(record,oldrecord)
+            return self._sysRecordCreate(syscode,commit=True,**extra_fields)
+
+    def _sysRecordCreate(self,syscode,commit=False,**extra_fields):
+        sysRecord_masterfield = self.attributes.get('sysRecord_masterfield') or self.pkey
+        record = getattr(self,'sysRecord_%s' %syscode)()
+        if not record:
+            return
+        record['__syscode'] = syscode
+        masterfield_value = record[sysRecord_masterfield]
+        if masterfield_value is not None:
+            oldrecord = self.query(where='$%s=:mv' %sysRecord_masterfield,mv=masterfield_value,
+                                        addPkeyColumn=False).fetch()
+            if oldrecord:
+                oldrecord = oldrecord[0]
+                record = dict(oldrecord)
+                record['__syscode'] = syscode
+                self.update(record,oldrecord)
+                if commit:
                     self.db.commit()
-                    return record
-            record.update(extra_fields)
-            self.insert(record)
+                return record
+        record.update(extra_fields)
+        self.insert(record)
+        if commit:
             self.db.commit()
         return record
 
