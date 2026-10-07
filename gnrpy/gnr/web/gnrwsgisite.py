@@ -1108,9 +1108,11 @@ class GnrWsgiSite(object):
             if not error_id or not self.db.package('sys'):
                 return None
             with self.db.tempEnv(connectionName='system', storename=self.db.rootstore):
-                return self.db.table('sys.error').record(
+                record = self.db.table('sys.error').record(
                     error_code=error_id, ignoreMissing=True,
                     ignoreDuplicate=True).output('dict') or None
+                self.db.rollback()
+                return record
         except Exception:
             logger.exception('Failed to write error %s',
                              kwargs.get('description') or kwargs.get('exception'))
