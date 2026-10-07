@@ -20,6 +20,7 @@ from gnr.core.gnrbag import Bag
 from gnr.core.gnrsys import expandpath
 from gnr.core.gnrconfig import gnrConfigPath
 from gnr.app.pathresolver import PathResolver
+from gnr.app.gnrapp import GnrApp
 from gnr.web.daemon.processes import GnrCronHandler, GnrDaemonServiceManager, GnrTaskSchedulerHandler
 from gnr.web import gnrtask
 from gnr.web import logger
@@ -266,12 +267,10 @@ class GnrDaemon(object):
         return proc
 
     def hasSysPackageAndIsPrimary(self,sitename):
-        instanceconfig = PathResolver().get_instanceconfig(sitename)
-        if instanceconfig:
-            has_sys = 'gnrcore:sys' in instanceconfig['packages']
-            secondary = has_sys and instanceconfig['packages'].getAttr('gnrcore:sys').get('secondary')
-            return has_sys and not secondary
-        return False
+        app = GnrApp(sitename, config_only=True, static_closure=True)
+        if app.unresolved_packages:
+            logger.warning(app.unresolved_packages_report())
+        return app.has_primary_sys_package()
 
     def addSiteRegister(self,domainIdentifier,storage_path=None,autorestore=False,port=None):
         # Extract sitename from domainIdentifier (format: sitename|domain or just sitename)
