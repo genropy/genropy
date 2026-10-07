@@ -282,6 +282,7 @@ gnr.GroupletGridDnD = class GroupletGridDnD {
 
     constructor(controller) {
         this.controller = controller;
+        this.appendTargets = new Map();
     }
 
     dropType() {
@@ -349,139 +350,131 @@ gnr.GroupletGridDnD = class GroupletGridDnD {
         });
     }
 
-    // === Tile (cards / struct) ===
-    // The handle ⠿ is the drag source; the tile wrapper is the drop
-    // zone. Stop propagation on dragstart so an outer tile (nested
-    // grids) doesn't re-snapshot its own card.
-
-    tileDragStart(e, tileDom, pkey) {
+    _startDrag(e, dom, pkey, opts) {
+        const c = this.controller;
+        if (!c._canMoveRowFrom(c, pkey)) {
+            e.preventDefault();
+            e.stopPropagation();
+            return;
+        }
+        gnr.GroupletGridDnD.endDrag();
         this._writePayload(e.dataTransfer, pkey);
-        const containerDom = this.controller._containerDom();
-        const struct = containerDom.classList.contains(
-            'grouplet_grid--struct');
-        this._setDragImage(e, tileDom, {struct: struct});
-        tileDom.classList.add('draggedItem');
+        this._setDragImage(e, dom, opts);
+        gnr.GroupletGridDnD.source = {controller: c, rowKey: pkey, dom: dom};
+        dom.classList.add('draggedItem');
         document.body.classList.add('drag_started');
+        document.addEventListener('dragend', gnr.GroupletGridDnD.endDrag, true);
+        document.addEventListener('drop', gnr.GroupletGridDnD.endDrag, true);
+        document.addEventListener('keydown', gnr.GroupletGridDnD.cancelDrag, true);
         e.stopPropagation();
     }
 
-    tileDragEnd(tileDom) {
-        tileDom.classList.remove('draggedItem',
-            'canBeDropped', 'cannotBeDropped');
+    static cancelDrag(e) {
+        if (e.key === 'Escape') gnr.GroupletGridDnD.endDrag();
+    }
+
+    static endDrag() {
+        const DnD = gnr.GroupletGridDnD;
+        if (DnD.receiver) DnD.receiver.dnd.clearHighlight();
+        if (DnD.source) DnD.source.dom.classList.remove('draggedItem');
+        DnD.source = null;
         document.body.classList.remove('drag_started');
+        document.removeEventListener('dragend', DnD.endDrag, true);
+        document.removeEventListener('drop', DnD.endDrag, true);
+        document.removeEventListener('keydown', DnD.cancelDrag, true);
+    }
+
+    clearHighlight(dom) {
+        const current = gnr.GroupletGridDnD.receiver;
+        if (!current || current.dnd !== this || (dom && current.dom !== dom)) return;
+        current.dom.classList.remove('canBeDropped', 'cannotBeDropped');
+        gnr.GroupletGridDnD.receiver = null;
+    }
+
+    _highlight(dom, allowed) {
+        const current = gnr.GroupletGridDnD.receiver;
+        if (current) current.dnd.clearHighlight();
+        dom.classList.add(allowed ? 'canBeDropped' : 'cannotBeDropped');
+        gnr.GroupletGridDnD.receiver = {dnd: this, dom: dom};
+    }
+
+    _dragOver(e, dom) {
+        if (!this._dataTransferHasOurType(e.dataTransfer)) return;
+        const source = gnr.GroupletGridDnD.source;
+        const allowed = !!source && !dom.classList.contains('draggedItem')
+            && this.controller._canMoveRowFrom(source.controller, source.rowKey);
+        e.stopPropagation();
+        e.dataTransfer.dropEffect = allowed ? 'move' : 'none';
+        this._highlight(dom, allowed);
+        if (allowed) e.preventDefault();
+    }
+
+    _dropData(e) {
+        if (!this._dataTransferHasOurType(e.dataTransfer)) return null;
+        e.stopPropagation();
+        e.preventDefault();
+        const data = genro.dom.getFromDataTransfer(e.dataTransfer, this.dropType());
+        const c = this.controller;
+        const source = data && c._findSourceController(data.sourceNodeId);
+        return source && c._canMoveRowFrom(source, data.rowKey) ? data : null;
+    }
+
+    tileDragStart(e, tileDom, pkey) {
+        this._startDrag(e, tileDom, pkey, {
+            struct: this.controller._containerDom().classList.contains('grouplet_grid--struct')
+        });
+    }
+
+    tileDragEnd() {
+        gnr.GroupletGridDnD.endDrag();
     }
 
     tileDragOver(e, tileDom) {
-        if (tileDom.classList.contains('draggedItem')) {
-            // Hovering the source tile itself: paint cannotBeDropped
-            // briefly (selfdrop preview) but do NOT preventDefault, so
-            // the drop won't fire on it.
-            tileDom.classList.add('cannotBeDropped');
-            return;
-        }
-        if (!this._dataTransferHasOurType(e.dataTransfer)) {
-            // Foreign drag (different dragCode / unrelated payload):
-            // leave the tile alone, let the event bubble to an outer
-            // dropTarget that might handle it.
-            return;
-        }
-        e.preventDefault();
-        e.stopPropagation();
-        e.dataTransfer.dropEffect = 'move';
-        tileDom.classList.add('canBeDropped');
+        this._dragOver(e, tileDom);
     }
 
     tileDragLeave(e, tileDom) {
-        if (!tileDom.contains(e.relatedTarget)) {
-            tileDom.classList.remove('canBeDropped', 'cannotBeDropped');
-        }
+        if (!tileDom.contains(e.relatedTarget)) this.clearHighlight(tileDom);
     }
 
     tileDrop(e, tileDom, pkey) {
-        tileDom.classList.remove('canBeDropped', 'cannotBeDropped');
-        const data = genro.dom.getFromDataTransfer(
-            e.dataTransfer, this.dropType());
-        if (!data) return;
-        e.preventDefault();
-        e.stopPropagation();
-        this.onDrop(data, pkey);
+        this.clearHighlight(tileDom);
+        const data = this._dropData(e);
+        if (data) this.onDrop(data, pkey);
     }
 
-    // === Chip (tabs / vtabs) ===
-    // Same shape as the tile path. Chips never carry inner widgets,
-    // so the dragover logic is simpler — no struct clone tag.
-
     chipDragStart(e, chipDom, pkey) {
-        this._writePayload(e.dataTransfer, pkey);
-        this._setDragImage(e, chipDom);
-        chipDom.classList.add('draggedItem');
-        document.body.classList.add('drag_started');
-        e.stopPropagation();
+        this._startDrag(e, chipDom, pkey);
     }
 
     chipDragOver(e, chipDom) {
-        if (chipDom.classList.contains('draggedItem')) return;
-        if (!this._dataTransferHasOurType(e.dataTransfer)) {
-            e.dataTransfer.dropEffect = 'none';
-            chipDom.classList.add('cannotBeDropped');
-            return;
-        }
-        e.preventDefault();
-        e.dataTransfer.dropEffect = 'move';
-        chipDom.classList.add('canBeDropped');
+        this._dragOver(e, chipDom);
     }
 
     chipDragLeave(e, chipDom) {
-        if (!chipDom.contains(e.relatedTarget)) {
-            chipDom.classList.remove('canBeDropped', 'cannotBeDropped');
-        }
+        this.tileDragLeave(e, chipDom);
     }
 
-    chipDragEnd(chipDom) {
-        chipDom.classList.remove('draggedItem',
-            'canBeDropped', 'cannotBeDropped');
-        document.body.classList.remove('drag_started');
+    chipDragEnd() {
+        gnr.GroupletGridDnD.endDrag();
     }
 
     chipDrop(e, chipDom, pkey) {
-        chipDom.classList.remove('canBeDropped', 'cannotBeDropped');
-        const data = genro.dom.getFromDataTransfer(
-            e.dataTransfer, this.dropType());
-        if (!data) return;
-        e.preventDefault();
-        this.onDrop(data, pkey);
+        this.tileDrop(e, chipDom, pkey);
     }
-
-    // === Add button ("+") — append / drop into an empty grid ===
-    // Dropping a card on the "+" affordance appends it at the tail, or
-    // makes it the first row when the grid is empty. The "+" is a LEAF
-    // (a sibling of the rows, not an ancestor of the drag handles), so
-    // listening here cannot interfere with the tiles' own drag start —
-    // which is exactly why this lives on the "+" and not on the body or
-    // container. Works for cards (footer "+") and tabs (tab-strip "+").
 
     addBtnDragOver(e) {
-        if (!this._dataTransferHasOurType(e.dataTransfer)) return;
-        e.preventDefault();
-        e.stopPropagation();
-        e.dataTransfer.dropEffect = 'move';
-        this._addBtnHighlight(true);
+        this._dragOver(e, e.currentTarget);
     }
 
-    addBtnDragLeave() {
-        this._addBtnHighlight(false);
+    addBtnDragLeave(e) {
+        this.tileDragLeave(e, e.currentTarget);
     }
 
     addBtnDrop(e) {
-        this._addBtnHighlight(false);
-        const data = genro.dom.getFromDataTransfer(
-            e.dataTransfer, this.dropType());
-        if (!data || !data.rowKey) return;
-        e.preventDefault();
-        e.stopPropagation();
-        // Append at the tail (after the last row), or no position when the
-        // grid is empty (→ the moved row becomes the first one). Same
-        // 'move' dispatch as onDrop; _handleAction routes self vs cross.
+        this.clearHighlight(e.currentTarget);
+        const data = this._dropData(e);
+        if (!data) return;
         const c = this.controller;
         const nodes = c.dataStore.getNodes();
         const lastKey = nodes.length ? nodes[nodes.length - 1].label : null;
@@ -494,11 +487,38 @@ gnr.GroupletGridDnD = class GroupletGridDnD {
         });
     }
 
-    _addBtnHighlight(on) {
-        const c = this.controller;
-        const btn = c.addBtnDom || (c.phantomTile && c.phantomTile.domNode());
-        if (btn) btn.classList.toggle('canBeDropped', on);
+    wireAppendTarget(dom, body) {
+        if (!dom || this.appendTargets.has(dom)) return;
+        const handlers = {
+            dragover: (e) => {
+                if (!body || e.target === dom) this.addBtnDragOver(e);
+            },
+            dragleave: (e) => this.addBtnDragLeave(e),
+            drop: (e) => {
+                if (!body || e.target === dom) this.addBtnDrop(e);
+            }
+        };
+        Object.keys(handlers).forEach((name) => dom.addEventListener(name, handlers[name]));
+        this.appendTargets.set(dom, handlers);
+        if (body) dom.classList.add('grouplet_grid_body--drop');
     }
+
+    unwireAppendTarget(dom) {
+        this.clearHighlight(dom);
+        const handlers = this.appendTargets.get(dom);
+        if (!handlers) return;
+        Object.keys(handlers).forEach((name) => dom.removeEventListener(name, handlers[name]));
+        dom.classList.remove('grouplet_grid_body--drop');
+        this.appendTargets.delete(dom);
+    }
+
+    destroy() {
+        this.appendTargets.forEach((handlers, dom) => this.unwireAppendTarget(dom));
+        this.clearHighlight();
+        const source = gnr.GroupletGridDnD.source;
+        if (source && source.controller === this.controller) gnr.GroupletGridDnD.endDrag();
+    }
+
 };
 
 
@@ -836,6 +856,7 @@ gnr.GroupletGridController = class GroupletGridController {
         // attached to the DOM before tiles are created.
         genro.src.onBuiltCall(function() {
             if (that._destroyed) return;
+            that._wireBodyDnD();
             that._initChangeManager();
             that.newDataStore();
             that._updateAddBtnState();
@@ -858,6 +879,7 @@ gnr.GroupletGridController = class GroupletGridController {
             entryBag.unsubscribe(this._entrySubscriberId());
         }
         this._teardownLayoutAffordances();
+        if (this.dnd) this.dnd.destroy();
         if (this._structResizeObserver) {
             this._structResizeObserver.disconnect();
             this._structResizeObserver = null;
@@ -1570,6 +1592,12 @@ gnr.GroupletGridController = class GroupletGridController {
     }
 
     _teardownLayoutAffordances() {
+        if (this.dnd) {
+            this.dnd.clearHighlight();
+            this.dnd.unwireAppendTarget(this._dropBodyDom);
+            this._dropBodyDom = null;
+            this.dnd.unwireAppendTarget(this.addBtnDom);
+        }
         // Drop the layout chrome only; row wrappers and their widgets
         // survive across a setLayout swap.
         if (this.addBtnDom && this.addBtnDom.parentNode) {
@@ -1625,6 +1653,7 @@ gnr.GroupletGridController = class GroupletGridController {
             this.activePkey = prevActive;
         }
         this._buildLayoutAffordances();
+        this._wireBodyDnD();
         this._reconcileTileDnD();
         if (this.phantom || this.entry) {
             if (this._isTabsLayout()) {
@@ -1685,16 +1714,16 @@ gnr.GroupletGridController = class GroupletGridController {
     }
 
     _wireAddBtnDnD() {
-        // Native DnD on the "+" (a leaf element) so a drop there appends /
-        // lands in an empty grid. The button is recreated by every layout
-        // build, so this follows setLayout automatically; its listeners
-        // die with the button when the footer/tabbar is torn down.
-        const btn = this.addBtnDom;
-        if (!this.dnd || !btn) return;
-        const dnd = this.dnd;
-        btn.addEventListener('dragover', (e) => dnd.addBtnDragOver(e));
-        btn.addEventListener('dragleave', () => dnd.addBtnDragLeave());
-        btn.addEventListener('drop', (e) => dnd.addBtnDrop(e));
+        if (this.dnd) this.dnd.wireAppendTarget(this.addBtnDom);
+    }
+
+    _wireBodyDnD() {
+        if (this.dnd && !this._isTabsLayout() && this.bodyNode) {
+            const dom = this.bodyNode.getDomNode();
+            if (this._dropBodyDom !== dom) this.dnd.unwireAppendTarget(this._dropBodyDom);
+            this._dropBodyDom = dom;
+            this.dnd.wireAppendTarget(dom, true);
+        }
     }
 
     _buildTabbar(containerDom) {
@@ -1944,7 +1973,27 @@ gnr.GroupletGridController = class GroupletGridController {
     //  DnD move dispatch — see gnr.GroupletGridDnD at the top of file.
     // ====================================================================
 
+    gnr_setDisabled(disabled) {
+        genro.dom.setDomNodeDisabled(this._containerDom(), disabled);
+        if (disabled && this.dnd) this.dnd.clearHighlight();
+    }
+
+    _canMoveRowFrom(source, rowKey) {
+        if (!source || this._destroyed || source._destroyed
+                || !this.dragCode || this.dragCode !== source.dragCode
+                || !rowKey || !source.dataStore.rowNode(rowKey)) return false;
+        for (const c of [this, source]) {
+            const form = c.sourceNode.getFormHandler();
+            if ((form && form.isDisabled()) || c.sourceNode.disabled
+                    || c.sourceNode.getAttributeFromDatasource('disabled')) return false;
+        }
+        return source === this || (this.additem
+            && (!this.maxRows || this.dataStore.getNodes().length < this.maxRows)
+            && source.dataStore.getNodes().length > source.minRows);
+    }
+
     _doMoveTile(pkey, position) {
+        if (!this._canMoveRowFrom(this, pkey)) return;
         // dataStore.moveRow splices the Bag's _nodes in place (no del/ins
         // triggers) so nested widgets keep a valid datapath chain; the
         // tile/chip DOM is mirrored here.
@@ -1986,7 +2035,7 @@ gnr.GroupletGridController = class GroupletGridController {
     _doMoveTileFrom(sourceCtrl, sourceRowKey, targetPosition) {
         // Cross-instance migration. The guard catches the browser quirk
         // where a self-drop is misrouted to the source controller.
-        if (sourceCtrl === this) return;
+        if (sourceCtrl === this || !this._canMoveRowFrom(sourceCtrl, sourceRowKey)) return;
         // Pre-commit the target key so _pendingFlash is set before the
         // setItem trigger fires _renderTile.
         const targetBag = this.dataStore.getData();
@@ -2039,6 +2088,7 @@ gnr.GroupletGridController = class GroupletGridController {
         this.bodyNode.freeze();
         toAdd.forEach((pkey) => this._renderTile(pkey));
         this.bodyNode.unfreeze();
+        this._wireBodyDnD();
         // In lazy mode _renderTile only built wrappers: graft the body of
         // the (pre-decided) active tile so the first tab is visible.
         if (this.lazyTabs && this._isTabsLayout() && this.activePkey) {
@@ -2285,6 +2335,11 @@ gnr.GroupletGridController = class GroupletGridController {
     }
 
     _updateAddBtnState() {
+        const body = this.entry && this.bodyNode && this.bodyNode.getDomNode();
+        if (body) {
+            body.setAttribute('data-entry-hint',
+                _T('!!Fill in the fields above, then press Enter or click ↵ to add the row.'));
+        }
         const atMax = !!(this.maxRows
                          && this._rowCount() >= this.maxRows);
         if (this.phantom || this.entry) {
@@ -3206,11 +3261,7 @@ gnr.GroupletGridController = class GroupletGridController {
     }
 
     _wirePhantomDnD(phantomDom) {
-        // Drop on the phantom appends, as the `+` does in the other modes.
-        const dnd = this.dnd;
-        phantomDom.addEventListener('dragover', (e) => dnd.addBtnDragOver(e));
-        phantomDom.addEventListener('dragleave', () => dnd.addBtnDragLeave());
-        phantomDom.addEventListener('drop', (e) => dnd.addBtnDrop(e));
+        this.dnd.wireAppendTarget(phantomDom);
     }
 
     // ====================================================================
@@ -3481,6 +3532,7 @@ gnr.GroupletGridTile = class GroupletGridTile {
 
     unmount() {
         this._cancelPendingBody();
+        if (this.controller.dnd) this.controller.dnd.unwireAppendTarget(this.tileDom);
         this._unwireTileDnD();
         this._unwireHandleDnD();
         // popNode does not propagate form de-registration to the grafted
@@ -3982,6 +4034,7 @@ gnr.GroupletGridEntryTile = class GroupletGridEntryTile extends gnr.GroupletGrid
                     ? domnode.sourceNode.getDomNode()
                     : domnode;
                 if (tile.tileDom) {
+                    if (c.dnd) c._wirePhantomDnD(tile.tileDom);
                     tile.tileDom.addEventListener('keydown',
                         (e) => c._onEntryKeydown(e), true);
                     tile.tileDom.addEventListener('focusin', (e) => {
