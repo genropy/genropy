@@ -428,7 +428,8 @@
 <gnrcomponents><grouplet><grouplet_grid path="resources/common/gnrcomponents/grouplet/grouplet_grid.js" ext="js"><en_add_prev base="Add prev" it="Inserisci prima"></en_add_prev>
 <en_add_next base="Add next" it="Inserisci dopo"></en_add_next>
 <en_drag_to_reorder base="Drag to reorder" it="Trascina per riordinare"></en_drag_to_reorder>
-<en_row_actions base="Row actions" it="Azioni riga"></en_row_actions></grouplet_grid></grouplet>
+<en_row_actions base="Row actions" it="Azioni riga"></en_row_actions>
+<en_fill_in_the_fields_above_then_press_enter_or_click_to_add_the_row_ base="Fill in the fields above, then press Enter or click ↵ to add the row." it="Compila i campi qui sopra, poi premi Invio o fai clic su ↵ per aggiungere la riga."></en_fill_in_the_fields_above_then_press_enter_or_click_to_add_the_row_></grouplet_grid></grouplet>
 <attachmanager><attachmanager path="resources/common/gnrcomponents/attachmanager/attachmanager.py" ext="py"><en_filepath fr="Chemin Du Fichier" de="Dateipfad" en="Filepath" it="Filepath" base="Filepath"></en_filepath>
 <en_copied_into_clipboard base="Copied into clipboard"></en_copied_into_clipboard>
 <en_imp_ base="Imp." de="Imp." en="Imp." fr="Imp." it="Imp."></en_imp_>

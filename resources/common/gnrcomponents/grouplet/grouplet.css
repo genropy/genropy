@@ -1902,6 +1902,18 @@ body.drag_started .grouplet_grid_container {
     position: relative;
     z-index: 3;
 }
+.grouplet_grid--entry:not([disabled]):not(.grouplet_grid--tabs):not(.grouplet_grid--vtabs):not(.grouplet_grid--at-max) > .grouplet_grid_body:empty::before {
+    content: attr(data-entry-hint);
+    grid-column: 1 / -1;
+    padding: 12px;
+    color: var(--gg-text-muted);
+    font-size: 0.95em;
+    line-height: 1.5;
+    pointer-events: none;
+}
+.lockedContainer .grouplet_grid--entry > .grouplet_grid_body:empty::before {
+    display: none;
+}
 .grouplet_grid_row--entry .dijitTextBox:not(.dijitError),
 .grouplet_grid_row--entry .dijitTextArea:not(.dijitError) {
     background: var(--gg-surface);

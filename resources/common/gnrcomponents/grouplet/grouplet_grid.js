@@ -2335,6 +2335,11 @@ gnr.GroupletGridController = class GroupletGridController {
     }
 
     _updateAddBtnState() {
+        const body = this.entry && this.bodyNode && this.bodyNode.getDomNode();
+        if (body) {
+            body.setAttribute('data-entry-hint',
+                _T('!!Fill in the fields above, then press Enter or click ↵ to add the row.'));
+        }
         const atMax = !!(this.maxRows
                          && this._rowCount() >= this.maxRows);
         if (this.phantom || this.entry) {
