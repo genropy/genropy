@@ -28,7 +28,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.image import MIMEImage
 from email.mime.application import MIMEApplication
-from email.utils import formatdate, make_msgid
+from email.utils import formatdate, make_msgid, parseaddr
 import re, html.entities
 import mimetypes
 
@@ -210,7 +210,8 @@ class MailService(GnrBaseService):
         if to_address:
             msg['To'] = to_address
         msg['Date'] = formatdate(localtime=True)
-        domain = from_address.split('@')[-1] if from_address and '@' in from_address else None
+        sender = parseaddr(from_address)[1] if from_address else ''
+        domain = sender.split('@')[-1] if '@' in sender else None
         msg['Message-ID'] = make_msgid(domain=domain)
         if reply_to:
             msg.add_header('reply-to', reply_to)

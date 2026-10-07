@@ -22,6 +22,12 @@ def test_set_address_headers_complete():
     assert msg['Message-ID'].endswith('@example.com>')
 
 
+def test_set_address_headers_display_name_sender():
+    msg = build_message(from_address='Sender Name <sender@example.com>')
+    assert msg['From'] == 'Sender Name <sender@example.com>'
+    assert msg['Message-ID'].endswith('@example.com>')
+
+
 def test_set_address_headers_without_addresses():
     msg = build_message()
     assert msg['From'] is None
