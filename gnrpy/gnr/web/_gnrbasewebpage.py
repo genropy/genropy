@@ -299,11 +299,9 @@ class GnrBaseWebPage(GnrObject):
             diskpath = os.path.join(sitefolder, 'pages', '..', 'data', *args)
             return diskpath
         elif folder == '*users':
-            diskpath = os.path.join(sitefolder, 'pages', '..', 'data', '_users', *args)
-            return diskpath
+            return self.site.domainDataFolder('_users', *args)
         elif folder == '*home':
-            diskpath = os.path.join(sitefolder, 'pages', '..', 'data', '_users', self.user, *args)
-            return diskpath
+            return self.site.domainDataFolder('_users', self.user, *args)
         elif folder == '*pages':
             diskpath = os.path.join(sitefolder, 'pages', *args)
         elif folder == '*lib':

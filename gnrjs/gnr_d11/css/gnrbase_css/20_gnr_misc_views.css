@@ -403,14 +403,15 @@
     background:transparent !important;
 }
 
-.th_linkerBar{
+/* only where the field is a pill: a plain linkerBox bar keeps its old height */
+.th_linkerBoxFlex > .th_linkerBar, .th_linkerAlwaysOpen .th_linkerBar{
     box-sizing:border-box;
     padding-top:var(--linker-bar-padding-y);
     padding-bottom:var(--linker-bar-padding-y);
 }
 
-/* the bar label is bold, the field in the same bar is not */
-.th_linkerBar .th_linker{
+/* the bar label is bold, the field in the same bar is not (flex and always open only) */
+.th_linkerBoxFlex .th_linkerBar .th_linker, .th_linkerAlwaysOpen .th_linkerBar .th_linker{
     font-weight:normal;
 }
 
@@ -516,8 +517,8 @@
     padding-right:0;
 }
 
-/* the edit pencil of a linker box: a small glyph, not a button */
-.th_linkerBoxFooter .iconbox.pencil{
+/* the edit pencil of a flex linker box: a small glyph, not a button */
+.th_linkerBoxFlex > .th_linkerBoxFooter .iconbox.pencil{
     transform:scale(.7);
 }
 

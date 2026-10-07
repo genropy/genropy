@@ -472,9 +472,6 @@ class GnrWsgiSite(object):
             # serves the site: there is no daemon to reach and no config word to
             # write, so the site has WebSockets because the provider says so.
             self.websockets = True
-        self.allConnectionsFolder = os.path.join(self.site_path, 'data', '_connections')
-        self.allUsersFolder = os.path.join(self.site_path, 'data', '_users')
-
         self.homepage = self.config['wsgi?homepage'] or self.default_uri + 'index'
         self.indexpage = self.config['wsgi?homepage'] or '/index'
         self._guest_counter = 0
@@ -680,6 +677,26 @@ class GnrWsgiSite(object):
         if self.multidomain:
             return f'{self.default_uri}{self.currentDomain}/'
         return self.default_uri
+
+    def domainDataFolder(self, *parts):
+        """Data folder of the current domain.
+
+        The root domain, and every single-domain site, keep ``data`` itself;
+        a workspace owns ``data/_domains/<domain>``, so what a connection or
+        a user writes never crosses the tenant boundary.
+        """
+        domain = self.currentDomain
+        if self.multidomain and domain and domain != self.rootDomain:
+            return os.path.join(self.site_path, 'data', '_domains', domain, *parts)
+        return os.path.join(self.site_path, 'data', *parts)
+
+    @property
+    def allConnectionsFolder(self):
+        return self.domainDataFolder('_connections')
+
+    @property
+    def allUsersFolder(self):
+        return self.domainDataFolder('_users')
 
     @property
     def rootDomainHomeUri(self):
@@ -1761,10 +1778,9 @@ class GnrWsgiSite(object):
 
     def dropConnectionFolder(self, connection_id=None):
         """:param connection_id: TODO"""
-        pathlist = ['data', '_connections']
+        connectionFolder = self.allConnectionsFolder
         if connection_id:
-            pathlist.append(connection_id)
-        connectionFolder = os.path.join(self.site_path, *pathlist)
+            connectionFolder = os.path.join(connectionFolder, connection_id)
         for root, dirs, files in os.walk(connectionFolder, topdown=False):
             for name in files:
                 os.remove(os.path.join(root, name))
@@ -1831,11 +1847,30 @@ class GnrWsgiSite(object):
             return
         if not won:
             return
-        Thread(target=self._runCleanup, daemon=True).start()
+        Thread(target=self._runCleanup, kwargs=dict(domain=self.currentDomain),
+               daemon=True).start()
 
-    def _runCleanup(self):
-        """Worker thread: drops stale pages/connections from the register
-        and removes their filesystem folders under _connections/.
+    def _runCleanup(self, domain=None):
+        """Clean the folders of one domain, in whatever thread.
+
+        The on-event pass runs in a thread of its own, where currentDomain
+        is unset and falls back to the root domain: the caller hands over
+        the domain it claimed the cleanup on, or the register and the
+        folders of the workspace would never be the ones walked. Without a
+        domain the walk takes the caller's, and leaves it alone: a request
+        thread still has its own rpc to finish on that register."""
+        if domain is None:
+            self._cleanupConnectionFolders()
+            return
+        self.currentDomain = domain
+        try:
+            self._cleanupConnectionFolders()
+        finally:
+            self.currentDomain = None
+
+    def _cleanupConnectionFolders(self):
+        """Drops stale pages/connections from the register of the current
+        domain and removes their filesystem folders under _connections/.
 
         Walks _connections/ once. For each entry:
         - if not in live connections AND old enough -> rmtree

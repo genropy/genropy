@@ -954,6 +954,10 @@ dojo.declare("gnr.GnrDomHandler", null, {
                 genro.dom.onDragLeave(event);
             }
             genro._lastDropTarget = event.target;
+            genro.dom._dragOverRefresh = false;
+            genro.dom.onDragEnter(event);
+        } else if (genro.dom._dragOverRefresh) {
+            genro.dom._dragOverRefresh = false;
             genro.dom.onDragEnter(event);
         }
         if(event.target.sourceNode && event.target.sourceNode.getInheritedAttributes().dragOverCb){

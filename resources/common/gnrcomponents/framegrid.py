@@ -221,14 +221,10 @@ class FrameGridTools(BaseComponent):
     @struct_method
     def fg_viewGrouper(self,view,table=None,region=None,closable='close',width=None
                         ,splitter=True,closable_kwargs=None,groupedThViewResource=None,box_kwargs=None,**kwargs):
-        default_closable = dict(closable_background='rgba(222, 255, 0, 1)',
-            closable_bottom='2px',
-            closable_width='14px',
-            closable_right='-20px',
-            closable_height='14px',
-            closable_padding='2px',
-            closable_opacity='1',
-            closable_iconClass='smalliconbox statistica_tools')
+        default_closable = dict(closable_bottom='12px',
+            closable_iconClass='sigma_icon',
+            closable_tip='!!Group by',
+            closable__class='tab_opener grouper_opener')
         default_closable.update(closable_kwargs)
         box_kwargs.setdefault('border_right','1px solid silver')
         box_kwargs.update(default_closable)
@@ -268,7 +264,8 @@ class FrameGridTools(BaseComponent):
         gth.dataController("""
         if(_reason=='node'){
             PUT .output = null;
-            SET .output = genro.groupth.groupCellInfoFromStruct(struct).group_by_cols.length>1?'tree':'grid'
+            var group_by_cols = genro.groupth.groupCellInfoFromStruct(struct).group_by_cols;
+            SET .output = group_by_cols.length>1 || group_by_cols.some(cell=>cell.hierarchical_field_of)?'tree':'grid';
         }
         """,struct='^.grid.struct')
         gth.dataController(f"""

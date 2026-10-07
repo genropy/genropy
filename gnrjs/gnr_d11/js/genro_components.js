@@ -2293,9 +2293,9 @@ dojo.declare("gnr.widgets.ExtendedJoditEditor", gnr.widgets.gnrwdg, {
     createContent:function(sourceNode, kw,children) {
         let containerkw = objectExtract(kw,'height,width,region,title,margin');
         objectUpdate(containerkw,objectExtract(kw,'margin_*',false,true));
-        let bc = sourceNode._('borderContainer',containerkw);
         let css_value = objectPop(kw,'css_value');
         let css_pars = objectExtract(kw,'css_*');
+        let bc = sourceNode._('borderContainer',containerkw);
         kw.contentStyles = css_value;
         kw.height = '100%';
         kw.width = '100%';
@@ -2304,14 +2304,8 @@ dojo.declare("gnr.widgets.ExtendedJoditEditor", gnr.widgets.gnrwdg, {
             css_pars = objectUpdate({value:css_value,height:'100%',width:'100%',config_mode:'css',
                                      config_lineNumbers:true,config_keyMap:'softTab'},css_pars);
             bc._('borderContainer',{region:'right',width:'30%',splitter:true,closable:'close',
-                                    closable_background:'rgba(222, 255, 0, 1)',
-                                    closable_top:'10px',
-                                    closable_width:'14px',
-                                    closable_left:'-20px',
-                                    closable_height:'14px',
-                                    closable_padding:'2px',
-                                    closable_opacity:'1',
-                                    closable_iconClass:'smalliconbox create_edit_html_template',
+                                    closable_bottom:'12px',closable_label:'CSS',
+                                    closable__class:'jodit_css_opener',closable_tip:_T('Edit the CSS'),
                                     border_left:'1px solid silver'})
                 ._('contentPane',{region:'center',overflow:'hidden',_lazyBuild:true})._('codemirror',css_pars);
         }
