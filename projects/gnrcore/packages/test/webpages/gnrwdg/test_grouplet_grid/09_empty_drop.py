@@ -36,6 +36,7 @@ class GnrCustomWebPage(object):
                              **(target_kw if side == 'target' else {}))
         pane.div('Drag by the dotted handle. The receiver must turn green without moving. '
                  'Drop in the white list, on the yellow entry, or after existing rows. '
+                 'The empty entry receiver shows a localized hint until its first row. '
                  'Type a draft first: a drop must leave it unchanged. Move out or press Esc '
                  'during a drag: the highlight must disappear.', margin_top='8px')
         pane.dataFormula('#WORKSPACE.counts',
@@ -53,7 +54,7 @@ class GnrCustomWebPage(object):
         self._drag_probe(pane)
 
     def test_01_entry(self, pane):
-        """Empty white body and entry tile accept rows; drafts and full row data survive."""
+        """Empty entry grids explain how to add a row; the hint disappears after insertion."""
         self._pair(pane, 'entry')
 
     def test_02_nested(self, pane):
