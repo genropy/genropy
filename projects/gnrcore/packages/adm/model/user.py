@@ -234,7 +234,7 @@ class Table(object):
                     self.update(user_record,old_record)
                     docommit = True
             else:
-                user_record = dict(externalUser)
+                user_record = self.newrecord(**externalUser)
                 self.insert(user_record)
                 docommit = True
             if docommit:
