@@ -2027,18 +2027,23 @@ dojo.declare("gnr.GridColumnFilterPane", null, {
         domNode.classList.add('gridColumnFilterPane');
         var label = document.createElement('div');
         label.innerHTML = cell.original_name || '';
-        var title = this.element('div','gcf_title',_T('Filter by')+' '+label.textContent);
+        var title = this.element('div','gcf_title',label.textContent);
+        this.searchBox = this.element('label','gcf_searchbox');
+        this.searchBox.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></svg>';
         this.searchNode = this.element('input','gcf_search');
         this.searchNode.type = 'search';
-        this.searchNode.hidden = true;
+        this.searchNode.placeholder = _T('Search');
+        this.searchBox.appendChild(this.searchNode);
+        this.searchBox.hidden = true;
         this.listNode = this.element('div','gcf_list');
         this.moreNode = this.element('div','gcf_more');
         this.moreNode.hidden = true;
         this.clearNode = this.element('button','gcf_clear',_T('Clear filter'));
         this.clearNode.type = 'button';
+        this.countNode = this.element('span','gcf_rowcount');
         var foot = this.element('div','gcf_foot');
-        foot.appendChild(this.clearNode);
-        domNode.append(title,this.searchNode,this.listNode,this.moreNode,foot);
+        foot.append(this.clearNode,this.countNode);
+        domNode.append(title,this.searchBox,this.listNode,this.moreNode,foot);
         var that = this;
         this.searchNode.addEventListener('input',function(){
             that.search = that.searchNode.value;
@@ -2104,10 +2109,9 @@ dojo.declare("gnr.GridColumnFilterPane", null, {
                    that.captionText(a).localeCompare(that.captionText(b));
         });
         this.items = items;
-        this.searchNode.hidden = items.length<=this.searchThreshold;
-        this.searchNode.placeholder = _T('Search');
+        this.searchBox.hidden = items.length<=this.searchThreshold;
         this.renderList();
-        if(!this.searchNode.hidden){
+        if(!this.searchBox.hidden){
             this.searchNode.focus();
         }
     },
@@ -2151,7 +2155,13 @@ dojo.declare("gnr.GridColumnFilterPane", null, {
         var rest = matches-shown;
         this.moreNode.hidden = rest<=0;
         this.moreNode.textContent = rest+' '+_T('more. Type to search.');
-        this.clearNode.disabled = checked.size===0;
+        this.updateFoot();
+    },
+
+    updateFoot:function(){
+        var store = this.grid.collectionStore();
+        this.clearNode.hidden = !(this.cell.filterValues && this.cell.filterValues.length);
+        this.countNode.textContent = store.len(true)+' / '+store.len();
     },
 
     toggle:function(input){
@@ -2164,7 +2174,7 @@ dojo.declare("gnr.GridColumnFilterPane", null, {
         }
         this.grid.setColumnFilter(this.cell,values);
         input.parentNode.classList.toggle('gcf_checked',input.checked);
-        this.clearNode.disabled = values.length===0;
+        this.updateFoot();
     }
 });
 
