@@ -1332,9 +1332,10 @@ class GnrWebPage(GnrBaseWebPage):
         :param record: TODO.
         :param msg: TODO."""
         if isinstance(exception, str):
-            exception = EXCEPTIONS.get(exception)
+            name = exception
+            exception = EXCEPTIONS.get(name)
             if not exception:
-                raise exception
+                raise GnrException(f'Unknown exception name: {name}')
         return exception(user=self.user,localizer=self.application.localizer,**kwargs)
 
     def gnrjs_imports(self):
