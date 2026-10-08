@@ -582,7 +582,7 @@ class GroupletHandler(BaseComponent):
             SET .wizard_saved_pkey = null;
             SET .wizard_pending_index = null;
             var confirmed = !isNew && !this.form.isDraft();
-            var readOnly = confirmed_ro && !isNew
+            var readOnly = confirmed_ro && !isNew && pkey != _reopened
                            && (confirmed || this.form.isProtectWrite());
             var sameMode = !readOnly == !_was_readonly;
             var sameRecord = !isNew && pkey == _loaded_pkey && sameMode;
@@ -667,9 +667,44 @@ class GroupletHandler(BaseComponent):
                             _step_index='=.step_index',
                             _current_resource='=.current_resource',
                             _steps='=.wizard_steps',
+                            _reopened='=#FORM.wizard_reopened',
                             step_field=resumeStepField,
                             confirmed_ro=_confirmedReadOnly,
                             formsubscribe_onLoaded=True)
+        if _confirmedReadOnly:
+            # <frameCode>_reopen {step}: a confirmed record opens for editing
+            # on that step, until it is saved or the form is dismissed
+            pane.dataController("""
+                SET #FORM.wizard_reopened = this.form.getCurrentPkey();
+                this.form.setLocked(false);
+                SET .wizard_readonly = false;
+                var nodes = _steps.getNodes();
+                var target = Math.max(nodes.findIndex(function(n){return n.label == step;}), 0);
+                if(nodes[target] && _current_resource == nodes[target].attr.resource){
+                    gnr_grouplet.wizardResolveRemote(this, nodes[target].label);
+                    FIRE .wizard_build;
+                }
+                SET .step_index = target;
+                SET .wizard_step_name = nodes[target] ? nodes[target].label : null;
+            """, _steps='=.wizard_steps', _current_resource='=.current_resource',
+                **{f'subscribe_{frameCode}_reopen': True})
+            # an advance saves a stored record without reloading it: reload it,
+            # to lock it again and build the next step on what was saved
+            pane.dataController("""if(!reopened || $1.pkey != reopened){ return; }
+                                   SET #FORM.wizard_reopened = null;
+                                   this.form.reload();""",
+                                reopened='=#FORM.wizard_reopened',
+                                formsubscribe_onSaved=True)
+            # an advance with nothing to save reloads nothing: reaching the last
+            # step locks the record again all the same
+            pane.dataController("""if(!reopened || idx != last || this.form.lazySaving){ return; }
+                                   SET #FORM.wizard_reopened = null;
+                                   SET .wizard_readonly = true;
+                                   this.form.setLocked(true);""",
+                                idx='^.step_index', last='=.wizard_last_index',
+                                reopened='=#FORM.wizard_reopened')
+            pane.dataController("SET #FORM.wizard_reopened = null;",
+                                formsubscribe_onDismissed=True)
         # the step form saves even when incomplete, so Back keeps what was
         # typed: validity is checked by the wizard on Next and on Confirm.
         # As a child of the surrounding form, its pending changes are asked
@@ -811,7 +846,9 @@ class GroupletHandler(BaseComponent):
         confirmedReadOnly) splits a draft's last step into Save draft (saves
         and closes) and completeLabel (confirms, saves and reloads read-only);
         a confirmed record gets Back to draft in place of Back, if backToDraft
-        allows it (True: everyone, a string: the user tags)."""
+        allows it (True: everyone, a string: the user tags). On a table with no
+        drafts, publishing <frameCode>_reopen with {step} opens a confirmed
+        record for editing on that step, locked again once saved."""
         confirmedReadOnly = confirmedReadOnly or draftConfirm
         # Emptied, not removed: later builds still insert into the slot.
         top = form.getNode('top')
@@ -823,9 +860,11 @@ class GroupletHandler(BaseComponent):
         form.attributes['form_pendingChangesSaveSlot'] = False
         form.dataController("""
             var readOnly = confirmed_ro && !this.form.isNewRecord()
+                           && this.form.getCurrentPkey() != reopened
                            && (!this.form.isDraft() || this.form.isProtectWrite());
             if(!!this.form.locked != readOnly){ this.form.setLocked(readOnly); }
-        """, confirmed_ro=confirmedReadOnly, formsubscribe_onLoaded=True)
+        """, confirmed_ro=confirmedReadOnly, reopened='=#FORM.wizard_reopened',
+            formsubscribe_onLoaded=True)
         frameCode = frameCode or f"{form.attributes['formId']}_wizard"
         form.dataController("this.form.save({destPkey:'*dismiss*', always:true});",
                             **{f'subscribe_{frameCode}_complete': True})

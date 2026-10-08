@@ -30,7 +30,7 @@ function createGrid({defaultRow = {qty: 1, bought: false}, disabled = false, max
     };
     vm.createContext(context);
     const sourceDir = process.env.GNR_JS_SOURCE || path.join(__dirname, '../gnr_d11/js');
-    for (const filename of ['gnrlang.js', 'gnrbag.js', 'gnrdomsource.js']) {
+    for (const filename of ['gnrlang.js', 'gnrbag.js', 'gnrdomsource.js', 'genro_frm.js']) {
         vm.runInContext(readFileSync(path.join(sourceDir, filename), 'utf8'), context, {filename});
     }
     const gridJs = path.join(__dirname, '../../resources/common/gnrcomponents/grouplet/grouplet_grid.js');
@@ -43,7 +43,12 @@ function createGrid({defaultRow = {qty: 1, bought: false}, disabled = false, max
     data.setItem('ws', new Bag());
     data.setBackRef();
     let counter = 0;
+    const published = [];
     Object.assign(context.genro, {
+        _data: data,
+        vld: new context.gnr.GnrValidator(context.genro),
+        wdg: {getHandler: () => null},
+        publish: (topic, kw) => published.push([topic, kw]),
         getData: p => data.getItem(p),
         setData: (p, v) => data.setItem(p, v),
         time36Id: () => 'k' + (++counter),
@@ -75,7 +80,7 @@ function createGrid({defaultRow = {qty: 1, bought: false}, disabled = false, max
     });
     controller._resetPhantom();
     const phantom = () => data.getItem('ws.phantom');
-    return {controller, lines, phantom, data, genro: context.genro};
+    return {controller, lines, phantom, data, published, context, genro: context.genro};
 }
 
 const plain = bag => JSON.parse(JSON.stringify(bag.asDict()));
@@ -178,17 +183,28 @@ test('card mode: a nested field is an entry, a formula field is not', async () =
 function entryGrid({missing = null, disabled = false} = {}) {
     const s = createGrid({disabled});
     const focused = [];
+    let field;
+    if (missing) {
+        const row = new s.context.gnr.GnrDomSource();
+        row._('div', 'entry', {datapath: 'ws.entry'});
+        row.getItem('entry')._('textbox', missing, {tag: 'textbox', value: '^.' + missing, validate_notnull: true});
+        field = row.getNode('entry.' + missing);
+        field.setValidations();
+        field.widget = {focus: () => focused.push(missing)};
+        field.updateValidationClasses = () => {};
+        field.isLostNode = () => false;
+    }
     Object.assign(s.controller, {
         entry: true,
         entryPath: 'ws.entry',
         entryTile: {
             domNode: () => null,
-            tileContent: {walk: () => (missing ? {widget: {focus: () => focused.push(missing)}} : undefined)}
+            tileContent: {walk: (cb) => (field ? cb(field) : undefined)}
         },
         _announcer: {textContent: ''}
     });
     s.controller._resetEntry();
-    return {...s, focused, entry: () => s.data.getItem('ws.entry')};
+    return {...s, focused, field, entry: () => s.data.getItem('ws.entry')};
 }
 
 test('the entry row adds its values at the tail and clears, keeping the marked fields', () => {
@@ -252,12 +268,17 @@ test('the entry row works out its formulas as it is typed in', () => {
     assert.equal(s.entry().getItem('total'), null, 'the cleared row is not worked out');
 });
 
-test('a missing required field or a locked form stops the entry', () => {
+test('a missing required field or a locked form stops the entry', async () => {
     const req = entryGrid({missing: 'item'});
+    await tick();
+    assert.equal(req.field.getValidationError(), 'notnull', 'a blank required field is flagged at once');
     req.entry().setItem('qty', 3);
     req.controller._addEntry();
     assert.equal(req.lines.len(), 0);
     assert.deepEqual(req.focused, ['item']);
+    assert.ok(req.field.hasValidationError(), 'the field shows it is missing');
+    assert.deepEqual(JSON.parse(JSON.stringify(req.published)), [['floating_message',
+        {message: 'Item: !!Required field', sound: '$onerror', messageType: 'error'}]]);
     const locked = entryGrid({disabled: true});
     locked.entry().setItem('item', 'Milk');
     locked.controller._addEntry();
@@ -414,4 +435,50 @@ test('pasting adds one row per line at the tail, over the defaults', () => {
     assert.equal(s.lines.getItem('r_k1.item'), 'Milk');
     assert.equal(s.lines.getItem('r_k2.qty'), 1);
     assert.deepEqual(Object.keys(s.controller._freshRows), ['r_k1', 'r_k2']);
+});
+
+test('the blank row hint goes on a required free-text field, else a free-text one, else the first', () => {
+    const {context} = createGrid();
+    context.gnr.GroupletGridTile.prototype._mountBody = () => {};
+    const hinted = (cells) => {
+        const content = new context.gnr.GnrDomSource();
+        cells.forEach(([label, attr]) => content._(attr.tag, label, {value: '^.' + label, ...attr}));
+        context.gnr.GroupletGridPhantomTile.prototype._mountBody.call(
+            {tileContent: content, stripValidations: true, controller: {additemKw: {}}});
+        return cells.map(([label]) => label).filter((label) => content.getNode(label).attr.placeholder);
+    };
+    assert.deepEqual(hinted([
+        ['description', {tag: 'textbox'}],
+        ['amount', {tag: 'numberTextBox'}],
+        ['vat', {tag: 'filteringSelect', validate_notnull: true}]]), ['description']);
+    assert.deepEqual(hinted([
+        ['shop', {tag: 'textbox'}],
+        ['item', {tag: 'textbox', validate_notnull: true}]]), ['item']);
+    assert.deepEqual(hinted([
+        ['customer', {tag: 'dbSelect'}],
+        ['vat', {tag: 'filteringSelect', validate_notnull: true}]]), ['customer']);
+});
+
+test('Tab skips a kept struct column, and reaches it again once unpinned', () => {
+    const s = entryGrid();
+    s.controller.structAdapter = {cells: [
+        {field: 'shop', edit: true, keepable: true},
+        {field: 'item', edit: true}]};
+    s.controller._containerDom = () => ({querySelectorAll: () => []});
+    const content = new s.context.gnr.GnrDomSource();
+    const focusNodes = {};
+    ['shop', 'item'].forEach((field) => {
+        content._('textbox', field, {tag: 'textbox', value: '^.' + field});
+        const classes = new Set();
+        focusNodes[field] = {tabIndex: 0, classes,
+                             classList: {toggle: (c, on) => (on ? classes.add(c) : classes.delete(c))}};
+        content.getNode(field).widget = {tabIndex: 0, focusNode: focusNodes[field]};
+    });
+    s.controller.entryTile.tileContent = content;
+    s.controller._toggleKeep('shop');
+    assert.equal(focusNodes.shop.tabIndex, -1);
+    assert.ok(focusNodes.shop.classes.has('grouplet_grid_kept'));
+    assert.equal(focusNodes.item.tabIndex, 0);
+    s.controller._toggleKeep('shop');
+    assert.equal(focusNodes.shop.tabIndex, 0);
 });

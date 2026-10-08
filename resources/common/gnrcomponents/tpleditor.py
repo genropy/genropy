@@ -456,18 +456,14 @@ class TemplateEditor(TemplateEditorBase):
             self._te_attachedReports(topbc.contentPane(region='right',width='450px',closable='close'))
 
         editorConstrain = editorConstrain or dict()
-        constrain_height = editorConstrain.pop('constrain_height',False)
-        constrain_width = editorConstrain.pop('constrain_width',False)
-        bc.dataController("""var height = letterhead_center_height?letterhead_center_height+'mm': constrain_height;
-                             var width = letterhead_center_width?letterhead_center_width+'mm':constrain_width;
-                             SET .editor.height = height;
-                             SET .editor.width = width;
-                             SET .editor.bodyStyle = (height?'height:'+height+';':'')+(width?'width:'+width+';':'');
-            """,constrain_height=constrain_height,
-                constrain_width=constrain_width,
-                letterhead_center_height='^.preview.letterhead_record.center_height',
-                letterhead_center_width='^.preview.letterhead_record.center_width',
-                _init=True)
+        bc.dataFormula('.editor.height', "letterhead ? letterhead+'mm' : constrain",
+                       letterhead='^.preview.letterhead_record.center_height',
+                       constrain=editorConstrain.pop('constrain_height', None), _init=True)
+        bc.dataFormula('.editor.width', "letterhead ? letterhead+'mm' : constrain",
+                       letterhead='^.preview.letterhead_record.center_width',
+                       constrain=editorConstrain.pop('constrain_width', None), _init=True)
+        bc.dataFormula('.editor.bodyStyle', 'objectAsStyle({height:height, width:width})',
+                       height='^.editor.height', width='^.editor.width', _init=True)
         if plainText:
             bc.simpleTextArea(value='^.data.content',region='center',
                             margin='3px',margin_left='6px',border='1px solid silver',

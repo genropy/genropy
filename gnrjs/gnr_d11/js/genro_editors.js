@@ -1772,9 +1772,15 @@ dojo.declare("gnr.widgets.joditEditor", gnr.widgets.baseExternalWidget, {
                 .on('change', function(){ that.onEditorChange(editor); })
                 .on('blur', function(){ that.writeValue(editor); })
                 .on('afterSetMode', function(){ that.onModeChange(editor); });
+        // Jodit sizes its workplace on window resize only: built in a hidden page it stays 150px high
+        var parentWidget = dijit.getEnclosingWidget(widget);
+        if(parentWidget){
+            editor._gnrParentResize = dojo.connect(parentWidget, 'resize', function(){ editor.e.fire('resize'); });
+        }
         editor.waitForReady().then(function(){
             editor.gnr_contentStyles(joditAttrs.contentStyles);
             editor.gnr_bodyStyle(joditAttrs.bodyStyle);
+            that.setupFieldDrop(editor);
         });
     },
     onSpeechEnd: function(sourceNode, text) {
@@ -1782,6 +1788,158 @@ dojo.declare("gnr.widgets.joditEditor", gnr.widgets.baseExternalWidget, {
         editor._gnrUserEdit = true;
         editor.s.insertNode(editor.createInside.text(text));
         this.writeValue(editor);
+    },
+    // A Genropy drag (a template variable from a tree) stops its dragstart, so neither
+    // Jodit nor the browser place it reliably: it is shown and inserted here.
+    isFieldDrag: function(editor, dataTransfer) {
+        if(editor.getReadOnly()){
+            return false;
+        }
+        var types = Array.prototype.slice.call((dataTransfer && dataTransfer.types) || []);
+        return types.indexOf('dragsourceinfo') >= 0 && types.indexOf('text/plain') >= 0
+            && types.indexOf('text/html') < 0 && types.indexOf('Files') < 0;
+    },
+    dropRange: function(editor, x, y) {
+        var doc = editor.ed;
+        var body = editor.editor;
+        var range = null;
+        if(doc.caretRangeFromPoint){
+            range = doc.caretRangeFromPoint(x, y);
+        } else if(doc.caretPositionFromPoint){
+            var position = doc.caretPositionFromPoint(x, y);
+            if(position){
+                range = doc.createRange();
+                range.setStart(position.offsetNode, position.offset);
+            }
+        }
+        var last = body.lastElementChild || body.lastChild;
+        var below = !last || (last.getBoundingClientRect && y > last.getBoundingClientRect().bottom);
+        if(!range || below || range.startContainer === body || !body.contains(range.startContainer)){
+            var block = last && last.nodeType === 1 ? last : body;
+            range = doc.createRange();
+            if(block !== body && !/^(P|DIV|H[1-6]|PRE|BLOCKQUOTE)$/.test(block.nodeName)){
+                // a table, a list or an image closing the content: the field goes after it, not inside
+                range.setStartAfter(block);
+                range.collapse(true);
+            } else if(block.lastChild && block.lastChild.nodeName === 'BR'){
+                range.setStartBefore(block.lastChild);
+                range.collapse(true);
+            } else {
+                range.selectNodeContents(block);
+                range.collapse(false);
+            }
+        }
+        return range;
+    },
+    // Jodit surrounds the caret with \uFEFF text nodes, and with marker spans while the editor is not focused
+    isCursorMarker: function(node) {
+        if(node.nodeType === 3){
+            return !node.data.replace(/\uFEFF/g, '');
+        }
+        return node.nodeType === 1 && node.hasAttribute('data-jodit-selection_marker');
+    },
+    // the visible character next to the drop point, on the given side
+    charAround: function(range, side) {
+        var node = range.startContainer;
+        var offset = range.startOffset;
+        var step = function(n){ return side < 0 ? n.previousSibling : n.nextSibling; };
+        if(node.nodeType === 3){
+            var text = (side < 0 ? node.data.slice(0, offset) : node.data.slice(offset)).replace(/\uFEFF/g, '');
+            if(text){
+                return side < 0 ? text.charAt(text.length - 1) : text.charAt(0);
+            }
+            node = step(node);
+        } else {
+            node = node.childNodes[side < 0 ? offset - 1 : offset];
+        }
+        while(node && this.isCursorMarker(node)){
+            node = step(node);
+        }
+        if(node && node.nodeType === 3){
+            return side < 0 ? node.data.charAt(node.data.length - 1) : node.data.charAt(0);
+        }
+        return '';
+    },
+    dropText: function(range, text) {
+        if(/\S/.test(this.charAround(range, -1))){
+            text = ' ' + text;
+        }
+        if(/\S/.test(this.charAround(range, 1))){
+            text = text + ' ';
+        }
+        return text;
+    },
+    showDropCaret: function(editor, range) {
+        var doc = editor.ed;
+        var caret = editor._gnrDropCaret;
+        if(!caret){
+            caret = doc.createElement('div');
+            caret.className = 'gnr-jodit-dropcaret';
+            caret.style.cssText = 'position:absolute;width:2px;background:#1a73e8;pointer-events:none;z-index:10;';
+            // outside the body, so it never becomes part of the value
+            doc.documentElement.appendChild(caret);
+            editor._gnrDropCaret = caret;
+        }
+        var rect = range.getBoundingClientRect();
+        if(!rect.height){
+            var block = range.startContainer.nodeType === 1 ? range.startContainer : range.startContainer.parentNode;
+            var blockRect = block.getBoundingClientRect();
+            rect = {left: blockRect.left, top: blockRect.top, height: blockRect.height || 16};
+        }
+        var win = doc.defaultView;
+        caret.style.left = (rect.left + win.scrollX) + 'px';
+        caret.style.top = (rect.top + win.scrollY) + 'px';
+        caret.style.height = rect.height + 'px';
+    },
+    dropHighlightNode: function(editor) {
+        return editor.o.iframe ? editor.ed.documentElement : editor.editor;
+    },
+    clearFieldDrop: function(editor) {
+        var highlight = this.dropHighlightNode(editor).style;
+        highlight.boxShadow = '';
+        highlight.background = '';
+        if(editor._gnrDropCaret){
+            editor._gnrDropCaret.remove();
+            delete editor._gnrDropCaret;
+        }
+    },
+    setupFieldDrop: function(editor) {
+        var that = this;
+        // with the iframe the empty area under the content belongs to <html>, not to the body
+        var target = editor.o.iframe ? editor.ed : editor.editor;
+        editor.e.on(target, 'dragover', function(evt){
+            if(!that.isFieldDrag(editor, evt.dataTransfer)){
+                return;
+            }
+            evt.preventDefault();
+            var highlight = that.dropHighlightNode(editor).style;
+            highlight.boxShadow = 'inset 0 0 0 2px #1a73e8';
+            highlight.background = 'rgba(26, 115, 232, .05)';
+            that.showDropCaret(editor, that.dropRange(editor, evt.clientX, evt.clientY));
+        }).on(target, 'dragleave', function(evt){
+            if(!evt.relatedTarget || !target.contains(evt.relatedTarget)){
+                that.clearFieldDrop(editor);
+            }
+        }).on(target, 'drop', function(evt){
+            if(!that.isFieldDrag(editor, evt.dataTransfer)){
+                return;
+            }
+            evt.preventDefault();
+            evt.stopPropagation();
+            that.clearFieldDrop(editor);
+            var range = that.dropRange(editor, evt.clientX, evt.clientY);
+            var text = that.dropText(range, evt.dataTransfer.getData('text/plain'));
+            var field = editor.createInside.text(text);
+            editor._gnrUserEdit = true;
+            editor.s.selectRange(range);
+            editor.s.insertNode(field);
+            // the <br> Jodit keeps in an empty block would push the field onto a second line
+            if(field.nextSibling && field.nextSibling.nodeName === 'BR' && !field.nextSibling.nextSibling){
+                field.nextSibling.remove();
+            }
+            that.writeValue(editor);
+            return false;
+        });
     },
     setContentStyle: function(editor, id, css) {
         if(!editor.o.iframe || !editor.ed){
@@ -1995,6 +2153,9 @@ dojo.declare("gnr.widgets.joditEditor", gnr.widgets.baseExternalWidget, {
     },
     mixin_destroy: function() {
         this.gnr.writeValue(this);
+        if(this._gnrParentResize){
+            dojo.disconnect(this._gnrParentResize);
+        }
         this.destruct();
     }
 });

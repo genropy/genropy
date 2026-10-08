@@ -660,7 +660,7 @@ class TableBase(object):
         for field in [r for r in list(self.model.virtual_columns.keys()) if r.startswith('__protected_by_')]:
             protections.append("""( CASE WHEN $%s IS TRUE THEN '%s' ELSE NULL END )  """ %(field,field[15:]))
         if protections:
-            return "array_to_string(ARRAY[%s],',')"   %','.join(protections)
+            return self.db.adapter.string_join(protections, ',')
         else:
             return " NULL "
 
@@ -675,7 +675,7 @@ class TableBase(object):
         for field in [r for r in self.model.virtual_columns.keys() if r.startswith('__invalid_by_')]:
             invalids.append("""( CASE WHEN $%s IS TRUE THEN '%s' ELSE NULL END )  """ %(field,field[13:]))
         if invalids:
-            return "array_to_string(ARRAY[%s],',')"   %','.join(invalids)
+            return self.db.adapter.string_join(invalids, ',')
         else:
             return " NULL "
 

@@ -116,4 +116,4 @@ class TestPageUrl(object):
 
     def test_page_at_the_root_of_the_package(self):
         """A page directly under webpages keeps its package and its name"""
-        assert page_url('test15/webpages/index.py') == '/test15/index'
+        assert page_url('test/webpages/iframe_inside.py') == '/test/iframe_inside'

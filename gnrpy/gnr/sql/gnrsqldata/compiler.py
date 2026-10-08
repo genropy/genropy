@@ -419,11 +419,13 @@ class SqlQueryCompiler(object):
                         sql_formula = re.sub('#%s\\b' %susbselect, tpl %sql_text,sql_formula)
                 subreldict = {}
                 sql_formula = self.macro_expander.replace(sql_formula,'TSRANK,TSHEADLINE,VECRANK')
+                # #THIS must be expanded before updateFieldDict, which would
+                # rewrite the @rel.col after #THIS. into a $_rel_col placeholder
+                sql_formula = THISFINDER.sub(expandThis,sql_formula)
                 sql_formula = self.updateFieldDict(sql_formula, reldict=subreldict)
                 sql_formula = IN_RANGEFINDER.sub(self.expandInRange, sql_formula)
                 sql_formula = ENVFINDER.sub(expandEnv, sql_formula)
                 sql_formula = PREFFINDER.sub(expandPref, sql_formula)
-                sql_formula = THISFINDER.sub(expandThis,sql_formula)
                 sql_formula_var = dictExtract(attr,'var_')
                 if sql_formula_var:
                     prefix = str(id(fldalias))

@@ -5,11 +5,22 @@ const {test} = require('node:test');
 const vm = require('node:vm');
 
 function loadHandler(globals) {
-    const context = {console, gnr: {widgets: {}}, genro: {locale: () => 'it-IT'}, ...globals};
+    const context = {console, gnr: {widgets: {}}, genro: {locale: () => 'it-IT'},
+                     dijit: {getEnclosingWidget: () => null}, ...globals};
     context.dojo = {
         eval,
         hitch: (object, method) => (typeof method === 'string' ? object[method] : method).bind(object),
         forEach: (items, callback) => Array.prototype.forEach.call(items || [], callback),
+        connect(target, event, callback) {
+            const wrapped = target[event];
+            target[event] = function(...args) {
+                const result = wrapped && wrapped.apply(this, args);
+                callback.apply(this, args);
+                return result;
+            };
+            return [target, event, wrapped];
+        },
+        disconnect([target, event, wrapped]) { target[event] = wrapped; },
         declare(name, base, members) {
             function Declared(...args) {
                 if (base) base.apply(this, args);
@@ -293,6 +304,116 @@ function initializeWith(sourceEditor) {
     handler.initialize(widget, joditAttrs, makeSourceNode(''));
     return made.sourceEditor;
 }
+
+function initializeEditor(value, parentWidget) {
+    const listeners = {};
+    const editor = {
+        value,
+        container: {},
+        e: {
+            on(target, events, callback) {
+                if (typeof target === 'string') [events, callback] = [target, events];
+                for (const name of events.split(' ')) (listeners[name] ||= []).push(callback);
+                return this;
+            },
+            fire: (name) => (listeners[name] || []).forEach((callback) => callback())
+        },
+        fire: (name) => (listeners[name] || []).forEach((callback) => callback()),
+        waitForReady: () => new Promise(() => {})
+    };
+    const handler = loadHandler({
+        document: {createElement: () => ({})},
+        Jodit: {make: () => editor},
+        dijit: {getEnclosingWidget: () => parentWidget || null}
+    });
+    const sourceNode = makeSourceNode(value);
+    const widget = {classList: {add() {}}, appendChild() {}};
+    handler.initialize(widget, create(handler, {}), sourceNode);
+    return {editor, sourceNode};
+}
+
+test('a field dropped from a tree is stored on change', () => {
+    const {editor, sourceNode} = initializeEditor('<p>Total: </p>');
+    editor.fire('drop');
+    editor.value = '<p>Total: $total</p>';
+    editor.fire('change');
+    assert.deepEqual(sourceNode.writes, [['value', '<p>Total: $total</p>']]);
+});
+
+test('a field dropped from a tree is stored on blur', () => {
+    const {editor, sourceNode} = initializeEditor('');
+    editor.fire('drop');
+    editor.value = '<p>$protocol</p>';
+    editor.fire('blur');
+    assert.deepEqual(sourceNode.writes, [['value', '<p>$protocol</p>']]);
+});
+
+test('only a Genropy drag of plain text is a field drop, and never into a read-only editor', () => {
+    const handler = loadHandler();
+    const editor = {getReadOnly: () => false};
+    const drag = (...types) => ({types});
+    assert.equal(handler.isFieldDrag(editor, drag('text/plain', 'dragsourceinfo', 'treenode')), true);
+    assert.equal(handler.isFieldDrag(editor, drag('text/plain')), false);
+    assert.equal(handler.isFieldDrag(editor, drag('text/plain', 'dragsourceinfo', 'text/html')), false);
+    assert.equal(handler.isFieldDrag(editor, drag('Files', 'text/plain', 'dragsourceinfo')), false);
+    assert.equal(handler.isFieldDrag({getReadOnly: () => true}, drag('text/plain', 'dragsourceinfo')), false);
+});
+
+test('a dropped field is spaced from the words it would touch', () => {
+    const handler = loadHandler();
+    const at = (data, offset) => ({startContainer: {nodeType: 3, data}, startOffset: offset});
+    const inElement = (childNodes, offset) => ({startContainer: {nodeType: 1, childNodes}, startOffset: offset});
+    assert.equal(handler.dropText(at('Total:', 6), '$total'), ' $total');
+    assert.equal(handler.dropText(at('Total: ', 7), '$total'), '$total');
+    assert.equal(handler.dropText(at('ab', 1), '$x'), ' $x ');
+    assert.equal(handler.dropText(inElement([], 0), '$x'), '$x');
+    // at the end of a block, after the text node of a field dropped before
+    assert.equal(handler.dropText(inElement([{nodeType: 3, data: '$protocol'}], 1), '$total'), ' $total');
+    assert.equal(handler.dropText(inElement([{nodeType: 1, hasAttribute: () => false}], 1), '$total'), '$total');
+    const field = {nodeType: 3, data: '$protocol', previousSibling: null};
+    const invisible = {nodeType: 3, data: '\uFEFF', previousSibling: field};
+    const selectionMarker = {nodeType: 1, hasAttribute: (name) => name === 'data-jodit-selection_marker',
+                             previousSibling: invisible};
+    assert.equal(handler.dropText(inElement([field, invisible], 2), '$total'), ' $total');
+    assert.equal(handler.dropText(inElement([field, invisible, selectionMarker], 3), '$total'), ' $total');
+});
+
+test('a field dropped below the content goes after a closing table, list or image, inside a closing paragraph', () => {
+    const handler = loadHandler();
+    const dropBelow = (nodeName) => {
+        const last = {nodeType: 1, nodeName, lastChild: null, getBoundingClientRect: () => ({bottom: 10})};
+        const range = {
+            setStartAfter(node) { this.after = node; },
+            setStartBefore(node) { this.before = node; },
+            selectNodeContents(node) { this.inside = node; },
+            collapse() {}
+        };
+        const editor = {ed: {createRange: () => range}, editor: {lastElementChild: last, contains: () => true}};
+        return [handler.dropRange(editor, 0, 50), last];
+    };
+    for (const nodeName of ['TABLE', 'UL', 'IMG']) {
+        const [range, last] = dropBelow(nodeName);
+        assert.equal(range.after, last, nodeName);
+        assert.equal(range.inside, undefined, nodeName);
+    }
+    const [range, last] = dropBelow('P');
+    assert.equal(range.inside, last);
+    assert.equal(range.after, undefined);
+});
+
+test('a resize of the enclosing pane resizes the editor, until it is destroyed', () => {
+    const pane = {resize() {}};
+    const {editor} = initializeEditor('', pane);
+    let resized = 0;
+    editor.e.on('resize', () => { resized += 1; });
+    pane.resize();
+    assert.equal(resized, 1);
+    editor.gnr = {writeValue() {}};
+    editor.destruct = () => {};
+    editor.destroy();
+    pane.resize();
+    assert.equal(resized, 1);
+});
 
 test('source view uses CodeMirror, or the plain textarea for any other sourceEditor', () => {
     assert.equal(typeof initializeWith('codemirror'), 'function');

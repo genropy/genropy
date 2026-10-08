@@ -110,10 +110,9 @@ class Form(BaseComponent):
                                         host='=.smtp_host', from_address='=.smtp_from_address',
                                         username='=.smtp_username', password='=.smtp_password',
                                         port='=.smtp_port', tls='=.smtp_tls', ssl='=.smtp_ssl',
-                                        reply_to='=.smtp_reply_to',
+                                        reply_to='=.smtp_reply_to', to_address='=gnr.avatar.email',
                                         _ask=dict(title="!![en]Send test e-mail",
-                                                  fields=[dict(name="to_address",lbl="To address",
-                                                              default='^gnr.avatar.email')]))
+                                                  fields=[dict(name="to_address",lbl="To address")]))
         return bar
     
     def account_users(self, pane):

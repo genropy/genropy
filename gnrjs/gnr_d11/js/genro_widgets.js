@@ -462,6 +462,10 @@ dojo.declare("gnr.widgets.baseHtml", null, {
             var keeper_in = document.createElement('div');
             keeper.appendChild(keeper_in);
             (lblTitle || dn).appendChild(keeper);
+            // the field being typed in keeps the focus
+            keeper.onmousedown = function(e){
+                e.preventDefault();
+            };
             keeper.onclick = function(e){
                 dojo.stopEvent(e);
                 var n = genro.getDataNode(npath);
@@ -474,6 +478,7 @@ dojo.declare("gnr.widgets.baseHtml", null, {
             var n = genro.getDataNode(npath);
             let v = n.getValue();
             genro.dom.setClass(stateNode,'keeper_on',keepOn);
+            sourceNode.widget.focusNode.tabIndex = keepOn ? -1 : sourceNode.widget.tabIndex;
             n.attr._keep = keepOn;
             if(sourceNode.form){
                 sourceNode.form.setKeptData(npath.replace(sourceNode.absDatapath()+'.',''),v,n.attr._keep);
@@ -1911,6 +1916,10 @@ dojo.declare("gnr.widgets.Dialog", gnr.widgets.baseDojo, {
                             if(!parentDialog && !this._windowConnectionResize){
                                 this._windowConnectionResize = dojo.connect(window,'onresize',widget,'onWindowResize');
                             }
+                            if (this == ds.slice(-1)[0]) {
+                                // dijit listens on keypress, which no longer fires for Tab
+                                this._modalconnects.push(dojo.connect(dojo.doc.documentElement, "onkeydown", this, "_onKey"));
+                            }
                         });
             dojo.connect(widget, "hide", widget,
                         function() {
@@ -1934,8 +1943,33 @@ dojo.declare("gnr.widgets.Dialog", gnr.widgets.baseDojo, {
         }
         dojo.connect(widget,'resize',widget,'containerNodeResize');
     },
-   versionpatch_11__onKey:function(){
-       //onkey block inactive (ckeditor)
+   versionpatch_11__onKey:function(evt){
+       // only the Tab trap of dijit's _onKey: the full one blocked every key typed outside the dialog (editors' popups)
+       if(evt.type!='keydown' || evt.keyCode!=dojo.keys.TAB){
+           return;
+       }
+       // noModal only lowers the z-index: a dialog is modal as long as its underlay blocks the page
+       var underlay = this._underlay && this._underlay.domNode;
+       if(!underlay || underlay.offsetParent===null){
+           return;
+       }
+       var node = evt.target;
+       // a popup, a palette or another dialog sits above the underlay: the trap has no say there
+       var above = node && node.closest && node.closest('.dijitPopup,.dojoxFloatingPane,.dijitDialog');
+       if(above && above!==this.domNode){
+           return;
+       }
+       this._getFocusItems(this.domNode);
+       if(!dojo.isDescendant(node, this.domNode)){
+           dijit.focus(this._firstFocusItem);
+           dojo.stopEvent(evt);
+       }else if(node==this._lastFocusItem && !evt.shiftKey){
+           dijit.focus(this._firstFocusItem);
+           dojo.stopEvent(evt);
+       }else if(node==this._firstFocusItem && evt.shiftKey){
+           dijit.focus(this._lastFocusItem);
+           dojo.stopEvent(evt);
+       }
    },
     
     versionpatch_11__position: function() {
@@ -5336,15 +5370,6 @@ dojo.declare("gnr.widgets.DynamicBaseCombo", gnr.widgets.BaseCombo, {
                 this.setValue(null,false);
                 this.store.fetchItemByIdentity({identity:currvalue,onItem:function(){
                     if(self.sourceNode.getRelativeData(vpath) != currvalue){
-                        // the stale reply may have flagged a value that is no longer
-                        // there. fetchItemByIdentity clears _lastQueryError before
-                        // the call, so a value here belongs to this reply: without
-                        // one there is nothing of ours to undo, and the node may
-                        // meanwhile hold the current value's own error or required
-                        if(self._lastQueryError){
-                            delete self._lastQueryError;
-                            self.sourceNode.resetValidationError();
-                        }
                         return;
                     }
                     self.setValue(currvalue,false);
@@ -5537,6 +5562,10 @@ dojo.declare("gnr.widgets.FilteringSelect", gnr.widgets.BaseCombo, {
             }else{
                 //self._isvalid=false;
                 //self.validate(false);
+                // setDisplayedValue('') reports undefined: a quiet clear must not read as a change
+                if(priorityChange===false && isNullOrBlank(value)){
+                    self._lastValueReported = undefined;
+                }
                 self.valueNode.value = null;
                 self.setDisplayedValue('')
             }
