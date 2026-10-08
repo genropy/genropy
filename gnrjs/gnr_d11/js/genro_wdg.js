@@ -2013,6 +2013,163 @@ dojo.declare("gnr.GridFilterManager", null, {
     }
 });
 
+dojo.declare("gnr.GridColumnFilterPane", null, {
+    maxRows:200,
+    searchThreshold:6,
+
+    constructor:function(grid,cell,domNode,openerId){
+        this.grid = grid;
+        this.cell = cell;
+        this.domNode = domNode;
+        this.openerId = openerId;
+        this.search = '';
+        this.items = [];
+        domNode.classList.add('gridColumnFilterPane');
+        var label = document.createElement('div');
+        label.innerHTML = cell.original_name || '';
+        var title = this.element('div','gcf_title',_T('Filter by')+' '+label.textContent);
+        this.searchNode = this.element('input','gcf_search');
+        this.searchNode.type = 'search';
+        this.searchNode.hidden = true;
+        this.listNode = this.element('div','gcf_list',_T('Loading...'));
+        this.moreNode = this.element('div','gcf_more');
+        this.moreNode.hidden = true;
+        this.clearNode = this.element('button','gcf_clear',_T('Clear filter'));
+        this.clearNode.type = 'button';
+        var foot = this.element('div','gcf_foot');
+        foot.appendChild(this.clearNode);
+        domNode.append(title,this.searchNode,this.listNode,this.moreNode,foot);
+        var that = this;
+        this.searchNode.addEventListener('input',function(){
+            that.search = that.searchNode.value;
+            that.renderList();
+        });
+        this.listNode.addEventListener('change',function(e){
+            if(e.target.dataset.idx!==undefined){
+                that.toggle(e.target);
+            }
+        });
+        this.clearNode.addEventListener('click',function(){
+            that.grid.setColumnFilter(that.cell,null);
+            that.renderList();
+        });
+        domNode.addEventListener('keydown',function(e){
+            if(e.key=='Escape' && that.openerId && genro.nodeById(that.openerId)){
+                dojo.stopEvent(e);
+                genro.nodeById(that.openerId).publish('close');
+            }
+        });
+        grid.columnFilterValues(cell,function(items){
+            that.setItems(items);
+        });
+    },
+
+    element:function(tag,className,text){
+        var node = document.createElement(tag);
+        node.className = className;
+        if(text){
+            node.textContent = text;
+        }
+        return node;
+    },
+
+    checkedKeys:function(){
+        return new Set((this.cell.filterValues || []).map(gnr.columnFilterKey));
+    },
+
+    captionText:function(item){
+        if(item.key===''){
+            return _T('(empty)');
+        }
+        return (item.caption===null || item.caption===undefined)? item.key:''+item.caption;
+    },
+
+    setItems:function(items){
+        var checked = this.checkedKeys();
+        var captions = this.cell._filterCaptions = this.cell._filterCaptions || {};
+        var byKey = {};
+        items.forEach(function(item){
+            item.key = gnr.columnFilterKey(item.value);
+            byKey[item.key] = item;
+            captions[item.key] = item.caption;
+        });
+        (this.cell.filterValues || []).forEach(function(value){
+            var key = gnr.columnFilterKey(value);
+            if(!byKey[key]){
+                byKey[key] = {value:value,key:key,caption:(key in captions)? captions[key]:value,count:0};
+                items.push(byKey[key]);
+            }
+        });
+        var that = this;
+        items.sort(function(a,b){
+            return (checked.has(b.key)-checked.has(a.key)) || (b.count-a.count) ||
+                   that.captionText(a).localeCompare(that.captionText(b));
+        });
+        this.items = items;
+        this.searchNode.hidden = items.length<=this.searchThreshold;
+        this.searchNode.placeholder = _T('Search');
+        this.renderList();
+        if(!this.searchNode.hidden){
+            this.searchNode.focus();
+        }
+    },
+
+    renderList:function(){
+        var query = this.search.trim().toLowerCase();
+        var checked = this.checkedKeys();
+        var fragment = document.createDocumentFragment();
+        var shown = 0;
+        var matches = 0;
+        var separatorDone = checked.size===0;
+        var that = this;
+        this.items.forEach(function(item,idx){
+            var text = that.captionText(item);
+            if(query && text.toLowerCase().indexOf(query)<0){
+                return;
+            }
+            matches++;
+            var isChecked = checked.has(item.key);
+            if(!query && shown>=that.maxRows && !isChecked){
+                return;
+            }
+            if(!separatorDone && !isChecked){
+                fragment.appendChild(that.element('div','gcf_sep'));
+                separatorDone = true;
+            }
+            var row = that.element('label','gcf_row'+(isChecked? ' gcf_checked':'')+(item.count? '':' gcf_zero'));
+            var input = document.createElement('input');
+            input.type = 'checkbox';
+            input.checked = isChecked;
+            input.dataset.idx = idx;
+            row.append(input,that.element('span','gcf_caption'+(item.key===''? ' gcf_empty':''),text),
+                       that.element('span','gcf_count',''+item.count));
+            fragment.appendChild(row);
+            shown++;
+        });
+        if(!matches){
+            fragment.appendChild(this.element('div','gcf_more',_T('No value')));
+        }
+        this.listNode.replaceChildren(fragment);
+        var rest = matches-shown;
+        this.moreNode.hidden = rest<=0;
+        this.moreNode.textContent = rest+' '+_T('more. Type to search.');
+        this.clearNode.disabled = checked.size===0;
+    },
+
+    toggle:function(input){
+        var item = this.items[parseInt(input.dataset.idx)];
+        var values = (this.cell.filterValues || []).filter(function(value){
+            return gnr.columnFilterKey(value)!==item.key;
+        });
+        if(input.checked){
+            values.push(item.value);
+        }
+        this.grid.setColumnFilter(this.cell,values);
+        input.parentNode.classList.toggle('gcf_checked',input.checked);
+        this.clearNode.disabled = values.length===0;
+    }
+});
+
 
 dojo.declare("gnr.GridChangeManager", null, {
     constructor:function(grid){

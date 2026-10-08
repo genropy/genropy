@@ -39,6 +39,8 @@ from gnr.core.gnrbag import Bag
 from gnr.core.gnrdecorator import public_method
 from gnr.core.gnrstring import templateReplace, splitAndStrip
 
+COLUMN_FILTER_FIELD = re.compile(r'^[$@]?[\w.@]+$')
+
 
 class GetSelectionMixin:
     """Mixin for the ``getSelection`` flow.
@@ -637,6 +639,27 @@ class GetSelectionMixin:
             where = ' OR '.join([" (%s IN :_masterPkeys) " % r for r in linkedSelectionPars['relationpath'].split(',')])
             return dict(where=' ( %s ) ' % where,
                         linkedPkeys=linkedPkeys.split(',') if isinstance(linkedPkeys, str) else linkedPkeys)
+
+    @public_method
+    def columnFilterSelect(self, columnFilterField: Optional[str] = None,
+                           columnFilterCaption: Optional[str] = None, **kwargs: Any) -> Any:
+        """Group the grid's own query by one column, for the column filter.
+
+        Used as ``selectmethod`` of :meth:`getSelection`, so where,
+        condition and sections are those of the grid. Each row carries
+        ``cf_value``, ``cf_caption`` and ``cf_count``.
+        """
+        for fieldpath in (columnFilterField, columnFilterCaption):
+            if fieldpath and not COLUMN_FILTER_FIELD.match(fieldpath):
+                raise ValueError('Invalid column filter field %s' % fieldpath)
+        columns = ['%s AS cf_value' % columnFilterField, 'count(*) AS cf_count']
+        group_by = [columnFilterField]
+        if columnFilterCaption:
+            columns.append('%s AS cf_caption' % columnFilterCaption)
+            group_by.append(columnFilterCaption)
+        kwargs.update(columns=','.join(columns), group_by=','.join(group_by),
+                      order_by='count(*) DESC', sortedBy=None, selectionName=None, limit=None)
+        return self._default_getSelection(_aggregateRows=False, **kwargs)
 
     def _default_getSelection(self, tblobj: Any = None, table: Optional[str] = None,
                               distinct: Optional[bool] = None,
