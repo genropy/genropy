@@ -398,7 +398,9 @@ dojo.declare("gnr.GnrSrcHandler", null, {
                     }
                 }
                 this.widgetDestroyAndUnlink(widget);
-                //widget.destroyRecursive();
+                if(parentWdg && parentWdg._checkIfSingleChild){
+                    parentWdg._checkIfSingleChild();
+                }
             } else if(domNode) {
                 this.deleteDomNodeContent(domNode);
             }else if(deletingNode.externalWidget){
