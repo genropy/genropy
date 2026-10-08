@@ -258,7 +258,7 @@ class LoginComponent(BaseComponent):
         except GnrRestrictedAccessException as e:
             logger.exception(e)
             return Bag(login_error_msg=e.description)
-        self.login_setChecked(user,group_code)
+        self.login_setChecked(user,group_code,default_group_code=getattr(avatar,'group_code',None))
         status = getattr(avatar,'status',None)
         if not status:
             avatar.extra_kwargs['status'] = 'conf'
@@ -281,15 +281,23 @@ class LoginComponent(BaseComponent):
         logger.info("User %s logged in", user)
         return result
     
-    def login_setChecked(self,user,group_code=None):
+    def login_setChecked(self,user,group_code=None,default_group_code=None):
+        checked = Bag(dict(user=user,group_code=group_code or None,
+                           default_group_code=default_group_code or None)) if user else None
         with self.pageStore() as ps:
-            ps.setItem('login_checked',Bag(dict(user=user,group_code=group_code or None)) if user else None)
+            ps.setItem('login_checked',checked)
 
     def login_isChecked(self,login):
         checked = self.pageStore().getItem('login_checked')
         if not checked or not login or not login['user']:
             return False
-        return checked['user']==login['user'] and checked['group_code']==(login['group_code'] or None)
+        if checked['user']!=login['user']:
+            return False
+        group_code = login['group_code'] or None
+        if checked['group_code']:
+            return checked['group_code']==group_code
+        # no group chosen at check time: the client then sends the avatar's default group
+        return group_code in (None,checked['default_group_code'])
 
     def login_selectableGroups(self,avatar,all_groups):
         groups = Bag()

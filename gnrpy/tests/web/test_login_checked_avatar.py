@@ -126,6 +126,9 @@ def application(tmp_path_factory):
                                                 avatar_secret_2fa=secret))
         for code in ('LGPLAIN', 'LG2FA'):
             db.table('adm.user_group').insert(dict(user_id=user['id'], group_code=code))
+    db.table('adm.user').insert(dict(username='lg_single', md5pwd='secret', status='conf',
+                                     email='lg_single@test.local', group_code='LGMAIN',
+                                     avatar_secret_2fa=None))
     db.commit()
     return app
 
@@ -205,3 +208,32 @@ def test_group_menu_hides_2fa_groups_without_a_secret(application):
 
 def test_group_menu_offers_2fa_groups_with_a_secret(application):
     assert _menu_codes(application, 'lg_2fa') == ['LGMAIN', 'LGPLAIN', 'LG2FA']
+
+
+def test_default_group_of_an_unchosen_group_goes_through():
+    page = _page()
+    page.login_setChecked('alice', default_group_code='main')
+    page.login_doLogin(rootenv=Bag(), login=_login('alice', 'main'))
+    assert page.logged == ['alice']
+
+
+def test_another_group_than_the_default_is_refused():
+    page = _page()
+    page.login_setChecked('alice', default_group_code='main')
+    assert page.login_doLogin(rootenv=Bag(), login=_login('alice', 'admin')) == {'error': 'Invalid login'}
+    assert page.logged == []
+
+
+def test_a_chosen_group_does_not_accept_the_default():
+    page = _page()
+    page.login_setChecked('alice', 'plain', default_group_code='main')
+    assert page.login_doLogin(rootenv=Bag(), login=_login('alice', 'main')) == {'error': 'Invalid login'}
+    assert page.logged == []
+
+
+def test_checked_avatar_logs_in_with_its_default_group(application):
+    page = _bind(_AppPage(application), 'login_checkAvatar', 'login_setChecked', 'login_isChecked',
+                 'login_completeRootEnv', 'login_selectableGroups', 'login_require2fa', 'login_canSetWorkdate')
+    result = page.login_checkAvatar(user='lg_single', password='secret')
+    assert result['avatar.group_code'] == 'LGMAIN'
+    assert page.login_isChecked(_login('lg_single', 'LGMAIN'))
