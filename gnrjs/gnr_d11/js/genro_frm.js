@@ -2745,6 +2745,18 @@ dojo.declare("gnr.formstores.Base", null, {
         target.setItem(path,value,oldnode ? objectUpdate({},oldnode.attr) : null);
     },
 
+    getRecordCopy:function(source){
+        // the copy drops the source node attributes (_loadedValue, _invalidFields...) but keeps
+        // protected_by / protected_by_*: _protectedNode reads them to exempt a field from _protect_write
+        var result = new gnr.GnrBag();
+        var d = source.deepCopy();
+        d.walk(function(n){n.attr = objectExtract(n.attr,'protected_by*',true,true);});
+        d.forEach(function(n){
+            result.addItem(n.label,n.getValue(),n.attr);
+        });
+        return result;
+    },
+
     constructor:function(kw,handlers){
         objectPop(kw, 'tag');
         this.handlers = handlers;
@@ -3408,11 +3420,7 @@ dojo.declare("gnr.formstores.Item", gnr.formstores.Base, {
         }
         else if(sourceBag && this.locationpath){
             var kw = objectExtract(sourceBag.getParentNode().attr,'lastTS,caption,_protect_delete,_protect_write,_pkey',true);
-            var d = sourceBag.deepCopy();
-            d.walk(function(n){n.attr = {}})
-                d.forEach(function(n){
-                    recordLoaded.addItem(n.label,n.getValue());
-                });
+            recordLoaded = this.getRecordCopy(sourceBag);
             // a placeholder pkey (*newrecord*) is left out: reload() on it would build an empty record
             if(kw._pkey && !/^\*.*\*$/.test(kw._pkey)){
                 form.setCurrentPkey(kw._pkey);
@@ -3571,12 +3579,7 @@ dojo.declare("gnr.formstores.Collection", gnr.formstores.Base, {
             var dataNode = this.parentStore.rowBagNodeByIdentifier(currPkey);
             genro.assert(dataNode,'Missing data for currentPath',currPkey);
             var kw = objectExtract(dataNode.attr,'lastTS,caption,_protect_delete,_protect_write,_pkey',true);
-            var recordLoaded = new gnr.GnrBag();
-            var d = dataNode.getValue().deepCopy();
-            d.walk(function(n){n.attr = {}})
-            d.forEach(function(n){
-                recordLoaded.addItem(n.label,n.getValue());
-            });
+            var recordLoaded = this.getRecordCopy(dataNode.getValue());
             envelope.setItem('record',recordLoaded,kw);
         }
         var result = envelope.getNode('record');
