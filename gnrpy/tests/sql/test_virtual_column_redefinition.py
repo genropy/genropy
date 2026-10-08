@@ -12,6 +12,10 @@ class RedefiningCastMixin(object):
         tbl.aliasColumn('formula_to_alias', '@person_id.name')
         tbl.aliasColumn('relabeled', '@person_id.name', name_long='Old label')
         tbl.virtual_column('relabeled', name_long='New label')
+        grp = tbl.colgroup('grp', name_long='Group')
+        grp.aliasColumn('grouped_alias', '@person_id.name')
+        grp.aliasColumn('grouped_to_formula', '@person_id.name')
+        grp.formulaColumn('grouped_to_formula', "'from_formula'")
 
 
 class TestVirtualColumnRedefinition:
@@ -49,3 +53,17 @@ class TestVirtualColumnRedefinition:
         assert attrs['relation_path'] == '@person_id.name'
         assert attrs['name_long'] == 'New label'
         assert 'people' in self.sqltext('relabeled')
+
+    def test_colgroup_new_column(self):
+        attrs = self.vc_attributes('grouped_alias')
+        assert attrs['relation_path'] == '@person_id.name'
+        assert attrs['group'].startswith('grp.')
+        assert 'people' in self.sqltext('grouped_alias')
+
+    def test_colgroup_redefined_as_formula(self):
+        attrs = self.vc_attributes('grouped_to_formula')
+        assert 'relation_path' not in attrs
+        assert attrs['sql_formula'] == "'from_formula'"
+        sql = self.sqltext('grouped_to_formula')
+        assert "'from_formula'" in sql
+        assert 'people' not in sql
