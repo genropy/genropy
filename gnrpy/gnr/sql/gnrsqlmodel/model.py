@@ -1025,7 +1025,9 @@ class DbModelSrc(GnrStructData):
             join_column=kwargs.get('join_column'),
             composed_of=kwargs.get('composed_of'),
         )
-        existing = self['virtual_columns'].getNode(name)
+        # on a colgroup child() writes on the table (_destinationNode)
+        table_src = getattr(self, '_destinationNode', self)
+        existing = table_src['virtual_columns'].getNode(name)
         if existing and any(v is not None for v in kind.values()):
             # child() skips None kwargs, so a redefinition of another kind
             # would otherwise inherit the previous kind's attributes
