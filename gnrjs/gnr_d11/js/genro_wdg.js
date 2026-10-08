@@ -1886,6 +1886,9 @@ dojo.declare("gnr.GridEditor", null, {
         }
         var cell = this.grid.getCell(col);
         if (!(cell.field in this.columns)){return false;}
+        if(this.grid.treeStore && this.grid.treeStore()){
+            return false;
+        }
         if ((cell.classes || '').indexOf('hiddenColumn')>=0){return false}
         this.grid.currRenderedRowIndex = row;
         var rowdict = this.grid.rowByIndex(row);

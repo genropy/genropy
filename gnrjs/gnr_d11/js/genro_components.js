@@ -6904,9 +6904,10 @@ dojo.declare("gnr.stores._Collection",null,{
             return result;
         }
         var filteredResult = new gnr.GnrBag();
+        var items = this.getItems();
         var fn;
         this._filtered.forEach(function(nodeIdx){
-            fn = result.getNode('#'+nodeIdx);
+            fn = items[nodeIdx];
             filteredResult.setItem(fn.label,fn._value instanceof gnr.GnrBag?fn._value.deepCopy():fn._value,objectUpdate({},fn.attr));
         });
         return filteredResult;
@@ -6954,7 +6955,7 @@ dojo.declare("gnr.stores._Collection",null,{
             return;
         }
         var item;
-        data=data.getNodes();
+        data=this.getItems();
         if ((idx<0)||( idx>(data.length-1))){
             return null;
         } 
@@ -6968,7 +6969,7 @@ dojo.declare("gnr.stores._Collection",null,{
         var data = this.getData();
         var that = this;
         if(pkey && data){
-            data=data.getNodes();
+            data=this.getItems();
             var k = -1;
             data.some(function(n){
                 k++;
@@ -7104,6 +7105,34 @@ dojo.declare("gnr.stores._Collection",null,{
 
     iterfilterCb:function(filterCb){
         this.getItems().forEach(filterCb);
+    },
+
+    setTreeMode:function(treeCell){
+        if(!treeCell){
+            if(!this.treeMode){
+                return false;
+            }
+            this.invalidateTree();
+            for(var k in gnr.stores._treeMode){
+                delete this[k];
+            }
+            this.treeMode = null;
+            return true;
+        }
+        if(this instanceof gnr.stores.VirtualSelection){
+            console.warn('hierarchical column not supported by a virtual selection');
+            return false;
+        }
+        var separator = typeof(treeCell.hierarchical)=='string'?treeCell.hierarchical:'/';
+        if(this.treeMode && this.treeMode.field==treeCell.field && this.treeMode.separator==separator){
+            return false;
+        }
+        if(!this.treeMode){
+            objectUpdate(this,gnr.stores._treeMode);
+        }
+        this.treeMode = {field:treeCell.field,separator:separator};
+        this.invalidateTree();
+        return true;
     },
 
     linkedGrids:function(){
@@ -7346,6 +7375,165 @@ dojo.declare("gnr.stores.AttributesBagRows",gnr.stores.BagRows,{
        return this.getData().sum('#a.'+field); 
     }
 });
+
+gnr.stores._treeMode = {
+    isTreeStore:true,
+
+    invalidateTree:function(){
+        this._flat = null;
+        if(this._filtered){
+            this._filterToRebuild = true;
+        }
+    },
+
+    getItems:function(){
+        var root = this.getData();
+        if(!this._flat || this._flatRoot!==root){
+            this._expanded = this._expanded || {};
+            this._flat = [];
+            this._meta = new Map();
+            this._flatRoot = root;
+            this._flattenPaths(root.getNodes());
+        }
+        return this._flat;
+    },
+
+    _flattenPaths:function(nodes){
+        var that = this;
+        var field = this.treeMode.field;
+        var separator = this.treeMode.separator;
+        var pathOf = this instanceof gnr.stores.AttributesBagRows?function(n){return n.attr[field];}:
+                        function(n){return Object.getPrototypeOf(that).rowFromItem.call(that,n)[field];};
+        var root = {children:[]};
+        var branches = new Map();
+        nodes.forEach(function(n,rowIndex){
+            var path = pathOf(n);
+            var segments = isNullOrBlank(path)?[]:String(path).split(separator).filter(function(segment){
+                return segment!=='';
+            });
+            var parent = root;
+            var key = null;
+            segments.forEach(function(segment){
+                key = key===null?segment:key+separator+segment;
+                var branch = branches.get(key);
+                if(!branch){
+                    branch = {key:key,label:segment,rows:[],children:[],order:rowIndex};
+                    branches.set(key,branch);
+                    parent.children.push(branch);
+                }
+                parent = branch;
+            });
+            if(parent===root){
+                root.children.push({key:null,label:'',rows:[n],children:[],order:rowIndex});
+            }else{
+                if(!parent.rows.length){
+                    parent.order = rowIndex;
+                }
+                parent.rows.push(n);
+            }
+        });
+        var walk = function(list,level,parentNode){
+            list.sort(function(a,b){return a.order-b.order;});
+            list.forEach(function(branch){
+                var rows = branch.rows.length?branch.rows:[that._virtualTreeNode(branch)];
+                var expanded = branch.children.length>0 && !!that._expanded[branch.key];
+                rows.forEach(function(n,i){
+                    that._flat.push(n);
+                    that._meta.set(n,{level:level,treeKey:branch.key,label:branch.label,parent:parentNode,
+                                      branch:i==0 && branch.children.length>0,expanded:i==0 && expanded,
+                                      virtual:!branch.rows.length});
+                });
+                if(expanded){
+                    walk(branch.children,level+1,rows[0]);
+                }
+            });
+        };
+        walk(root.children,0,null);
+    },
+
+    _virtualTreeNode:function(branch){
+        var attr = {};
+        attr[this.identifier] = '_tree_'+branch.key;
+        attr[this.treeMode.field] = branch.key;
+        return new gnr.GnrBagNode(null,branch.label,null,attr);
+    },
+
+    isVirtualRow:function(idx){
+        var n = this.itemByIdx(idx);
+        var meta = n && this._meta.get(n);
+        return !!(meta && meta.virtual);
+    },
+
+    isTreeDescendant:function(node,ancestor){
+        var meta = this._meta.get(node);
+        while(meta && meta.parent){
+            if(meta.parent===ancestor){
+                return true;
+            }
+            meta = this._meta.get(meta.parent);
+        }
+        return false;
+    },
+
+    rowFromItem:function(item,bagFields){
+        var result = Object.getPrototypeOf(this).rowFromItem.call(this,item,bagFields);
+        var meta = this._meta && this._meta.get(item);
+        if(meta){
+            result._tree_level = meta.level;
+            result._tree_label = meta.label;
+            result._tree_branch = meta.branch;
+            result._tree_expanded = meta.expanded;
+            result._tree_virtual = meta.virtual;
+        }
+        return result;
+    },
+
+    toggleNode:function(idx,expand){
+        var n = this.itemByIdx(idx);
+        var meta = n && this._meta.get(n);
+        if(!(meta && meta.branch)){
+            return;
+        }
+        expand = expand===undefined?!meta.expanded:expand;
+        var that = this;
+        var selections = this.linkedGrids().map(function(grid){
+            var before = grid.selection.getSelected().map(function(selIdx){return that.itemByIdx(selIdx);});
+            var after = before.map(function(selNode){
+                return !expand && that.isTreeDescendant(selNode,n)?(meta.virtual?null:n):selNode;
+            }).filter(function(selNode,i,l){return selNode && l.indexOf(selNode)==i;});
+            return {grid:grid,before:before,after:after};
+        });
+        if(expand){
+            this._expanded[meta.treeKey] = true;
+        }else{
+            delete this._expanded[meta.treeKey];
+        }
+        this.invalidateTree();
+        selections.forEach(function(kw){
+            var grid = kw.grid;
+            grid.updateRowCount();
+            grid._batchUpdating = true;
+            grid.selection.beginUpdate();
+            grid.selection.unselectAll();
+            kw.after.forEach(function(selNode){
+                var selIdx = that.absIndex(that.getItems().indexOf(selNode),true);
+                if(selIdx>=0){
+                    grid.selection.addToSelection(selIdx);
+                }
+            });
+            grid.selection.endUpdate();
+            grid._batchUpdating = false;
+            if(kw.after.length!=kw.before.length || kw.after.some(function(selNode,i){return selNode!==kw.before[i];})){
+                grid._gnrUpdateSelect(grid.selection.getFirstSelected());
+            }
+        });
+    },
+
+    sort:function(sortedBy){
+        Object.getPrototypeOf(this).sort.call(this,sortedBy);
+        this.invalidateTree();
+    }
+};
 
 dojo.declare("gnr.stores.RpcBase",gnr.stores.AttributesBagRows,{
     askToDelete:true,
