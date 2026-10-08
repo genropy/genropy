@@ -50,7 +50,32 @@
 
 ._common_d11 .dojoxGrid-header .dojoxGrid-sort-down,
 ._common_d11 .dojoxGrid-header .dojoxGrid-sort-up{
+    position: relative;
     margin-right: 2px;
+    background: none;
+}
+._common_d11 .dojoxGrid-header .dojoxGrid-sort-down > .cellHeaderContent,
+._common_d11 .dojoxGrid-header .dojoxGrid-sort-up > .cellHeaderContent{
+    padding-right: 18px;
+}
+._common_d11 .dojoxGrid-header .dojoxGrid-sort-down::after,
+._common_d11 .dojoxGrid-header .dojoxGrid-sort-up::after{
+    content: "";
+    position: absolute;
+    right: 4px;
+    top: 50%;
+    width: 10px;
+    height: 10px;
+    margin-top: -5px;
+    background-color: var(--text-muted);
+    -webkit-mask: var(--grid-sort-chevron) center / contain no-repeat;
+    mask: var(--grid-sort-chevron) center / contain no-repeat;
+}
+._common_d11 .dojoxGrid-header .dojoxGrid-sort-down{
+    --grid-sort-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+}
+._common_d11 .dojoxGrid-header .dojoxGrid-sort-up{
+    --grid-sort-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 15l6-6 6 6'/%3E%3C/svg%3E");
 }
 
 ._common_d11 .dojoxGrid-header .cellHeaderContent.withColumnFilter{
@@ -60,7 +85,7 @@
 }
 ._common_d11 .dojoxGrid-header .gridColumnFilter{
     position: absolute;
-    right: 6px;
+    left: 4px;
     top: 50%;
     transform: translateY(-50%);
     width: 15px;
