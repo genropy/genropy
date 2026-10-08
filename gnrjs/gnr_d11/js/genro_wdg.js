@@ -2031,7 +2031,7 @@ dojo.declare("gnr.GridColumnFilterPane", null, {
         this.searchNode = this.element('input','gcf_search');
         this.searchNode.type = 'search';
         this.searchNode.hidden = true;
-        this.listNode = this.element('div','gcf_list',_T('Loading...'));
+        this.listNode = this.element('div','gcf_list');
         this.moreNode = this.element('div','gcf_more');
         this.moreNode.hidden = true;
         this.clearNode = this.element('button','gcf_clear',_T('Clear filter'));
@@ -2059,9 +2059,7 @@ dojo.declare("gnr.GridColumnFilterPane", null, {
                 genro.nodeById(that.openerId).publish('close');
             }
         });
-        grid.columnFilterValues(cell,function(items){
-            that.setItems(items);
-        });
+        this.setItems(grid.columnFilterValues(cell));
     },
 
     element:function(tag,className,text){

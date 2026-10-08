@@ -7716,7 +7716,6 @@ dojo.declare("gnr.stores.Selection",gnr.stores.AttributesBagRows,{
 
     loadingDataDo:function(runKwargs){
         var that = this;
-        runKwargs = this.columnFilterRunKwargs(runKwargs);
         this.loadingData = true;
         this.gridBroadcast(function(grid){
             grid.sourceNode.publish('loadingData',{loading:true});
@@ -7735,10 +7734,6 @@ dojo.declare("gnr.stores.Selection",gnr.stores.AttributesBagRows,{
         };
         this.onLoading();
         return this.runQuery(cb,runKwargs);
-    },
-
-    columnFilterRunKwargs:function(runKwargs){
-        return runKwargs;
     },
 
     cleanColumns:function(cols){
@@ -8089,26 +8084,6 @@ dojo.declare("gnr.stores.VirtualSelection",gnr.stores.Selection,{
         //override the standard sort because it has been sorted on the server
         //and does not work with paged store
         return;
-    },
-    columnFilterRunKwargs:function(runKwargs){
-        var params = {};
-        var conditions = [];
-        this.linkedGrids().forEach(function(grid){
-            var condition = grid.columnFilterCondition? grid.columnFilterCondition(null,params):null;
-            if(condition){
-                conditions.push(condition);
-            }
-        });
-        if(!conditions.length){
-            return runKwargs;
-        }
-        runKwargs = objectUpdate({},runKwargs);
-        var condition = ('condition' in runKwargs)? runKwargs.condition:this.storeNode.getAttributeFromDatasource('condition');
-        if(condition){
-            conditions.unshift('( '+condition+' )');
-        }
-        runKwargs.condition = conditions.join(' AND ');
-        return objectUpdate(runKwargs,params);
     },
     len:function(filtered){
         if(filtered && this._filtered){
