@@ -142,6 +142,10 @@ class MenuIframes(BaseComponent):
                   nodeId='_menutree_')
         pane.dataController("""var flat_tblname = _node.label;
                                 let store = treeNode.widget.storebag();
+                                if(!(store instanceof gnr.GnrBag)){
+                                    // menu still resolving: the reloaded menu brings its own badges
+                                    return;
+                                }
                                 store.walk(function(n){
                                     const titleCounter = n.attr.titleCounter;
                                     const menuLineBadge = n.attr.menuLineBadge;
