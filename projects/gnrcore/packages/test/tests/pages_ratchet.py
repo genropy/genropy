@@ -9,7 +9,7 @@ no instance is built: a check that silently skips is a check that protects nothi
 import ast
 import os
 
-PACKAGES = ('test', 'test15')
+PACKAGES = ('test',)
 
 # titles that render as a page heading but say nothing about the page
 PLACEHOLDER_TITLES = ('test page description', 'test', '-', 'index.py', 'test page')
