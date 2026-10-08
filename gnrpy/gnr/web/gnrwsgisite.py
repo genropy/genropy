@@ -144,7 +144,6 @@ class UrlInfo(object):
             last_path = os.path.join(basepath,*path_list)
             last_index_path = os.path.join(last_path,'index.py')
             if os.path.isfile(last_index_path):
-                pathfile_cache[last_path] = last_index_path
                 pathfile_cache[last_index_path.replace('.py','')] = last_index_path
                 self.relpath = last_index_path
                 self.request_args = []
