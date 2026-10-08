@@ -1002,7 +1002,7 @@ dojo.declare("gnr.GridEditor", null, {
                         }
                         grid.gridEditor.setCellValue(idx,node.label,val);
                         if(editable_cols[node.label].attr.remoteRowController){
-                            let rowNode = grid.storebag().getNode('#'+idx);
+                            let rowNode = grid.dataNodeByIndex(idx);
                             remoteControllerRows.addItem(rowNode.label,rowNode);
                         }
                     });

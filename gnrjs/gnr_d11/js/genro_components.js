@@ -4677,7 +4677,8 @@ dojo.declare("gnr.widgets.MultiButton", gnr.widgets.gnrwdg, {
         sourceNode.attr.value = value;
         sourceNode.attr.values = values;
         sourceNode.attr.items = items;
-        var containerKw = {_class:'multibutton_container'};
+        var minimal = objectPop(kw,'minimal');
+        var containerKw = {_class:minimal?'multibutton_container multibutton_minimal':'multibutton_container'};
         var btn_action;
         if (sticky){
             btn_action = function(_kwargs){

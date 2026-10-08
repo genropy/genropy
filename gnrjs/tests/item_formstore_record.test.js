@@ -49,6 +49,7 @@ function createStage({outerPkey = 'PK1'} = {}) {
     context.genro._data = data;
     context.genro.callAfter = (callback, delay, scope) => callback.call(scope);
     context.genro.dlg = {removeFloatingMessage() {}};
+    context.genro.assert = condition => assert.ok(condition);
     const sourceNode = Object.create(context.gnr.GnrDomSourceNode.prototype);
     sourceNode.absDatapath = value => value;
     function createForm(root, extra) {
@@ -101,7 +102,7 @@ function createStage({outerPkey = 'PK1'} = {}) {
         });
         return () => asked;
     }
-    return {Bag, record, outer, inner, store, editInner, outerFields, reloadProbe};
+    return {Bag, Collection: context.gnr.formstores.Collection, record, outer, inner, store, editInner, outerFields, reloadProbe};
 }
 
 test('saving an untouched record leaves the destination form clean', () => {
@@ -240,4 +241,43 @@ test('invalid fields marked on the item form stay on its own record', () => {
     assert.equal(outerRecordNode.attr._invalidFields, undefined);
     assert.equal(s.record.getNodeByAttr('_invalidFields'), undefined);
     assert.equal(s.inner.getDataNodeAttributes()._invalidFields, undefined);
+});
+
+function protectRecord(record) {
+    record.getParentNode().attr._protect_write = 'stato';
+    record.getNode('description').attr.protected_by_stato = false;
+    record.getNode('seats').attr.protected_by = false;
+    record.getNode('name').attr._loadedValue = 'Milan';
+}
+
+test('fields exempt from the write protection stay editable on the item form', () => {
+    const s = createStage();
+    protectRecord(s.record);
+    // the store load is the step the form reload runs, once its deferred timer fires
+    s.store.load({destPkey: 'PK1'});
+    const loaded = s.inner.getFormData();
+    assert.equal(s.inner.getDataNodeAttributes()._protect_write, 'stato');
+    assert.equal(s.inner._protectedNode(loaded.getNode('description')), false);
+    assert.equal(s.inner._protectedNode(loaded.getNode('seats')), false);
+    assert.equal(s.inner._protectedNode(loaded.getNode('name')), true);
+    assert.deepEqual({...loaded.getNode('name').attr}, {});
+});
+
+test('fields exempt from the write protection stay editable on a collection form', () => {
+    const s = createStage();
+    protectRecord(s.record);
+    const store = Object.create(s.Collection.prototype);
+    let result;
+    Object.assign(store, {
+        form: {getCurrentPkey: () => 'PK1', sourceNode: {evaluateOnNode: kw => kw}},
+        handlers: {load: {}},
+        parentStore: {rowBagNodeByIdentifier: () => s.record.getParentNode()},
+        loaded(pkey, node) { result = node; }
+    });
+    store.load_memory({});
+    const loaded = result.getValue();
+    assert.equal(result.attr._protect_write, 'stato');
+    assert.equal(loaded.getNode('description').attr.protected_by_stato, false);
+    assert.equal(loaded.getNode('seats').attr.protected_by, false);
+    assert.deepEqual({...loaded.getNode('name').attr}, {});
 });
