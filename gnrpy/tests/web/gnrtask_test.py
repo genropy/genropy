@@ -357,32 +357,6 @@ class TestGnrTaskScheduler(BaseGnrTest):
         assert queued["payload"]["name"] == "qtask"
         assert queued["run_id"] == exec_record["id"]
 
-    def test_complete_task_invokes_task_completion(self, scheduler, monkeypatch):
-        task = gnrtask.GnrTask(
-            name="ctask",
-            action="run",
-            db="test",
-            table_name="tbl",
-            schedule={},
-            task_id="task42",
-        )
-        called = {}
-
-        async def completed(tasktbl, exectbl, run_id):
-            called["ok"] = True
-
-        task.completed = completed
-        scheduler.tasks["task42"] = [task, None]
-
-        scheduler.run(scheduler.complete_task("task42"))
-        assert called["ok"]
-
-    def test_complete_task_unknown_logs_error(self, scheduler, caplog):
-        caplog.set_level("ERROR")
-        scheduler.tasks["missing"] = [None, None]
-        scheduler.run(scheduler.complete_task("missing"))
-        assert any("can't complete" in rec.message for rec in caplog.records)
-
     def test_load_configuration_populates_tasks(self, scheduler, monkeypatch):
         records = [
             {

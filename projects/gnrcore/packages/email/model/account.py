@@ -117,8 +117,7 @@ class Table(object):
         body = body or f'This is a test message from {from_address} to {to_address}'
         reply_to = reply_to or self.db.application.getPreference('dflt_reply_to',pkg='email')
         msg = mh.build_base_message(subject=subject, body=body)
-        if reply_to:
-            msg.add_header('reply-to', reply_to)
+        mh.set_address_headers(msg, from_address=from_address, to_address=to_address, reply_to=reply_to)
         try:
             smtp_connection = mh.get_smtp_connection(**account_params)
             smtp_connection.sendmail(from_address, to_address, msg.as_string())

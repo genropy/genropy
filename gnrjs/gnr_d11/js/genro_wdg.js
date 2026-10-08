@@ -1002,7 +1002,7 @@ dojo.declare("gnr.GridEditor", null, {
                         }
                         grid.gridEditor.setCellValue(idx,node.label,val);
                         if(editable_cols[node.label].attr.remoteRowController){
-                            let rowNode = grid.storebag().getNode('#'+idx);
+                            let rowNode = grid.dataNodeByIndex(idx);
                             remoteControllerRows.addItem(rowNode.label,rowNode);
                         }
                     });
@@ -1886,6 +1886,9 @@ dojo.declare("gnr.GridEditor", null, {
         }
         var cell = this.grid.getCell(col);
         if (!(cell.field in this.columns)){return false;}
+        if(this.grid.treeStore && this.grid.treeStore()){
+            return false;
+        }
         if ((cell.classes || '').indexOf('hiddenColumn')>=0){return false}
         this.grid.currRenderedRowIndex = row;
         var rowdict = this.grid.rowByIndex(row);
