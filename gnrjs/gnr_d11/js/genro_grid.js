@@ -3548,10 +3548,13 @@ dojo.declare("gnr.widgets.VirtualStaticGrid", gnr.widgets.DojoGrid, {
     },
     mixin_distinctColumnValues:function(col){
         let cell = this.cellmap[col];
+        if(!cell){
+            return '';
+        }
         let field = cell.field;
         let field_getter = cell.field_getter;
         let cols = []
-        let result = [];
+        let result = new Set();
         cols.push(field)
         if(field_getter && field_getter!=field){
             cols.push(field_getter)
@@ -3561,21 +3564,16 @@ dojo.declare("gnr.widgets.VirtualStaticGrid", gnr.widgets.DojoGrid, {
             return '';
         }
         for (let n of store.getNodes()){
-            let row = n.attr;
-            if(this.datamod=='bag'){
-                row = n.getValue().asDict()
-            }
+            let row = this.rowFromBagNode(n);
             let chunk = [];
             for(let c of cols){
                 chunk.push(row[c])
             }
-            chunk = chunk.join(':');
-            if(!result.includes(chunk)){
-                result.push(chunk);
-            }
-            
+            result.add(chunk.join(':'));
         }
-        return result.join(',');
+        result = [...result];
+        //values parsers (storeFromValues, objectFromString) split on '\n' when present
+        return result.join(result.some(chunk => chunk.includes(','))? '\n':',');
     },
 
 
