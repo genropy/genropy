@@ -239,6 +239,8 @@ class Table(object):
                 docommit = True
             if docommit:
                 self.db.commit()
+            else:
+                self.db.rollback()
 
 
     def onChangedTags(self, user_id=None, **kwargs):
