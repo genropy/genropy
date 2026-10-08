@@ -7,7 +7,8 @@ A press released after more than 1500 ms marks the click event with
 Holding the button for 1500 ms publishes a topic to the node under the
 pointer before it is released: `clickAndHold` when the press starts within
 500 ms of the previous release (click, then press and hold), `longMouseDown`
-otherwise.
+otherwise. On a touch screen the box of the touch case reports the
+`touchstart` and `touchend` events it receives.
 """
 
 
@@ -24,3 +25,11 @@ class GnrCustomWebPage(object):
                  selfsubscribe_clickAndHold="this.setRelativeData('.last_topic', 'clickAndHold');",
                  selfsubscribe_longMouseDown="this.setRelativeData('.last_topic', 'longMouseDown');")
         pane.div('^.last_topic')
+
+    def test_1_longtouch(self, pane):
+        """Touch the box: it turns blue on touchstart and red again on touchend, and the last event is shown"""
+        pane.data('.color', 'red')
+        pane.div(height='100px', width='100px', margin='30px', background='^.color', display='inline-block',
+                 connect_touchstart="SET .color='blue'; SET .last_touch='start';",
+                 connect_touchend="SET .color='red'; SET .last_touch='end';")
+        pane.div('^.last_touch')

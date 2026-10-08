@@ -1,26 +1,27 @@
 # -*- coding: utf-8 -*-
 
-# palette_manager.py
-# Created by Francesco Porcari on 2010-12-27.
-# Copyright (c) 2010 Softwell. All rights reserved.
- 
-"""Test Protovis"""
+"""Dygraph: time series and numeric charts from a list or a Bag
 
-   
+The `dygraph` element draws an interactive line chart. Its `data` is either a
+plain list of rows or a Bag whose rows carry the series as attributes
+(`columns` names them, the first is the x axis), and `options` is passed to
+Dygraphs as is. Bound with `^`, the chart redraws when a grid edits the data.
+"""
 
+from collections import OrderedDict
+from datetime import datetime
+from random import randint
+
+from dateutil import rrule
 
 from gnr.core.gnrbag import Bag
-from random import randint
-from gnr.core.gnrdecorator import public_method
-from datetime import datetime
-from dateutil import rrule
-from collections import OrderedDict
 
 
 class GnrCustomWebPage(object):
     py_requires="gnrcomponents/testhandler:TestHandlerFull"
     
     def test_1_simple(self, pane):
+        """A chart of two series given as a plain list of rows"""
         pane.dygraph(data=[
                 [1,10,100],
                 [2,20,80],
@@ -43,6 +44,7 @@ class GnrCustomWebPage(object):
         r.cell('c_2',name='Bar',dtype='L')
 
     def test_2_bagData(self, pane):
+        """A chart and a grid sharing the same Bag of random rows, series in the row attributes"""
         pane.data('.data',self.getTestData(n=10,series=[(1,100),(1,100)]))
         pane.data('.options.labels',['x','Foo','Bar'])
         bc = pane.borderContainer(height='600px',width='800px',_anchor=True)
@@ -55,6 +57,7 @@ class GnrCustomWebPage(object):
 
 
     def test_3_bagData(self, pane):
+        """A time series: fifty timestamps fifteen minutes apart on the x axis"""
         pane.data('.data',self.getTestData(dtstart=datetime.now(),interval=15,count=50,
                                             series=[(1,100),(1,100)]))
         pane.data('.options.labels',['x','Foo','Bar'])
@@ -70,6 +73,7 @@ class GnrCustomWebPage(object):
 
 
     def test_4_bagDataValue(self, pane):
+        """Edit a cell, add or delete a row in the grid: the chart redraws; the Options tab edits the Dygraphs options"""
         pane.data('.data',self.getTestData(n=10,series=[(1,100),(1,100)],datamode='value'))
         pane.data('.options.labels',['x','Foo','Bar'])
         bc = pane.borderContainer(height='600px',width='800px',_anchor=True)
@@ -88,7 +92,6 @@ class GnrCustomWebPage(object):
         tc.contentPane(title='Options').multiValueEditor(value='^.options',nodeId='optionseditor')
 
 
-    @public_method
     def getTestData(self,n=None,count=None,interval=None,dtstart=None,series=None,datamode=None):
         result = Bag()
         if n:
@@ -106,4 +109,3 @@ class GnrCustomWebPage(object):
                 result.setItem('r_%s' %j,None,attr)
             j+=1
         return result
-        
