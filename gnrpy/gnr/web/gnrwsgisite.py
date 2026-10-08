@@ -26,7 +26,7 @@ from gnr.core.gnrbag import Bag
 from gnr.core import gnrstring
 from gnr.core.gnrlang import GnrException, GnrDebugException
 from gnr.core.gnrlang import getUuid, ThreadedDict
-from gnr.core.gnrdecorator import public_method, deprecated
+from gnr.core.gnrdecorator import deprecated
 from gnr.core.gnrconfig import getGnrConfig,getEnvironmentItem
 from gnr.core.gnrsys import expandpath
 from gnr.core.gnrstring import boolean
@@ -1090,12 +1090,20 @@ class GnrWsgiSite(object):
         return self._writeErrorRecord(exception=exception, error_type='EXC',
                                       traceback=traceback)
 
-    @public_method
     @deprecated(message='use errorHandler')
     def writeError(self, description=None, error_type=None, **kwargs):
         return self._writeErrorRecord(description=description,
                                       error_type=error_type or 'ERR',
                                       error_kwargs=kwargs)
+
+    def rpc_writeError(self, description=None, error_type=None, **kwargs):
+        # the record carries the db env: it never goes back to the client
+        page = self.currentPage
+        if not page or not page.avatar:
+            return
+        self._writeErrorRecord(description=description,
+                               error_type=error_type or 'ERR',
+                               error_kwargs=kwargs)
 
     def _writeErrorRecord(self, error_kwargs=None, **kwargs):
         try:
