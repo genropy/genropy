@@ -77,3 +77,17 @@ class TestFormProxy(BaseComponent):
         center.button('Run',fire='.run')
         center.dataRpc('.result',self.sheldon.remoteBazinga,_fired='^.run')
         center.div('^.result')
+
+class ViewColumnFilter(BaseComponent):
+    def th_struct(self, struct):
+        r = struct.view().rows()
+        r.fieldcell('nome', width='100%')
+        r.fieldcell('sigla', width='4em')
+        r.fieldcell('regione', width='12em', filterField=True)
+        r.fieldcell('@regione.zona', name='Zona', width='10em', filterField=True)
+
+    def th_order(self):
+        return 'nome'
+
+    def th_options(self):
+        return dict(virtualStore=False)
