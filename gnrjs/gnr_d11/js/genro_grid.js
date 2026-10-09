@@ -983,6 +983,13 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
             }
         }
 
+        dojo.connect(widget,'postresize',function(){
+            // adaptWidth draws the filler before adaptHeight changes the scrollbox.
+            if(this.sourceNode.attr.fillDown){
+                this.drawFiller();
+            }
+        });
+
         dojo.connect(widget,'adaptWidth',function(){
             this.adaptFlexMinWidths();
             if(this.sourceNode.attr.fillDown){

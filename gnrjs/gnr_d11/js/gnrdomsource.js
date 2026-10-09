@@ -1709,6 +1709,12 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         if(labelWrapper){
             labelWrapper.setHidden(hidden);
         }
+        var parent = this.widget && this.widget.parentBorderContainer;
+        var animatedRegion = parent && parent._drawerAnimations &&
+                parent._drawerAnimations[this.widget.region];
+        if (animatedRegion) {
+            parent._stopDrawerAnimation(this.widget.region, true);
+        }
         var targets = this._hiddenTargets || [this.domNode || this.widget.domNode];
         var statusChanged = false;
         targets.forEach(function(domNode){
@@ -1719,6 +1725,9 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
                 statusChanged = true;
             }
         });
+        if (animatedRegion) {
+            parent._layoutChildren(this.widget.region);
+        }
         if(statusChanged){
             genro.fakeResize()
         }
