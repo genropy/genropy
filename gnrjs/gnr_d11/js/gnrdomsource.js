@@ -980,16 +980,21 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
             this._registerInForm();
         }
         this._isBuilding = true;
-        var aux = '_bld_' + this.attr.tag.toLowerCase();
-        if (aux in this) {
-            this[aux].call(this);
-        }else{
-            var attributes = this.registerNodeDynAttr(true);
-            var tag=objectPop(attributes,'tag');
-            this._doBuildNode(tag, attributes, destination, ind);
-            this._setDynAttributes();
+        try{
+            var aux = '_bld_' + this.attr.tag.toLowerCase();
+            if (aux in this) {
+                this[aux].call(this);
+            }else{
+                var attributes = this.registerNodeDynAttr(true);
+                this._appliedClass = attributes._class;
+                var tag=objectPop(attributes,'tag');
+                this._doBuildNode(tag, attributes, destination, ind);
+                this._setDynAttributes();
+            }
+        }finally{
+            //left set, nodeTrigger would ignore this node from now on
+            this._isBuilding = false;
         }
-        this._isBuilding = false;
     },
     _buildChildren: function(destination) {
         if (this.attr.remote) {
@@ -1122,7 +1127,7 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         if (bld_attrs.tooltip) {
             genro.wdg.create('tooltip', null, {label:bld_attrs.tooltip,tooltip_type:'help'}).connectOneNode(newobj.domNode || newobj);
         }
-        if (genro.src._started && this.widget && (this.widget instanceof dijit.form.ValidationTextBox)){
+        if (genro.src._started && this.widget){
             var validations = objectExtract(this.attr, 'validate_*',true);
             if (this.validationsOnChange && objectNotEmpty(validations)){
                 this.resetValidationError();
@@ -1487,7 +1492,10 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
             else {
                 domnode = this.domNode;
             }
-            if (oldvalue) {
+            if (this._appliedClass !== undefined) {
+                genro.dom.removeClass(domnode, this._appliedClass);
+            }
+            else if (oldvalue) {
                 var old_class;
                 if (oldvalue instanceof gnr.GnrBag) {
                     var q = kw.pathlist.length;
@@ -1499,6 +1507,7 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
                 genro.dom.removeClass(domnode, old_class);
             }
             genro.dom.addClass(domnode, value);
+            this._appliedClass = value;
         }
         else if (attr=='style'){
             genro.dom.style(this,value);
@@ -1705,6 +1714,12 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         if(labelWrapper){
             labelWrapper.setHidden(hidden);
         }
+        var parent = this.widget && this.widget.parentBorderContainer;
+        var animatedRegion = parent && parent._drawerAnimations &&
+                parent._drawerAnimations[this.widget.region];
+        if (animatedRegion) {
+            parent._stopDrawerAnimation(this.widget.region, true);
+        }
         var targets = this._hiddenTargets || [this.domNode || this.widget.domNode];
         var statusChanged = false;
         targets.forEach(function(domNode){
@@ -1715,6 +1730,9 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
                 statusChanged = true;
             }
         });
+        if (animatedRegion) {
+            parent._layoutChildren(this.widget.region);
+        }
         if(statusChanged){
             genro.fakeResize()
         }
@@ -1872,7 +1890,13 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         }
     },
     getElementLabel:function(){
-        var raw = this.attr.error_label || this.attr._valuelabel || this.attr.field_name_long || this.attr.name_long || stringCapitalize(this.label);
+        //a formlet lbl lives on the labledbox wrapper (buildLblWrapper); '&nbsp;' is its placeholder
+        var wrapper = this.getLabelWrapper();
+        var wrapperLabel = wrapper ? wrapper.getAttributeFromDatasource('label') : null;
+        if(wrapperLabel=='&nbsp;'){
+            wrapperLabel = null;
+        }
+        var raw = this.attr.error_label || this.attr._valuelabel || this.attr.field_name_long || this.attr.name_long || wrapperLabel || stringCapitalize(this.label);
         if(raw && raw.indexOf('<') >= 0){
             var tmp = document.createElement('div');
             tmp.innerHTML = raw;

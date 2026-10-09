@@ -150,8 +150,8 @@
 				<en_username fr="Nom d'utilisateur" de="Benutzername" en="Username" it="Nome utente" base="Username"/>
 				<en_version fr="Version" de="Version" en="Version" it="Versione" base="Version"/>
 				<en_data fr="Données" de="Daten" en="Data" it="Data" base="Data"/>
-				<en_center_height fr="Hauteur de pointes" de="Spitzenhöhe" en="Center height" it="Altezza di punte" base="Center height"/>
-				<en_center_width fr="La largeur centrale" de="Spitzenweite" en="Center width" it="Larghezza Centro" base="Center width"/>
+				<en_center_height fr="Hauteur centrale" de="Höhe Mitte" en="Center height" it="Altezza centro" base="Center height"/>
+				<en_center_width fr="Largeur centrale" de="Breite Mitte" en="Center width" it="Larghezza centro" base="Center width"/>
 				<en_based_on fr="Basé sur" de="Basierend auf" en="Based on" it="Basato su" base="Based on"/>
 				<en_next_letterhead fr="Suivant tête" de="Nächste Brief" en="Next letterhead" it="Successivo intestata" base="Next letterhead"/>
 		</htmltemplate>
@@ -503,6 +503,13 @@
 				<en_mandatory base="Mandatory" de="Verpflichtend" en="Mandatory" fr="Obligatoire" it="Obbligatorio"/>
 		</privacy>
 		<tables>
+			<api_token>
+				<th_api_token path="resources/tables/api_token/th_api_token.py" ext="py">
+					<en_api_token_activated base="API Token Activated" it="Token API attivato"/>
+					<en_copy_to_clipboard base="Copy to clipboard" it="Copia negli appunti"/>
+					<en_copied_ base="Copied!" it="Copiato!"/>
+				</th_api_token>
+			</api_token>
 			<authorization>
 				<th_authorization path="resources/tables/authorization/th_authorization.py" ext="py">
 					<en_note fr="Note" de="Note" en="Note" it="Note" base="Note"/>
@@ -562,15 +569,25 @@
 								<en_page_sizing fr="Page dimensionnement" de="Seite Sizing" en="Page sizing" it="Pagina dimensionamento" base="Page sizing"/>
 								<en_height base="Height" de="Höhe" en="Height" fr="Hauteur" it="Altezza"/>
 								<en_width base="Width" de="Breite" en="Width" fr="Largeur" it="Larghezza"/>
-								<en_top fr="Haut" de="Top" en="Top" it="Top" base="Top"/>
-								<en_bottom fr="Bas" de="Boden" en="Bottom" it="Fondo" base="Bottom"/>
-								<en_left fr="Gauche" de="Links" en="Left" it="Uscita" base="Left"/>
-								<en_right fr="Droite" de="Recht" en="Right" it="Destra" base="Right"/>
+								<en_top fr="Haut" de="Oben" en="Top" it="Alto" base="Top"/>
+								<en_bottom fr="Bas" de="Unten" en="Bottom" it="Basso" base="Bottom"/>
+								<en_left fr="Gauche" de="Links" en="Left" it="Sinistra" base="Left"/>
+								<en_right fr="Droite" de="Rechts" en="Right" it="Destra" base="Right"/>
 								<en_s_height _tag="en__s_height" fr="%s hauteur" en="%s height" de="%s Höhe" it="%s Altezza" base="%s height"/>
 								<en_s _tag="en__s" fr="% S" en="%s" de="% S" it="% S" base="%s"/>
-								<en_center_height fr="Hauteur de pointes" de="Spitzenhöhe" en="Center height" it="Altezza di punte" base="Center height"/>
-								<en_center_width fr="La largeur centrale" de="Spitzenweite" en="Center width" it="Larghezza Centro" base="Center width"/>
+								<en_center_height fr="Hauteur centrale" de="Höhe Mitte" en="Center height" it="Altezza centro" base="Center height"/>
+								<en_center_width fr="Largeur centrale" de="Breite Mitte" en="Center width" it="Larghezza centro" base="Center width"/>
 								<en_s_width _tag="en__s_width" fr="%s Largeur" en="%s width" de="%s Breite" it="%s larghezza" base="%s width"/>
+								<en_based_on fr="Basé sur" de="Basierend auf" en="Based on" it="Basato su" base="Based on"/>
+								<en_follow_on fr="Pages suivantes" de="Folgeseiten" en="Follow on" it="Pagine seguenti" base="Follow on"/>
+								<en_type fr="Type" de="Typ" en="Type" it="Tipo" base="Type"/>
+								<en_v_ fr="V." de="V." en="V." it="V." base="V."/>
+								<en_sizing fr="Dimensions" de="Abmessungen" en="Sizing" it="Dimensionamento" base="Sizing"/>
+								<en_layout fr="Mise en page" de="Layout" en="Layout" it="Layout" base="Layout"/>
+								<en_design fr="Design" de="Design" en="Design" it="Design" base="Design"/>
+								<en_header fr="En-tête" de="Kopfzeile" en="Header" it="Intestazione" base="Header"/>
+								<en_center fr="Centre" de="Mitte" en="Center" it="Centro" base="Center"/>
+								<en_footer fr="Pied de page" de="Fußzeile" en="Footer" it="Piè di pagina" base="Footer"/>
 				</th_htmltemplate>
 			</htmltemplate>
 				<install_checklist>

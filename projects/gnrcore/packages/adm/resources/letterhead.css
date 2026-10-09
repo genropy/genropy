@@ -9,3 +9,16 @@
 .selected_layout_center_right .printRegion.center_right{
     background: rgba(236, 236, 170,.4);
 }
+
+.letterhead_band_top .letterheadBand_top,
+.letterhead_band_center .letterheadBand_center,
+.letterhead_band_bottom .letterheadBand_bottom,
+.letterhead_band_left .letterheadBand_left,
+.letterhead_band_right .letterheadBand_right{
+    background: color-mix(in srgb, var(--accent-color) 8%, transparent);
+    box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent-color) 60%, transparent);
+}
+
+.letterheadBands{
+    --tab-vertical-max-width: 7em;
+}

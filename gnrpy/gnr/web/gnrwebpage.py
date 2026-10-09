@@ -78,6 +78,15 @@ AUTH_EXPIRED = 2
 AUTH_FORBIDDEN = -1
 PAGE_TIMEOUT = 60
 PAGE_REFRESH = 20
+LOGIN_COMPONENT = 'login:LoginComponent'
+# they authenticate by themselves, so the login dialog can call them without a session
+LOGIN_RPCS = ('login_checkAvatar', 'login_doLogin', 'login_checkOTPCode')
+
+
+def isLoginRpc(method):
+    mixin_info, _, name = (method or '').rpartition(';')
+    return name in LOGIN_RPCS and mixin_info in ('', '*|%s' % LOGIN_COMPONENT)
+
 
 ATTRIBUTES_SIMPLEWEBPAGE = ('_workdate','_language','_call_args','_call_kwargs','user','connection_id','user_ip','dbstore','user_agent','siteName')
 
@@ -154,6 +163,7 @@ class GnrWebPage(GnrBaseWebPage):
         self.extraFeatures.update(dictExtract(request_kwargs,'_extrafeature_',pop=True))
         self.base_dbstore = request_kwargs.pop('base_dbstore',None)
         self.temp_dbstore = request_kwargs.pop('temp_dbstore',None)
+        self.temp_tenant_schema = request_kwargs.pop('temp_tenant_schema',None)
         if self.temp_dbstore is False:
             self.temp_dbstore = self.application.db.rootstore
         dbstore = self.temp_dbstore or self.base_dbstore
@@ -527,6 +537,8 @@ class GnrWebPage(GnrBaseWebPage):
             envPageArgs = dictExtract(self.pageArgs,'env_')
             if envPageArgs:
                 self._db.updateEnv(**envPageArgs)
+            if self.temp_tenant_schema:
+                self._db.updateEnv(tenant_schema=self.temp_tenant_schema)
             envCallArgs = dictExtract(self._call_kwargs,'dbenv_')
             if envCallArgs:
                 self._db.updateEnv(**envCallArgs)
@@ -651,7 +663,7 @@ class GnrWebPage(GnrBaseWebPage):
             logger.warning('page %s vanished from the register: serverstore changes discarded (%s)',
                            self.page_id, ','.join(sorted(_serverstore_changes)))
         auth = AUTH_OK
-        if method not in ('doLogin', 'onClosePage'):
+        if method not in ('doLogin', 'onClosePage') and not isLoginRpc(method):
             auth = self._checkAuth(method=method, **kwargs)
             #if auth == AUTH_OK:
             #    auth = self._checkRootPage()
@@ -1329,9 +1341,10 @@ class GnrWebPage(GnrBaseWebPage):
         :param record: TODO.
         :param msg: TODO."""
         if isinstance(exception, str):
-            exception = EXCEPTIONS.get(exception)
+            name = exception
+            exception = EXCEPTIONS.get(name)
             if not exception:
-                raise exception
+                raise GnrException(f'Unknown exception name: {name}')
         return exception(user=self.user,localizer=self.application.localizer,**kwargs)
 
     def gnrjs_imports(self):
@@ -2390,7 +2403,7 @@ class GnrWebPage(GnrBaseWebPage):
         return self._package_folder
     package_folder = property(_get_package_folder)
     
-    def rpc_main(self, _auth=AUTH_OK, debugger=None,windowTitle=None,_parent_page_id=None,_root_page_id=None,branchIdentifier=None, **kwargs):
+    def rpc_main(self, _auth=AUTH_OK, debugger=None,windowTitle=None,_parent_page_id=None,_root_page_id=None,branchIdentifier=None, _forbidden_from=None, **kwargs):
         """The first method loaded in a Genro application
         
         :param _auth: the page authorizations. For more information, check the :ref:`auth` page
@@ -2566,14 +2579,11 @@ class GnrWebPage(GnrBaseWebPage):
                 _auth = AUTH_OK if self.deferredMainPageAuthTags(page) else AUTH_FORBIDDEN
         if _auth == AUTH_NOT_LOGGED:
             root.clear()
-            self.mixinComponent('login:LoginComponent',safeMode=True,only_callables=False)
+            self.mixinComponent(LOGIN_COMPONENT,safeMode=True,only_callables=False)
             self.loginDialog(root, **kwargs)
         elif _auth == AUTH_FORBIDDEN:
-            redirect = self.forbiddenRedirectPage
+            redirect = self._forbiddenRedirectUrl()
             if redirect:
-                params = urllib.parse.urlencode(self.pageArgs)
-                if params:
-                    redirect = '%s?%s' % (redirect, params)
                 return (page,dict(redirect=redirect))
             self.forbiddenPage(root, **kwargs)
         if not self.isGuest:
@@ -3035,6 +3045,19 @@ class GnrWebPage(GnrBaseWebPage):
             return self.forbidden_redirect()
         if self.avatar_rootpage:
             return self.avatar_rootpage
+
+    def _forbiddenRedirectUrl(self):
+        redirect = self.forbiddenRedirectPage
+        if not redirect:
+            return
+        params = dict(self.pageArgs)
+        # paths already rejected in this redirect chain: landing on one again would loop
+        rejected = [p for p in (params.pop('_forbidden_from', None) or '').split(',') if p]
+        rejected.append(self.request.path_info)
+        if urllib.parse.urlsplit(redirect).path in rejected:
+            return
+        params['_forbidden_from'] = ','.join(rejected)
+        return '%s%s%s' % (redirect, '&' if '?' in redirect else '?', urllib.parse.urlencode(params))
 
     def isLocalizer(self):
         """TODO"""

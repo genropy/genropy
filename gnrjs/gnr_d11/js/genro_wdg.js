@@ -1002,7 +1002,7 @@ dojo.declare("gnr.GridEditor", null, {
                         }
                         grid.gridEditor.setCellValue(idx,node.label,val);
                         if(editable_cols[node.label].attr.remoteRowController){
-                            let rowNode = grid.storebag().getNode('#'+idx);
+                            let rowNode = grid.dataNodeByIndex(idx);
                             remoteControllerRows.addItem(rowNode.label,rowNode);
                         }
                     });
@@ -1886,6 +1886,9 @@ dojo.declare("gnr.GridEditor", null, {
         }
         var cell = this.grid.getCell(col);
         if (!(cell.field in this.columns)){return false;}
+        if(this.grid.treeStore && this.grid.treeStore()){
+            return false;
+        }
         if ((cell.classes || '').indexOf('hiddenColumn')>=0){return false}
         this.grid.currRenderedRowIndex = row;
         var rowdict = this.grid.rowByIndex(row);
@@ -2007,6 +2010,171 @@ dojo.declare("gnr.GridFilterManager", null, {
 
     hasActiveFilter:function(){
         return this.activeFilters().length>0;
+    }
+});
+
+dojo.declare("gnr.GridColumnFilterPane", null, {
+    maxRows:200,
+    searchThreshold:6,
+
+    constructor:function(grid,cell,domNode,openerId){
+        this.grid = grid;
+        this.cell = cell;
+        this.domNode = domNode;
+        this.openerId = openerId;
+        this.search = '';
+        this.items = [];
+        domNode.classList.add('gridColumnFilterPane');
+        var label = document.createElement('div');
+        label.innerHTML = cell.original_name || '';
+        var title = this.element('div','gcf_title',label.textContent);
+        this.searchBox = this.element('label','gcf_searchbox');
+        this.searchBox.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></svg>';
+        this.searchNode = this.element('input','gcf_search');
+        this.searchNode.type = 'search';
+        this.searchNode.placeholder = _T('Search');
+        this.searchBox.appendChild(this.searchNode);
+        this.searchBox.hidden = true;
+        this.listNode = this.element('div','gcf_list');
+        this.moreNode = this.element('div','gcf_more');
+        this.moreNode.hidden = true;
+        this.clearNode = this.element('button','gcf_clear',_T('Clear filter'));
+        this.clearNode.type = 'button';
+        this.countNode = this.element('span','gcf_rowcount');
+        var foot = this.element('div','gcf_foot');
+        foot.append(this.clearNode,this.countNode);
+        domNode.append(title,this.searchBox,this.listNode,this.moreNode,foot);
+        var that = this;
+        this.searchNode.addEventListener('input',function(){
+            that.search = that.searchNode.value;
+            that.renderList();
+        });
+        this.listNode.addEventListener('change',function(e){
+            if(e.target.dataset.idx!==undefined){
+                that.toggle(e.target);
+            }
+        });
+        this.clearNode.addEventListener('click',function(){
+            that.grid.setColumnFilter(that.cell,null);
+            that.renderList();
+        });
+        domNode.addEventListener('keydown',function(e){
+            if(e.key=='Escape' && that.openerId && genro.nodeById(that.openerId)){
+                dojo.stopEvent(e);
+                genro.nodeById(that.openerId).publish('close');
+            }
+        });
+        this.setItems(grid.columnFilterValues(cell));
+    },
+
+    element:function(tag,className,text){
+        var node = document.createElement(tag);
+        node.className = className;
+        if(text){
+            node.textContent = text;
+        }
+        return node;
+    },
+
+    checkedKeys:function(){
+        return new Set((this.cell.filterValues || []).map(gnr.columnFilterKey));
+    },
+
+    captionText:function(item){
+        if(item.key===''){
+            return _T('(empty)');
+        }
+        return (item.caption===null || item.caption===undefined)? item.key:''+item.caption;
+    },
+
+    setItems:function(items){
+        var checked = this.checkedKeys();
+        var captions = this.cell._filterCaptions = this.cell._filterCaptions || {};
+        var byKey = {};
+        items.forEach(function(item){
+            item.key = gnr.columnFilterKey(item.value);
+            byKey[item.key] = item;
+            captions[item.key] = item.caption;
+        });
+        (this.cell.filterValues || []).forEach(function(value){
+            var key = gnr.columnFilterKey(value);
+            if(!byKey[key]){
+                byKey[key] = {value:value,key:key,caption:(key in captions)? captions[key]:value,count:0};
+                items.push(byKey[key]);
+            }
+        });
+        var that = this;
+        items.sort(function(a,b){
+            return (checked.has(b.key)-checked.has(a.key)) || (b.count-a.count) ||
+                   that.captionText(a).localeCompare(that.captionText(b));
+        });
+        this.items = items;
+        this.searchBox.hidden = items.length<=this.searchThreshold;
+        this.renderList();
+        if(!this.searchBox.hidden){
+            this.searchNode.focus();
+        }
+    },
+
+    renderList:function(){
+        var query = this.search.trim().toLowerCase();
+        var checked = this.checkedKeys();
+        var fragment = document.createDocumentFragment();
+        var shown = 0;
+        var matches = 0;
+        var separatorDone = checked.size===0;
+        var that = this;
+        this.items.forEach(function(item,idx){
+            var text = that.captionText(item);
+            if(query && text.toLowerCase().indexOf(query)<0){
+                return;
+            }
+            matches++;
+            var isChecked = checked.has(item.key);
+            if(!query && shown>=that.maxRows && !isChecked){
+                return;
+            }
+            if(!separatorDone && !isChecked){
+                fragment.appendChild(that.element('div','gcf_sep'));
+                separatorDone = true;
+            }
+            var row = that.element('label','gcf_row'+(isChecked? ' gcf_checked':'')+(item.count? '':' gcf_zero'));
+            var input = document.createElement('input');
+            input.type = 'checkbox';
+            input.checked = isChecked;
+            input.dataset.idx = idx;
+            row.append(input,that.element('span','gcf_caption'+(item.key===''? ' gcf_empty':''),text),
+                       that.element('span','gcf_count',''+item.count));
+            fragment.appendChild(row);
+            shown++;
+        });
+        if(!matches){
+            fragment.appendChild(this.element('div','gcf_more',_T('No value')));
+        }
+        this.listNode.replaceChildren(fragment);
+        var rest = matches-shown;
+        this.moreNode.hidden = rest<=0;
+        this.moreNode.textContent = rest+' '+_T('more. Type to search.');
+        this.updateFoot();
+    },
+
+    updateFoot:function(){
+        var store = this.grid.collectionStore();
+        this.clearNode.hidden = !(this.cell.filterValues && this.cell.filterValues.length);
+        this.countNode.textContent = store.len(true)+' / '+store.len();
+    },
+
+    toggle:function(input){
+        var item = this.items[parseInt(input.dataset.idx)];
+        var values = (this.cell.filterValues || []).filter(function(value){
+            return gnr.columnFilterKey(value)!==item.key;
+        });
+        if(input.checked){
+            values.push(item.value);
+        }
+        this.grid.setColumnFilter(this.cell,values);
+        input.parentNode.classList.toggle('gcf_checked',input.checked);
+        this.updateFoot();
     }
 });
 
@@ -2158,6 +2326,12 @@ dojo.declare("gnr.GridChangeManager", null, {
         delete this.totalizeColumns[field];
     },
     calculateFormula:function(formulaKey,rowNode){
+        var values = {};
+        values[formulaKey] = this.evaluateFormula(formulaKey,rowNode);
+        this.grid.collectionStore().updateRowNode(rowNode,values);
+    },
+
+    evaluateFormula:function(formulaKey,rowNode){
         var formula = this.formulaColumns[formulaKey];
         var result;
         var pars = this.grid.rowFromBagNode(rowNode,true);
@@ -2191,7 +2365,6 @@ dojo.declare("gnr.GridChangeManager", null, {
         var dynPars = objectExtract(bagcellattr,'formula_*',true);
         dynPars = this.sourceNode.evaluateOnNode(dynPars);
         objectUpdate(pars,dynPars);
-        var values = {};
         if(formula=='#'){
             result = rowNode.attr.rowidx || this.grid.currRenderedRowIndex;
         }else{
@@ -2201,8 +2374,7 @@ dojo.declare("gnr.GridChangeManager", null, {
                 result = null;
             }
         }
-        values[formulaKey] = result;
-        this.grid.collectionStore().updateRowNode(rowNode,values);
+        return result;
     },
  
 

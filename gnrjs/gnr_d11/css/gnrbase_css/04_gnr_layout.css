@@ -103,6 +103,69 @@
 	height: 40px;
 }
 
+.slotbarOpener.jodit_css_opener{
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	left: -17px;
+	width: 16px;
+	height: 46px;
+	opacity: 1;
+	background: var(--roundedgroup-surface, #fff);
+	color: var(--accent-color);
+	border: 1px solid var(--border-strong);
+	border-right: 0;
+	border-radius: var(--radius-md) 0 0 var(--radius-md);
+}
+.slotbarOpener.jodit_css_opener:hover{
+	background: var(--accent-color);
+	color: var(--accent-on-color);
+}
+.jodit_css_opener .slotbarOpener_label_vertical{
+	writing-mode: vertical-rl;
+	transform: rotate(180deg);
+	font-size: 10px;
+	letter-spacing: .04em;
+}
+.slotbarOpener.tab_opener{
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	box-sizing: content-box;
+	width: 16px;
+	height: auto;
+	padding: 6px 0;
+	margin-top: 0;
+	opacity: 1;
+	background: var(--accent-color);
+	color: var(--accent-on-color);
+	border: 1px solid var(--accent-color);
+}
+.slotbarOpener_left.tab_opener{
+	right: -17px;
+	border-left: 0;
+	border-radius: 0 var(--radius-md) var(--radius-md) 0;
+}
+.slotbarOpener_right.tab_opener{
+	left: -17px;
+	border-right: 0;
+	border-radius: var(--radius-md) 0 0 var(--radius-md);
+}
+.slotbarOpener.tab_opener:hover{
+	filter: brightness(.9);
+}
+.tab_opener .slotbarOpener_label_vertical{
+	writing-mode: vertical-rl;
+	transform: rotate(180deg);
+	font-size: 10px;
+	letter-spacing: .04em;
+	white-space: nowrap;
+}
+.slotbarOpener_left.grouper_opener{
+	right: -20px;
+	border-left: 2px solid var(--accent-on-color);
+}
+
 .slotCaption {
     border-radius: var(--radius-lg);
     background:var(--text-muted);
@@ -359,3 +422,21 @@
 
 
 
+
+/* Keep scrollbar gutters stable while drawer layouts pass through narrow sizes. */
+.gnrDrawerAnimating,
+.gnrDrawerAnimating * {
+    scrollbar-color: transparent transparent !important;
+}
+.gnrDrawerAnimating::-webkit-scrollbar,
+.gnrDrawerAnimating *::-webkit-scrollbar,
+.gnrDrawerAnimating::-webkit-scrollbar-thumb,
+.gnrDrawerAnimating *::-webkit-scrollbar-thumb,
+.gnrDrawerAnimating::-webkit-scrollbar-track,
+.gnrDrawerAnimating *::-webkit-scrollbar-track,
+.gnrDrawerAnimating::-webkit-scrollbar-corner,
+.gnrDrawerAnimating *::-webkit-scrollbar-corner {
+    background: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+}

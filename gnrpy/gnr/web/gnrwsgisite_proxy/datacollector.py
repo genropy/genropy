@@ -58,7 +58,7 @@ class DataCollector(object):
     def stale_connections(self, seconds=0):
         now = datetime.datetime.now()
         for c in self.connections:
-            if (now - c['last_refresh_ts']).seconds > seconds:
+            if (now - c['last_refresh_ts']).total_seconds() > seconds:
                 yield c
         
     @property

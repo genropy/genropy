@@ -7,22 +7,6 @@ from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.core.gnrdecorator import metadata
 
 
-class ViewTestGraph(BaseComponent):
-    def th_struct(self,struct):
-        r = struct.view().rows()
-        r.fieldcell('nome', width='20em')
-        r.fieldcell('sigla',width='3em')
-        r.fieldcell('numero_abitanti',width='8em')
-        r.fieldcell('tot_superficie',width='8em')
-        r.cell('densita',formula='numero_abitanti/tot_superficie',dtype='N')
-
-    def th_order(self):
-        return 'numero_abitanti:d'
-
-    def th_query(self):
-        return dict(column='nome',op='contains', val='')
-
-
 class ViewTestSections(BaseComponent):
     def th_struct(self,struct):
         r = struct.view().rows()
@@ -93,3 +77,17 @@ class TestFormProxy(BaseComponent):
         center.button('Run',fire='.run')
         center.dataRpc('.result',self.sheldon.remoteBazinga,_fired='^.run')
         center.div('^.result')
+
+class ViewColumnFilter(BaseComponent):
+    def th_struct(self, struct):
+        r = struct.view().rows()
+        r.fieldcell('nome', width='100%')
+        r.fieldcell('sigla', width='4em')
+        r.fieldcell('regione', width='12em', filterField=True)
+        r.fieldcell('@regione.zona', name='Zona', width='10em', filterField=True)
+
+    def th_order(self):
+        return 'nome'
+
+    def th_options(self):
+        return dict(virtualStore=False)

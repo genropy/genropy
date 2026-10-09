@@ -67,3 +67,15 @@ class GnrCustomWebPage(object):
         center = bc.contentPane(region='center', background='#efe', padding='8px')
         center.div('Center region — height must adapt when the top toggles.',
                    color='#363')
+
+    def test_6_animated_drawer(self, pane):
+        """Drawers animate by default; drawer_animate=False keeps the legacy instant toggle."""
+        bc = pane.borderContainer(height='300px', border='1px solid silver',
+                                  nodeId='animated_drawer_test')
+        drawer = bc.contentPane(region='right', width='260px', drawer='close',
+                                drawer_duration=420, background='#f4efe5', padding='16px')
+        drawer.div('Animated drawer', font_size='18px', font_weight='bold')
+        drawer.div('The center region resizes together with this panel.', margin_top='8px')
+        center = bc.contentPane(region='center', padding='16px', background='#eef4ec')
+        center.button('Toggle drawer',
+                      action="genro.wdgById('animated_drawer_test').showHideRegion('right', 'toggle');")
