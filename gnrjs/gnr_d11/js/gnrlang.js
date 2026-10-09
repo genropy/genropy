@@ -75,14 +75,15 @@ function jsOpenQuote(code) {
     return q;
 }
 
-function jsInertValue(codeBefore, value) {
+function jsInertValue(codeBefore, value, attrQuote) {
     if (jsOpenQuote(codeBefore)) {
         return jsStringEscape(value);
     }
     if (typeof value == 'number' || typeof value == 'boolean' || /^-?\d+(\.\d+)?$/.test(value)) {
         return value + '';
     }
-    return "'" + jsStringEscape(value) + "'";
+    var q = attrQuote == "'" ? '"' : "'";
+    return q + jsStringEscape(value) + q;
 }
 
 
@@ -341,6 +342,7 @@ function dataTemplate(str, data, path, showAlways,kw) {
     var is_empty = true;
     var has_field = false;
     var jsContext = false;
+    var attrQuote = null;
     var handlers = null;
     var nonce;
 
@@ -381,14 +383,6 @@ function dataTemplate(str, data, path, showAlways,kw) {
         });
     }
  
-    if(kw.trustedMarkup){
-        nonce = '\u0001' + Math.random().toString(36).slice(2) + '_';
-        handlers = [];
-        str = str.replace(_TEMPLATE_HANDLER_ATTR, function(attr) {
-            handlers.push(attr);
-            return nonce + (handlers.length - 1) + '\u0001';
-        });
-    }
     var substitute;
     if (data instanceof gnr.GnrBag) {
         if (!data && !showAlways) {
@@ -468,7 +462,7 @@ function dataTemplate(str, data, path, showAlways,kw) {
                                         value = dojo.date.locale.format(value, {selector:dtype=='H'?'time':'date', format:'short'});
                                     }
                                     if(jsContext){
-                                        return jsInertValue(arguments[l-1].slice(0, arguments[l-2]), value);
+                                        return jsInertValue(arguments[l-1].slice(0, arguments[l-2]), value, attrQuote);
                                     }
                                     return value;
                                 } else if(showAlways){
@@ -496,7 +490,7 @@ function dataTemplate(str, data, path, showAlways,kw) {
                                         value = gnrformatter.asText(value,formats[p]);
                                     }
                                     if(jsContext){
-                                        return jsInertValue(arguments[l-1].slice(0, arguments[l-2]), value);
+                                        return jsInertValue(arguments[l-1].slice(0, arguments[l-2]), value, attrQuote);
                                     }
                                     return genro.safeHtmlContent(value);
                               }else{
@@ -504,22 +498,40 @@ function dataTemplate(str, data, path, showAlways,kw) {
                               }
                           };
     }
-    result = str.replace(regexpr, substitute);
-    if (handlers) {
-        result = genro.safeHtmlContent(result);
+    // The final pass must see the quote structure the browser will parse: each
+    // handler is interpolated first and stays in place, masked except for its quotes.
+    if(kw.trustedMarkup){
+        nonce = '\u0001' + Math.random().toString(36).slice(2) + '_';
+        handlers = [];
         jsContext = true;
-        result = result.replace(new RegExp(nonce + '(\\d+)\u0001', 'g'), function(m, i) {
-            var attr = handlers[i];
+        str = str.replace(_TEMPLATE_HANDLER_ATTR, function(attr) {
             var head = attr.match(/^on\w+\s*=\s*["']?/i)[0];
             var quote = head.slice(-1);
             var code = attr.slice(head.length);
             var tail = '';
-            if ((quote == '"' || quote == "'") && code.slice(-1) == quote) {
-                code = code.slice(0, -1);
-                tail = quote;
+            if (quote == '"' || quote == "'") {
+                if (code.slice(-1) == quote) {
+                    code = code.slice(0, -1);
+                    tail = quote;
+                }
+            } else {
+                quote = '';
             }
-            return head + code.replace(regexpr, substitute) + tail;
+            attrQuote = quote;
+            var value = quote + code.replace(regexpr, substitute) + tail;
+            var masked = value.replace(/[^"']/g, '\u0001');
+            handlers.push({name: head.slice(0, head.length - quote.length), value: value, masked: masked});
+            return nonce + (handlers.length - 1) + '\u0001=' + masked;
         });
+        jsContext = false;
+    }
+    result = str.replace(regexpr, substitute);
+    if (handlers) {
+        result = genro.safeHtmlContent(result);
+        result = result.replace(new RegExp(nonce + '(\\d+)\u0001=("[^"]*"|\'[^\']*\'|[^\\s>]*)', 'g'), function(m, i, masked) {
+            return masked == handlers[i].masked ? handlers[i].name + handlers[i].value : m;
+        });
+        result = result.replace(/\u0001/g, '');
     }
     if (has_field && is_empty && !showAlways) {
         return '';

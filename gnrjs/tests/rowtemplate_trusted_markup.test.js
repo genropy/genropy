@@ -198,6 +198,60 @@ test('backtick template literal inside a handler: ${ from a value stays text', (
     assert.deepEqual(seen, ['id-${alert(1)}']);
 });
 
+// Review on #1456: a value with an unterminated href="javascript: before a handler passed the final pass
+// because the handler placeholder carried no quote, and the restored handler's quote then closed the href.
+function assertNoLiveHref(context, template, row) {
+    const {context: ctx, warnings} = context;
+    const html = render(ctx, template, row);
+    assert.ok(html.includes('href="#"'), html);
+    assert.ok(!/javascript:/i.test(html), html);
+    assert.equal(handlersIn(html).length, 0, html);
+    assert.equal(warnings.length, 1);
+    return html;
+}
+
+test('an open href="javascript: in a value before a double-quoted handler is rewritten by the final pass', () => {
+    assertNoLiveHref(createContext(), `$name <span onclick="go('$id')">x</span>`,
+                     {name: '<a href="javascript:alert(1)//', id: 'A'});
+});
+
+test("an open href='javascript: in a value before a single-quoted handler is rewritten by the final pass", () => {
+    assertNoLiveHref(createContext(), `$name <span onclick='go("$id")'>x</span>`,
+                     {name: "<a href='javascript:alert(1)//", id: 'A'});
+});
+
+test("an open href='javascript: closed by the inner quote of a double-quoted handler is rewritten too", () => {
+    assertNoLiveHref(createContext(), `$name <span onclick="go('$id')">x</span>`,
+                     {name: "<a href='javascript:alert(1)//", id: 'A'});
+});
+
+test("the quotes wrapping a bare field value count in the quote structure the final pass sees", () => {
+    assertNoLiveHref(createContext(), `$name <span onclick="go($id)">x</span>`,
+                     {name: "<a href='javascript:alert(1)//", id: 'A'});
+    assertNoLiveHref(createContext(), `$name <span onclick=go($id)>x</span>`,
+                     {name: "<a href='javascript:alert(1)//", id: 'A'});
+});
+
+test('a bare field inside a single-quoted handler is wrapped with the other quote', () => {
+    const {context, warnings} = createContext();
+    const html = render(context, `<a onclick='go($id)'>1</a>`, {id: 'A'});
+    assert.ok(html.includes(`onclick='go("A")'`), html);
+    const seen = [];
+    assert.deepEqual(fire(handlersIn(html)[0], {go: v => seen.push(v)}), []);
+    assert.deepEqual(seen, ['A']);
+    assert.deepEqual(warnings, []);
+});
+
+test('known limit: JS quotes written as entities in the handler are not seen as an open quote', () => {
+    const {context, warnings} = createContext();
+    const html = render(context, `<a onclick="f(&quot;$x&quot;)">1</a>`, {x: 'A'});
+    assert.ok(html.includes(`onclick="f(&quot;'A'&quot;)"`), html);
+    const seen = [];
+    assert.deepEqual(fire(handlersIn(html)[0], {f: v => seen.push(v)}), []);
+    assert.deepEqual(seen, ["'A'"], 'inert, but the handler receives the value wrapped in quotes');
+    assert.deepEqual(warnings, []);
+});
+
 test('without trustedMarkup dataTemplate is unchanged: raw value in the handler, no final pass', () => {
     const {context, warnings} = createContext();
     const html = render(context, CREDITI, {id: "');alert(1);//", spostamento: 'S', crediti_assegnati: 1}, {});
