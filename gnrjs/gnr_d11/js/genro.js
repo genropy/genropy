@@ -419,6 +419,12 @@ dojo.declare('gnr.GenroClient', null, {
         if(genro.external_window_key){
             genro.mainGenroWindow.genro.publish('closeExternalWindow',{windowKey:genro.external_window_key});
         }
+        if(genro.root_page_id){
+            let mainGenro = genro.mainGenroWindow && genro.mainGenroWindow.genro;
+            if(mainGenro){
+                mainGenro.setFastPolling(false,genro.page_id);
+            }
+        }
         this.notifyPageClosing();
     },
     

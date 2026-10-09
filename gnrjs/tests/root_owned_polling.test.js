@@ -131,6 +131,28 @@ test('an iframe dropping its fast polling keeps the one the root page asked for'
     assert.deepEqual([...root.intervals.values()], [30000]);
 });
 
+test('an iframe that requests fast polling and is then closed brings the root back to auto polling', () => {
+    const {root, iframe} = createPage();
+    iframe.genro.notifyPageClosing = () => {};
+    iframe.genro.setFastPolling(true);
+    assert.equal(root.genro.fast_polling, true);
+
+    iframe.genro.onWindowUnload();
+    assert.equal(root.genro.fast_polling, false);
+    assert.deepEqual([...root.intervals.values()], [30000]);
+});
+
+test('an iframe closed while the root page requests fast polling leaves the root request in place', () => {
+    const {root, iframe} = createPage();
+    iframe.genro.notifyPageClosing = () => {};
+    root.genro.setFastPolling(true);
+    iframe.genro.setFastPolling(true);
+
+    iframe.genro.onWindowUnload();
+    assert.equal(root.genro.fast_polling, true);
+    assert.deepEqual([...root.intervals.values()], [2000]);
+});
+
 test('an iframe dropping its fast polling during an outage keeps the outage fast polling', () => {
     const {clock, root, iframe} = createPage();
     iframe.genro.setFastPolling(true);
