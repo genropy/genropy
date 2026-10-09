@@ -1019,6 +1019,21 @@ class DbModelSrc(GnrStructData):
                 raise GnrSqlException(error)
 
         kwargs.update(variant_kwargs)
+        kind = dict(
+            relation_path=relation_path, select=select, exists=exists,
+            sql_formula=sql_formula, py_method=py_method,
+            join_column=kwargs.get('join_column'),
+            composed_of=kwargs.get('composed_of'),
+        )
+        # on a colgroup child() writes on the table (_destinationNode)
+        table_src = getattr(self, '_destinationNode', self)
+        existing = table_src['virtual_columns'].getNode(name)
+        if existing and any(v is not None for v in kind.values()):
+            # child() skips None kwargs, so a redefinition of another kind
+            # would otherwise inherit the previous kind's attributes
+            for k, v in kind.items():
+                if v is None:
+                    existing.attr.pop(k, None)
         vcsrc = self.child(
             'virtual_column', 'virtual_columns.%s' % name,
             relation_path=relation_path, select=select, exists=exists,

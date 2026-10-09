@@ -331,11 +331,12 @@ class GroupletHandler(BaseComponent):
         else:
             menu = self.gr_getGroupletMenu(table=table, topic=topic,
                                            grouplets_root=grouplets_root)
+        remote_prefix = 'grouplet_remote_' if useForm else 'remote_'
         mandatory_locations = self._groupletPanel_mandatoryPaths(menu, topic=topic)
         if mandatory_locations:
-            grouplet_kwargs['grouplet_remote_mandatory_enforced'] = '#ANCHOR.mandatory_enforced'
+            grouplet_kwargs[f'{remote_prefix}mandatory_enforced'] = '#ANCHOR.mandatory_enforced'
         if topic:
-            grouplet_kwargs['grouplet_remote_topic'] = topic
+            grouplet_kwargs[f'{remote_prefix}topic'] = topic
             root = self._groupletPanel_topic(
                 pane, menu, frameCode=frameCode, formId=formId,
                 useForm=useForm,
@@ -455,7 +456,8 @@ class GroupletHandler(BaseComponent):
                 return labelClass;
             """,
             connect_onClick=f"gnr_grouplet.panelTreeClick(this, $2, '{formId or ''}');")
-        grouplet_kwargs['grouplet_remote__reloader'] = '^#ANCHOR.selected_fullpath'
+        reloader = 'grouplet_remote__reloader' if useForm else 'remote__reloader'
+        grouplet_kwargs[reloader] = '^#ANCHOR.selected_fullpath'
         right = bc.borderContainer(region='center')
         top = right.contentPane(region='top',
                                 _class='grouplet_panel_title_bar')

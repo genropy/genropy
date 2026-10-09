@@ -76,6 +76,7 @@ class GnrWebUtils(GnrBaseProxy):
         title = title or self.page.localize('!![en]Executing')
         thermo = """<div class="quickthermo_box"> <div class="form_waiting"></div> </div>""" 
         title = """<div class="quickthermo_title">%s</div>""" %title
+        thermo_pars = None
         for idx,v in enumerate(iterator):
             idx = idx+1
             if isinstance(v,str):
@@ -97,6 +98,8 @@ class GnrWebUtils(GnrBaseProxy):
                 thermo = self._updateThermo(maxidx, thermo_pars)
                 self.page.setInClientData(path,thermo,idx=idx,maxidx=maxidx,lbl=lbl)
             yield v
+        if thermo_pars is None:
+            return
         thermo = self._updateThermo(maxidx, thermo_pars)
         self.page.setInClientData(path,thermo,idx=maxidx,maxidx=maxidx,lbl=lbl)
     

@@ -26,7 +26,7 @@ from gnr.core.gnrbag import Bag
 from gnr.core import gnrstring
 from gnr.core.gnrlang import GnrException, GnrDebugException
 from gnr.core.gnrlang import getUuid, ThreadedDict
-from gnr.core.gnrdecorator import public_method, deprecated
+from gnr.core.gnrdecorator import deprecated
 from gnr.core.gnrconfig import getGnrConfig,getEnvironmentItem
 from gnr.core.gnrsys import expandpath
 from gnr.core.gnrstring import boolean
@@ -144,7 +144,6 @@ class UrlInfo(object):
             last_path = os.path.join(basepath,*path_list)
             last_index_path = os.path.join(last_path,'index.py')
             if os.path.isfile(last_index_path):
-                pathfile_cache[last_path] = last_index_path
                 pathfile_cache[last_index_path.replace('.py','')] = last_index_path
                 self.relpath = last_index_path
                 self.request_args = []
@@ -1090,12 +1089,20 @@ class GnrWsgiSite(object):
         return self._writeErrorRecord(exception=exception, error_type='EXC',
                                       traceback=traceback)
 
-    @public_method
     @deprecated(message='use errorHandler')
     def writeError(self, description=None, error_type=None, **kwargs):
         return self._writeErrorRecord(description=description,
                                       error_type=error_type or 'ERR',
                                       error_kwargs=kwargs)
+
+    def rpc_writeError(self, description=None, error_type=None, **kwargs):
+        # the record carries the db env: it never goes back to the client
+        page = self.currentPage
+        if not page or not page.avatar:
+            return
+        self._writeErrorRecord(description=description,
+                               error_type=error_type or 'ERR',
+                               error_kwargs=kwargs)
 
     def _writeErrorRecord(self, error_kwargs=None, **kwargs):
         try:
@@ -1108,9 +1115,11 @@ class GnrWsgiSite(object):
             if not error_id or not self.db.package('sys'):
                 return None
             with self.db.tempEnv(connectionName='system', storename=self.db.rootstore):
-                return self.db.table('sys.error').record(
+                record = self.db.table('sys.error').record(
                     error_code=error_id, ignoreMissing=True,
                     ignoreDuplicate=True).output('dict') or None
+                self.db.rollback()
+                return record
         except Exception:
             logger.exception('Failed to write error %s',
                              kwargs.get('description') or kwargs.get('exception'))
@@ -1686,10 +1695,13 @@ class GnrWsgiSite(object):
             instance_path = self.config['instance?path'] or self.config['instances.#0?path']
         self.instance_path = instance_path
         restorepath = options.restore if options else None
+        # --xpr of gnr web serve, already parsed by the server: the other commands building a site have no such option
+        experimental_config = getattr(options, 'experimental_config', None)
         restorefiles=[]
         if self.remote_db:
             instance_path = '%s:%s' %(instance_path,self.remote_db)
-        app = GnrWsgiWebApp(instance_path, site=self,restorepath=restorepath)
+        app = GnrWsgiWebApp(instance_path, site=self,restorepath=restorepath,
+                            custom_config=experimental_config)
         self.config.setItem('instances.app', app, path=instance_path)
         return app
 
