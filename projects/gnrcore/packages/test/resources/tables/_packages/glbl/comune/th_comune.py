@@ -142,3 +142,18 @@ class ViewTestQueryCondition(BaseComponent):
                             tag='checkboxtext', popup=True),
                     dict(field='$litoraneo', tag='checkbox')],
                     cols=2, isDefault=True)
+
+
+class ViewColumnFilter(BaseComponent):
+    def th_struct(self, struct):
+        r = struct.view().rows()
+        r.fieldcell('denominazione', width='100%')
+        r.fieldcell('@sigla_provincia.nome', name='Provincia', width='12em', filterField='sigla_provincia')
+        r.fieldcell('@sigla_provincia.@regione.nome', name='Regione', width='12em',
+                    filterField='@sigla_provincia.regione')
+        r.fieldcell('capoluogo', width='6em', filterField=True)
+        r.fieldcell('zona_altimetrica', width='8em', filterField=True)
+        r.fieldcell('popolazione_residente', width='9em')
+
+    def th_order(self):
+        return 'denominazione'

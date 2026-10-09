@@ -7025,9 +7025,8 @@ dojo.declare("gnr.stores._Collection",null,{
         return this.rowByIndex(inRowIndex,bagFields);
     },
     
-    compileFilter:function(grid,value,filterColumn,colType){
+    compileFilter:function(grid,value,filterColumn,colType,columnFilterSkip){
         var cbsearch;
-        var cb;
         if(!isNullOrBlank(value)){
             if (colType in {'A':null,'T':null}) {
                 var regexp = new RegExp(value, 'i');
@@ -7054,14 +7053,27 @@ dojo.declare("gnr.stores._Collection",null,{
                 }
             }
         }
+        var callbacks = [];
         if(grid.filterManager && grid.filterManager.hasActiveFilter()){
-            cb = function(rowdata, index, array){
-                return grid.filterManager.isInFilterSet(rowdata) && (cbsearch?cbsearch(rowdata, index, array):true);
-            };
-        }else{
-            cb = cbsearch;
+            callbacks.push(function(rowdata){
+                return grid.filterManager.isInFilterSet(rowdata);
+            });
         }
-        return cb;
+        if(cbsearch){
+            callbacks.push(cbsearch);
+        }
+        var cbcolumns = grid.columnFilterCb? grid.columnFilterCb(columnFilterSkip):null;
+        if(cbcolumns){
+            callbacks.push(cbcolumns);
+        }
+        if(callbacks.length<2){
+            return callbacks[0];
+        }
+        return function(rowdata, index, array){
+            return callbacks.every(function(f){
+                return f(rowdata, index, array);
+            });
+        };
     },
 
     createFiltered:function(grid,currentFilterValue,filterColumn,colType){
