@@ -3095,6 +3095,10 @@ dojo.declare("gnr.widgets.BorderContainer", gnr.widgets.baseDojo, {
         if(drawer=='close'){
             dojo.connect(bc,'startup',function(){bc.showHideRegion(side,false,false);});
         }
+        dojo.connect(drawerDom,'onmousedown',function(e){
+            // A toggle must not start splitter dragging and overwrite the saved size.
+            dojo.stopEvent(e);
+        });
         dojo.connect(drawerDom,'onclick',function(e){
             var show = bc.showHideRegion(side,'toggle');
             if(drawer_kw.onclick){

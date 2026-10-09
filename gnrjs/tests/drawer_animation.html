@@ -6,6 +6,7 @@
 <link rel="icon" href="data:,">
 <link rel="stylesheet" href="../../dojo_libs/dojo_11/dojo/dijit/themes/tundra/tundra.css">
 <link rel="stylesheet" href="../gnr_d11/css/gnrbase_css/04_gnr_layout.css">
+<link rel="stylesheet" href="../gnr_d11/css/gnrbase_css/09_gnr_dialogs_forms.css">
 <style>
 body {font: 14px sans-serif; padding: 20px;}
 .fixture {position: relative; width: min(900px, 100%); height: 220px; margin: 20px 0;}
@@ -16,17 +17,14 @@ pre {white-space: pre-wrap;}
 </style>
 <script src="../../dojo_libs/dojo_11/dojo/dojo/dojo.js"></script>
 <script>dojo.require('dijit.layout.BorderContainer'); dojo.require('dijit.layout.ContentPane');
-window.gnr = {}; window.genro = {fakeResize() {}, dom: {
-    setClass(node, name, enabled) {
-        node = node.widget ? node.widget.domNode : node;
-        (enabled ? dojo.addClass : dojo.removeClass)(node, name);
-    }
-}};
+window.gnr = {}; window.genro = {fakeResize() {}};
 </script>
 <script src="../gnr_d11/js/gnrlang.js"></script>
 <script src="../gnr_d11/js/gnrbag.js"></script>
 <script src="../gnr_d11/js/gnrdomsource.js"></script>
 <script src="../gnr_d11/js/genro_frm.js"></script>
+<script src="../gnr_d11/js/genro_dom.js"></script>
+<script>genro.dom = new gnr.GnrDomHandler(genro);</script>
 <script src="../gnr_d11/js/genro_widgets.js"></script>
 </head>
 <body class="tundra">
@@ -37,6 +35,7 @@ window.gnr = {}; window.genro = {fakeResize() {}, dom: {
 <pre id="result">Ready</pre>
 <div id="regularFixture" class="fixture"></div>
 <div id="closableFixture" class="fixture"></div>
+<div id="codeFixture" class="fixture"></div>
 <script>
 const prototype = gnr.widgets.BorderContainer.prototype;
 function fixture(id, attributes) {
@@ -46,9 +45,10 @@ function fixture(id, attributes) {
     }
     bc._saved_size = {}; bc._drawerAnimations = {}; bc._closableRegions = {};
     const Pane = attributes.closable ? dijit.layout.BorderContainer : dijit.layout.ContentPane;
-    const left = new Pane({region: 'left', splitter: true,
-        style: 'width: 320px; border: 2px solid #345; padding: 8px; background: #e4eef4;'});
-    const source = {attr: {region: 'left', ...attributes}, widget: left,
+    const region = attributes.region || 'left';
+    const left = new Pane({region, splitter: true,
+        style: `width: ${attributes.width || '320px'}; border: 2px solid #345; padding: 8px; background: #e4eef4;`});
+    const source = {attr: {region, splitter: true, ...attributes}, widget: left, domNode: left.domNode,
         getAttributeFromDatasource(name) {return this.attr[name];}, publish() {},
         _(tag, attrs) {
             const node = document.createElement(tag);
@@ -78,10 +78,16 @@ function fixture(id, attributes) {
     bc.sourceNode = {attr: {}};
     prototype.afterStartup(bc);
     if (attributes.closable) prototype.addClosableHandle(bc, source, attributes);
+    if (attributes.drawer) {
+        bc.addDrawerHandle(left);
+        bc.showHideRegion(region, false, false);
+    }
     return {bc, left, center};
 }
 const regular = fixture('regularFixture', {drawer_animate: true});
 const closable = fixture('closableFixture', {closable: 'close', closable_animate: true, closable_label: 'Σ'});
+const code = fixture('codeFixture', {region: 'right', width: '550px', drawer: 'close',
+    drawer_label: '<span>Code</span>', drawer_width: '43px', drawer_left: '-40px', drawer_background: 'red'});
 document.getElementById('regular').onclick = () => regular.bc.setRegionVisible('left', 'toggle');
 document.getElementById('closable').onclick = () => closable.left.domNode.querySelector('.slotbarOpener').click();
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -91,6 +97,29 @@ document.getElementById('run').onclick = async function() {
     const result = document.getElementById('result');
     result.textContent = 'Running';
     try {
+        code.bc.showHideRegion('right', false, false);
+        const codeLabel = code.bc._splitters.right.querySelector('.drawerHandle span');
+        const clickCode = () => {
+            codeLabel.dispatchEvent(new MouseEvent('mousedown', {bubbles: true, cancelable: true, clientX: 600}));
+            check(!dojo.hasClass(code.bc._splitters.right, 'dijitSplitterActive'), 'Code click started splitter dragging');
+            document.body.dispatchEvent(new MouseEvent('mouseup', {bubbles: true, clientX: 600}));
+            codeLabel.click();
+        };
+        clickCode(); await wait(360);
+        check(code.left.domNode.style.width === '550px', 'Code drawer lost its initial width');
+        clickCode(); await wait(100);
+        clickCode(); await wait(360);
+        check(code.bc.isRegionVisible('right') && code.left.domNode.style.width === '550px', 'Rapid Code clicks lost the open width');
+        const splitter = code.bc._splitters.right;
+        const splitterX = splitter.getBoundingClientRect().x;
+        splitter.dispatchEvent(new MouseEvent('mousedown', {bubbles: true, cancelable: true, clientX: splitterX}));
+        document.body.dispatchEvent(new MouseEvent('mousemove', {bubbles: true, clientX: splitterX + 80}));
+        document.body.dispatchEvent(new MouseEvent('mouseup', {bubbles: true, clientX: splitterX + 80}));
+        const resizedWidth = code.left.domNode.style.width;
+        check(parseFloat(resizedWidth) < 550 && parseFloat(resizedWidth) > 0, 'Splitter dragging no longer resizes the Code drawer');
+        clickCode(); await wait(360);
+        clickCode(); await wait(360);
+        check(code.left.domNode.style.width === resizedWidth, 'Code click lost the manually resized width');
         regular.bc.showHideRegion('left', true, false);
         const initialWidth = regular.left.domNode.getBoundingClientRect().width;
         regular.bc.setRegionVisible('left', false);
@@ -157,7 +186,7 @@ document.getElementById('run').onclick = async function() {
         await wait(100);
         closable.bc.showHideRegion('left', true, false);
         check(Math.abs(closable.center.domNode.getBoundingClientRect().left - centerLeft) < 1, 'Immediate open left the closable center at the intermediate position');
-        result.textContent = 'PASS: scrollbar suppression/restoration, stable gutters, scrolling, hidden precedence, closable cancellation; intermediate layout, borders/padding, rapid reversal, manual resize, splitter visibility, relative sizes, cancellation, clickable closable handle.';
+        result.textContent = 'PASS: Code mouse clicks preserve drawer width; scrollbar suppression/restoration, stable gutters, scrolling, hidden precedence, closable cancellation; intermediate layout, borders/padding, rapid reversal, manual resize, splitter visibility, relative sizes, cancellation, clickable closable handle.';
     } catch (error) {
         result.textContent = 'FAIL: ' + error.message;
         console.error(error);
