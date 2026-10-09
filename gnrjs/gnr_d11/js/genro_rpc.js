@@ -190,6 +190,9 @@ dojo.declare("gnr.GnrRpcHandler", null, {
     },
 
     _onServerError: function() {
+        if (genro.root_page_id) {
+            return genro.mainGenroWindow.genro.rpc._onServerError();
+        }
         if (!this._server_error_since) {
             this._server_error_since = new Date();
         }
@@ -200,6 +203,9 @@ dojo.declare("gnr.GnrRpcHandler", null, {
     },
 
     _onServerSuccess: function() {
+        if (genro.root_page_id) {
+            return genro.mainGenroWindow.genro.rpc._onServerSuccess();
+        }
         if (this._server_error_since) {
             this._server_error_since = null;
             if (this._server_unavailable) {
@@ -214,13 +220,13 @@ dojo.declare("gnr.GnrRpcHandler", null, {
             delay: 0,
             message: 'Server not responding...'
         });
-        genro.setFastPolling(true);
+        genro.setFastPolling(true, '_server_unavailable');
     },
 
     _hideServerUnavailable: function() {
         this._server_unavailable = false;
         genro.lockScreen(false, '_server_unavailable');
-        genro.setFastPolling(false);
+        genro.setFastPolling(false, '_server_unavailable');
         genro.dlg.alert(_T('Server connection restored. You can resume your operations.'),
                         _T('Connection restored'));
     },
