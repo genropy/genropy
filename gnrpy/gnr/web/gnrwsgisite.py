@@ -1757,8 +1757,11 @@ class GnrWsgiSite(object):
         :param dflt: TODO
         :param username: TODO"""
         if self.db.package('adm'):
-            username = username or self.currentPage.user if self.currentPage else None
-            pkg = pkg or self.currentPage.packageId if self.currentPage else None
+            page = self.currentPage
+            username = username or (page.user if page else None)
+            if not username:
+                return dflt
+            pkg = pkg or (page.packageId if page else None)
             return self.db.table('adm.user').getPreference(path=path, pkg=pkg, dflt=dflt, username=username)
 
     def setUserPreference(self, path, data, pkg=None, username=None):
@@ -1769,8 +1772,11 @@ class GnrWsgiSite(object):
         :param pkg: the :ref:`package <packages>` object
         :param username: TODO"""
         if self.db.package('adm'):
-            pkg = pkg or self.currentPage.packageId
-            username = username or self.currentPage.user if self.currentPage else None
+            page = self.currentPage
+            username = username or (page.user if page else None)
+            if not username:
+                return
+            pkg = pkg or (page.packageId if page else None)
             self.db.table('adm.user').setPreference(path, data, pkg=pkg, username=username)
 
     @property

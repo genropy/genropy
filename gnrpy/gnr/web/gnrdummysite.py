@@ -99,6 +99,12 @@ class FakeRegister(object):
         and every table handler struct subscribes the table it shows."""
         pass
 
+    def setInClientData(self, path, value=None, attributes=None, page_id=None, filters=None,
+                        fired=False, reason=None, replace=False, register_name=None):
+        """Dropped: no client is connected to a headless page, e.g. when a
+        saved user preference asks the clients to refresh it."""
+        pass
+
 
 class GnrDummySite(GnrWsgiSite):
     """Site without a register server, for headless, CLI and test contexts."""
