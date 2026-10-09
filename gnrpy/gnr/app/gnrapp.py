@@ -2085,10 +2085,7 @@ class GnrApp(object):
         tbl = self.db.table("sys.dataretention")
         
         for r in policy_bag.values():
-
-            # no custom value set, ignore
-            if not r.get("retention_period_custom", None):
-                continue
+            custom = r.get("retention_period_custom", None)
 
             # first, we search for existing configuration
             existing_policy =None
@@ -2099,7 +2096,7 @@ class GnrApp(object):
                 existing_policy = exist[0]
 
 
-            if r['retention_period_custom'] == r['retention_period_default']:
+            if not custom or custom == r['retention_period_default']:
                 # delete if present, not necessary
                 if existing_policy:
                     tbl.delete(existing_policy)
