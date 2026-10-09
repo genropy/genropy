@@ -476,6 +476,15 @@ textarea.cellEditFixed {
     border-right-width: 0px;
 }
 
+/* Headerless single-template views follow the scrollbox's actual client width,
+   instead of Dojo's inline widths which always reserve a scrollbar gutter. */
+._common_d11 .gnrTemplateGridView > .dojoxGrid-scrollbox > .dojoxGrid-content,
+._common_d11 .gnrTemplateGridView > .dojoxGrid-scrollbox > .dojoxGrid-content > div,
+._common_d11 .gnrTemplateGridView > .dojoxGrid-scrollbox > .dojoxGrid-content > div > .dojoxGrid-row,
+._common_d11 .gnrTemplateGridView > .dojoxGrid-scrollbox > .dojoxGrid-content > div > .dojoxGrid-row > .dojoxGrid-row-table {
+    width: 100% !important;
+}
+
 ._common_d11 .editingGrid .dojoxGrid-row-odd.dojoxGrid-row-selected,
 ._common_d11 .noselect .dojoxGrid-row-odd.dojoxGrid-row-selected {
     background-color: var(--grid-row-odd-bg);

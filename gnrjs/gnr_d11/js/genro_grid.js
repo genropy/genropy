@@ -574,9 +574,25 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
         return this._emPixelsCache;
     },
 
+    mixin_adaptTemplateGridWidth:function(){
+        var views = this.views.views;
+        for(var view of views){
+            var rows = view.structure.rows;
+            var cells = rows.length === 1 ? rows[0].filter(function(cell){
+                return !/(^|\s)hiddenColumn(\s|$)/.test(cell.classes || '') &&
+                       cell.field !== '_right_in_icon';
+            }) : [];
+            var fluid = views.length === 1 && !this.autoWidth && cells.length === 1 &&
+                        cells[0].rowTemplate && cells[0].unitWidth === '100%' &&
+                        !cells[0]._explicitMinWidth &&
+                        dojo.style(view.headerNode, 'display') === 'none';
+            dojo.toggleClass(view.domNode, 'gnrTemplateGridView', Boolean(fluid));
+        }
+    },
+
     mixin_adaptFlexMinWidths:function(){
         var view = this.views.views[0];
-        if(!view || !view.flexCells){
+        if(!view || !view.flexCells || dojo.hasClass(view.domNode, 'gnrTemplateGridView')){
             return;
         }
         var cells = view.structure.rows[0];
@@ -991,6 +1007,7 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
         });
 
         dojo.connect(widget,'adaptWidth',function(){
+            this.adaptTemplateGridWidth();
             this.adaptFlexMinWidths();
             if(this.sourceNode.attr.fillDown){
                 this.drawFiller();
@@ -1964,6 +1981,7 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
             var cellWidth = cell.width;
             if(!cellWidth || cellWidth == 'auto' || (typeof cellWidth == 'string' && cellWidth.endsWith('%'))){
                 if(cellStyleDict['min-width']){
+                    cell._explicitMinWidth = true;
                     cell._minWidthEm = parseFloat(cellStyleDict['min-width']) || 5;
                 }else{
                     var headerLen = (cell_name || '').length;
