@@ -1,0 +1,115 @@
+<h2>groupletForm</h2>
+<p class="lede">A grouplet wrapped in a form with its own store — load, save, validate independently from the surrounding page.</p>
+
+<h3>When to use</h3>
+<p>The base <code>grouplet</code> is a UI fragment bound to a Bag: it renders fields, but knows nothing about loading from a record, saving back, or tracking dirty state. <code>groupletForm</code> stacks a form lifecycle on top, so the embedded grouplet becomes an editing unit you can drive on its own.</p>
+<p>Reach for it when an editor needs to live inline in the page but stay independent from whatever else is around it — for example a memory-mode editor for an in-page Bag (a small address block, a configuration node), or a DB record editor wired to an external record selector. It is also the building block used internally by <code>groupletPanel</code> and <code>groupletWizard</code>: each panel section and each wizard step is a <code>groupletForm</code>.</p>
+
+<h3>Memory store with handler</h3>
+<p>Pure in-memory editing of a Bag that already lives in the page datastore. The form has no table, no record, no save round-trip: it loads the Bag pointed to by <code>value</code>, hands it to the inner grouplet, and writes changes back through the same datapath.</p>
+<pre><code><span class="kw">def</span> <span class="fn">test_1_groupletform_memory_handler</span>(<span class="self">self</span>, pane):
+    pane.<span class="fn">data</span>(<span class="str">'.address_data'</span>, <span class="fn">Bag</span>(<span class="fn">dict</span>(
+        street=<span class="str">'Via Roma 1'</span>, city=<span class="str">'Milano'</span>,
+        zip=<span class="str">'20100'</span>, country=<span class="str">'Italia'</span>)))
+    frame = pane.<span class="fn">framePane</span>(frameCode=<span class="str">'mem_gf'</span>,
+                            height=<span class="str">'400px'</span>, border=<span class="str">'1px solid silver'</span>,
+                            datapath=<span class="str">'.mem_groupletform'</span>)
+    bar = frame.top.<span class="fn">slotToolbar</span>(<span class="str">'5,lbl,*'</span>)
+    bar.lbl.<span class="fn">div</span>(<span class="str">'In-memory address editor'</span>, font_weight=<span class="str">'bold'</span>)
+    frame.center.<span class="fn">contentPane</span>(padding=<span class="str">'10px'</span>).<span class="fn">groupletform</span>(
+        loadOnBuilt=<span class="kw">True</span>,
+        handler=<span class="self">self</span>.grp_address, value=<span class="str">'^.#parent.address_data'</span>,
+        formId=<span class="str">'mem_gf_form'</span>)
+
+<span class="dec">@public_method</span>
+<span class="kw">def</span> <span class="fn">grp_address</span>(<span class="self">self</span>, pane, **kwargs):
+    fb = pane.<span class="fn">formlet</span>(cols=<span class="num">2</span>, border_spacing=<span class="str">'6px'</span>)
+    fb.<span class="fn">textbox</span>(value=<span class="str">'^.street'</span>, lbl=<span class="str">'Street'</span>, colspan=<span class="num">2</span>, width=<span class="str">'100%'</span>)
+    fb.<span class="fn">textbox</span>(value=<span class="str">'^.city'</span>, lbl=<span class="str">'City'</span>)
+    fb.<span class="fn">textbox</span>(value=<span class="str">'^.zip'</span>, lbl=<span class="str">'ZIP'</span>, width=<span class="str">'6em'</span>)
+    fb.<span class="fn">textbox</span>(value=<span class="str">'^.country'</span>, lbl=<span class="str">'Country'</span>)</code></pre>
+<p><code>loadOnBuilt=True</code> tells the widget to call <code>this.form.load()</code> as soon as the grouplet is built on the client, so the editor shows up populated without an explicit trigger. <code>formId</code> is the public handle for the form: it is the key you pass to <code>genro.formById()</code> from anywhere in the page to drive load/save programmatically. Keep it unique, give it a meaningful name — the auto-generated fallback works but is unreadable.</p>
+
+<h3>Record store with handler</h3>
+<p>Same widget, different store. With <code>store_handler='record'</code> the form talks to a DB table: it loads a record by primary key, hands the record Bag to the inner grouplet, and saves back via the standard form save flow. The typical layout is a selector at the top (a <code>dbselect</code> in a toolbar) and the inline editor below.</p>
+<pre><code><span class="kw">def</span> <span class="fn">test_2_groupletform_record_handler</span>(<span class="self">self</span>, pane):
+    frame = pane.<span class="fn">framePane</span>(frameCode=<span class="str">'rec_gf'</span>,
+                            height=<span class="str">'400px'</span>, border=<span class="str">'1px solid silver'</span>,
+                            datapath=<span class="str">'.rec_groupletform'</span>)
+    bar = frame.top.<span class="fn">slotToolbar</span>(<span class="str">'5,selector,*'</span>)
+    fb = bar.selector.<span class="fn">formbuilder</span>(cols=<span class="num">1</span>, border_spacing=<span class="str">'1px'</span>)
+    fb.<span class="fn">dbselect</span>(value=<span class="str">'^.comune_pkey'</span>, dbtable=<span class="str">'glbl.comune'</span>, lbl=<span class="str">'Comune'</span>)
+    frame.center.<span class="fn">contentPane</span>(padding=<span class="str">'10px'</span>).<span class="fn">groupletform</span>(
+        handler=<span class="self">self</span>.grp_comune_fields, value=<span class="str">'^.current'</span>,
+        table=<span class="str">'glbl.comune'</span>,
+        formId=<span class="str">'rec_gf_form'</span>,
+        store_handler=<span class="str">'record'</span>,
+        storeType=<span class="str">'Item'</span>)
+    bar.<span class="fn">dataController</span>(
+        <span class="str">"if(pkey){genro.formById('rec_gf_form').load({destPkey:pkey});}"</span>,
+        pkey=<span class="str">'^.comune_pkey'</span>)</code></pre>
+<p>The wiring is deliberately explicit: the selector writes to <code>^.comune_pkey</code>, a <code>dataController</code> watches that path, and on every change it asks <code>genro.formById('rec_gf_form')</code> to load the record at that key. The form is the master of its own lifecycle — the outside world only triggers it.</p>
+
+<h3>Record store with resource</h3>
+<p>Same record-store shape, but the grouplet body comes from a table resource instead of an inline handler. Use this when the editor is reusable across pages and lives in the table's resource folder.</p>
+<pre><code>frame.center.<span class="fn">contentPane</span>(padding=<span class="str">'10px'</span>).<span class="fn">groupletform</span>(
+    resource=<span class="str">'anagrafica'</span>,
+    table=<span class="str">'glbl.comune'</span>,
+    formId=<span class="str">'res_gf_form'</span>,
+    store_handler=<span class="str">'record'</span>,
+    storeType=<span class="str">'Item'</span>)
+bar.<span class="fn">dataController</span>(
+    <span class="str">"if(pkey){genro.formById('res_gf_form').load({destPkey:pkey});}"</span>,
+    pkey=<span class="str">'^.comune_pkey'</span>)</code></pre>
+<p>The resource name resolves under the table's resource directory; the rest of the wiring is identical to the handler version.</p>
+
+<h3>Nested resource path</h3>
+<p>Resources can live in subfolders. Pass a path with forward slashes:</p>
+<pre><code>frame.center.<span class="fn">contentPane</span>(padding=<span class="str">'10px'</span>).<span class="fn">groupletform</span>(
+    resource=<span class="str">'territorio/altimetria'</span>,
+    table=<span class="str">'glbl.comune'</span>,
+    formId=<span class="str">'nested_gf_form'</span>,
+    store_handler=<span class="str">'record'</span>,
+    storeType=<span class="str">'Item'</span>)</code></pre>
+<p>Useful for organising several editors per table by topic — one file per editor, grouped in folders.</p>
+
+<h3>Parameters</h3>
+<table>
+  <thead><tr><th>Param</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td><code>handler</code></td><td>callable</td><td><code>None</code></td><td>Python <code>@public_method</code> building the UI of the inner grouplet.</td></tr>
+    <tr><td><code>resource</code></td><td>str</td><td><code>None</code></td><td>Resource name or nested path (e.g. <code>'territorio/altimetria'</code>) used as the grouplet body in place of <code>handler</code>.</td></tr>
+    <tr><td><code>value</code></td><td>str</td><td>required</td><td>Data binding path. Memory mode reads/writes the Bag at this path; record mode uses it as the form's data binding.</td></tr>
+    <tr><td><code>table</code></td><td>str</td><td><code>None</code></td><td>Table reference; required for record store mode and for table resources.</td></tr>
+    <tr><td><code>formId</code></td><td>str</td><td>required</td><td>Unique form identifier; the handle used by <code>genro.formById()</code> to drive load/save from outside.</td></tr>
+    <tr><td><code>store_handler</code></td><td>str</td><td><code>'memory'</code></td><td><code>'memory'</code> (default) or <code>'record'</code>.</td></tr>
+    <tr><td><code>storeType</code></td><td>str</td><td><code>'Item'</code></td><td>Form store type; use <code>'Item'</code> for the record store mode.</td></tr>
+    <tr><td><code>loadOnBuilt</code></td><td>bool</td><td><code>False</code></td><td>Auto-load on first render. In memory mode it pulls the bound Bag; in record mode without a pkey it just initialises.</td></tr>
+    <tr><td><code>grouplet_*</code></td><td>any</td><td>—</td><td>Kwargs forwarded to the inner grouplet (e.g. <code>grouplet_remote_*</code> options, <code>grouplet_rootTag</code>).</td></tr>
+  </tbody>
+</table>
+
+<h3>How to load a record programmatically</h3>
+<p>The form exposes its load entry point through the global registry. From any controller in the page:</p>
+<pre><code>genro.<span class="fn">formById</span>(<span class="str">'rec_gf_form'</span>).<span class="fn">load</span>({destPkey: pkey});</code></pre>
+<p>The idiomatic trigger is a <code>dataController</code> listening to the selector's value — the same pattern shown in the record examples above. The same handle also gives you <code>.save()</code>, <code>.reload()</code>, and access to the form status (<code>noItem</code>, <code>loaded</code>, <code>dirty</code>, <code>error</code>).</p>
+
+<h3>Gotchas</h3>
+<div class="callout warn">
+  <div class="callout-title"><code>formId</code> must be unique within the page</div>
+  <p>Collisions break <code>genro.formById()</code> lookup: the second form registered with the same id silently shadows the first, and every external load/save call ends up driving the wrong one. The widget will auto-generate an id if you omit it, but auto-ids cannot be referenced from a controller — always set a stable, descriptive <code>formId</code> when you plan to drive the form from outside.</p>
+</div>
+<div class="callout warn">
+  <div class="callout-title">Memory store doesn't validate fields by default</div>
+  <p>The form lifecycle only handles load, save and dirty tracking; it does not run field-level rules. If a memory editor needs required fields or format checks, add <code>validate_notnull</code> (and friends) on individual widgets inside the inner grouplet — the form will surface those errors through its status, but it won't invent them for you.</p>
+</div>
+
+<h3>Used by</h3>
+<p><code>groupletPanel</code> and <code>groupletWizard</code> are built on top of <code>groupletForm</code> — each panel section and each wizard step instantiates a <code>GroupletForm</code> internally (see the <code>center.GroupletForm(**grouplet_kwargs)</code> calls in <code>grouplet.py</code>). Anything you learn about the form widget here carries over to those higher-level containers.</p>
+
+<h3>Reference files</h3>
+<ul>
+  <li><code>gnrjs/gnr_d20/js/genro_components.js</code> — <code>gnr.widgets.GroupletForm</code> dijit (around line 954).</li>
+  <li><code>resources/common/gnrcomponents/grouplet/grouplet.py</code> — <code>GroupletHandler</code> and the <code>GroupletForm</code> call sites in <code>groupletPanel</code> / <code>groupletWizard</code>.</li>
+  <li><code>projects/gnrcore/packages/test/webpages/gnrwdg/test_grouplets/04_grouplet_form.py</code> — the four working tests used as examples on this page.</li>
+</ul>
