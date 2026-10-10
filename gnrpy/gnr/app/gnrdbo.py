@@ -858,10 +858,21 @@ class TableBase(object):
             self.db.commit()
 
     def sysRecord(self,syscode,currentConnection=False):
-        if not currentConnection:
-            return self.cachedRecord(syscode,keyField='__syscode',createCb=self._sysRecordCreateCb)
+        return self._sysRecord(syscode,currentConnection=currentConnection)
+
+    def _sysRecord(self,syscode,currentConnection=False,**extra_fields):
+        # a row read or created on the current connection may still be rolled back:
+        # for the rest of the env it must never reach the cachedRecord cache
+        uncommitted = self.db.currentEnv.setdefault('_sysRecord_uncommitted',set())
+        uncommitted_key = (self.cachedKey('cachedRecord'),syscode)
+        if currentConnection:
+            uncommitted.add(uncommitted_key)
+        elif uncommitted_key not in uncommitted:
+            return self.cachedRecord(syscode,keyField='__syscode',
+                                     createCb=lambda key: self._sysRecordCreateCb(key,**extra_fields))
+        create = self._sysRecordCreate if currentConnection else self._sysRecordCreateCb
         record = self.record(__syscode=syscode,ignoreMissing=True).output('dict')
-        return dict(record or self._sysRecordCreate(syscode) or record)
+        return dict(record or create(syscode,**extra_fields) or record)
 
     def _sysRecordCreateCb(self,syscode,**extra_fields):
         with self.db.tempEnv(connectionName='system'):

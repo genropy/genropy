@@ -55,3 +55,15 @@ def test_default_still_creates_and_commits_on_system(db_pg):
     assert record['code'] == 'en'
     db.rollback()
     assert tbl.query(where='$__syscode=:c', c='en').fetch()
+
+
+def test_default_does_not_cache_an_uncommitted_row(db_pg):
+    db = db_pg
+    tbl = db.table('adm.language')
+    tbl.sysRecord('it', currentConnection=True)
+    assert tbl.sysRecord('it')['code'] == 'it'
+    db.rollback()
+    record = tbl.sysRecord('it')
+    assert record['code'] == 'it'
+    db.rollback()
+    assert tbl.query(where='$__syscode=:c', c='it').fetch()

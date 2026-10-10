@@ -574,14 +574,11 @@ class MultidbTable(object):
         #through trigger_onInserted_multidb/trigger_onUpdated_multidb
         GnrDboTable.createSysRecords(self,do_update=do_update)
 
-    def sysRecord(self,syscode):
+    def sysRecord(self,syscode,currentConnection=False):
         if not self.db.usingRootstore():
             with self.db.tempEnv(storename=self.db.rootstore):
-                return self.sysRecord(syscode)
-
-        def createCb(key):
-            extra_fields = dict()
-            if not self.multidb=='*':
-                extra_fields['__multidb_default_subscribed'] = True
-            return self._sysRecordCreateCb(key,**extra_fields)
-        return self.cachedRecord(syscode,keyField='__syscode',createCb=createCb)
+                return self.sysRecord(syscode,currentConnection=currentConnection)
+        extra_fields = dict()
+        if not self.multidb=='*':
+            extra_fields['__multidb_default_subscribed'] = True
+        return self._sysRecord(syscode,currentConnection=currentConnection,**extra_fields)
