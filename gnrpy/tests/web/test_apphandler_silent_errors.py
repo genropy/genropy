@@ -23,7 +23,7 @@ from sql.conftest import db_sqlite, sqlite_temp_dir        # noqa: F401  (fixtur
 from apphandler_legacy_common import _StandInPage
 
 from gnr.web.gnrwebpage_proxy.apphandler import GnrWebAppHandler
-from gnr.web.gnrwebpage_proxy.apphandler.next import GnrWebAppHandlerNext
+from gnr.web.gnrwebpage_proxy.apphandler_next import GnrWebAppHandlerNext
 
 
 def setup_module(module):
