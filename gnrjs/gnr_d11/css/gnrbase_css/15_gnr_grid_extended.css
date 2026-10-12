@@ -50,7 +50,216 @@
 
 ._common_d11 .dojoxGrid-header .dojoxGrid-sort-down,
 ._common_d11 .dojoxGrid-header .dojoxGrid-sort-up{
+    position: relative;
     margin-right: 2px;
+    background: none;
+}
+._common_d11 .dojoxGrid-header .dojoxGrid-sort-down > .cellHeaderContent,
+._common_d11 .dojoxGrid-header .dojoxGrid-sort-up > .cellHeaderContent{
+    padding-right: 18px;
+}
+._common_d11 .dojoxGrid-header .dojoxGrid-sort-down::after,
+._common_d11 .dojoxGrid-header .dojoxGrid-sort-up::after{
+    content: "";
+    position: absolute;
+    right: 4px;
+    top: 50%;
+    width: 10px;
+    height: 10px;
+    margin-top: -5px;
+    background-color: var(--text-muted);
+    -webkit-mask: var(--grid-sort-chevron) center / contain no-repeat;
+    mask: var(--grid-sort-chevron) center / contain no-repeat;
+}
+._common_d11 .dojoxGrid-header .dojoxGrid-sort-down{
+    --grid-sort-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+}
+._common_d11 .dojoxGrid-header .dojoxGrid-sort-up{
+    --grid-sort-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 15l6-6 6 6'/%3E%3C/svg%3E");
+}
+
+._common_d11 .dojoxGrid-header .cellHeaderContent.withColumnFilter{
+    position: relative;
+    padding-left: 18px;
+    padding-right: 18px;
+}
+._common_d11 .dojoxGrid-header .gridColumnFilter{
+    position: absolute;
+    left: 4px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 15px;
+    height: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    opacity: .6;
+    cursor: pointer;
+}
+._common_d11 .dojoxGrid-header .gridColumnFilter svg{
+    width: 11px;
+    height: 11px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2.2;
+    stroke-linejoin: round;
+    pointer-events: none;
+}
+._common_d11 .dojoxGrid-header .dojoxGrid-cell:hover .gridColumnFilter{
+    opacity: 1;
+}
+._common_d11 .dojoxGrid-header .gridColumnFilter:hover{
+    background: var(--border-light);
+    color: var(--text-color);
+}
+._common_d11 .dojoxGrid-header .gridColumnFilter.gridColumnFilterActive{
+    opacity: 1;
+    color: var(--accent-color);
+}
+._common_d11 .dojoxGrid-header .gridColumnFilterActive svg{
+    fill: currentColor;
+}
+
+.gridColumnFilterPane{
+    width: 240px;
+    max-width: 80vw;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px;
+    background: var(--menu-bg);
+    color: var(--menu-text-color);
+    font-size: var(--font-size);
+}
+.gridColumnFilterPane .gcf_title{
+    padding: 2px 6px 6px;
+    border-bottom: 1px solid var(--menu-separator-color);
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.gridColumnFilterPane .gcf_searchbox{
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 26px;
+    padding: 0 8px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--surface-bg);
+    color: var(--text-secondary);
+}
+.gridColumnFilterPane .gcf_searchbox[hidden]{
+    display: none;
+}
+.gridColumnFilterPane .gcf_searchbox:focus-within{
+    border-color: var(--accent-color);
+}
+.gridColumnFilterPane .gcf_searchbox svg{
+    width: 13px;
+    height: 13px;
+    flex: none;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2.2;
+    stroke-linecap: round;
+}
+.gridColumnFilterPane .gcf_search{
+    flex: 1;
+    min-width: 0;
+    border: 0;
+    outline: none;
+    padding: 0;
+    background: transparent;
+    color: var(--text-color);
+    font: inherit;
+}
+.gridColumnFilterPane .gcf_list{
+    max-height: 280px;
+    overflow: auto;
+    scrollbar-width: thin;
+}
+.gridColumnFilterPane .gcf_row{
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 26px;
+    padding: 0 6px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+}
+.gridColumnFilterPane .gcf_row:hover{
+    background: var(--menu-item-hover-bg);
+}
+.gridColumnFilterPane .gcf_row.gcf_checked{
+    background: color-mix(in srgb, var(--accent-color) 12%, transparent);
+}
+.gridColumnFilterPane .gcf_row input{
+    margin: 0;
+    accent-color: var(--accent-color);
+}
+.gridColumnFilterPane .gcf_caption{
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.gridColumnFilterPane .gcf_checked .gcf_caption{
+    font-weight: 600;
+}
+.gridColumnFilterPane .gcf_empty{
+    font-style: italic;
+}
+.gridColumnFilterPane .gcf_count{
+    color: var(--text-muted);
+    font-size: .9em;
+    font-variant-numeric: tabular-nums;
+}
+.gridColumnFilterPane .gcf_zero .gcf_caption,
+.gridColumnFilterPane .gcf_zero .gcf_count{
+    color: var(--text-secondary);
+}
+.gridColumnFilterPane .gcf_sep{
+    height: 1px;
+    margin: 4px 6px;
+    background: var(--menu-separator-color);
+}
+.gridColumnFilterPane .gcf_more{
+    padding: 0 6px;
+    color: var(--text-secondary);
+    font-size: .9em;
+}
+.gridColumnFilterPane .gcf_more[hidden]{
+    display: none;
+}
+.gridColumnFilterPane .gcf_foot{
+    display: flex;
+    align-items: center;
+    min-height: 20px;
+    padding: 6px 6px 0;
+    border-top: 1px solid var(--menu-separator-color);
+}
+.gridColumnFilterPane .gcf_clear{
+    border: 0;
+    background: none;
+    padding: 0;
+    color: var(--accent-color);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+}
+.gridColumnFilterPane .gcf_clear[hidden]{
+    display: none;
+}
+.gridColumnFilterPane .gcf_rowcount{
+    margin-left: auto;
+    color: var(--text-muted);
+    font-size: .9em;
+    font-variant-numeric: tabular-nums;
 }
 
 ._common_d11 .nopadding .dojoxGrid-cell {
@@ -474,6 +683,15 @@ textarea.cellEditFixed {
 
 ._common_d11 .templateGrid .dojoxGrid-row .dojoxGrid-cell:last-child {
     border-right-width: 0px;
+}
+
+/* Headerless single-template views follow the scrollbox's actual client width,
+   instead of Dojo's inline widths which always reserve a scrollbar gutter. */
+._common_d11 .gnrTemplateGridView > .dojoxGrid-scrollbox > .dojoxGrid-content,
+._common_d11 .gnrTemplateGridView > .dojoxGrid-scrollbox > .dojoxGrid-content > div,
+._common_d11 .gnrTemplateGridView > .dojoxGrid-scrollbox > .dojoxGrid-content > div > .dojoxGrid-row,
+._common_d11 .gnrTemplateGridView > .dojoxGrid-scrollbox > .dojoxGrid-content > div > .dojoxGrid-row > .dojoxGrid-row-table {
+    width: 100% !important;
 }
 
 ._common_d11 .editingGrid .dojoxGrid-row-odd.dojoxGrid-row-selected,

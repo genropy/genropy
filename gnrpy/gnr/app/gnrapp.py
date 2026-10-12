@@ -2050,7 +2050,7 @@ class GnrApp(object):
 
         """
         policy = {
-            table.fullname: table.defaultRetentionPolicy
+            table.fullname: dict(table.defaultRetentionPolicy)
             for table in self.db.tables if table.defaultRetentionPolicy
             }
         return policy

@@ -53,9 +53,13 @@ function createContext() {
     return context;
 }
 
-// a dbSelect outside any form; a value comes with its caption in the record,
-// as a loaded relation does, so no lookup reaches the server
-function createDbSelect({value = null, required = true} = {}) {
+const PRODUCTS = [{_pkey: 'P1', caption: 'Pencil'}, {_pkey: 'P2', caption: 'Pen'}, {_pkey: 'P3', caption: 'Eraser'}];
+
+// a select outside any form; a value comes with its caption in the record,
+// as a loaded relation does, so setting it needs no lookup. Only a
+// callBackSelect answers lookups, through its own resolver: a dbSelect's
+// would reach the server
+function createSelect({tag = 'dbSelect', value = null, required = true, firstMatchDisabled = false} = {}) {
     const context = createContext();
     const {gnr, genro, dijit, dojo} = context;
     const messages = [];
@@ -72,15 +76,19 @@ function createDbSelect({value = null, required = true} = {}) {
     genro.vld = new gnr.GnrValidator(genro);
     const main = new gnr.GnrDomSource();
     genro.src = {_main: main, _index: {}, _started: true, nodeBySourceNodeId: id => main.findNodeById(id)};
-    main._('div', 'entry', {datapath: 'entry'})._('dbSelect', 'product', {tag: 'dbSelect', value: '^.product_id',
-        dbtable: 'shop.product', validate_notnull: required});
+    main._('div', 'entry', {datapath: 'entry'})._(tag, 'product', {tag, value: '^.product_id',
+        dbtable: 'shop.product', validate_notnull: required, firstMatchDisabled});
     main.setBackRef();
     const field = main.getNode('entry.product');
     field.getLabelWrapper = () => null;
     field._updateErrorTooltip = () => {};
-    const handler = new gnr.widgets.dbSelect();
+    const handler = new gnr.widgets[{dbSelect: 'dbSelect', callBackSelect: 'CallBackSelect'}[tag]]();
     const store = new gnr.GnrStoreQuery({searchAttr: 'caption', _parentSourceNode: field});
     store._identifier = '_pkey';
+    if (tag === 'callBackSelect') {
+        const callback = kw => ({data: PRODUCTS.filter(r => r.caption.toLowerCase().startsWith(kw._querystring.toLowerCase()))});
+        store.rootDataNode().setResolver(handler.resolver(field, {callback}, {}));
+    }
     const widget = Object.assign(Object.create(dijit.form.FilteringSelect.prototype), {
         gnr: handler, sourceNode: field, textbox: {value: ''}, valueNode: {value: ''}, focusNode: {}, domNode: {className: ''},
         store, searchAttr: 'caption', ignoreCase: true, _onChangeActive: true, value});
@@ -88,7 +96,7 @@ function createDbSelect({value = null, required = true} = {}) {
     dijit.form._FormValueWidget.prototype.postCreate.call(widget);
     field.setValidations();
     gnr.GnrWdgHandler.prototype.setIsValidMethod(widget);
-    gnr.GnrWdgHandler.prototype.doMixin(widget, handler, 'dbSelect', field);
+    gnr.GnrWdgHandler.prototype.doMixin(widget, handler, tag, field);
     handler.connectForUpdate(widget, field);
     field.widget = widget;
     handler.connectChangeEvent(widget);
@@ -103,15 +111,16 @@ function createDbSelect({value = null, required = true} = {}) {
         widget._focused = false;
         widget._setBlurValue();
     };
-    const clear = () => {
-        widget.textbox.value = '';
+    const type = text => {
+        widget.textbox.value = text;
         blur();
     };
-    return {widget, field, data, messages, changes, setFromData, blur, clear};
+    const clear = () => type('');
+    return {widget, field, data, messages, changes, setFromData, blur, clear, type};
 }
 
 test('a dbSelect born empty, tabbed through, reports no change and stays valid', () => {
-    const s = createDbSelect();
+    const s = createSelect();
     s.blur();
     assert.deepEqual(s.changes, []);
     assert.deepEqual(s.messages, []);
@@ -120,7 +129,7 @@ test('a dbSelect born empty, tabbed through, reports no change and stays valid',
 });
 
 test('emptied by a record load, tabbed through, it reports no change either', () => {
-    const s = createDbSelect();
+    const s = createSelect();
     s.setFromData(null);
     s.blur();
     assert.deepEqual(s.changes, []);
@@ -130,7 +139,7 @@ test('emptied by a record load, tabbed through, it reports no change either', ()
 });
 
 test('the user clearing a set value is one change, validated once as required', () => {
-    const s = createDbSelect({value: 'P1'});
+    const s = createSelect({value: 'P1'});
     assert.equal(s.widget.textbox.value, 'Pencil');
     s.clear();
     assert.deepEqual(s.changes, ['']);
@@ -139,9 +148,42 @@ test('the user clearing a set value is one change, validated once as required', 
 });
 
 test('a clear on a select that is not required lands null in data', () => {
-    const s = createDbSelect({value: 'P1', required: false});
+    const s = createSelect({value: 'P1', required: false});
     s.clear();
     assert.deepEqual(s.changes, ['']);
     assert.deepEqual(s.messages, []);
     assert.equal(s.data.getItem('entry.product_id'), null);
+});
+
+test('text typed and not picked that matches the current item is no change', () => {
+    const s = createSelect({tag: 'callBackSelect', value: 'P1'});
+    s.type('Penc');
+    assert.deepEqual(s.changes, []);
+    assert.deepEqual(s.messages, []);
+    assert.equal(s.field.hasValidationError(), undefined);
+    assert.equal(s.widget.textbox.value, 'Pencil');
+    assert.equal(s.data.getItem('entry.product_id'), 'P1');
+});
+
+test('text typed and not picked that matches another item is one change to it', () => {
+    const s = createSelect({tag: 'callBackSelect', value: 'P1'});
+    s.type('Era');
+    assert.deepEqual(s.changes, ['P3']);
+    assert.deepEqual(s.messages, []);
+    assert.equal(s.data.getItem('entry.product_id'), 'P3');
+});
+
+test('text typed and not picked that matches nothing is one change, validated once', () => {
+    const s = createSelect({tag: 'callBackSelect', value: 'P1'});
+    s.type('xyz');
+    assert.deepEqual(s.changes, [undefined]);
+    assert.equal(s.messages.length, 1);
+    assert.equal(s.field.hasValidationError(), true);
+});
+
+test('with firstMatchDisabled, text typed and not picked clears the value in one change', () => {
+    const s = createSelect({tag: 'callBackSelect', value: 'P1', firstMatchDisabled: true});
+    s.type('Penc');
+    assert.deepEqual(s.changes, ['']);
+    assert.equal(s.messages.length, 1);
 });

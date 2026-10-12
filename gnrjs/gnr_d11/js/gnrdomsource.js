@@ -986,6 +986,7 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
                 this[aux].call(this);
             }else{
                 var attributes = this.registerNodeDynAttr(true);
+                this._appliedClass = attributes._class;
                 var tag=objectPop(attributes,'tag');
                 this._doBuildNode(tag, attributes, destination, ind);
                 this._setDynAttributes();
@@ -1491,7 +1492,10 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
             else {
                 domnode = this.domNode;
             }
-            if (oldvalue) {
+            if (this._appliedClass !== undefined) {
+                genro.dom.removeClass(domnode, this._appliedClass);
+            }
+            else if (oldvalue) {
                 var old_class;
                 if (oldvalue instanceof gnr.GnrBag) {
                     var q = kw.pathlist.length;
@@ -1503,6 +1507,7 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
                 genro.dom.removeClass(domnode, old_class);
             }
             genro.dom.addClass(domnode, value);
+            this._appliedClass = value;
         }
         else if (attr=='style'){
             genro.dom.style(this,value);
@@ -1709,6 +1714,12 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         if(labelWrapper){
             labelWrapper.setHidden(hidden);
         }
+        var parent = this.widget && this.widget.parentBorderContainer;
+        var animatedRegion = parent && parent._drawerAnimations &&
+                parent._drawerAnimations[this.widget.region];
+        if (animatedRegion) {
+            parent._stopDrawerAnimation(this.widget.region, true);
+        }
         var targets = this._hiddenTargets || [this.domNode || this.widget.domNode];
         var statusChanged = false;
         targets.forEach(function(domNode){
@@ -1719,6 +1730,9 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
                 statusChanged = true;
             }
         });
+        if (animatedRegion) {
+            parent._layoutChildren(this.widget.region);
+        }
         if(statusChanged){
             genro.fakeResize()
         }

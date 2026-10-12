@@ -521,6 +521,7 @@ class FrameIndex(BaseComponent):
         if not (self.plugin_list or self.custom_plugin_list):
             return
         pane = bc.contentPane(region='left',splitter=True,width='210px',datapath='left',_lazyBuild=True,
+                                   drawer_animate=True,
                                    overflow='hidden',hidden=self.hideLeftPlugins,border_right='1px solid #eee')
         sc = pane.stackContainer(selectedPage='^.selected',nodeId='gnr_main_left_center',
                                 subscribe_open_plugin="""var plugin_name = $1.plugin;
@@ -552,6 +553,7 @@ class FrameIndex(BaseComponent):
 
     def prepareLeft_mobile(self,bc):
         frame = bc.framePane(region='left',width='100%',datapath='left',
+                                drawer_animate=True,
                                 overflow='hidden',hidden=self.hideLeftPlugins)
         frame.top.slotBar('*,close_icon,5'
                           ).close_icon.lightButton(_class='google_icon google_cancel',height='30px',width='30px',background_color='white',
