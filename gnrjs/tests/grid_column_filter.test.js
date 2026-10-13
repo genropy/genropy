@@ -254,3 +254,16 @@ test('print and batch with no row selected get the visible rows of a static sele
     assert.deepEqual(Array.from(kw.selectedPkeys), ['I2', 'I4']);
     assert.equal(kw.selectionCount, 2);
 });
+
+test('the export of a filtered grid holds the visible rows, none when nothing matches', () => {
+    const g = createGrid();
+    const exported = () => Array.from(g.grid.currentData('all', true, true).getNodes(), n => n.attr._pkey);
+    assert.deepEqual(exported(), ['I0', 'I1', 'I2', 'I3', 'I4']);
+    g.filter('status', ['Sent']);
+    g.visible();
+    assert.deepEqual(exported(), ['I1', 'I4']);
+    g.filter('_customer_id_name', ['C3']);
+    g.visible();
+    assert.deepEqual(exported(), []);
+    assert.equal(g.grid.currentData('all', true, false).len(), 5);
+});

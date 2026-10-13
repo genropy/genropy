@@ -5340,21 +5340,16 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
     mixin_currentData:function(nodes, rawData,applyFilter){
         nodes = nodes || (this.getSelectedRowidx().length<1?'all':'selected');
         var result = new gnr.GnrBag();
-        var filtered = [];
         if (rawData===true){
             if(nodes=='all'){
-                if(applyFilter){
-                    filtered = this.collectionStore()._filtered || [];
-                }
-                nodes = this.collectionStore().getData().getNodes();
+                var store = this.collectionStore();
+                nodes = applyFilter? store.currentItems():store.getData().getNodes();
             }else if(nodes=='selected'){
                 //selectedNodes apply the current filter
                 nodes = this.getSelectedNodes();
             }
-            nodes.forEach(function(n,idx){
-                if(filtered.length == 0 || filtered.indexOf(idx)>=0){
-                    result.addItem(n.label,n);
-                }
+            nodes.forEach(function(n){
+                result.addItem(n.label,n);
             });
         }else{
             var col_fields = this.structbag().getItem('#0.#0').digest('#a.field,#a.hidden');
