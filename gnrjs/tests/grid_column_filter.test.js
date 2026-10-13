@@ -174,3 +174,59 @@ test('a virtual store ignores filterField: no icon and no filter', () => {
     const header = g.gnr.widgets.NewIncludedView.prototype.cellHeaderContent(g.grid.sourceNode, g.grid.cellmap.status);
     assert.ok(!header.includes('gridColumnFilter'));
 });
+
+function structCell(context, gridAttr, cellAttr) {
+    const {gnr, genro} = context;
+    genro.dom = {getStyleDict: () => ({})};
+    genro.evaluate = v => v;
+    const struct = new gnr.GnrBag();
+    const rows = new gnr.GnrBag();
+    rows.setItem('c0', null, cellAttr);
+    struct.setItem('view_0.rows_0', rows);
+    struct.setBackRef();
+    const sourceNode = {attr: gridAttr, currentFromDatasource: v => v};
+    return gnr.widgets.NewIncludedView.prototype.structFromBag_cell(sourceNode, struct.getNode('view_0.rows_0.c0'), new gnr.GnrBag());
+}
+
+test('filterFieldDefault on the grid turns filterField on for plain data cells only', () => {
+    const context = createContext();
+    const on = {filterFieldDefault: true};
+    assert.equal(structCell(context, on, {field: 'status'}).filterField, true);
+    assert.equal(structCell(context, on, {field: '@customer_id.name'}).filterField_key, '_customer_id_name');
+    assert.equal(structCell(context, on, {field: 'status', filterField: false}).filterField, false);
+    assert.equal(structCell(context, on, {field: 'agent', filterField: 'agent_id'}).filterField, 'agent_id');
+    for (const attrs of [{template: '$a $b'}, {rowTemplate: '$a'}, {template_columns: 'a,b'}, {calculated: true},
+                         {values: 'A:Open,C:Closed'}, {format_isbutton: true}, {format_buttonclass: 'iconbox'}]) {
+        assert.equal(structCell(context, on, Object.assign({field: 'status'}, attrs)).filterField, undefined, JSON.stringify(attrs));
+    }
+    assert.equal(structCell(context, {}, {field: 'status'}).filterField, undefined);
+});
+
+test('a template cell filtered on another field captions the filtered value', () => {
+    const g = createGrid();
+    const {context, grid} = g;
+    const cell = filterCell(context, {field: 'customer_id', field_getter: 'customer_id', filterField: 'status',
+                                      _filterCaptionFromValue: true});
+    assert.equal(grid.columnFilterCaption(cell, INVOICES[0], INVOICES[0].status), 'Paid');
+    assert.equal(grid.columnFilterCaption(grid.cellmap._customer_id_name, INVOICES[0], 'C1'), 'Rossi');
+});
+
+test('filter values follow the natural order of the column, empty last', () => {
+    const context = createContext();
+    const {gnr} = context;
+    const date = (y, m, d) => vm.runInContext(`new Date(${y}, ${m}, ${d})`, context);
+    const order = (cell, items) => {
+        const pane = Object.assign(Object.create(gnr.GridColumnFilterPane.prototype), {cell});
+        return items.map(([value, caption]) => ({value, caption: caption === undefined ? value : caption,
+                                                 key: gnr.columnFilterKey(value), count: 0}))
+                    .sort(pane.compareItems.bind(pane)).map(item => pane.captionText(item));
+    };
+    assert.deepEqual(order({filterField: true}, [[10, '10,00'], [null], [9, '9,00'], [-5, '-5,00']]),
+                     ['-5,00', '9,00', '10,00', '(empty)']);
+    assert.deepEqual(order({filterField: true}, [[date(2026, 1, 1), '01/02/2026'], [date(2025, 0, 15), '15/01/2025']]),
+                     ['15/01/2025', '01/02/2026']);
+    assert.deepEqual(order({filterField: true}, [['zeta'], [''], ['Beta'], ['alfa'], ['PO 10'], ['PO 9']]),
+                     ['alfa', 'Beta', 'PO 9', 'PO 10', 'zeta', '(empty)']);
+    assert.deepEqual(order({filterField: true, caption_field: '_c'}, [[3, 'Rossi'], [1, 'Verdi'], [2, 'Bianchi']]),
+                     ['Bianchi', 'Rossi', 'Verdi']);
+});
