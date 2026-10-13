@@ -78,6 +78,24 @@ from gnr.core.gnrlang import file_types
 class AllowMissingDict(dict):
     def __missing__(self, key):
         return "{"+key+"}"
+
+TEMPLATE_PLACEHOLDER = re.compile(r'\{([A-Za-z_][A-Za-z0-9_]*)\}')
+
+def expandTemplate(source, template_kwargs):
+    unresolved = set()
+
+    def replace(match):
+        key = match.group(1)
+        if key in template_kwargs:
+            return str(template_kwargs[key])
+        if not key.startswith('GNR_'):
+            unresolved.add(key)
+        return match.group(0)
+
+    result = TEMPLATE_PLACEHOLDER.sub(replace, source)
+    if unresolved:
+        logger.warning("Unresolved template placeholders left as is: %s", ', '.join(sorted(unresolved)))
+    return result
     
 def normalizeItemPath(item_path):
     if isinstance(item_path, str) or isinstance(item_path,list):
@@ -1994,7 +2012,13 @@ class Bag(GnrObject):
             # source = source.format_map(AllowMissingDict(_template_kwargs))
 
             if self._template_kwargs:
-                source = source.format_map(self._template_kwargs)
+                if fromFile:
+                    with open(source, 'rt') as f:
+                        source = f.read()
+                    fromFile = False
+                if isinstance(source, bytes):
+                    source = source.decode()
+                source = expandTemplate(source, self._template_kwargs)
             return self._fromXml(source, fromFile)
         elif mode == 'xsd':
             return self._fromXsd(source, fromFile)
