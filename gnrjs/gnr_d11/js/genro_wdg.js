@@ -2087,8 +2087,22 @@ dojo.declare("gnr.GridColumnFilterPane", null, {
         return (item.caption===null || item.caption===undefined)? item.key:''+item.caption;
     },
 
+    compareItems:function(a,b){
+        if((a.key==='')!==(b.key==='')){
+            return a.key===''? 1:-1;
+        }
+        var cell = this.cell;
+        if(cell.filterField===true && !cell.caption_field && !cell.values){
+            var va = a.value instanceof Date? a.value.getTime():a.value;
+            var vb = b.value instanceof Date? b.value.getTime():b.value;
+            if(typeof(va)=='number' && typeof(vb)=='number'){
+                return va-vb;
+            }
+        }
+        return this.captionText(a).localeCompare(this.captionText(b),undefined,{numeric:true,sensitivity:'base'});
+    },
+
     setItems:function(items){
-        var checked = this.checkedKeys();
         var captions = this.cell._filterCaptions = this.cell._filterCaptions || {};
         var byKey = {};
         items.forEach(function(item){
@@ -2103,11 +2117,7 @@ dojo.declare("gnr.GridColumnFilterPane", null, {
                 items.push(byKey[key]);
             }
         });
-        var that = this;
-        items.sort(function(a,b){
-            return (checked.has(b.key)-checked.has(a.key)) || (b.count-a.count) ||
-                   that.captionText(a).localeCompare(that.captionText(b));
-        });
+        items.sort(this.compareItems.bind(this));
         this.items = items;
         this.searchBox.hidden = items.length<=this.searchThreshold;
         this.renderList();
@@ -2122,7 +2132,6 @@ dojo.declare("gnr.GridColumnFilterPane", null, {
         var fragment = document.createDocumentFragment();
         var shown = 0;
         var matches = 0;
-        var separatorDone = checked.size===0;
         var that = this;
         this.items.forEach(function(item,idx){
             var text = that.captionText(item);
@@ -2133,10 +2142,6 @@ dojo.declare("gnr.GridColumnFilterPane", null, {
             var isChecked = checked.has(item.key);
             if(!query && shown>=that.maxRows && !isChecked){
                 return;
-            }
-            if(!separatorDone && !isChecked){
-                fragment.appendChild(that.element('div','gcf_sep'));
-                separatorDone = true;
             }
             var row = that.element('label','gcf_row'+(isChecked? ' gcf_checked':'')+(item.count? '':' gcf_zero'));
             var input = document.createElement('input');
