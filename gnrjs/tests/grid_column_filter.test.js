@@ -56,7 +56,7 @@ function filterCell(context, attrs) {
 }
 
 // a NewIncludedView over an attributes store with three filterable columns
-function createGrid({virtual = false} = {}) {
+function createGrid({virtual = false, selection = false} = {}) {
     const context = createContext();
     const {gnr, genro} = context;
     const data = new gnr.GnrBag();
@@ -67,8 +67,12 @@ function createGrid({virtual = false} = {}) {
         getRelativeData: p => data.getItem(p),
         setRelativeData: (p, v) => data.setItem(p, v)
     };
-    const storeClass = virtual ? gnr.stores.VirtualSelection : gnr.stores.AttributesBagRows;
+    const storeClass = virtual ? gnr.stores.VirtualSelection : selection ? gnr.stores.Selection : gnr.stores.AttributesBagRows;
     const store = Object.assign(Object.create(storeClass.prototype), {storeNode, storepath: 'grid.store', identifier: '_pkey'});
+    if (selection) {
+        Object.assign(store, {storeType: 'Selection'});
+        storeNode.attr = {};
+    }
     genro.nodeById = id => (id === 'invoices_store' ? {store} : null);
     const grid = {};
     const proto = gnr.widgets.NewIncludedView.prototype;
@@ -229,4 +233,24 @@ test('filter values follow the natural order of the column, empty last', () => {
                      ['alfa', 'Beta', 'PO 9', 'PO 10', 'zeta', '(empty)']);
     assert.deepEqual(order({filterField: true, caption_field: '_c'}, [[3, 'Rossi'], [1, 'Verdi'], [2, 'Bianchi']]),
                      ['Bianchi', 'Rossi', 'Verdi']);
+});
+
+test('the pkeys of the grid are the rows the filters leave visible', () => {
+    const g = createGrid();
+    assert.deepEqual(Array.from(g.grid.getAllPkeys()), ['I0', 'I1', 'I2', 'I3', 'I4']);
+    g.filter('status', ['Paid']);
+    g.visible();
+    assert.deepEqual(Array.from(g.grid.getAllPkeys()), ['I0', 'I2']);
+    assert.deepEqual(Array.from(g.grid.getAllPkeys('_customer_id_name'), r => `${r.pkey}:${r.caption}`),
+                     ['I0:Rossi', 'I2:Verdi']);
+});
+
+test('print and batch with no row selected get the visible rows of a static selection', () => {
+    const g = createGrid({selection: true});
+    Object.assign(g.grid, {getSelectedPkeys: () => [], getSelectedRowidx: () => []});
+    g.filter('_customer_id_name', ['C2']);
+    g.visible();
+    const kw = g.grid.currentSelectionPars();
+    assert.deepEqual(Array.from(kw.selectedPkeys), ['I2', 'I4']);
+    assert.equal(kw.selectionCount, 2);
 });

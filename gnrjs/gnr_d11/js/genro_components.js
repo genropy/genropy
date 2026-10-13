@@ -6938,6 +6938,11 @@ dojo.declare("gnr.stores._Collection",null,{
         return -1;
     },
     
+    currentItems:function(){
+        var items = this.getItems();
+        return this._filtered? this._filtered.map(function(idx){return items[idx];}):items;
+    },
+
     absIndex:function(idx,reverse){
         //if (this.invalidFilter()) {
         //    console.log('invalid filter');
@@ -7298,7 +7303,7 @@ dojo.declare("gnr.stores.ValuesBagRows",gnr.stores.BagRows,{
     },
 
     currentPkeys:function(caption_field){
-        var data = this.getData();
+        var data = this.currentItems();
         var result = [];
         var r;
         let identifier = this.identifier;
@@ -7354,7 +7359,7 @@ dojo.declare("gnr.stores.AttributesBagRows",gnr.stores.BagRows,{
         return n.attr[this.identifier];
     },
     currentPkeys:function(caption_field){
-        var data = this.getData();
+        var data = this.currentItems();
         var result = [];
         var r;
         let identifier = this.identifier;
@@ -7793,7 +7798,7 @@ dojo.declare("gnr.stores.Selection",gnr.stores.AttributesBagRows,{
 
 
     currentPkeys:function(caption_field){
-        var data = this.getData();
+        var data = this.currentItems();
         var result = [];
         var r;
         data.forEach(function(n){
