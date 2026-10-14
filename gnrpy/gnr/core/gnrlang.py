@@ -402,6 +402,7 @@ def classMixin(target_class, source_class, methods=None, only_callables=True,
             if asProxy:
                 if not hasattr(source_class,'is_proxy'):
                     raise GnrException('{} is not a proxy'.format(clsname))
+                source_class = cloneClass(source_class.__name__, source_class)
                 source_class.proxy_name = asProxy
             if source_class:
                 classMixin(target_class, source_class, methods=methods,
