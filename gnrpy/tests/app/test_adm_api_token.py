@@ -112,6 +112,14 @@ def test_auth_tags_are_the_union(data):
     assert {'ZZTKUSER', 'ZZTKTOKEN'} <= tags
 
 
+def test_token_with_many_tags_returns_them_all(data):
+    db = data['db']
+    tags = [_tag(db, code) for code in ('ZZTKMANY1', 'ZZTKMANY2', 'ZZTKMANY3')]
+    _, token_value = _token(db, tags=tags)
+    auth_tags = set(_validate(db, token_value)['auth_tags'].split(','))
+    assert auth_tags == {'ZZTKMANY1', 'ZZTKMANY2', 'ZZTKMANY3'}
+
+
 def test_group_comes_from_the_user_not_the_token(data):
     db = data['db']
     _, token_value = _token(db, user_id=data['user_conf'],
