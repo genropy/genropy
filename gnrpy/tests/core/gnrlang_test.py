@@ -287,6 +287,45 @@ class TestClassMixinProxy():
         assert page.shared.rpc_ping() == 'pong'
         assert gl.serializedFuncName(page.shared.rpc_ping) == 'shared.ping'
 
+    @staticmethod
+    def _shared_proxy_module(tmp_path):
+        module = tmp_path / 'sharedproxy.py'
+        module.write_text(
+            "class SharedProxy(object):\n"
+            "    is_proxy = True\n"
+            "    proxy = 'shared'\n"
+            "\n"
+            "    def ping(self):\n"
+            "        return 'pong'\n"
+        )
+        return str(module)
+
+    @staticmethod
+    def _proxy_keys(target):
+        return sorted(k for k in dir(target) if k.endswith('_proxyclass'))
+
+    def test_as_alias_does_not_stick_to_the_module_class(self, tmp_path):
+        module = self._shared_proxy_module(tmp_path)
+        First = type('First', (object,), {})
+        Second = type('Second', (object,), {})
+
+        gl.classMixin(First, '%s:SharedProxy AS first' % module)
+        gl.classMixin(Second, '%s:SharedProxy' % module)
+
+        assert self._proxy_keys(First) == ['first_proxyclass']
+        assert self._proxy_keys(Second) == ['shared_proxyclass']
+        assert not hasattr(gl.gnrImport(module, avoidDup=True).SharedProxy, 'proxy_name')
+
+    def test_each_as_alias_gets_its_own_proxy(self, tmp_path):
+        module = self._shared_proxy_module(tmp_path)
+        Target = type('Target', (object,), {})
+
+        gl.classMixin(Target, '%s:SharedProxy AS first' % module)
+        gl.classMixin(Target, '%s:SharedProxy AS second' % module)
+
+        assert self._proxy_keys(Target) == ['first_proxyclass', 'second_proxyclass']
+        assert 'ping' in Target.first_proxyclass.__dict__
+        assert 'ping' in Target.second_proxyclass.__dict__
 
 
 class TestMixinRouting():
@@ -379,6 +418,7 @@ class TestMixinRouting():
         assert gl.serializedFuncName(second_page.pp.rpc_ping) == '*|c/d:R;pp.ping'
         assert held() == 'pong'
         assert held.__self__.main is first_page
+
 
 class TestGnrLang_getEncoding():
     def _get_data_path(self, filename):
