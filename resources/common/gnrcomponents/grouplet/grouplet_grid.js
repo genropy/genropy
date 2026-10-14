@@ -307,6 +307,29 @@ gnr.GroupletGridDnD = class GroupletGridDnD {
             clone.classList.remove('draggedItem', 'canBeDropped',
                 'cannotBeDropped', 'grouplet_grid_just_dropped');
             clone.style.width = sourceDom.offsetWidth + 'px';
+            clone.style.boxSizing = 'border-box';
+            // The preview leaves the grid's named query container. Reuse
+            // that content-box width on a separate ancestor: the row's
+            // padding must not change responsive breakpoints.
+            const containerStyle = getComputedStyle(this.controller._containerDom());
+            let restoreQueryStyle = null;
+            if (containerStyle.containerType && containerStyle.containerType !== 'normal') {
+                let width = parseFloat(containerStyle.width);
+                if (containerStyle.boxSizing === 'border-box') {
+                    for (const side of ['paddingLeft', 'paddingRight', 'borderLeftWidth', 'borderRightWidth']) {
+                        width -= parseFloat(containerStyle[side]) || 0;
+                    }
+                }
+                if (Number.isFinite(width)) {
+                    restoreQueryStyle = {};
+                    for (const key of ['containerType', 'containerName', 'width', 'boxSizing']) {
+                        restoreQueryStyle[key] = aux.style[key];
+                    }
+                    Object.assign(aux.style, {containerType: containerStyle.containerType,
+                        containerName: containerStyle.containerName, width: width + 'px',
+                        boxSizing: 'content-box'});
+                }
+            }
             if (opts && opts.struct) {
                 // Struct chrome is on the container, the clone is not.
                 // Tag it so the cell rules still apply outside the tree.
@@ -318,13 +341,14 @@ gnr.GroupletGridDnD = class GroupletGridDnD {
                 if (cols) clone.style.setProperty('--gg-struct-columns', cols);
             }
             aux.appendChild(clone);
+            setTimeout(function() {
+                if (clone.parentNode) clone.parentNode.removeChild(clone);
+                if (restoreQueryStyle) Object.assign(aux.style, restoreQueryStyle);
+            }, 0);
             const rect = sourceDom.getBoundingClientRect();
             e.dataTransfer.setDragImage(clone,
                 e.clientX - rect.left,
                 e.clientY - rect.top);
-            setTimeout(function() {
-                if (clone.parentNode) clone.parentNode.removeChild(clone);
-            }, 0);
         } catch (err) {}
     }
 
@@ -366,7 +390,72 @@ gnr.GroupletGridDnD = class GroupletGridDnD {
         document.addEventListener('dragend', gnr.GroupletGridDnD.endDrag, true);
         document.addEventListener('drop', gnr.GroupletGridDnD.endDrag, true);
         document.addEventListener('keydown', gnr.GroupletGridDnD.cancelDrag, true);
+        document.addEventListener('dragover', gnr.GroupletGridDnD.trackDrag, true);
+        document.addEventListener('dragleave', gnr.GroupletGridDnD.leaveDocument, true);
         e.stopPropagation();
+    }
+
+    static trackDrag(e) { // wf:phase-9:new
+        const DnD = gnr.GroupletGridDnD;
+        if (!DnD.source || !Number.isFinite(e.clientX) || !Number.isFinite(e.clientY)) return;
+        DnD.pointer = {x: e.clientX, y: e.clientY};
+        if (!DnD.scrollFrame) DnD.scrollFrame = requestAnimationFrame(DnD.autoScroll);
+    }
+
+    static leaveDocument(e) { // wf:phase-9:new
+        if (!e.relatedTarget) gnr.GroupletGridDnD.stopScrolling();
+    }
+
+    static stopScrolling() { // wf:phase-9:new
+        const DnD = gnr.GroupletGridDnD;
+        if (DnD.scrollFrame) cancelAnimationFrame(DnD.scrollFrame);
+        DnD.scrollFrame = null;
+        DnD.pointer = null;
+    }
+
+    static autoScroll() { // wf:phase-9:new
+        const DnD = gnr.GroupletGridDnD;
+        DnD.scrollFrame = null;
+        if (!DnD.source || !DnD.pointer) return;
+        const {x, y} = DnD.pointer;
+        const target = document.elementFromPoint(x, y);
+        if (DnD.scrollAncestor(target, x, y)) {
+            DnD.scrollFrame = requestAnimationFrame(DnD.autoScroll);
+        }
+    }
+
+    static scrollAncestor(target, x, y) { // wf:phase-9:new
+        const viewport = document.documentElement;
+        for (let el = target; el && el.nodeType === 1; el = el.parentElement) {
+            if (el.scrollHeight <= el.clientHeight ||
+                    !/^(auto|scroll)$/.test(getComputedStyle(el).overflowY)) continue;
+            const rect = el.getBoundingClientRect();
+            let top = Math.max(0, rect.top + el.clientTop);
+            let bottom = Math.min(viewport.clientHeight, rect.top + el.clientTop + el.clientHeight);
+            let left = Math.max(0, rect.left);
+            let right = Math.min(viewport.clientWidth, rect.right);
+            // A nested pane can extend beyond the visible dialog. Its
+            // clipped edge, rather than its offscreen bottom, is reachable.
+            for (let parent = el.parentElement; parent; parent = parent.parentElement) {
+                const style = getComputedStyle(parent);
+                const bounds = parent.getBoundingClientRect();
+                if (/^(auto|scroll|hidden|clip)$/.test(style.overflowY)) {
+                    top = Math.max(top, bounds.top + parent.clientTop);
+                    bottom = Math.min(bottom, bounds.top + parent.clientTop + parent.clientHeight);
+                }
+                if (/^(auto|scroll|hidden|clip)$/.test(style.overflowX)) {
+                    left = Math.max(left, bounds.left);
+                    right = Math.min(right, bounds.right);
+                }
+            }
+            if (bottom <= top || x < left || x > right || y < top || y > bottom) continue;
+            const edge = Math.min(32, (bottom - top) / 2);
+            const step = y < top + edge ? -16 : (y > bottom - edge ? 16 : 0);
+            const previous = el.scrollTop;
+            el.scrollTop = Math.max(0, Math.min(el.scrollHeight - el.clientHeight, previous + step));
+            if (el.scrollTop !== previous) return true;
+        }
+        return false;
     }
 
     static cancelDrag(e) {
@@ -378,10 +467,13 @@ gnr.GroupletGridDnD = class GroupletGridDnD {
         if (DnD.receiver) DnD.receiver.dnd.clearHighlight();
         if (DnD.source) DnD.source.dom.classList.remove('draggedItem');
         DnD.source = null;
+        DnD.stopScrolling();
         document.body.classList.remove('drag_started');
         document.removeEventListener('dragend', DnD.endDrag, true);
         document.removeEventListener('drop', DnD.endDrag, true);
         document.removeEventListener('keydown', DnD.cancelDrag, true);
+        document.removeEventListener('dragover', DnD.trackDrag, true);
+        document.removeEventListener('dragleave', DnD.leaveDocument, true);
     }
 
     clearHighlight(dom) {

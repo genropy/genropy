@@ -129,6 +129,143 @@ function setup() {
     return {context, grid, seed, start, published, document};
 }
 
+function scrolling(s) { // wf:phase-9:new
+    const frames = new Map();
+    let next = 0;
+    s.context.requestAnimationFrame = cb => { frames.set(++next, cb); return next; };
+    s.context.cancelAnimationFrame = id => frames.delete(id);
+    s.context.getComputedStyle = el => el.computed || {overflowY: 'visible'};
+    s.document.documentElement = {clientWidth: 800, clientHeight: 600};
+    function pane(parent, top, height, content) { // wf:phase-9:new
+        const el = new Surface(parent);
+        Object.assign(el, {nodeType: 1, parentElement: parent, clientTop: 0,
+            clientHeight: height, scrollHeight: content, scrollTop: 0,
+            computed: {overflowY: 'auto'},
+            getBoundingClientRect: () => ({left: 0, right: 800, top, bottom: top + height})});
+        return el;
+    }
+    return {frames, pane,
+        over(target, x, y) { // wf:phase-9:new
+            s.document.elementFromPoint = () => target;
+            for (const cb of s.document.listeners.get('dragover') || []) {
+                cb({target, clientX: x, clientY: y});
+            }
+        },
+        tick() { // wf:phase-9:new
+            const pending = [...frames.values()];
+            frames.clear();
+            pending.forEach(cb => cb());
+        }};
+}
+
+test('native drag scrolls a nested ancestor while the pointer stays at its edge', () => {
+    const s = setup();
+    const scroll = scrolling(s);
+    const src = s.grid('src');
+    s.seed(src);
+    s.start(src);
+    const outer = scroll.pane(null, 50, 400, 1200);
+    const inner = scroll.pane(outer, 100, 900, 900);
+    scroll.over(inner, 200, 440);
+    scroll.tick();
+    assert.ok(outer.scrollTop > 0);
+    const first = outer.scrollTop;
+    scroll.tick();
+    assert.ok(outer.scrollTop > first, 'stationary pointer keeps scrolling');
+    scroll.over(inner, 200, 250);
+    scroll.tick();
+    const stopped = outer.scrollTop;
+    scroll.tick();
+    assert.equal(outer.scrollTop, stopped, 'middle of pane does not scroll');
+    s.context.gnr.GroupletGridDnD.endDrag();
+    assert.equal(scroll.frames.size, 0);
+});
+
+test('nested drag scrolls the inner pane first, then a parent at its limit, in either direction', () => {
+    const s = setup();
+    const scroll = scrolling(s);
+    const src = s.grid('src');
+    s.seed(src);
+    s.start(src);
+    const outer = scroll.pane(null, 50, 400, 1200);
+    const inner = scroll.pane(outer, 200, 250, 500);
+    scroll.over(inner, 200, 440);
+    scroll.tick();
+    assert.ok(inner.scrollTop > 0);
+    assert.equal(outer.scrollTop, 0);
+    inner.scrollTop = 250;
+    scroll.tick();
+    assert.ok(outer.scrollTop > 0);
+    const bottom = outer.scrollTop;
+    scroll.over(outer, 200, 55);
+    scroll.tick();
+    assert.ok(outer.scrollTop < bottom);
+    s.context.gnr.GroupletGridDnD.endDrag();
+});
+
+test('offscreen edges do not scroll, and cancel/drop/leave/teardown release the scroll loop', () => {
+    for (const finish of ['cancel', 'drop', 'leave', 'teardown']) {
+        const s = setup();
+        const scroll = scrolling(s);
+        const src = s.grid('src');
+        s.seed(src);
+        s.start(src);
+        const outer = scroll.pane(null, 50, 400, 1200);
+        const inner = scroll.pane(outer, 100, 800, 1200);
+        scroll.over(inner, 200, 890);
+        scroll.tick();
+        assert.equal(inner.scrollTop, 0, 'clipped edge cannot drive scrolling');
+        assert.equal(outer.scrollTop, 0);
+        scroll.over(outer, 200, 440);
+        scroll.tick();
+        assert.ok(outer.scrollTop > 0);
+        if (finish === 'cancel') s.context.gnr.GroupletGridDnD.cancelDrag({key: 'Escape'});
+        if (finish === 'drop') s.document.dispatch('drop', {});
+        if (finish === 'leave') {
+            for (const cb of s.document.listeners.get('dragleave') || []) cb({relatedTarget: null});
+        }
+        if (finish === 'teardown') src.c.dnd.destroy();
+        assert.equal(scroll.frames.size, 0, finish);
+        s.context.gnr.GroupletGridDnD.endDrag();
+        for (const callbacks of s.document.listeners.values()) assert.equal(callbacks.size, 0);
+    }
+});
+
+test('drag preview retains named container queries and its rendered width', () => {
+    const s = setup();
+    const src = s.grid('src');
+    const clone = new Surface();
+    clone.style = {};
+    let cleanup;
+    s.context.setTimeout = cb => { cleanup = cb; };
+    const aux = {style: {containerName: '', containerType: '', width: '1px', boxSizing: ''},
+        appendChild(node) { this.child = node; node.parentNode = this; },
+        removeChild(node) { this.child = null; node.parentNode = null; }};
+    s.document.getElementById = () => aux;
+    s.context.getComputedStyle = () => ({containerType: 'inline-size', containerName: 'detail',
+        width: '711.5px', boxSizing: 'border-box', paddingLeft: '8px', paddingRight: '8px',
+        borderLeftWidth: '1px', borderRightWidth: '1px'});
+    const row = {offsetWidth: 663, cloneNode: () => clone,
+        getBoundingClientRect: () => ({left: 10, top: 20})};
+    let image;
+    src.c.dnd._setDragImage({clientX: 30, clientY: 40,
+        dataTransfer: {setDragImage(node, x, y) { image = {node, x, y}; }}}, row);
+    assert.equal(aux.style.containerName, 'detail');
+    assert.equal(aux.style.containerType, 'inline-size');
+    assert.equal(aux.style.width, '693.5px', 'query uses the original container content box');
+    assert.equal(aux.style.boxSizing, 'content-box');
+    assert.equal(clone.style.width, '663px');
+    assert.equal(clone.style.boxSizing, 'border-box');
+    assert.equal(image.node, clone);
+    assert.equal(image.x, 20);
+    assert.equal(image.y, 20);
+    cleanup();
+    assert.equal(aux.child, null);
+    assert.equal(aux.style.containerName, '');
+    assert.equal(aux.style.containerType, '');
+    assert.equal(aux.style.width, '1px');
+});
+
 for (const surface of ['body', 'entry', 'phantom', 'plus']) {
     test(`drop on ${surface} moves the entire real Bag once and leaves the draft untouched`, () => {
         const s = setup();
