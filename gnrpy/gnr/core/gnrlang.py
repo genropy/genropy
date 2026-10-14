@@ -28,7 +28,7 @@ import _thread
 import uuid
 import base64
 import inspect
-from types import MethodType
+from types import FunctionType, MethodType
 from io import IOBase
 from functools import total_ordering
 from chardet.universaldetector import UniversalDetector
@@ -442,8 +442,9 @@ def classMixin(target_class, source_class, methods=None, only_callables=True,
            #         classMixin(proxy_class,parent_proxy)
             setattr(target_class,keyproxy,proxy_class)
         target_class = proxy_class
-    __mixin_pkg = getattr(source_class, '__mixin_pkg', None)
-    __mixin_path = getattr(source_class, '__mixin_path', None)
+    routing = {'proxy_name': proxy_name,
+               '__mixin_pkg': getattr(source_class, '__mixin_pkg', None),
+               '__mixin_path': getattr(source_class, '__mixin_path', None)}
     for name in mlist:
         original = target_class.__dict__.get(name)
 
@@ -455,13 +456,11 @@ def classMixin(target_class, source_class, methods=None, only_callables=True,
             if name in base_class.__dict__:
                 new = base_class.__dict__.get(name)
                 found = True
+        id_new = str(id(new))
         if callable(new):
-            new.proxy_name = proxy_name
-            new.__mixin_pkg = __mixin_pkg
-            new.__mixin_path = __mixin_path
+            new = _routedCallable(new, routing)
         if getattr(new,'mixin_as',None):
             if '#' in new.mixin_as:
-                id_new = str(id(new))
                 mixin_as = new.mixin_as.replace('#',id_new)
                 if not hasattr(target_class,mixin_as):
                     new.__order = getmixincount()
@@ -474,6 +473,19 @@ def classMixin(target_class, source_class, methods=None, only_callables=True,
                 setattr(target_class, '%s_' % name, original)
     if hasattr(source_class, '__on_class_mixin__'):
         source_class.__on_class_mixin__(target_class, **kwargs)
+
+def _routedCallable(func, routing):
+    # source functions are shared by every target: annotating them in place reroutes methods bound elsewhere
+    if isinstance(func, FunctionType):
+        routed = FunctionType(func.__code__, func.__globals__, func.__name__,
+                              func.__defaults__, func.__closure__)
+        routed.__dict__.update(func.__dict__)
+        for attr in ('__kwdefaults__', '__qualname__', '__doc__', '__module__', '__annotations__'):
+            setattr(routed, attr, getattr(func, attr))
+        func = routed
+    for attr, value in routing.items():
+        setattr(func, attr, value)
+    return func
 
 def base_visitor(cls):
     """TODO
@@ -564,26 +576,21 @@ def instanceMixin(obj, source, methods=None, attributes=None, only_callables=Tru
         mlist = [item for item in mlist if item in FilterList(methods)]
     if exclude:
         mlist = [item for item in mlist if item not in FilterList(exclude)]
-    __mixin_pkg = getattr(source, '__mixin_pkg', None)
-    __mixin_path = getattr(source, '__mixin_path', None)
+    routing = {'__mixin_pkg': getattr(source, '__mixin_pkg', None),
+               '__mixin_path': getattr(source, '__mixin_path', None)}
     for k,proxyclass in proxies.items():
+        proxy = proxyclass(obj)
         for mname in dir(proxyclass):
-            proxyitem = getattr(proxyclass,mname)
-            if callable(proxyitem) and mname not in dir(type)+['__weakref__', '__onmixin__','mixin','proxy_class','proxy_class_']:
-                method = proxyitem
-                method.__mixin_pkg = __mixin_pkg
-                method.__mixin_path = __mixin_path
-        setattr(obj,k.replace('_proxyclass',''),proxyclass(obj))
+            proxyitem = inspect.getattr_static(proxyclass, mname)
+            if isinstance(proxyitem, FunctionType) and mname not in dir(type)+['__weakref__', '__onmixin__','mixin','proxy_class','proxy_class_']:
+                setattr(proxy, mname, MethodType(_routedCallable(proxyitem, routing), proxy))
+        setattr(obj,k.replace('_proxyclass',''),proxy)
     for name in mlist:
         method = getattr(source, name)
         if type(method) == MethodType:
             method = method.__func__
+        method = _routedCallable(method, routing)
         k = MethodType(method, obj)
-
-        #method = getattr(source, name).__func__
-        method.__mixin_pkg = __mixin_pkg
-        method.__mixin_path = __mixin_path
-        #k = instmethod(method, obj, obj.__class__)
         curr_prefix = prefix
         name_as =getattr(method,'instance_mixin_as',name)
         if mangling_kwargs and '_' in name:

@@ -288,6 +288,98 @@ class TestClassMixinProxy():
         assert gl.serializedFuncName(page.shared.rpc_ping) == 'shared.ping'
 
 
+
+class TestMixinRouting():
+    """Mixing a shared function into a new target never reroutes a method already bound elsewhere (#1665)."""
+
+    @staticmethod
+    def _handler():
+        from gnr.core.gnrdecorator import public_method
+
+        class SharedHandler(object):
+            @public_method
+            def template(self, a=1, *, b=2):
+                return a + b
+
+        return SharedHandler
+
+    @staticmethod
+    def _resource(base, path):
+        resource = type('Resource', (base,), {})
+        setattr(resource, '__mixin_path', path)
+        return resource
+
+    def test_bound_method_keeps_its_route(self):
+        handler = self._handler()
+        page = gl.GnrObject()
+        gl.instanceMixin(page, self._resource(handler, 'repro/account:Account'))
+        held = page.template
+        before = gl.serializedFuncName(held)
+        assert before == '*|repro/account:Account;template'
+
+        gl.classMixin(type('Item', (object,), {}), handler)
+        assert gl.serializedFuncName(held) == before
+
+        other_page = gl.GnrObject()
+        gl.instanceMixin(other_page, self._resource(handler, 'repro/item:Item'))
+        assert gl.serializedFuncName(held) == before
+        assert gl.serializedFuncName(other_page.template) == '*|repro/item:Item;template'
+
+    def test_source_function_is_not_annotated(self):
+        handler = self._handler()
+        target = type('Target', (object,), {})
+        gl.classMixin(target, self._resource(handler, 'repro/a:A'))
+        gl.instanceMixin(gl.GnrObject(), self._resource(handler, 'repro/b:B'))
+
+        source = handler.__dict__['template']
+        assert not hasattr(source, '__mixin_path')
+        assert not hasattr(source, 'proxy_name')
+        assert target.__dict__['template'] is not source
+
+    def test_routed_copy_keeps_decorator_flags_and_defaults(self):
+        page = gl.GnrObject()
+        gl.instanceMixin(page, self._resource(self._handler(), 'repro/a:A'))
+
+        assert page.template.is_rpc is True
+        assert page.template() == 3
+        assert page.template(2, b=5) == 7
+        assert page.template.__qualname__.endswith('SharedHandler.template')
+
+    def test_hash_mixin_as_is_not_duplicated(self):
+        class Hooked(object):
+            def onLoading_hook(self):
+                pass
+            onLoading_hook.mixin_as = 'onLoading_#'
+
+        target = type('Target', (object,), {})
+        gl.classMixin(target, Hooked)
+        gl.classMixin(target, Hooked)
+
+        assert len([k for k in target.__dict__ if k.startswith('onLoading_')]) == 1
+
+    def test_proxy_methods_keep_their_route_per_page(self):
+        class Component(object):
+            proxy = 'pp'
+
+            def rpc_ping(self):
+                return 'pong'
+
+        first_source = self._resource(object, 'a/b:R')
+        second_source = self._resource(object, 'c/d:R')
+        gl.classMixin(first_source, Component)
+        gl.classMixin(second_source, Component)
+
+        first_page = gl.GnrObject()
+        second_page = gl.GnrObject()
+        gl.instanceMixin(first_page, first_source)
+        held = first_page.pp.rpc_ping
+        gl.instanceMixin(second_page, second_source)
+
+        assert gl.serializedFuncName(held) == '*|a/b:R;pp.ping'
+        assert gl.serializedFuncName(second_page.pp.rpc_ping) == '*|c/d:R;pp.ping'
+        assert held() == 'pong'
+        assert held.__self__.main is first_page
+
 class TestGnrLang_getEncoding():
     def _get_data_path(self, filename):
         return os.path.join(os.path.dirname(__file__), 'data', filename)
