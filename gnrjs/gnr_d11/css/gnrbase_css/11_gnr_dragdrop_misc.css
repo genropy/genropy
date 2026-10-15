@@ -31,6 +31,30 @@ img.cannotBeDropped {
     background: var(--drop-header-invalid-bg) !important;
 }
 
+.grid_column_dropzone {
+    position: absolute;
+    display: none;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.grid_column_dropzone.canBeDropped,
+.grid_column_dropzone.cannotBeDropped {
+    display: block;
+}
+
+.grid_column_dropbar {
+    position: absolute;
+    display: none;
+    pointer-events: none;
+    z-index: 2;
+}
+
+.grid_column_dropbar.canBeDropped {
+    display: block;
+    background-color: var(--color-success) !important;
+}
+
 .rowsetdragging {
     /*font-size: 0.8em;*/
     border:1px solid var(--border-color);

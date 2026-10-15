@@ -5,7 +5,6 @@ from gnr.lib.services.mail import MailService
 
 class GnrCustomWebPage(object):
     py_requires='gnrcomponents/testhandler:TestHandlerFull'
-    js_requires='ckeditor/ckeditor'
     
     def test_0_sendmail(self,pane):
         "Send e-mail. You must configure a service or package email before testing"

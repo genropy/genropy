@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+"""templateEditor: the editor of Genropy templates, bound to a table or free"""
+
 from gnr.core.gnrdecorator import public_method
 from gnr.core.gnrbag import Bag
 
@@ -40,3 +42,8 @@ class GnrCustomWebPage(object):
         "paletteTemplateEditor shows an icon to open Template Editor inside a palette"
         pane.paletteTemplateEditor(maintable='fatt.fattura', paletteCode='templatePaletteCode',
                                         dockButton_iconClass='iconbox create_edit_html_template')
+
+    def test_3_free_template(self, pane):
+        """templateEditor with no maintable: the free-variables editor, whose variables are declared by hand"""
+        bc = pane.borderContainer(height='600px')
+        bc.contentPane(region='center').templateEditor()

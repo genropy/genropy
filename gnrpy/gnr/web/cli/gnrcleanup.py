@@ -12,7 +12,11 @@ def main():
 
     options = parser.parse_args()
     site = GnrWsgiSite(options.site_name)
-    site._runCleanup()
+    domains = [site.rootDomain]
+    if site.multidomain:
+        domains += list(site.db.dbstores)
+    for domain in domains:
+        site._runCleanup(domain=domain)
 
 if __name__ == "__main__":
     main()

@@ -151,3 +151,84 @@ class GnrCustomWebPage(object):
                 for z in range(3):
                     row['val_{i:02}{j:02}'.format(i=j,j=z)] = i*100+j
         return result
+
+    def test_5_dynamic_storepath(self, pane):
+        """bagGrid whose storepath is a formula: the selected label picks the branch of one Bag the grid shows
+
+        Colour, Size and Shoe size repoint the same grid to `.data.CO`, `.data.TG`
+        and `.data.MS` of the case; with no label selected it shows an empty store."""
+        bc = pane.borderContainer(height='300px', _anchor=True)
+        fb = bc.contentPane(region='top').formbuilder(cols=1, border_spacing='3px')
+        fb.filteringSelect(value='^.selectedLabel', lbl='Label',
+                           values='CO:Colour,TG:Size,MS:Shoe size')
+        fb.data('.data', self.getLabelRows())
+        bc.contentPane(region='center').bagGrid(frameCode='dynamicstore', datapath='.mygrid',
+                            storepath='==_selectedLabel?"#ANCHOR.data."+_selectedLabel:".emptystore"',
+                            grid__selectedLabel='^#ANCHOR.selectedLabel',
+                            struct=self.labelstruct)
+
+    def labelstruct(self, struct):
+        "Struct of test_5_dynamic_storepath"
+        r = struct.view().rows()
+        r.cell('codice', name='Code', width='10em', edit=True)
+        r.cell('descrizione', name='Description', width='30em', edit=True)
+
+    def getLabelRows(self):
+        "Rows of test_5_dynamic_storepath, one branch per label"
+        return Bag("""<?xml version="1.0" encoding="utf-8"?>
+<GenRoBag>
+<CO descrizione="Colour">
+<n_1007 _pkey="n_1007"><codice>RO</codice><descrizione>Red</descrizione></n_1007>
+<n_1023 _pkey="n_1023"><codice>AR</codice><descrizione>Orange</descrizione></n_1023>
+<n_1015 _pkey="n_1015"><codice>VE</codice><descrizione>Green</descrizione></n_1015>
+</CO>
+<TG descrizione="Size">
+<n_1025 _pkey="n_1025"><codice>M</codice><descrizione>Medium</descrizione></n_1025>
+<n_1033 _pkey="n_1033"><codice>S</codice><descrizione>Small</descrizione></n_1033>
+<n_1041 _pkey="n_1041"><codice>X</codice><descrizione>Large</descrizione></n_1041>
+<n_1049 _pkey="n_1049"><codice>XL</codice><descrizione>Extra large</descrizione></n_1049>
+</TG>
+<MS descrizione="Shoe size">
+<n_1012 _pkey="n_1012"><codice>01</codice><descrizione>36</descrizione></n_1012>
+<n_1020 _pkey="n_1020"><codice>02</codice><descrizione>37</descrizione></n_1020>
+<n_1028 _pkey="n_1028"><codice>03</codice><descrizione>38</descrizione></n_1028>
+<n_1036 _pkey="n_1036"><codice>04</codice><descrizione>39</descrizione></n_1036>
+<n_1044 _pkey="n_1044"><codice>05</codice><descrizione>40</descrizione></n_1044>
+<n_1052 _pkey="n_1052"><codice>06</codice><descrizione>41</descrizione></n_1052>
+<n_1060 _pkey="n_1060"><codice>07</codice><descrizione>42</descrizione></n_1060>
+</MS>
+</GenRoBag>""")
+
+    def test_6_hidden_column(self, pane):
+        """bagGrid whose Description column is hidden through a data path
+
+        The filteringSelect writes `main.tiponascondi` and the column disappears
+        when it holds `AA`. The path is absolute on both its writer and its
+        reader, so it lives at the root of the page data, not under the case."""
+        bc = pane.borderContainer(height='500px', datapath='.altragrid')
+        bc.bagGrid(struct=self.hiddencolumn_struct, region='center')
+        bc.contentPane(region='top').filteringSelect(value='^main.tiponascondi', label='Description column',
+                                                     values='AA:Hide,BB:Show')
+
+    def hiddencolumn_struct(self, struct):
+        "Struct of test_6_hidden_column: one column hidden by a data path"
+        r = struct.view().rows()
+        r.cell('codice', width='20em', name='Code')
+        r.cell('descrizione', width='3em', name='Description', hidden='^main.tiponascondi?=#v=="AA"')
+
+    def test_7_pastegrid(self, pane):
+        "bagGrid, paste a block of text and turn every line into a row"
+        bc = pane.borderContainer(height='400px')
+        bc.contentPane(region='left', width='300px').simpleTextArea(value='^.sentences',
+                                                                    height='200px', width='90%')
+        bc.bagGrid(struct=self.sentence_struct, region='center',
+                   grid_onpaste=r"""
+                let txt = event.clipboardData.getData('text');
+                let rows = txt.split('\n').map(function(chunk){return {'sentence':chunk}});
+                this.gridEditor.addNewRows(rows)
+                """)
+
+    def sentence_struct(self, struct):
+        "Struct of test_7_pastegrid: a single editable column"
+        r = struct.view().rows()
+        r.cell('sentence', width='20em', name='Sentence', edit=True)

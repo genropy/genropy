@@ -340,7 +340,7 @@ dojo.declare("gnr.GnrRpcHandler", null, {
             content.temp_dbstore = '_main_db';
         }
         if(!isNullOrBlank(tenant_schema)){
-            currParams.env_tenant_schema = tenant_schema==false?'_main_':tenant_schema;
+            content.temp_tenant_schema = tenant_schema==false?'_main_':tenant_schema;
         }
         if (genro.startArgs._avoid_module_cache){
             content._avoid_module_cache = true;
@@ -750,7 +750,7 @@ dojo.declare("gnr.GnrRpcHandler", null, {
             currParams.temp_dbstore = '_main_db';
         }
         if(!isNullOrBlank(tenant_schema)){
-            currParams.env_tenant_schema = tenant_schema==false?'_main_':tenant_schema;
+            currParams.temp_tenant_schema = tenant_schema==false?'_main_':tenant_schema;
         }
         return objectUpdate(currParams, this.serializeParameters(genro.src.dynamicParameters(kwargs, sourceNode)));
     },

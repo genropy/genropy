@@ -68,7 +68,7 @@ function createSrc() {
         }
         return (trienode.subs || []).length;
     }
-    return {genro, paneNode, thermoNode, lineNode, barNode, publish, indexed};
+    return {context, genro, paneNode, thermoNode, lineNode, barNode, publish, indexed};
 }
 
 test('the line widget is indexed under its absolute datapath', () => {
@@ -162,3 +162,100 @@ test('a same-bag rebuild under freeze tears nothing down', () => {
     assert.deepEqual(line, {deleted: false, widgetDestroyed: false});
     assert.deepEqual(bar, {deleted: false, widgetDestroyed: false});
 });
+
+
+test('a queued insert discarded during another build is not mounted', () => {
+    const {genro, thermoNode} = createSrc();
+    const src = genro.src;
+    const content = thermoNode.getValue();
+    thermoNode.domNode = {};
+    const mounted = [];
+    src.buildNode = node => {
+        node.checkOnChildBuilding();
+        mounted.push(node.label);
+    };
+    src.building = true;
+    const transient = content._('div', 'transient').getParentNode();
+    content.popNode('transient');
+    src.building = false;
+    content._('div', 'current');
+    assert.equal(transient.isLostNode(), true);
+    assert.deepEqual(mounted, ['current']);
+    assert.equal(src.building, false);
+});
+
+
+test('a subscription of a discarded node is reported once and dropped', t => {
+    const {genro, lineNode, barNode, publish, indexed} = createSrc();
+    const errors = [];
+    t.mock.method(console, 'error', (...args) => errors.push(args));
+    lineNode.getParentBag().popNode('l1', false);
+    assert.equal(barNode.isLostNode(), true);
+    assert.equal(indexed(), 2);
+    assert.deepEqual(publish('gnr.batch.b1.thermo.l1'), []);
+    assert.equal(indexed(), 0);
+    assert.equal(errors.length, 2);
+    assert.deepEqual(errors.map(args => args.slice(1)).sort(),
+                     [['progressbar', 'maximum', 'gnr.batch.b1.thermo.l1'],
+                      ['progressbar', 'progress', 'gnr.batch.b1.thermo.l1']]);
+    assert.equal(genro.src.triggerIndex.root.children.gnr, undefined);
+    assert.deepEqual(publish('gnr.batch.b1.thermo.l1'), []);
+    assert.equal(errors.length, 2);
+});
+
+test('a live subscription raises no error', t => {
+    const {publish} = createSrc();
+    const errors = [];
+    t.mock.method(console, 'error', (...args) => errors.push(args));
+    assert.deepEqual(publish('gnr.batch.b1.thermo.l1').sort(), ['maximum', 'progress']);
+    assert.deepEqual(errors, []);
+});
+
+
+test('nested queued deletion removes descendant subscriptions before hooks detach them', () => {
+    const {genro, paneNode, thermoNode, lineNode, barNode, indexed} = createSrc();
+    thermoNode._onDeleting = function() {
+        this.getValue('static').popNode('l1');
+    };
+    lineNode._onDeleting = function() {
+        this.getValue('static').popNode('bar');
+    };
+    paneNode.getParentBag().popNode(paneNode.label);
+    assert.equal(barNode.isLostNode(), true);
+    assert.equal(indexed(), 0);
+    assert.equal(genro.src._subscribedNodes[barNode.getStringId()], undefined);
+});
+
+for (const frozen of [false, true]) {
+    test(`deletion hooks cannot publish to dying descendants (frozen=${frozen})`, () => {
+        const {genro, paneNode, thermoNode, barNode, publish, indexed} = createSrc();
+        const fired = [];
+        thermoNode._onDeleting = () => fired.push(...publish('gnr.batch.b1.thermo.l1'));
+        if (frozen) paneNode.freeze();
+        thermoNode.getParentBag().popNode(thermoNode.label);
+        assert.deepEqual(fired, []);
+        assert.equal(indexed(), 0);
+        assert.equal(genro.src._subscribedNodes[barNode.getStringId()], undefined);
+    });
+
+    test(`replacement cleans discarded content before hooks mutate it (frozen=${frozen})`, () => {
+        const {context, genro, thermoNode, lineNode, barNode, indexed} = createSrc();
+        lineNode._onDeleting = function() {
+            this.getValue('static').popNode('bar');
+        };
+        if (frozen) {
+            thermoNode.freeze();
+        } else {
+            context.document = {createElement: () => ({})};
+            context.dojo.query = () => [];
+            genro.assert = assert.ok;
+            thermoNode.domNode = {childNodes: []};
+            thermoNode.getParentBuiltObj = () => ({});
+            genro.src.buildNode = () => {};
+        }
+        thermoNode.clearValue();
+        assert.equal(barNode.isLostNode(), true);
+        assert.equal(indexed(), 0);
+        assert.equal(genro.src._subscribedNodes[barNode.getStringId()], undefined);
+    });
+}

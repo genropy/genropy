@@ -7,7 +7,7 @@ instance and without a database.
 """
 import importlib.util
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 TASK_MODEL_PATH = os.path.join(os.path.dirname(__file__), '..', '..', '..',
@@ -98,3 +98,21 @@ def test_find_tasks_honours_explicit_timestamp():
 
     ts = datetime(2024, 6, 15, 9, 0, tzinfo=ROME)
     assert table.findTasks(timestamp=ts) == [('task1', '2024-6-15-9-0')]
+
+
+def test_is_task_scheduled_now_frequency_counts_whole_days():
+    """The elapsed time since the last schedule must include whole days, and a
+    last schedule in the future is not elapsed time (#1554)."""
+    module = load_task_model()
+    table = make_table(module, [])
+    now = datetime(2024, 6, 15, 9, 0, tzinfo=timezone.utc)
+
+    daily = make_task(frequency=1440, last_scheduled_ts=now - timedelta(hours=25))
+    assert table.isTaskScheduledNow(daily, now) == '*'
+
+    reported = make_task(frequency=360,
+                         last_scheduled_ts=now - timedelta(days=3, minutes=51))
+    assert table.isTaskScheduledNow(reported, now) == '*'
+
+    future = make_task(frequency=10, last_scheduled_ts=now + timedelta(minutes=1))
+    assert table.isTaskScheduledNow(future, now) is False

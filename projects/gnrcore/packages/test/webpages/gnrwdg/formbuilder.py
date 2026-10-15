@@ -257,3 +257,15 @@ class GnrCustomWebPage(object):
         fb.field('codice')
         fb.field('codice_istat')
 
+    def test_7_lbl_outside_formbuilder(self, pane):
+        """lbl outside a formbuilder: the fields inherit lbl_side from the pane that wraps them"""
+        box = pane.div(datapath='.lbl_outside', lbl_side='left')
+        box.textbox(value='^.nome', lbl='Your name')
+        box.br()
+        box.br()
+        box.simpleTextarea(value='^.area', lbl='Notes', width='200px')
+
+    def test_8_checkboxtext_lbl(self, pane):
+        """lbl on a popup checkboxtext outside a formbuilder"""
+        pane.checkboxtext(value='^.cbtext.nome', lbl='Your name',
+                          values='mario,luigi,antonio', popup=True)

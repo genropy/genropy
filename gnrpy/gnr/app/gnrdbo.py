@@ -379,7 +379,8 @@ class TableBase(object):
             self.sysFields_protectionTag(tbl,protectionTag=useProtectionTag,group=group)
         if hierarchical:
             hierarchical = 'pkey' if hierarchical is True else '%s,pkey' %hierarchical
-            assert id,'You must use automatic id in order to use hierarchical feature in sysFields'
+            if not id:
+                raise ValueError('You must use automatic id in order to use hierarchical feature in sysFields')
             tblname = tbl.parentNode.label
             pkg = tbl.attributes['pkg']
             tbl.column('parent_id',size='22',name_long='!![en]Parent id',
@@ -446,11 +447,12 @@ class TableBase(object):
         if counter:
             tbl.attributes['counter'] = counter
             if hierarchical:
-                assert counter is True, 'in hierarchical counter is not relative to a foreignkey'
+                if counter is not True:
+                    raise ValueError('in hierarchical counter is not relative to a foreignkey')
                 tbl.column('_h_count',group=group,_sysfield=True)
                 tbl.column('_parent_h_count',group=group,_sysfield=True) 
                 tbl.column('_row_count', dtype='L', name_long='!![en]Counter', counter=True,group=group,_sysfield=True)
-                default_order_by = '$_h_count' if hierarchical == 'pkey' else " COALESCE($_h_count,$%s) " %hierarchical.split(',')[0]
+                default_order_by = '$_h_count' if hierarchical == 'pkey' else " COALESCE($_h_count,$%s) " %hfields[0]
                 tbl.formulaColumn('_h_sortcol',default_order_by,_sysfield=True, group=group)
                 tbl.attributes.setdefault('order_by','$_h_sortcol')
             else:
@@ -660,7 +662,7 @@ class TableBase(object):
         for field in [r for r in list(self.model.virtual_columns.keys()) if r.startswith('__protected_by_')]:
             protections.append("""( CASE WHEN $%s IS TRUE THEN '%s' ELSE NULL END )  """ %(field,field[15:]))
         if protections:
-            return "array_to_string(ARRAY[%s],',')"   %','.join(protections)
+            return self.db.adapter.string_join(protections, ',')
         else:
             return " NULL "
 
@@ -675,7 +677,7 @@ class TableBase(object):
         for field in [r for r in self.model.virtual_columns.keys() if r.startswith('__invalid_by_')]:
             invalids.append("""( CASE WHEN $%s IS TRUE THEN '%s' ELSE NULL END )  """ %(field,field[13:]))
         if invalids:
-            return "array_to_string(ARRAY[%s],',')"   %','.join(invalids)
+            return self.db.adapter.string_join(invalids, ',')
         else:
             return " NULL "
 
@@ -731,13 +733,13 @@ class TableBase(object):
 
     def variantColumn_hlv(self,field,**kwargs):
         """hierarchical_last_value"""
-        if not self.hierarchicalHandler:
+        if not self.attributes.get('hierarchical'):
             raise Exception('hlv variant only for hierarchical table')
         return self.hierarchicalHandler.variantColumn_hlv(field,**kwargs)
 
     def variantColumn_hdepth(self,field,**kwargs):
-        """hierarchical_last_value"""
-        if not self.hierarchicalHandler:
+        """hierarchical_depth: one column per level of the hierarchical path"""
+        if not self.attributes.get('hierarchical'):
             raise Exception('hdepth variant only for hierarchical table')
         return self.hierarchicalHandler.variantColumn_hdepth(field,**kwargs)
 

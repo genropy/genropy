@@ -45,6 +45,7 @@ body {
     /* --- Form-context shared overrides (formbuilder + formlet) --- */
     --form-field-border: var(--primary-light);
     --form-field-radius: var(--radius-sm);
+    --linker-bar-padding-y: 3px;
     --form-label-font-size: .8em;
 
     /* --- Formlet-specific overrides --- */

@@ -112,6 +112,8 @@ class Table(object):
         with self.db.tempEnv(connectionName='system',**self.get_storeargs()):
             try:
                 record = self.record(pkey=pkey, for_update=for_update).output('bag')
+                if not for_update:
+                    self.db.rollback()
             except RecordNotExistingError:
                 record = self.newrecord(code=pkey, data=Bag())
                 self.insert(record)

@@ -73,6 +73,35 @@ class GnrCustomWebPage(object):
                            label='Carta di identità fronte')
         box.textbox(value='^.destinazione')
 
+    def test_12_modalUploader_fullheight(self, pane):
+        """modalUploader with a percentage height: the box fills its container
+
+        height sizes the widget's own box, so height='100%' inside a fixed-height
+        pane takes the whole pane and the preview stretches below the bar.
+        Toggling hidden off and on must give back the same layout.
+        """
+        pane.checkbox(value='^.hidden', label='Hidden')
+        pane.div(height='400px', width='300px', border='1px solid silver',
+                 margin='10px').modalUploader(height='100%', width='100%',
+                                              hidden='^.hidden',
+                                              value='^.destinazione',
+                                              dest_stn='site:ca_retro.pdf',
+                                              label='Carta di identità retro')
+
+    def test_13_modalUploader_defaultsize(self, pane):
+        """modalUploader with no width or height: the size comes from the theme
+
+        --modaluploader-width sets the box width and --modaluploader-preview-ratio
+        the preview height: 190px wide with a 210px preview below the bar, the
+        size a dest_stn field gets unless the form sets one.
+        """
+        box = pane.formbuilder(cols=2)
+        box.modalUploader(border='1px solid silver', margin='10px', rounded=8,
+                          value='^.destinazione',
+                          dest_stn='site:ca_fronte.pdf',
+                          label='Carta di identità fronte')
+        box.textbox(value='^.destinazione')
+
     @public_method
     def onUploaded_test_uploader(self, file_url=None, file_path=None, file_ext=None, pippo=None,
                                   action_results=None, **kwargs):

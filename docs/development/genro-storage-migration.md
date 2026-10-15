@@ -596,7 +596,7 @@ Open, deliberately:
    warning at handler construction. Pre-creating the directory at startup would be the
    alternative; not done, because a storage switch should not create directories.
 9. **Run with the flag on in a serving site: done, and it found two defects.**
-   `projects/gnrcore/packages/test15/webpages/tools/storage_genro.py` is a testhandler
+   `projects/gnrcore/packages/test/webpages/tools/storage_genro.py` is a testhandler
    page that exercises the switch through real requests — storage trees on the mounts
    genro-storage takes over and on the ones that stay legacy, an inspector over the whole
    node surface, a side-by-side of the two handlers on the same path, an uploader, a

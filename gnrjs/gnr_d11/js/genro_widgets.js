@@ -442,25 +442,43 @@ dojo.declare("gnr.widgets.baseHtml", null, {
         genro.dom.addClass(sourceNode.widget.focusNode,'iskeepable');
         let keepableAuto = sourceNode.attr.keepable == '*';
         var dn = this._getKeeperRoot(sourceNode);
+        // in a formlet the keeper is a pin beside the field's own label: the
+        // labledBox holds both, so it carries keeper_on
+        var stateNode = dn.parentNode;
+        var lblTitle = null;
+        if(stateNode && stateNode.classList.contains('labledBox_content')){
+            var lbl = Array.from(stateNode.parentNode.children).find(function(c){
+                return c.classList.contains('labledBox_label');
+            });
+            lblTitle = lbl ? lbl.querySelector('.labledBox_title') : null;
+            if(lblTitle){
+                stateNode = stateNode.parentNode;
+            }
+        }
         if(!keepableAuto){
             var keeper = document.createElement('div');
             keeper.setAttribute('title','Keep this value');
-            genro.dom.addClass(keeper,'fieldkeeper');
+            genro.dom.addClass(keeper,lblTitle ? 'fieldkeeper fieldkeeper_lbl' : 'fieldkeeper');
             var keeper_in = document.createElement('div');
             keeper.appendChild(keeper_in);
-            dn.appendChild(keeper);
+            (lblTitle || dn).appendChild(keeper);
+            // the field being typed in keeps the focus
+            keeper.onmousedown = function(e){
+                e.preventDefault();
+            };
             keeper.onclick = function(e){
                 dojo.stopEvent(e);
                 var n = genro.getDataNode(npath);
-                var currvalue = n.attr._keep;
-                sourceNode.widget.setKeeper(isNullOrBlank(currvalue));
+                //setKeeper stores false, not null: isNullOrBlank(false) never toggled it back on
+                sourceNode.widget.setKeeper(!n.attr._keep);
             }
         }
         var npath = sourceNode.absDatapath(sourceNode.attr.value);
         sourceNode.widget.setKeeper = function(keepOn){
             var n = genro.getDataNode(npath);
             let v = n.getValue();
-            genro.dom.setClass(dn.parentNode,'keeper_on',keepOn);
+            genro.dom.setClass(stateNode,'keeper_on',keepOn);
+            sourceNode.widget.focusNode.tabIndex = keepOn ? -1 : sourceNode.widget.tabIndex;
             n.attr._keep = keepOn;
             if(sourceNode.form){
                 sourceNode.form.setKeptData(npath.replace(sourceNode.absDatapath()+'.',''),v,n.attr._keep);
@@ -1640,6 +1658,83 @@ dojo.declare("gnr.widgets.Dialog", gnr.widgets.baseDojo, {
         }
     },
 
+    mixin_fitToContent:function(){
+        var that = this;
+        setTimeout(function(){that._fitToContent();},1);
+    },
+
+    mixin__observeContent:function(centerNode){
+        // content rendered after onLoaded (data triggers, innerHTML) refits the dialog too
+        if(this._contentObserver){
+            return;
+        }
+        var that = this;
+        this._contentObserver = new MutationObserver(function(){
+            that.sourceNode.delayedCall(function(){that._fitToContent();},50,'fitToContent');
+        });
+        this._contentObserver.observe(centerNode,{childList:true,subtree:true,characterData:true});
+    },
+
+    mixin__fitToContent:function(){
+        var frame = dijit.byNode(this.containerNode.firstChild);
+        var center = frame && frame.getChildren ? frame.getChildren().filter(function(child){
+            return child.region=='center';
+        })[0] : null;
+        if(!center){
+            return;
+        }
+        var centerNode = center.domNode;
+        this._observeContent(centerNode);
+        if(!this.open){
+            return;
+        }
+        if(!this._fitBase){
+            this._fitBase = {w:dojo.coords(this.domNode).w,centerWidth:centerNode.clientWidth};
+        }
+        // flow content only: a nested layout has no natural height, it takes the cap
+        var layouts = '.dijitBorderContainer,.dijitStackContainer,.dijitLayoutContainer';
+        if(centerNode.matches(layouts) || centerNode.querySelector(layouts)){
+            this._fittedSize = {h:Number.MAX_SAFE_INTEGER,w:this._fitBase.w};
+            this.adjustDialogSize();
+            return;
+        }
+        centerNode.style.overflow = 'auto';
+        // a hidden copy laid out with free height measures the content's natural size
+        var padding = dojo._getPadExtents(centerNode);
+        var probe = centerNode.cloneNode(true);
+        probe.removeAttribute('id');
+        dojo.style(probe,{position:'absolute',visibility:'hidden',left:'-10000px',top:'0px',
+                          right:'auto',bottom:'auto',width:(this._fitBase.centerWidth-padding.w)+'px',
+                          height:'auto',overflow:'visible'});
+        dojo.query('.dijitContentPane',probe).forEach(function(node){node.style.height='';});
+        // an iframe in the document loads its src: a same-size placeholder measures the same
+        var iframes = centerNode.getElementsByTagName('iframe');
+        dojo.forEach(dojo._toArray(probe.getElementsByTagName('iframe')),function(iframe,idx){
+            var placeholder = document.createElement('div');
+            var original = iframes[idx];
+            var display = dojo.style(original,'display');
+            dojo.style(placeholder,{width:original.offsetWidth+'px',height:original.offsetHeight+'px',
+                                    display:display=='inline'?'inline-block':display,
+                                    verticalAlign:dojo.style(original,'verticalAlign')});
+            iframe.parentNode.replaceChild(placeholder,iframe);
+        });
+        centerNode.parentNode.appendChild(probe);
+        var contentHeight = Math.ceil(probe.getBoundingClientRect().height);
+        var contentWidth = probe.scrollWidth;
+        probe.parentNode.removeChild(probe);
+        // summed from the parts, as containerNodeResize splits them: before the first
+        // layout the frame is collapsed and the dialog height says nothing
+        var bars = 0;
+        dojo.forEach(frame.getChildren(),function(child){
+            if(child.region=='top' || child.region=='bottom'){
+                bars += child.domNode.offsetHeight;
+            }
+        });
+        this._fittedSize = {h:dojo.coords(this.titleBar).h+2+bars+contentHeight,
+                            w:this._fitBase.w+Math.max(0,contentWidth-this._fitBase.centerWidth)};
+        this.adjustDialogSize();
+    },
+
     mixin_onShowing:function(){},
 
     mixin_onWindowResize:function(e){
@@ -1697,7 +1792,14 @@ dojo.declare("gnr.widgets.Dialog", gnr.widgets.baseDojo, {
         var c = dojo.coords(this.domNode);
         var doResize = false;
         var starting;
-        if(parentRatio){
+        if(this._fittedSize){
+            // autoSize: the content decides, windowRatio (default .9) is only the cap
+            var cap = windowRatio || .9;
+            c['h'] = Math.min(this._fittedSize.h,Math.floor(mainDiv.clientHeight*cap));
+            c['w'] = Math.min(this._fittedSize.w,Math.floor(mainDiv.clientWidth*cap));
+            doResize = true;
+        }
+        else if(parentRatio){
             w = parentDialog? dojo.coords(parentDialog.domNode):w;
             c['w'] = Math.floor(w.w*parentRatio);
             c['h'] = Math.floor(w.h*parentRatio);
@@ -1814,6 +1916,10 @@ dojo.declare("gnr.widgets.Dialog", gnr.widgets.baseDojo, {
                             if(!parentDialog && !this._windowConnectionResize){
                                 this._windowConnectionResize = dojo.connect(window,'onresize',widget,'onWindowResize');
                             }
+                            if (this == ds.slice(-1)[0]) {
+                                // dijit listens on keypress, which no longer fires for Tab
+                                this._modalconnects.push(dojo.connect(dojo.doc.documentElement, "onkeydown", this, "_onKey"));
+                            }
                         });
             dojo.connect(widget, "hide", widget,
                         function() {
@@ -1837,8 +1943,33 @@ dojo.declare("gnr.widgets.Dialog", gnr.widgets.baseDojo, {
         }
         dojo.connect(widget,'resize',widget,'containerNodeResize');
     },
-   versionpatch_11__onKey:function(){
-       //onkey block inactive (ckeditor)
+   versionpatch_11__onKey:function(evt){
+       // only the Tab trap of dijit's _onKey: the full one blocked every key typed outside the dialog (editors' popups)
+       if(evt.type!='keydown' || evt.keyCode!=dojo.keys.TAB){
+           return;
+       }
+       // noModal only lowers the z-index: a dialog is modal as long as its underlay blocks the page
+       var underlay = this._underlay && this._underlay.domNode;
+       if(!underlay || underlay.offsetParent===null){
+           return;
+       }
+       var node = evt.target;
+       // a popup, a palette or another dialog sits above the underlay: the trap has no say there
+       var above = node && node.closest && node.closest('.dijitPopup,.dojoxFloatingPane,.dijitDialog');
+       if(above && above!==this.domNode){
+           return;
+       }
+       this._getFocusItems(this.domNode);
+       if(!dojo.isDescendant(node, this.domNode)){
+           dijit.focus(this._firstFocusItem);
+           dojo.stopEvent(evt);
+       }else if(node==this._lastFocusItem && !evt.shiftKey){
+           dijit.focus(this._firstFocusItem);
+           dojo.stopEvent(evt);
+       }else if(node==this._firstFocusItem && evt.shiftKey){
+           dijit.focus(this._lastFocusItem);
+           dojo.stopEvent(evt);
+       }
    },
     
     versionpatch_11__position: function() {
@@ -2489,6 +2620,15 @@ dojo.declare("gnr.widgets.BorderContainer", gnr.widgets.baseDojo, {
     },
     created: function(widget, savedAttrs, sourceNode) {
         widget._saved_size = {};
+        widget._drawerAnimations = {};
+        widget._closableRegions = {};
+        var stopAnimations = function() {
+            for (var region in widget._drawerAnimations) {
+                widget._stopDrawerAnimation(region, true);
+            }
+        };
+        sourceNode.subscribe('onDestroying', stopAnimations);
+        dojo.connect(widget, 'destroy', stopAnimations);
         dojo.connect(widget, 'startup', dojo.hitch(this, 'afterStartup', widget));
         if (dojo_version == '1.1' || dojo_version == '2.0') {
             dojo.connect(widget, 'addChild', dojo.hitch(this, 'onAddChild', widget));
@@ -2514,29 +2654,30 @@ dojo.declare("gnr.widgets.BorderContainer", gnr.widgets.baseDojo, {
         if(bc._splitters[side]){
             genro.dom.setClass(bc._splitters[side],'tinySplitter',true);
         }
-        var togglecb = function(){
-            var toClose = !dojo.hasClass(pane.widget.domNode,'closedSide');
-            genro.dom.setClass(pane,'closedSide','toggle');
+        var applyVisibility = function(show){
+            var toClose = !show;
+            genro.dom.setClass(pane,'closedSide',toClose);
             if(bc._splitters[side]){
-                genro.dom.setClass(bc._splitters[side],'hiddenSplitter','toggle');
+                genro.dom.setClass(bc._splitters[side],'hiddenSplitter',toClose);
             }
             if(toClose){
-                if(orientation=='vertical'){
-                    pane.__currDimension = pane.widget.domNode.style.width;
-                    dojo.style(pane.widget.domNode,'width',null);
-                }else{
-                    pane.__currDimension = pane.widget.domNode.style.height;
-                    dojo.style(pane.widget.domNode,'height',null);
-                }
-            }else if(pane.__currDimension){
-                dojo.style(pane.widget.domNode,orientation=='vertical'?'width':'height',pane.__currDimension);
+                var dimension = orientation=='vertical'?'width':'height';
+                bc._saved_size[side] = pane.widget.domNode.style[dimension];
+                dojo.style(pane.widget.domNode,dimension,null);
+            }else if(bc._saved_size[side]){
+                dojo.style(pane.widget.domNode,orientation=='vertical'?'width':'height',bc._saved_size[side]);
             }
             bc._layoutChildren(side);
             bc.layout();
-            pane.publish('closable_change',{open:!toClose});
+        };
+        bc._closableRegions[side] = applyVisibility;
+        var togglecb = function(){
+            var show = bc.showHideRegion(side,'toggle');
+            pane.publish('closable_change',{open:show});
         }
         genro.dom.setClass(pane,'closableSide_'+orientation,true);
         var closablePars = objectExtract(kw,'closable_*');
+        objectExtract(closablePars,'animate,duration');
         var iconClass = objectPop(closablePars,'iconClass');
         if('top' in closablePars){
             closablePars['margin_top'] = closablePars['margin_top'] || 0;
@@ -2551,7 +2692,8 @@ dojo.declare("gnr.widgets.BorderContainer", gnr.widgets.baseDojo, {
 
         var splitter = objectPop(closablePars,'splitter');
         if(kw.closable=='close'){
-            togglecb()
+            bc.showHideRegion(side,false,false);
+            pane.publish('closable_change',{open:false});
         }   
         var customClass = objectPop(closablePars,'_class');
         var _class = `slotbarOpener slotbarOpener_${orientation} slotbarOpener_${side} ${customClass}`;
@@ -2610,6 +2752,9 @@ dojo.declare("gnr.widgets.BorderContainer", gnr.widgets.baseDojo, {
                 //splitter=widget.getSplitter(region);
                 splitter = dijit.byNode(widget._splitters[region]);
                 widget._splitterConnections[region] = dojo.connect(splitter, '_stopDrag', dojo.hitch(this, 'onSplitterStopDrag', widget, splitter));
+                dojo.connect(splitter, '_startDrag', function() {
+                    widget._stopDrawerAnimation(this.region, false);
+                });
             }
         }
         if (sourceNode.attr.regions) {
@@ -2630,6 +2775,9 @@ dojo.declare("gnr.widgets.BorderContainer", gnr.widgets.baseDojo, {
     },
     
     onRemoveChild:function(widget,child){
+        widget._stopDrawerAnimation(child.region, true);
+        delete widget._closableRegions[child.region];
+        delete widget._saved_size[child.region];
         delete child.parentBorderContainer;
     },
     
@@ -2650,6 +2798,8 @@ dojo.declare("gnr.widgets.BorderContainer", gnr.widgets.baseDojo, {
      },
      
     onSplitterStopDrag:function(widget, splitter) {
+        widget._stopDrawerAnimation(splitter.region, false);
+        widget._saved_size[splitter.region] = splitter.child.domNode.style[splitter.horizontal ? "height" : "width"];
         var sourceNode = widget.sourceNode;
         if (sourceNode.attr.regions) {
             var region = splitter.region;
@@ -2660,23 +2810,37 @@ dojo.declare("gnr.widgets.BorderContainer", gnr.widgets.baseDojo, {
         genro.fakeResize();
     },
     mixin_setRegions:function(value, kw) {
-        let region,show,size;
-        if(value && value.region){
-            region = value.region;
-            show = value.show;
-            size = value.size;
-        }else{
-            region = kw.node.label;
-            size = kw.node.getValue();
-            show = kw.node.attr.show;
+        var region = value && value.region ? value.region : kw.node.label;
+        var size = value && value.region ? value.size : kw.node.getValue();
+        var show = value && value.region ? value.show : kw.node.attr.show;
+        var regionNode = this['_' + region];
+        if (!regionNode) {
+            return;
         }
-        if (('_' + region) in this) {
-            if (size) {
-                this['_' + region].style[(region == 'top' || region == 'bottom' ) ? "height" : "width"] = size;
+        var running = this._drawerAnimations[region];
+        if (show == 'toggle') {
+            show = running ? !running.show : !this.isRegionVisible(region);
+        }
+        if (size) {
+            var dimension = (region == 'top' || region == 'bottom') ? 'height' : 'width';
+            var animationKw = this._drawerAnimationKw(region);
+            var targetShow = show === undefined ? (running ? running.show : this.isRegionVisible(region)) : show;
+            var sameSize = (running ? running.savedSize : regionNode.style[dimension]) == size;
+            if (animationKw && (!sameSize || running) && (this.isRegionVisible(region) || targetShow)) {
+                if (!running || !sameSize || running.show != targetShow) {
+                    this._animateDrawerRegion(region, targetShow, animationKw.duration, size);
+                }
+                return;
+            }
+            this._stopDrawerAnimation(region, true);
+            this._saved_size[region] = size;
+            if (!sameSize && !(this._closableRegions && this._closableRegions[region] &&
+                    !this.isRegionVisible(region))) {
+                regionNode.style[dimension] = size;
                 this._layoutChildren();
             }
         }
-        if (show!==undefined) {
+        if (show !== undefined) {
             this.showHideRegion_one(region, show);
         }
     },
@@ -2684,24 +2848,58 @@ dojo.declare("gnr.widgets.BorderContainer", gnr.widgets.baseDojo, {
         return (this._splitterThickness[region] != 0);
     },
 
-    mixin_showHideRegion: function(region, show) {
+    mixin_showHideRegion: function(region, show, animate) {
         var regions = region.split(',');
         for (var i = 0; i < regions.length; i++) {
-            show = this.showHideRegion_one(regions[i], show);
+            show = this.showHideRegion_one(regions[i], show, animate);
         }
         ;
         return show;
     },
     
-    mixin_showHideRegion_one: function(region, show) {
+    mixin_showHideRegion_one: function(region, show, animate) {
+        if (!this['_' + region]) {
+            return show;
+        }
+        var running = this._drawerAnimations && this._drawerAnimations[region];
+        var toggle = show == 'toggle';
+        if (toggle) {
+            show = running ? !running.show : !this.isRegionVisible(region);
+        }
+        var animationKw = animate === false ? null : this._drawerAnimationKw(region);
+        if (animationKw && ((running && running.show == !!show) ||
+                (!running && this.isRegionVisible(region) == !!show))) {
+            return show;
+        }
+        if (animationKw) {
+            return this._animateDrawerRegion(region, show, animationKw.duration);
+        }
+        return this._showHideRegionImmediate(region, show);
+    },
+
+    mixin__showHideRegionImmediate: function(region, show) {
+        var wasAnimating = this._drawerAnimations && this._drawerAnimations[region];
+        this._stopDrawerAnimation(region, true);
+        var closable = this._closableRegions && this._closableRegions[region];
+        if (closable) {
+            if (this.isRegionVisible(region) != !!show) {
+                closable(show);
+            } else if (wasAnimating) {
+                this._layoutChildren(region);
+            }
+            return show;
+        }
+        var regionWidget = this['_' + region + 'Widget'];
+        var hideSplitter = regionWidget && regionWidget.sourceNode &&
+                !regionWidget.sourceNode.attr.drawer && this._drawerAnimationKw(region);
+        if (this._splitters[region] && hideSplitter && show) {
+            dojo.style(this._splitters[region], 'display', '');
+        }
         if (this._splitters[region]) {
             this._computeSplitterThickness(region);
         }
         var regionNode = this['_' + region];
         if (regionNode) {
-            if (show == 'toggle') {
-                show =  !this.isRegionVisible(region);//(this._splitterThickness[region] == 0);
-            }
             var disp = show ? '' : 'none';
             var splitterNode = this._splitters[region];
             if (splitterNode) {
@@ -2709,6 +2907,9 @@ dojo.declare("gnr.widgets.BorderContainer", gnr.widgets.baseDojo, {
                 this._splitterThickness['_' + region] = tk;
                 this._splitterThickness[region] = show ? tk : 0;
                 dojo.style(splitterNode,( region=='left' || region=='right')? 'width':'height', this._splitterThickness[region]+'px');
+                if (hideSplitter) {
+                    dojo.style(splitterNode, 'display', show ? '' : 'none');
+                }
                 //var st = dojo.style(splitterNode, 'display', disp);
             }
             dojo.style(regionNode, 'display', disp);
@@ -2727,7 +2928,122 @@ dojo.declare("gnr.widgets.BorderContainer", gnr.widgets.baseDojo, {
         return show;
     },
 
+    mixin__drawerAnimationKw: function(region) {
+        var regionWidget = this['_' + region + 'Widget'];
+        var sourceNode = regionWidget && regionWidget.sourceNode;
+        if (!sourceNode) {
+            return null;
+        }
+        var prefix = sourceNode.attr.closable ? 'closable' : 'drawer';
+        var animate = sourceNode.getAttributeFromDatasource(prefix + '_animate');
+        if (animate === undefined || animate === null) {
+            animate = !!sourceNode.attr.drawer;
+        }
+        if (animate === false || animate === 'false' || animate === 0 || animate === '0') {
+            return null;
+        }
+        var duration = typeof animate == 'number' ? animate :
+                sourceNode.getAttributeFromDatasource(prefix + '_duration');
+        duration = parseInt(duration === undefined || duration === null ? 280 : duration, 10);
+        return {duration: isNaN(duration) ? 280 : Math.max(0, duration)};
+    },
+
+    mixin__stopDrawerAnimation: function(region, restoreSize) {
+        var state = this._drawerAnimations && this._drawerAnimations[region];
+        if (!state) {
+            return;
+        }
+        window.cancelAnimationFrame(state.frame);
+        delete this._drawerAnimations[region];
+        if (!Object.keys(this._drawerAnimations).length) {
+            dojo.removeClass(this.domNode, 'gnrDrawerAnimating');
+        }
+        if (restoreSize) {
+            state.node.style[state.dimension] = state.savedSize;
+        }
+        state.node.style.overflow = state.originalOverflow;
+        state.node.style.willChange = state.originalWillChange;
+    },
+
+    mixin__animateDrawerRegion: function(region, show, duration, requestedSize) {
+        var regionNode = this['_' + region];
+        if (!regionNode) {
+            return show;
+        }
+        var animations = this._drawerAnimations;
+        var running = animations[region];
+        var dimension = region == 'left' || region == 'right' ? 'width' : 'height';
+        var wasHidden = !this.isRegionVisible(region);
+        var savedSize = requestedSize || (running && running.savedSize) ||
+                (wasHidden && this._saved_size[region]) || regionNode.style[dimension];
+        this._stopDrawerAnimation(region, false);
+        this._saved_size[region] = savedSize;
+        var reducedMotion = window.matchMedia &&
+                window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        if (!duration || reducedMotion || !window.requestAnimationFrame) {
+            regionNode.style[dimension] = savedSize;
+            var result = this._showHideRegionImmediate(region, show);
+            this._layoutChildren(region);
+            return result;
+        }
+        var originalOverflow = regionNode.style.overflow;
+        var originalWillChange = regionNode.style.willChange;
+        var currentSize = wasHidden ? 0 : parseFloat(dojo.style(regionNode, dimension));
+        if (show && wasHidden) {
+            this._showHideRegionImmediate(region, true);
+        }
+        var currentStyle = regionNode.style[dimension];
+        regionNode.style[dimension] = savedSize;
+        var openSize = parseFloat(dojo.style(regionNode, dimension));
+        regionNode.style[dimension] = currentStyle;
+        if (show && wasHidden) {
+            regionNode.style[dimension] = '0px';
+            this._layoutChildren(region);
+        }
+        var targetSize = show ? openSize : 0;
+        var change = targetSize - currentSize;
+        var state = {
+            show: show,
+            frame: null,
+            node: regionNode,
+            dimension: dimension,
+            savedSize: savedSize,
+            originalOverflow: originalOverflow,
+            originalWillChange: originalWillChange
+        };
+        animations[region] = state;
+        dojo.addClass(this.domNode, 'gnrDrawerAnimating');
+        // Closable handles sit outside their pane and must remain clickable.
+        if (!(this._closableRegions && this._closableRegions[region])) {
+            regionNode.style.overflow = 'hidden';
+        }
+        regionNode.style.willChange = dimension;
+        var startedAt = null;
+        var bc = this;
+        var step = function(timestamp) {
+            if (animations[region] !== state) {
+                return;
+            }
+            startedAt = startedAt === null ? timestamp : startedAt;
+            var progress = Math.min(1, (timestamp - startedAt) / duration);
+            var eased = 1 - Math.pow(1 - progress, 3);
+            regionNode.style[dimension] = currentSize + change * eased + 'px';
+            bc._layoutChildren(region);
+            if (progress < 1) {
+                state.frame = window.requestAnimationFrame(step);
+            } else {
+                bc._showHideRegionImmediate(region, show);
+                genro.fakeResize();
+            }
+        };
+        state.frame = window.requestAnimationFrame(step);
+        return show;
+    },
+
     mixin_setRegionVisible:function(region,show){
+        if (this._drawerAnimationKw(region) || this._drawerAnimations[region]) {
+            return this.showHideRegion_one(region, show);
+        }
         var regionbox = this['_' + region];
         if(show=='toggle'){
             var show = regionbox.style.display=='none';
@@ -2741,6 +3057,9 @@ dojo.declare("gnr.widgets.BorderContainer", gnr.widgets.baseDojo, {
         return show;
     },
     mixin_isRegionVisible:function(region){
+        if (this._closableRegions && this._closableRegions[region]) {
+            return !dojo.hasClass(this['_' + region], 'closedSide');
+        }
         return this['_'+region].style.display!='none';
     },
 
@@ -2755,6 +3074,7 @@ dojo.declare("gnr.widgets.BorderContainer", gnr.widgets.baseDojo, {
         var drawerClass = objectPop(kw,'drawer_class');
         var drawerStyle = objectPop(kw,'drawer_style');
         var drawer_kw = objectExtract(kw,'drawer_*');
+        objectExtract(drawer_kw,'animate,duration');
         var drawerLabel = objectPop(drawer_kw,'label');
         var styledict_kw = genro.dom.getStyleDict(drawer_kw);
         drawerDom.setAttribute('style',objectAsStyle(objectUpdate(objectFromStyle(drawerStyle),styledict_kw)));
@@ -2773,8 +3093,12 @@ dojo.declare("gnr.widgets.BorderContainer", gnr.widgets.baseDojo, {
             dijit.getEnclosingWidget(splitter)._startDrag = function(){};
         }
         if(drawer=='close'){
-            dojo.connect(bc,'startup',function(){bc.showHideRegion(side,false);});
+            dojo.connect(bc,'startup',function(){bc.showHideRegion(side,false,false);});
         }
+        dojo.connect(drawerDom,'onmousedown',function(e){
+            // A toggle must not start splitter dragging and overwrite the saved size.
+            dojo.stopEvent(e);
+        });
         dojo.connect(drawerDom,'onclick',function(e){
             var show = bc.showHideRegion(side,'toggle');
             if(drawer_kw.onclick){
@@ -4059,6 +4383,7 @@ dojo.declare("gnr.widgets.DateTextBox", gnr.widgets._BaseTextBox, {
         this._dojotag = 'DateTextBox';
         this._dtype = 'D';
     },
+    _pickerStartAttr: 'start_date',
     
     onChanged:function(widget, value) {
         //genro.debug('onChanged:'+value);
@@ -4077,8 +4402,18 @@ dojo.declare("gnr.widgets.DateTextBox", gnr.widgets._BaseTextBox, {
     // summary: open the TimePicker popup
     
     },
+    patch__open: function(){
+        //dijit builds the picker once, on the value or today, and reuses it: an empty
+        //field opens on the start_date/start_time reference, read now so it is current
+        this._open_replaced();
+        var reference = this.sourceNode.getAttributeFromDatasource(this.gnr._pickerStartAttr);
+        if(this._picker && !this.getValue() && reference instanceof Date && !isNaN(reference)){
+            this._picker.setValue(reference);
+        }
+    },
 
     creating: function(attributes, sourceNode) {
+        objectPop(attributes, this._pickerStartAttr);
         attributes.constraints = objectExtract(attributes, 'formatLength,datePattern,fullYear,min,max,strict,locale');
         if ('popup' in attributes && (objectPop(attributes, 'popup') === false)) {
             attributes.popupClass = null;
@@ -4295,7 +4630,10 @@ dojo.declare("gnr.widgets.TimeTextBox", gnr.widgets._BaseTextBox, {
             this._doChangeInData(widget.domNode, widget.sourceNode, null);
         }
     },
+    _pickerStartAttr: 'start_time',
+    patch__open: gnr.widgets.DateTextBox.prototype.patch__open,
     creating: function(attributes, sourceNode) {
+        objectPop(attributes, this._pickerStartAttr);
         if ('ftype' in attributes) {
             attributes.constraints['type'] = objectPop(attributes['ftype']);
         }
@@ -5225,15 +5563,6 @@ dojo.declare("gnr.widgets.DynamicBaseCombo", gnr.widgets.BaseCombo, {
                 this.setValue(null,false);
                 this.store.fetchItemByIdentity({identity:currvalue,onItem:function(){
                     if(self.sourceNode.getRelativeData(vpath) != currvalue){
-                        // the stale reply may have flagged a value that is no longer
-                        // there. fetchItemByIdentity clears _lastQueryError before
-                        // the call, so a value here belongs to this reply: without
-                        // one there is nothing of ours to undo, and the node may
-                        // meanwhile hold the current value's own error or required
-                        if(self._lastQueryError){
-                            delete self._lastQueryError;
-                            self.sourceNode.resetValidationError();
-                        }
                         return;
                     }
                     self.setValue(currvalue,false);
@@ -5426,6 +5755,10 @@ dojo.declare("gnr.widgets.FilteringSelect", gnr.widgets.BaseCombo, {
             }else{
                 //self._isvalid=false;
                 //self.validate(false);
+                // setDisplayedValue('') reports undefined: a quiet clear must not read as a change
+                if(priorityChange===false && isNullOrBlank(value)){
+                    self._lastValueReported = undefined;
+                }
                 self.valueNode.value = null;
                 self.setDisplayedValue('')
             }
@@ -5582,13 +5915,19 @@ dojo.declare("gnr.widgets.BaseSelect", null, {
                 this.setValue(this._lastValueReported, true);
             }else{
                 if (isNullOrBlank(displayedValue)){
-                     this.setValue(null, true);
-                     this.setDisplayedValue('');
+                    // validate_select runs inside the change below: an empty field, not a wrong search
+                    this._lastDisplayedValue = '';
+                    this.setValue(null, !isNullOrBlank(this._lastValueReported));
+                    // setDisplayedValue('') reports undefined: the clear is reported once, above
+                    this._lastValueReported = undefined;
+                    this.setDisplayedValue('');
                 }else{
                     if ( isNullOrBlank(value)){
-                        this.setValue(null, true);
+                        var firstMatch = !this.sourceNode.attr.firstMatchDisabled;
+                        // the lookup reports the match or the miss: the clear before it is not a change
+                        this.setValue(null, !firstMatch);
                         this.sourceNode._wrongSearch = displayedValue;
-                        if(!this.sourceNode.attr.firstMatchDisabled){
+                        if(firstMatch){
                             this.setDisplayedValue(displayedValue,true);
                         }
                     }else //if(value!=lastValueReported){

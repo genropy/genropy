@@ -107,6 +107,8 @@ class TableHandlerGroupBy(BaseComponent):
         frame = gridstack.frameGrid(frameCode=frameCode,grid_onDroppedColumn="""
                                     genro.groupth.addColumnCb(this,{data:data, column:column,fieldcellattr:fieldcellattr,treeNode:treeNode});
                                     """,
+                                    grid_dropTarget_column='gridcolumn',
+                                    grid_onDrop_gridcolumn="genro.groupth.addGridColumnCb(this.widget,{data:data,column:dropInfo.column});",
                                     datamode='attr',
                                 struct=structcb,
                                 grid_baseViewName = baseViewName,

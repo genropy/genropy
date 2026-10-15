@@ -253,6 +253,14 @@
     background: var(--icon-time) no-repeat center center;
 }
 
+.sigma_icon {
+    width: 12px;
+    height: 12px;
+    background-color: currentColor;
+    -webkit-mask: var(--icon-sigma) no-repeat center / contain;
+    mask: var(--icon-sigma) no-repeat center / contain;
+}
+
 .icnTabClose {
     width: 12px;
     height: 12px;

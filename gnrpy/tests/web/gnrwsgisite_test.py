@@ -159,8 +159,8 @@ class TestGnrWsgiSite(BaseGnrDaemonTest):
         finally:
             self._drop_error_row(rec['id'])
 
-    def test_deprecated_write_error_is_public_and_returns_the_record(self):
-        assert self.site.writeError.is_rpc
+    def test_deprecated_write_error_returns_the_record(self):
+        assert not getattr(self.site.writeError, 'is_rpc', False)
         with pytest.warns(DeprecationWarning, match='writeError'):
             rec = self.site.writeError(description='legacy site error')
         assert rec and rec['id']
@@ -194,3 +194,39 @@ class TestGnrWsgiSite(BaseGnrDaemonTest):
         with pytest.warns(DeprecationWarning):
             rec = self.site.writeError(description='failing write')
         assert rec is None
+
+    def _rpc_write_error(self, page, description):
+        previous_page = self.site.currentPage
+        self.site.currentPage = page
+        try:
+            handler = page.getPublicMethod('rpc', 'site.writeError')
+            result = handler(description=description, extra_info='KWVAL')
+        finally:
+            self.site.currentPage = previous_page
+        db = self.site.db
+        db.closeConnection()
+        rows = db.table('sys.error').query(
+            columns='$id', where='$description=:d', d=description).fetch()
+        for row in rows:
+            self._drop_error_row(row['id'])
+        return result, len(rows)
+
+    def test_rpc_write_error_refuses_a_page_without_user(self):
+        result, written = self._rpc_write_error(self.site.dummyPage, 'rpc no user')
+        assert result is None
+        assert written == 0
+
+    def test_rpc_write_error_refuses_a_guest(self):
+        page = self.site.dummyPage
+        page.user = page.connection.guestname
+        assert page.isGuest
+        result, written = self._rpc_write_error(page, 'rpc guest')
+        assert result is None
+        assert written == 0
+
+    def test_rpc_write_error_writes_for_a_logged_user_and_returns_nothing(self):
+        page = self.site.dummyPage
+        page.avatar = self.site.gnrapp.makeAvatar(user='rpc_tester', user_id='rpc_tester')
+        result, written = self._rpc_write_error(page, 'rpc logged user')
+        assert result is None
+        assert written == 1

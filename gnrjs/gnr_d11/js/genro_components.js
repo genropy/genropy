@@ -1086,6 +1086,8 @@ dojo.declare("gnr.widgets.GroupletForm",gnr.widgets.gnrwdg,{
             grouplets_pars['value'] =  kw.formDatapath ;
         }
         kw.controllerPath = formControllerPath;
+        // where #FORM.pkey reads it, as in FrameForm: relation= handlers inside filter on it
+        kw.pkeyPath = kw.pkeyPath || '.pkey';
         sourceNode.gnrwdg.formId = formId;
         let formdiv = sourceNode._('BoxForm',kw);
         return formdiv._('grouplet',grouplets_pars);
@@ -2291,9 +2293,9 @@ dojo.declare("gnr.widgets.ExtendedJoditEditor", gnr.widgets.gnrwdg, {
     createContent:function(sourceNode, kw,children) {
         let containerkw = objectExtract(kw,'height,width,region,title,margin');
         objectUpdate(containerkw,objectExtract(kw,'margin_*',false,true));
-        let bc = sourceNode._('borderContainer',containerkw);
         let css_value = objectPop(kw,'css_value');
         let css_pars = objectExtract(kw,'css_*');
+        let bc = sourceNode._('borderContainer',containerkw);
         kw.contentStyles = css_value;
         kw.height = '100%';
         kw.width = '100%';
@@ -2302,14 +2304,8 @@ dojo.declare("gnr.widgets.ExtendedJoditEditor", gnr.widgets.gnrwdg, {
             css_pars = objectUpdate({value:css_value,height:'100%',width:'100%',config_mode:'css',
                                      config_lineNumbers:true,config_keyMap:'softTab'},css_pars);
             bc._('borderContainer',{region:'right',width:'30%',splitter:true,closable:'close',
-                                    closable_background:'rgba(222, 255, 0, 1)',
-                                    closable_top:'10px',
-                                    closable_width:'14px',
-                                    closable_left:'-20px',
-                                    closable_height:'14px',
-                                    closable_padding:'2px',
-                                    closable_opacity:'1',
-                                    closable_iconClass:'smalliconbox create_edit_html_template',
+                                    closable_bottom:'12px',closable_label:'CSS',
+                                    closable__class:'jodit_css_opener',closable_tip:_T('Edit the CSS'),
                                     border_left:'1px solid silver'})
                 ._('contentPane',{region:'center',overflow:'hidden',_lazyBuild:true})._('codemirror',css_pars);
         }
@@ -4476,10 +4472,11 @@ dojo.declare("gnr.widgets.DropUploader", gnr.widgets.gnrwdg, {
 
 dojo.declare("gnr.widgets.ModalUploader", gnr.widgets.gnrwdg, {
     createContent:function(sourceNode, kw,children) {
-        let boxkwargs = objectExtract(kw,'position,top,bottom,left,right,border,width,margin,rounded,hidden');
-        let previewkwargs = objectExtract(kw,'height');
+        let boxkwargs = objectExtract(kw,'position,top,bottom,left,right,border,width,height,margin,rounded,hidden');
         boxkwargs._workspace = true;
-        let wrapper = sourceNode._('div','mu_wrapper',boxkwargs);
+        let wrapper = sourceNode._('flexbox','mu_wrapper',{direction:'column',
+                            _class:boxkwargs.height?'modalUploader modalUploader_fill':'modalUploader',
+                            ...boxkwargs});
         let label = objectPop(kw,'label') || 'Document';
         let mu_bar = wrapper._('div','mu_bar',{display:'flex',
                             style:'justify-content:space-between;align-items:center;',
@@ -4507,7 +4504,7 @@ dojo.declare("gnr.widgets.ModalUploader", gnr.widgets.gnrwdg, {
                                                 ...kw},this);
             },dest_stn:dest_stn.replace('^','=')
         });
-        wrapper._('iframe',{src:'^#WORKSPACE.preview_url',width:'100%',border:0,...previewkwargs});
+        wrapper._('iframe',{src:'^#WORKSPACE.preview_url',width:'100%',border:0,_class:'modalUploader_preview'});
         let iframeStarterKw = {script:function(scriptKwargs){
             let value = scriptKwargs.value;
             let prevurl = null;
@@ -4680,7 +4677,8 @@ dojo.declare("gnr.widgets.MultiButton", gnr.widgets.gnrwdg, {
         sourceNode.attr.value = value;
         sourceNode.attr.values = values;
         sourceNode.attr.items = items;
-        var containerKw = {_class:'multibutton_container'};
+        var minimal = objectPop(kw,'minimal');
+        var containerKw = {_class:minimal?'multibutton_container multibutton_minimal':'multibutton_container'};
         var btn_action;
         if (sticky){
             btn_action = function(_kwargs){
@@ -4811,7 +4809,19 @@ dojo.declare("gnr.widgets.MultiButton", gnr.widgets.gnrwdg, {
                     }else{
                         code = n.attr[identifier] || n.attr['code'] || n.label;
                     }
-                    
+                    var selected = value.indexOf(code)>=0;
+                    if(!n.domNode){
+                        //still queued for build: it is built from its attributes,
+                        //while setClass would fall back to the container
+                        var classes = (n.attr._class || '').split(' ').filter(function(c){
+                            return c && c != 'multibutton_selected';
+                        });
+                        if(selected){
+                            classes.push('multibutton_selected');
+                        }
+                        n.attr._class = classes.join(' ');
+                        return;
+                    }
                     if(value.length==1 && value[0]==code){
                         if(genro.dom.isElementOverflowing(n.domNode)){
                             setTimeout(()=>{
@@ -4821,7 +4831,7 @@ dojo.declare("gnr.widgets.MultiButton", gnr.widgets.gnrwdg, {
                             
                         }
                     }
-                    genro.dom.setClass(n,'multibutton_selected',value.indexOf(code)>=0);
+                    genro.dom.setClass(n,'multibutton_selected',selected);
                 });
             } 
         }
@@ -5163,7 +5173,8 @@ dojo.declare("gnr.widgets.UserObjectBar", gnr.widgets.gnrwdg, {
             sourceNode.attr._workspace = true;
         }
         var userObjectPars = objectExtract(kw,'table,flags,objtype');
-        gnrwdg.newcaption  = _T(objectPop(kw,'newcaption') ||  'New empty '+userObjectPars.objtype);
+        var newcaption = objectPop(kw,'newcaption');
+        gnrwdg.newcaption  = newcaption? _T(newcaption) : _T('!!New empty $objtype').replace('$objtype',userObjectPars.objtype);
         objectUpdate(userObjectPars,objectExtract(kw,'userobject_*'));
         gnrwdg.userObjectPars = userObjectPars;
         gnrwdg.startUserObjectIdOrCode = kw.userObjectId;
@@ -5319,7 +5330,7 @@ dojo.declare("gnr.widgets.UserObjectBar", gnr.widgets.gnrwdg, {
     gnrwdg_newFromCurrent:function(){
         var code = this.sourceNode.getRelativeData(`${this.metadataPath}.code`);
         this.sourceNode.setRelativeData(this.metadataPath,new gnr.GnrBag(this.userObjectPars));
-        genro.publish('floating_message',{message:_T(`New from ${code}`)});
+        genro.publish('floating_message',{message:_T('!!New from $code').replace('$code',code)});
     },
 
 });
@@ -5338,7 +5349,8 @@ dojo.declare("gnr.widgets.UserObjectLayout", gnr.widgets.gnrwdg, {
         }
         var userObjectPars = objectExtract(kw,'table,flags,objtype');
         userObjectPars.objtype = userObjectPars.objtype || this.objtype;
-        gnrwdg.newcaption  = _T(objectPop(kw,'newcaption') || this.newcaption ||  'New '+userObjectPars.objtype);
+        var newcaption = objectPop(kw,'newcaption') || this.newcaption;
+        gnrwdg.newcaption  = newcaption? _T(newcaption) : _T('!!New $objtype').replace('$objtype',userObjectPars.objtype);
         gnrwdg.table = userObjectPars.table;
         objectUpdate(userObjectPars,objectExtract(kw,'userobject_*'));
         gnrwdg.userObjectPars = userObjectPars;
@@ -6892,9 +6904,10 @@ dojo.declare("gnr.stores._Collection",null,{
             return result;
         }
         var filteredResult = new gnr.GnrBag();
+        var items = this.getItems();
         var fn;
         this._filtered.forEach(function(nodeIdx){
-            fn = result.getNode('#'+nodeIdx);
+            fn = items[nodeIdx];
             filteredResult.setItem(fn.label,fn._value instanceof gnr.GnrBag?fn._value.deepCopy():fn._value,objectUpdate({},fn.attr));
         });
         return filteredResult;
@@ -6925,6 +6938,11 @@ dojo.declare("gnr.stores._Collection",null,{
         return -1;
     },
     
+    currentItems:function(){
+        var items = this.getItems();
+        return this._filtered? this._filtered.map(function(idx){return items[idx];}):items;
+    },
+
     absIndex:function(idx,reverse){
         //if (this.invalidFilter()) {
         //    console.log('invalid filter');
@@ -6942,7 +6960,7 @@ dojo.declare("gnr.stores._Collection",null,{
             return;
         }
         var item;
-        data=data.getNodes();
+        data=this.getItems();
         if ((idx<0)||( idx>(data.length-1))){
             return null;
         } 
@@ -6956,7 +6974,7 @@ dojo.declare("gnr.stores._Collection",null,{
         var data = this.getData();
         var that = this;
         if(pkey && data){
-            data=data.getNodes();
+            data=this.getItems();
             var k = -1;
             data.some(function(n){
                 k++;
@@ -7012,9 +7030,8 @@ dojo.declare("gnr.stores._Collection",null,{
         return this.rowByIndex(inRowIndex,bagFields);
     },
     
-    compileFilter:function(grid,value,filterColumn,colType){
+    compileFilter:function(grid,value,filterColumn,colType,columnFilterSkip){
         var cbsearch;
-        var cb;
         if(!isNullOrBlank(value)){
             if (colType in {'A':null,'T':null}) {
                 var regexp = new RegExp(value, 'i');
@@ -7041,14 +7058,27 @@ dojo.declare("gnr.stores._Collection",null,{
                 }
             }
         }
+        var callbacks = [];
         if(grid.filterManager && grid.filterManager.hasActiveFilter()){
-            cb = function(rowdata, index, array){
-                return grid.filterManager.isInFilterSet(rowdata) && (cbsearch?cbsearch(rowdata, index, array):true);
-            };
-        }else{
-            cb = cbsearch;
+            callbacks.push(function(rowdata){
+                return grid.filterManager.isInFilterSet(rowdata);
+            });
         }
-        return cb;
+        if(cbsearch){
+            callbacks.push(cbsearch);
+        }
+        var cbcolumns = grid.columnFilterCb? grid.columnFilterCb(columnFilterSkip):null;
+        if(cbcolumns){
+            callbacks.push(cbcolumns);
+        }
+        if(callbacks.length<2){
+            return callbacks[0];
+        }
+        return function(rowdata, index, array){
+            return callbacks.every(function(f){
+                return f(rowdata, index, array);
+            });
+        };
     },
 
     createFiltered:function(grid,currentFilterValue,filterColumn,colType){
@@ -7092,6 +7122,34 @@ dojo.declare("gnr.stores._Collection",null,{
 
     iterfilterCb:function(filterCb){
         this.getItems().forEach(filterCb);
+    },
+
+    setTreeMode:function(treeCell){
+        if(!treeCell){
+            if(!this.treeMode){
+                return false;
+            }
+            this.invalidateTree();
+            for(var k in gnr.stores._treeMode){
+                delete this[k];
+            }
+            this.treeMode = null;
+            return true;
+        }
+        if(this instanceof gnr.stores.VirtualSelection){
+            console.warn('hierarchical column not supported by a virtual selection');
+            return false;
+        }
+        var separator = typeof(treeCell.hierarchical)=='string'?treeCell.hierarchical:'/';
+        if(this.treeMode && this.treeMode.field==treeCell.field && this.treeMode.separator==separator){
+            return false;
+        }
+        if(!this.treeMode){
+            objectUpdate(this,gnr.stores._treeMode);
+        }
+        this.treeMode = {field:treeCell.field,separator:separator};
+        this.invalidateTree();
+        return true;
     },
 
     linkedGrids:function(){
@@ -7245,7 +7303,7 @@ dojo.declare("gnr.stores.ValuesBagRows",gnr.stores.BagRows,{
     },
 
     currentPkeys:function(caption_field){
-        var data = this.getData();
+        var data = this.currentItems();
         var result = [];
         var r;
         let identifier = this.identifier;
@@ -7301,7 +7359,7 @@ dojo.declare("gnr.stores.AttributesBagRows",gnr.stores.BagRows,{
         return n.attr[this.identifier];
     },
     currentPkeys:function(caption_field){
-        var data = this.getData();
+        var data = this.currentItems();
         var result = [];
         var r;
         let identifier = this.identifier;
@@ -7334,6 +7392,165 @@ dojo.declare("gnr.stores.AttributesBagRows",gnr.stores.BagRows,{
        return this.getData().sum('#a.'+field); 
     }
 });
+
+gnr.stores._treeMode = {
+    isTreeStore:true,
+
+    invalidateTree:function(){
+        this._flat = null;
+        if(this._filtered){
+            this._filterToRebuild = true;
+        }
+    },
+
+    getItems:function(){
+        var root = this.getData();
+        if(!this._flat || this._flatRoot!==root){
+            this._expanded = this._expanded || {};
+            this._flat = [];
+            this._meta = new Map();
+            this._flatRoot = root;
+            this._flattenPaths(root.getNodes());
+        }
+        return this._flat;
+    },
+
+    _flattenPaths:function(nodes){
+        var that = this;
+        var field = this.treeMode.field;
+        var separator = this.treeMode.separator;
+        var pathOf = this instanceof gnr.stores.AttributesBagRows?function(n){return n.attr[field];}:
+                        function(n){return Object.getPrototypeOf(that).rowFromItem.call(that,n)[field];};
+        var root = {children:[]};
+        var branches = new Map();
+        nodes.forEach(function(n,rowIndex){
+            var path = pathOf(n);
+            var segments = isNullOrBlank(path)?[]:String(path).split(separator).filter(function(segment){
+                return segment!=='';
+            });
+            var parent = root;
+            var key = null;
+            segments.forEach(function(segment){
+                key = key===null?segment:key+separator+segment;
+                var branch = branches.get(key);
+                if(!branch){
+                    branch = {key:key,label:segment,rows:[],children:[],order:rowIndex};
+                    branches.set(key,branch);
+                    parent.children.push(branch);
+                }
+                parent = branch;
+            });
+            if(parent===root){
+                root.children.push({key:null,label:'',rows:[n],children:[],order:rowIndex});
+            }else{
+                if(!parent.rows.length){
+                    parent.order = rowIndex;
+                }
+                parent.rows.push(n);
+            }
+        });
+        var walk = function(list,level,parentNode){
+            list.sort(function(a,b){return a.order-b.order;});
+            list.forEach(function(branch){
+                var rows = branch.rows.length?branch.rows:[that._virtualTreeNode(branch)];
+                var expanded = branch.children.length>0 && !!that._expanded[branch.key];
+                rows.forEach(function(n,i){
+                    that._flat.push(n);
+                    that._meta.set(n,{level:level,treeKey:branch.key,label:branch.label,parent:parentNode,
+                                      branch:i==0 && branch.children.length>0,expanded:i==0 && expanded,
+                                      virtual:!branch.rows.length});
+                });
+                if(expanded){
+                    walk(branch.children,level+1,rows[0]);
+                }
+            });
+        };
+        walk(root.children,0,null);
+    },
+
+    _virtualTreeNode:function(branch){
+        var attr = {};
+        attr[this.identifier] = '_tree_'+branch.key;
+        attr[this.treeMode.field] = branch.key;
+        return new gnr.GnrBagNode(null,branch.label,null,attr);
+    },
+
+    isVirtualRow:function(idx){
+        var n = this.itemByIdx(idx);
+        var meta = n && this._meta.get(n);
+        return !!(meta && meta.virtual);
+    },
+
+    isTreeDescendant:function(node,ancestor){
+        var meta = this._meta.get(node);
+        while(meta && meta.parent){
+            if(meta.parent===ancestor){
+                return true;
+            }
+            meta = this._meta.get(meta.parent);
+        }
+        return false;
+    },
+
+    rowFromItem:function(item,bagFields){
+        var result = Object.getPrototypeOf(this).rowFromItem.call(this,item,bagFields);
+        var meta = this._meta && this._meta.get(item);
+        if(meta){
+            result._tree_level = meta.level;
+            result._tree_label = meta.label;
+            result._tree_branch = meta.branch;
+            result._tree_expanded = meta.expanded;
+            result._tree_virtual = meta.virtual;
+        }
+        return result;
+    },
+
+    toggleNode:function(idx,expand){
+        var n = this.itemByIdx(idx);
+        var meta = n && this._meta.get(n);
+        if(!(meta && meta.branch)){
+            return;
+        }
+        expand = expand===undefined?!meta.expanded:expand;
+        var that = this;
+        var selections = this.linkedGrids().map(function(grid){
+            var before = grid.selection.getSelected().map(function(selIdx){return that.itemByIdx(selIdx);});
+            var after = before.map(function(selNode){
+                return !expand && that.isTreeDescendant(selNode,n)?(meta.virtual?null:n):selNode;
+            }).filter(function(selNode,i,l){return selNode && l.indexOf(selNode)==i;});
+            return {grid:grid,before:before,after:after};
+        });
+        if(expand){
+            this._expanded[meta.treeKey] = true;
+        }else{
+            delete this._expanded[meta.treeKey];
+        }
+        this.invalidateTree();
+        selections.forEach(function(kw){
+            var grid = kw.grid;
+            grid.updateRowCount();
+            grid._batchUpdating = true;
+            grid.selection.beginUpdate();
+            grid.selection.unselectAll();
+            kw.after.forEach(function(selNode){
+                var selIdx = that.absIndex(that.getItems().indexOf(selNode),true);
+                if(selIdx>=0){
+                    grid.selection.addToSelection(selIdx);
+                }
+            });
+            grid.selection.endUpdate();
+            grid._batchUpdating = false;
+            if(kw.after.length!=kw.before.length || kw.after.some(function(selNode,i){return selNode!==kw.before[i];})){
+                grid._gnrUpdateSelect(grid.selection.getFirstSelected());
+            }
+        });
+    },
+
+    sort:function(sortedBy){
+        Object.getPrototypeOf(this).sort.call(this,sortedBy);
+        this.invalidateTree();
+    }
+};
 
 dojo.declare("gnr.stores.RpcBase",gnr.stores.AttributesBagRows,{
     askToDelete:true,
@@ -7581,7 +7798,7 @@ dojo.declare("gnr.stores.Selection",gnr.stores.AttributesBagRows,{
 
 
     currentPkeys:function(caption_field){
-        var data = this.getData();
+        var data = this.currentItems();
         var result = [];
         var r;
         data.forEach(function(n){

@@ -142,6 +142,10 @@ class MenuIframes(BaseComponent):
                   nodeId='_menutree_')
         pane.dataController("""var flat_tblname = _node.label;
                                 let store = treeNode.widget.storebag();
+                                if(!(store instanceof gnr.GnrBag)){
+                                    // menu still resolving: the reloaded menu brings its own badges
+                                    return;
+                                }
                                 store.walk(function(n){
                                     const titleCounter = n.attr.titleCounter;
                                     const menuLineBadge = n.attr.menuLineBadge;
@@ -149,17 +153,22 @@ class MenuIframes(BaseComponent):
                                         console.warn('titleCounter is deprecated. Use menuLineBadge instead of it')
                                     }
                                     if(n.attr.tag == "tableBranch"){
-                                        if(n.attr.table.replace('.','_') == flat_tblname){
-                                            n.refresh(true);
-                                            let content = n.getValue();
-                                            let child_count = (content instanceof gnr.GnrBag)?content.len():0;
-                                            let updater = {child_count:child_count};
-                                            if(titleCounter === true || menuLineBadge == '#'){
-                                                updater.badgeContent = child_count || null;
-                                            }
-                                            n.updAttributes(updater);
+                                        let tables = [n.attr.table].concat((n.attr.refreshOnTables || '').split(','));
+                                        if(!tables.some(tbl => tbl.trim().replace('.','_') == flat_tblname)){
+                                            return;
                                         }
-                                        return;
+                                        n.refresh(true);
+                                        let content = n.getValue();
+                                        let child_count = (content instanceof gnr.GnrBag)?content.len():0;
+                                        let updater = {child_count:child_count};
+                                        let childCountBadge = titleCounter || menuLineBadge == '#';
+                                        if(titleCounter === true || menuLineBadge == '#'){
+                                            updater.badgeContent = child_count || null;
+                                        }
+                                        n.updAttributes(updater);
+                                        if(childCountBadge){
+                                            return;
+                                        }
                                     }
    
                                     let menuLineBadgeKW = {};

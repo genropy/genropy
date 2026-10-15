@@ -309,6 +309,19 @@ div.cellContent{
 
 /*end forbuilder inside toolbars*/
 
+.gridTreeCell {
+    display: flex;
+    align-items: center;
+}
+.gridTreeCell > .cellContent {
+    flex: 1;
+    min-width: 0;
+}
+.gridTreeExpander {
+    display: inline-block;
+    flex: none;
+}
+
 /* @end */
 
 /* @group PatchDojox */
