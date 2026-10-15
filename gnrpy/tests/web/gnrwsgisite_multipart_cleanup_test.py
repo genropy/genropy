@@ -11,7 +11,7 @@ from gnrwsgisite_dispatcher_cleanup_test import _FakeSite, _start_response
 
 
 @pytest.fixture
-def multipart():  # wf:phase-9:new
+def multipart():
     builder = EnvironBuilder(method='POST', data=MultiDict([
         ('file', (io.BytesIO(b'first upload'), 'first.xml')),
         ('file', (io.BytesIO(b'second upload'), 'second.xml')),
@@ -28,15 +28,15 @@ def multipart():  # wf:phase-9:new
 
 
 @pytest.mark.parametrize('streaming', [False, True])
-def test_uploads_close_after_response_and_preserve_streaming(multipart, streaming):  # wf:phase-9:new
+def test_uploads_close_after_response_and_preserve_streaming(multipart, streaming):
     environ, streams = multipart
     site = _FakeSite()
     observed_close = []
 
-    def dispatch(environ, start_response):  # wf:phase-9:new
+    def dispatch(environ, start_response):
         streams.extend(f.stream for f in site.currentRequest.files.getlist('file'))
 
-        def generate():  # wf:phase-9:new
+        def generate():
             try:
                 yield streams[0].read()
                 yield streams[1].read()
@@ -57,15 +57,15 @@ def test_uploads_close_after_response_and_preserve_streaming(multipart, streamin
         assert observed_close == [True]
 
 
-def test_early_response_close_releases_generator_before_uploads(multipart):  # wf:phase-9:new
+def test_early_response_close_releases_generator_before_uploads(multipart):
     environ, streams = multipart
     site = _FakeSite()
     finalized = []
 
-    def dispatch(environ, start_response):  # wf:phase-9:new
+    def dispatch(environ, start_response):
         streams.extend(f.stream for f in site.currentRequest.files.getlist('file'))
 
-        def generate():  # wf:phase-9:new
+        def generate():
             try:
                 yield streams[0].read(1)
                 yield streams[1].read()
@@ -82,12 +82,12 @@ def test_early_response_close_releases_generator_before_uploads(multipart):  # w
 
 
 @pytest.mark.parametrize('developer', [False, True])
-def test_dispatch_exception_releases_uploads(multipart, developer):  # wf:phase-9:new
+def test_dispatch_exception_releases_uploads(multipart, developer):
     environ, streams = multipart
     site = _FakeSite()
     site.debug = developer
 
-    def dispatch(environ, start_response):  # wf:phase-9:new
+    def dispatch(environ, start_response):
         streams.extend(f.stream for f in site.currentRequest.files.getlist('file'))
         if developer:
             site.currentPage = type('Page', (), {'isDeveloper': lambda self: True})()
@@ -105,15 +105,15 @@ def test_dispatch_exception_releases_uploads(multipart, developer):  # wf:phase-
     assert site._currentRequests._data == {}
 
 
-def test_cleanup_failure_releases_uploads(multipart):  # wf:phase-9:new
+def test_cleanup_failure_releases_uploads(multipart):
     environ, streams = multipart
     site = _FakeSite()
 
-    def dispatch(environ, start_response):  # wf:phase-9:new
+    def dispatch(environ, start_response):
         streams.extend(f.stream for f in site.currentRequest.files.getlist('file'))
         return [b'ok']
 
-    def cleanup():  # wf:phase-9:new
+    def cleanup():
         GnrWsgiSite.cleanup(site)
         raise RuntimeError('cleanup error')
 
@@ -124,12 +124,12 @@ def test_cleanup_failure_releases_uploads(multipart):  # wf:phase-9:new
     assert all(s.closed for s in streams)
 
 
-def test_non_file_request_is_not_parsed_by_close(monkeypatch):  # wf:phase-9:new
+def test_non_file_request_is_not_parsed_by_close(monkeypatch):
     builder = EnvironBuilder(method='POST', data=b'not multipart')
     environ = builder.get_environ()
     site = _FakeSite()
 
-    def unexpected_parse(self):  # wf:phase-9:new
+    def unexpected_parse(self):
         pytest.fail('Closing must not parse an unread request body')
 
     monkeypatch.setattr('gnr.web.gnrwsgisite.Request._load_form_data', unexpected_parse)
@@ -140,21 +140,21 @@ def test_non_file_request_is_not_parsed_by_close(monkeypatch):  # wf:phase-9:new
 
 
 @pytest.mark.parametrize('failure', ['iterate', 'close'])
-def test_response_protocol_failure_still_closes_uploads(multipart, failure):  # wf:phase-9:new
+def test_response_protocol_failure_still_closes_uploads(multipart, failure):
     environ, streams = multipart
     site = _FakeSite()
 
     class BrokenResponse:
-        def __iter__(self):  # wf:phase-9:new
+        def __iter__(self):
             if failure == 'iterate':
                 raise RuntimeError('iterate failure')
             return iter([b'ok'])
 
-        def close(self):  # wf:phase-9:new
+        def close(self):
             assert all(not s.closed for s in streams)
             raise RuntimeError('close failure')
 
-    def dispatch(environ, start_response):  # wf:phase-9:new
+    def dispatch(environ, start_response):
         streams.extend(f.stream for f in site.currentRequest.files.getlist('file'))
         return BrokenResponse()
 

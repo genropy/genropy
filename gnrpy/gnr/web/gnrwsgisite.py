@@ -88,7 +88,7 @@ class PrintHandlerError(Exception):
 
 
 class _RequestClosingIterator(ClosingIterator):
-    def __init__(self, iterable, request):  # wf:phase-9:new
+    def __init__(self, iterable, request):
         self._request = request
         try:
             super().__init__(iterable)
@@ -96,7 +96,7 @@ class _RequestClosingIterator(ClosingIterator):
             request.close()
             raise
 
-    def close(self):  # wf:phase-9:new
+    def close(self):
         try:
             super().close()
         finally:
@@ -1259,8 +1259,13 @@ class GnrWsgiSite(object):
                 result = exc(environ, start_response)
             finally:
                 self.cleanup()
-                # Do not re-add currentDomain after cleanup: its getter
-                # already falls back to rootDomain without thread-local residue.
+                # Do not re-set currentDomain here: cleanup() already reset it
+                # to None, which pops this thread's entry from the underlying
+                # ThreadedDict. Assigning rootDomain again would re-add a
+                # {tid: '_main_'} entry that is never removed, i.e. the same
+                # unbounded thread-local growth fixed for currentRequest/
+                # currentPage in #379. The currentDomain getter already falls
+                # back to rootDomain when unset, so no re-assignment is needed.
         except BaseException:
             request.close()
             raise
