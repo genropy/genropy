@@ -567,7 +567,9 @@ Open, deliberately:
    only when opening for write. A readonly mount is therefore **left on the legacy
    service**. `write_in_local` has no counterpart and keeps its mount on the legacy
    service too. The read-only that the legacy `aws_s3` service derives from local mode
-   and `secondary`, with neither parameter set, is not reproduced: tracked in #1685;
+   and `secondary`, with neither parameter set, is reproduced the same way: such a
+   mount is served by the legacy service, decided when it is resolved because
+   `_local_mode` is set after the site is built (#1685);
    `local_path(keep=True)` — refused with `NotImplementedError` on a remote mount rather
    than silently not keeping the file. The legacy `aws_s3` and `sftp` services keep it;
    no caller passes `keep=True` today, here or in the application projects searched.
