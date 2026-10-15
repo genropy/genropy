@@ -20,6 +20,7 @@ from werkzeug.exceptions import (HTTPException, InternalServerError,
                                   NotFound, Forbidden, PreconditionFailed,
                                   BadRequest, Unauthorized)
 from werkzeug.middleware.proxy_fix import ProxyFix
+from werkzeug.wsgi import ClosingIterator
 from gnr.web.compression import GzipMiddleware
 
 from gnr.core.gnrbag import Bag
@@ -84,6 +85,22 @@ class GnrWebServerError(Exception):
 
 class PrintHandlerError(Exception):
     pass
+
+
+class _RequestClosingIterator(ClosingIterator):
+    def __init__(self, iterable, request):
+        self._request = request
+        try:
+            super().__init__(iterable)
+        except BaseException:
+            request.close()
+            raise
+
+    def close(self):
+        try:
+            super().close()
+        finally:
+            self._request.close()
 
 
 class UrlInfo(object):
@@ -1225,28 +1242,36 @@ class GnrWsgiSite(object):
         return page
 
     def dispatcher(self, environ, start_response):
-        self.currentRequest = Request(environ)
-        self.currentRequest.max_form_memory_size = 100_000_000
+        request = Request(environ)
+        self.currentRequest = request
+        request.max_form_memory_size = 100_000_000
         self.currentDomain = self.rootDomain
 
         try:
-            return self._dispatcher(environ, start_response)
-        except Exception as e:
-            self.raiseIfDeveloper()
-            self.errorHandler(exception=e, traceback=True)
-            exc = InternalServerError(
-                description='Internal server error; SCRIPT_NAME=%r; PATH_INFO=%r;'
-                % (environ.get('SCRIPT_NAME'), environ.get('PATH_INFO')))
-            return exc(environ, start_response)
-        finally:
-            self.cleanup()
-            # Do not re-set currentDomain here: cleanup() already reset it
-            # to None, which pops this thread's entry from the underlying
-            # ThreadedDict. Assigning rootDomain again would re-add a
-            # {tid: '_main_'} entry that is never removed, i.e. the same
-            # unbounded thread-local growth fixed for currentRequest/
-            # currentPage in #379. The currentDomain getter already falls
-            # back to rootDomain when unset, so no re-assignment is needed.
+            try:
+                result = self._dispatcher(environ, start_response)
+            except Exception as e:
+                self.raiseIfDeveloper()
+                self.errorHandler(exception=e, traceback=True)
+                exc = InternalServerError(
+                    description='Internal server error; SCRIPT_NAME=%r; PATH_INFO=%r;'
+                    % (environ.get('SCRIPT_NAME'), environ.get('PATH_INFO')))
+                result = exc(environ, start_response)
+            finally:
+                self.cleanup()
+                # Do not re-set currentDomain here: cleanup() already reset it
+                # to None, which pops this thread's entry from the underlying
+                # ThreadedDict. Assigning rootDomain again would re-add a
+                # {tid: '_main_'} entry that is never removed, i.e. the same
+                # unbounded thread-local growth fixed for currentRequest/
+                # currentPage in #379. The currentDomain getter already falls
+                # back to rootDomain when unset, so no re-assignment is needed.
+        except BaseException:
+            request.close()
+            raise
+        # Upload streams may back a streaming response; keep them alive
+        # until the server closes the response iterable.
+        return _RequestClosingIterator(result, request)
 
     def raiseIfDeveloper(self, exception=None):
         page = self.currentPage
