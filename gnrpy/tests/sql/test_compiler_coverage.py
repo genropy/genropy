@@ -2671,6 +2671,36 @@ class TestExpandBag:
         ).fetch()
         assert len(rows) == 5
 
+    def _bagcols_nested(self, db):
+        tbl = db.table('invc.product')
+        pkey = tbl.query(columns='$id', limit=1).fetch()[0]['id']
+        details = Bag()
+        details['a.b.c'] = 1
+        details['a.d'] = 2
+        details['e'] = 3
+        with tbl.recordToUpdate(pkey) as rec:
+            original = rec['details']
+            rec['details'] = details
+        db.commit()
+        try:
+            row = tbl.query(columns='#BAGCOLS($details) AS dc',
+                            where='$id = :pkey', pkey=pkey).fetch()[0]
+            bag_keys = {k for k in row.keys() if k.startswith('dc')}
+            assert bag_keys == {'dc', 'dc_a_b_c', 'dc_a_d', 'dc_e'}
+            assert row['dc'] is None
+            assert (row['dc_a_b_c'], row['dc_a_d'], row['dc_e']) == (1, 2, 3)
+        finally:
+            with tbl.recordToUpdate(pkey) as rec:
+                rec['details'] = original
+            db.commit()
+
+    def test_bagcols_nested_leaves_only_pg(self, db_pg):
+        """#BAGCOLS expands only leaves, never nested folders."""
+        self._bagcols_nested(db_pg)
+
+    def test_bagcols_nested_leaves_only_sqlite(self, db_sqlite):
+        self._bagcols_nested(db_sqlite)
+
 
 class TestCompiledRecordQuery:
     """Test compiledRecordQuery paths: virtual_columns as string,
