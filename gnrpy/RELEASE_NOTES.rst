@@ -1,3 +1,23 @@
+Unreleased
+==========
+
+Behaviour changes
+-----------------
+
+* A datastore set that carries attributes is now lazy on the attributes
+  too: an equal value with equal attributes neither writes nor
+  triggers, an equal value with changed attributes notifies only the
+  attribute listeners. The grid therefore no longer re-fires the ``^``
+  triggers bound to its ``selectedId`` on every selection change, but
+  only when the row it points to changes. **Backward compatibility:**
+  in a ``multiSelect`` grid ``selectedId`` is the first selected row,
+  so a controller bound to ``^.selectedId`` to react to any selection
+  change (for instance totals of the selected rows) is no longer
+  re-run when rows below it are added or removed with ctrl/shift+click.
+  Bind such controllers to ``selectedRowidx``
+  (``grid_selectedRowidx='.selectedRowidx'`` and ``^.selectedRowidx``)
+  or subscribe to the grid's ``onSelectedRow`` instead. (#1144, #1145)
+
 Release 26.09.29
 ================
 
