@@ -113,6 +113,14 @@ class Service(StorageService):
             return parent_base_path
         return '%s/%s' % (parent_base_path.rstrip('/'), self.relative_path)
 
+    def parentServiceChanged(self):
+        """Returns True if the parent service has been rebuilt after this service was built.
+
+        The parent instance is kept since construction, while its expiration is tracked
+        on the parent service only: when its parameters change this service has to be
+        rebuilt, or it would keep working on the old ones."""
+        return self.parent.storage(self.parent_service_name) is not self.parent_service
+
     def __getattr__(self, name):
         """Every parameter not owned by the relative service is the one of its parent"""
         parent_service = self.__dict__.get('parent_service')
@@ -131,6 +139,9 @@ class UnconfiguredService(StorageService):
     @property
     def base_path(self):
         return None
+
+    def parentServiceChanged(self):
+        return False
 
     def internal_path(self, *args, **kwargs):
         return None
