@@ -576,10 +576,11 @@ class GenroStorageHandler(LegacyStorageHandler):
     Only storage() is overridden: which service resolves a mount is the single
     point of variation, so path parsing, node creation and the four StorageNode
     kwargs keep coming from LegacyStorageHandler, and the legacy StorageNode
-    keeps sitting on top. A mount genro-storage cannot serve — every symbolic
+    keeps sitting on top. A mount this handler does not map — every symbolic
     one, http, compressed, relative, sftp, vol: and any unknown name — is
     resolved by the legacy service, so with the flag on those keep behaving
-    exactly as before.
+    exactly as before. Symbolic is not mapped yet, not unmappable: its path_*
+    resolvers fit genro-storage's callable base_path.
 
     IMPLEMENTATION_MAP holds, per legacy implementation, the genro-storage
     protocol and the parameter renames it needs.
@@ -629,11 +630,19 @@ class GenroStorageHandler(LegacyStorageHandler):
                 mount[dest_key] = params[src_key]
         if implementation == 'raw':
             mount['base_path'] = '/'
-        if boolean(params.get('readonly')) or boolean(params.get('write_in_local')):
-            # No counterpart in genro-storage: serving a readonly mount through
-            # a writable backend would silently drop the restriction.
+        if boolean(params.get('readonly')):
+            # genro-storage's permissions="readonly" is not a drop-in: it raises
+            # StoragePermissionError on write and delete, where the legacy
+            # aws_s3 service skips delete/copy/move/mkdir and raises only when
+            # opening for write.
             logger.warning(
                 "genro-storage: mount '%s' is readonly; it stays on the legacy handler",
+                service_name)
+            return None
+        if boolean(params.get('write_in_local')):
+            logger.warning(
+                "genro-storage: mount '%s' sets write_in_local, which only the "
+                "legacy aws_s3 service applies; it stays on the legacy handler",
                 service_name)
             return None
         if protocol == 'local':

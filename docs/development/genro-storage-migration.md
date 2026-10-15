@@ -65,10 +65,10 @@ root of its worst defect (§4.1).
 | Implementation | File | Replaceable | Why |
 |---|---|---|---|
 | `local` | `resources/common/services/storage/local.py` | **Yes** | 1:1 with genro-storage `protocol: local`. Only caveat: `LocalStorage.__init__` raises `FileNotFoundError` if `base_path` does not exist yet *(measured)*, while `BaseLocalService` accepts it and creates on demand. The mount loop must pre-create or skip-and-warn. |
-| `aws_s3` | `projects/gnrcore/packages/sys/resources/services/storage/aws_s3.py` | **Yes, with gaps** | genro-storage `protocol: s3` (s3fs) covers read/write/exists/size/mtime/md5hash/children/copy/move/versions/presigned url, verified against MinIO *(measured)*. Gaps to close in the adapter: `mkdir` (legacy writes a `.gnrdir` sentinel so `isdir` becomes True; genro-storage's `mkdir` leaves `is_dir()` False on S3 *(measured)*), `public_url` (no counterpart — legacy `#990` feature), `internal_path` (legacy returns the object key, genro-storage `resolved_path` returns `None` for remote *(measured)*), `readonly`/`write_in_local` (no counterpart), `serve` (legacy redirects to a presigned url, genro-storage streams the bytes). |
+| `aws_s3` | `projects/gnrcore/packages/sys/resources/services/storage/aws_s3.py` | **Yes, with gaps** | genro-storage `protocol: s3` (s3fs) covers read/write/exists/size/mtime/md5hash/children/copy/move/versions/presigned url, verified against MinIO *(measured)*. Gaps to close in the adapter: `mkdir` (legacy writes a `.gnrdir` sentinel so `isdir` becomes True; genro-storage's `mkdir` leaves `is_dir()` False on S3 *(measured)*), `public_url` (no counterpart — legacy `#990` feature), `internal_path` (legacy returns the object key, genro-storage `resolved_path` returns `None` for remote *(measured)*), `readonly` (genro-storage's `permissions: "readonly"` exists but is not a drop-in, see §12), `write_in_local` (no counterpart), `serve` (legacy redirects to a presigned url, genro-storage streams the bytes). |
 | `raw` | `resources/common/services/storage/raw.py` | **Yes, trivially** | It is `local` with `base_path='/'` plus `expandpath`. Mount as `local` with `path: '/'`; keep `expandpath` in the adapter's path handling. |
 | `relative` | `resources/common/services/storage/relative.py` | **Yes, but not now** | genro-storage has a relative-mount form (`path: "parent:sub"`, `manager._configure_relative_mount`). The legacy class is a class-swapping hack (`self.__class__ = self.parent_service.__class__`) whose `_resolved_relative` has a `#resolve dbstore...` TODO. Mapping it is a separate, self-contained job; **deferred**, stays legacy. |
-| `symbolic` | `resources/common/services/storage/symbolic.py` | **No** | Nine different dynamic resolvers keyed on the mount name (`path_rsrc` → `site.resources`, `path_pkg` → `packageFolder`, `path_gnr`/`path_dojo` → version-keyed, `path_temp` → `tempfile.gettempdir()`, `path_user`/`path_conn`/`path_page` → request-scoped, `path_vol` → `<volumes>`), each with a matching `url_*` producing a site route. It has no `base_path` at all (`self.base_path = 'SYMBOLIC'`). It depends on the site and on the current page, i.e. on things a storage library cannot know. T2 showed genro-storage's callable-path ("switched mount") can carry `rsrc`/`pkg`/`gnr`/`dojo`, but the request-scoped three cannot follow and the `url_*` half stays site-owned regardless. **Stays legacy, permanently, and this is the intended end state.** |
+| `symbolic` | `resources/common/services/storage/symbolic.py` | **Yes, not in this branch** | Nine different dynamic resolvers keyed on the mount name (`path_rsrc` → `site.resources`, `path_pkg` → `packageFolder`, `path_gnr`/`path_dojo` → version-keyed, `path_temp` → `tempfile.gettempdir()`, `path_user`/`path_conn`/`path_page` → request-scoped, `path_vol` → `<volumes>`), each with a matching `url_*` producing a site route. It has no `base_path` at all (`self.base_path = 'SYMBOLIC'`). The `path_*` half fits genro-storage's switched mount — a `local` mount whose `base_path` is a callable: a one-parameter callable receives the first path segment, a callable with no parameters is called at each access (`LocalStorage._resolve_path`, present in 0.8.0). Every `path_*` fits one of the two shapes, `page` using the same callable as `conn`. The request-scoped three are no exception: `storagePath` (`gnrstoragehandler.py`) prepends the current user, connection and page before the service sees the path. T1 and T2 failed on their implementation, not on the tool (§4). The `url_*` half produces site routes and belongs to the site; how a mapped symbolic mount carries it is open, not a limit of genro-storage. Mapping it waits for its order with genro-org/genro-storage#81 (resolvers declared in the mount configuration) and kajenn-org/kajenn#75 (live configuration) to be settled; **stays legacy in this branch.** |
 | `http` | `resources/common/services/storage/http.py` | **No** | Genropy's `_http_` is a shortcut where the *path itself is the whole URL* (`internal_path` returns `args[0]`); genro-storage's `http` protocol is a CDN-style mount that needs a `base_path` and appends to it. Different shape, no useful mapping. Stays legacy. |
 | `compressed` | `resources/common/services/storage/compressed.py` | **No** | Its identity is the transparent `.gz`/`.bz2` suffix added to every path plus a `Content-Encoding: gzip` serve. genro-storage's `zip`/`tar` backends read *inside* an archive, which is the opposite operation. No counterpart; stays legacy. |
 | `sftp` | `projects/gnrcore/packages/sys/resources/services/storage/sftp.py` | **Yes, later** | genro-storage has `protocol: sftp` (fsspec + paramiko). Untestable here without an SFTP host, so it is out of this branch's scope: **deferred**, stays legacy. |
@@ -168,7 +168,7 @@ Same across both worlds *(measured)*: md5 of the same bytes, `to_base64` payload
    `test_convert_symbolic_to_local` asserts the bug.
 6. **T2's `_makeSymbolicPathCallable`** — reinvents symbolic's paths and gets them wrong
    (`data/users` vs the real `data/_users`, `data/connections` vs `data/_connections`,
-   a made-up temp dir). Symbolic stays legacy; nothing is reimplemented.
+   a made-up temp dir). Symbolic stays legacy in this branch; nothing is reimplemented.
 7. **T2's hard dependency** (`genro-storage` in `[project] dependencies` + unconditional
    top-level import) — see §6.
 8. **T2's duplicate `gnrstoragehandler_test.py`** and its committed `adm.db` binary.
@@ -550,9 +550,9 @@ Open, deliberately:
 
 1. **`relative` and `sftp` deferred** (§2) — both are mappable, neither is testable in
    this environment, and each is a self-contained follow-up.
-2. **Four things genro-storage does not provide**, each handled and each an upstream
-   candidate (T2's `GENRO_STORAGE_ISSUE.md` is where they belong):
-   **the whole url layer on a remote mount** — `url(expires_in=…)` is all genro-storage
+2. **Four things genro-storage does not provide as the legacy layer does**, each
+   handled and each an upstream candidate (T2's `GENRO_STORAGE_ISSUE.md` is where they
+   belong): **the whole url layer on a remote mount** — `url(expires_in=…)` is all genro-storage
    0.8 signs, so it can carry neither a content disposition, nor the mount's
    `url_expiration`, nor a non-expiring `public_url`; `url()` and `public_url()`
    therefore delegate to the legacy service of the same mount, which already signs with
@@ -560,9 +560,14 @@ Open, deliberately:
    legacy service raises: a download that silently opens inline is worse than an error;
    `internal_path` for remote mounts — composed from the mount's `base_path`, since
    `resolved_path` is `None` off the local filesystem;
-   `readonly`/`write_in_local` — no counterpart at all, so a readonly mount is **left on
-   the legacy service**, because serving it through a writable backend would silently
-   drop the restriction;
+   `readonly` — genro-storage has a counterpart, `permissions: "readonly"`
+   (`StorageManager._apply_permissions` wraps the backend in `RelativeMountBackend`),
+   but it is not a drop-in: it raises `StoragePermissionError` on write and delete,
+   where the legacy `aws_s3` service silently skips delete/copy/move/mkdir and raises
+   only when opening for write. A readonly mount is therefore **left on the legacy
+   service**. `write_in_local` has no counterpart and keeps its mount on the legacy
+   service too. The read-only that the legacy `aws_s3` service derives from local mode
+   and `secondary`, with neither parameter set, is not reproduced: tracked in #1685;
    `local_path(keep=True)` — refused with `NotImplementedError` on a remote mount rather
    than silently not keeping the file. The legacy `aws_s3` and `sftp` services keep it;
    no caller passes `keep=True` today, here or in the application projects searched.
@@ -586,10 +591,10 @@ Open, deliberately:
    already running. Whether the pre-existing 47+12 skips should be made to run (by
    stopping that daemon, or by teaching `BaseGnrDaemonTest` to attach to a running one)
    is a separate question from this migration.
-7. **The hybrid is the end state, not a stepping stone** (§2): with the switch on, a
-   typical instance keeps every symbolic mount on the legacy layer. This is why the
-   service-level design matters — `StorageService` bridges a copy or move between the
-   two worlds by content on its own, with no code of ours in the path.
+7. **The hybrid is how this branch ships** (§2): with the switch on, a typical
+   instance keeps every symbolic mount on the legacy layer until symbolic is mapped.
+   This is why the service-level design matters — `StorageService` bridges a copy or
+   move between the two worlds by content on its own, with no code of ours in the path.
 8. **A local mount whose `base_path` does not exist yet stays legacy** (§8 Phase 2):
    genro-storage's local backend requires the directory to exist, the legacy service
    creates it on first write. On `gnrdevelop` this is the `mail` mount, and it logs one
