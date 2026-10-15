@@ -1135,6 +1135,78 @@ class TestStorageHandler(BaseGnrDaemonTest):
         assert self.site.storage(service_name).base_path is None
 
     # ========================================================================
+    # Storage Records Changed By Another Process (Bug #1681)
+    # ========================================================================
+
+    @pytest.fixture
+    def local_record(self):
+        """Inserts local storage records, deleted at the end of the test"""
+        tblservice = self.site.db.table('sys.service')
+        names = []
+
+        def insert(service_name, base_path):
+            record = tblservice.newrecord(service_type='storage', service_name=service_name,
+                                          implementation='local',
+                                          parameters=Bag(dict(base_path=base_path)))
+            tblservice.insert(record)
+            self.site.db.commit()
+            names.append(service_name)
+            return service_name
+
+        yield insert
+        for service_name in names:
+            tblservice.deleteSelection(where='$service_type=:st AND $service_name=:sn',
+                                       st='storage', sn=service_name)
+            self.site.db.commit()
+            self.services_handler('storage').service_instances.pop(service_name, None)
+
+    def test_storage_record_updated_by_another_process(self, local_record):
+        """A worker whose registry the triggers did not refresh builds the new parameters."""
+        service_name = local_record('changed_elsewhere', os.path.join(self.test_dir, 'before'))
+        other_worker = LegacyStorageHandler(self.site)
+        assert other_worker.storage(service_name).base_path == os.path.join(self.test_dir, 'before')
+
+        tblservice = self.site.db.table('sys.service')
+        with tblservice.recordToUpdate(service_type='storage', service_name=service_name) as record:
+            parameters = Bag(record['parameters'])
+            parameters['base_path'] = os.path.join(self.test_dir, 'after')
+            record['parameters'] = parameters
+        self.site.db.commit()
+
+        assert other_worker.storage(service_name).base_path == os.path.join(self.test_dir, 'after')
+        assert other_worker.storage_params[service_name]['base_path'] == os.path.join(self.test_dir, 'after')
+
+    def test_storage_record_inserted_by_another_process(self, local_record):
+        """A storage created elsewhere is not served as a folder of site_static_dir."""
+        other_worker = LegacyStorageHandler(self.site)
+        service_name = local_record('created_elsewhere', os.path.join(self.test_dir, 'created'))
+        assert service_name not in other_worker.storage_params
+        assert other_worker.storage(service_name).base_path == os.path.join(self.test_dir, 'created')
+
+    def test_storage_record_inserted_after_fallback(self, local_record):
+        """A name first served by the legacy fallback switches to its new record."""
+        service_name = 'created_after_fallback'
+        fallback = self.site.storage(service_name)
+        assert fallback.base_path == os.path.join(self.site.site_static_dir, service_name)
+        local_record(service_name, os.path.join(self.test_dir, 'created_after'))
+        assert self.site.storage(service_name).base_path == os.path.join(self.test_dir, 'created_after')
+
+    def test_storage_record_deleted_by_another_process(self, local_record):
+        """A worker does not keep serving a storage deleted elsewhere."""
+        service_name = local_record('deleted_elsewhere', os.path.join(self.test_dir, 'deleted'))
+        other_worker = LegacyStorageHandler(self.site)
+        other_worker.storage(service_name)
+
+        tblservice = self.site.db.table('sys.service')
+        tblservice.deleteSelection(where='$service_type=:st AND $service_name=:sn',
+                                   st='storage', sn=service_name)
+        self.site.db.commit()
+
+        assert service_name not in self.storage_handler.storage_params
+        assert other_worker.storage(service_name).base_path == self.site.storage(service_name).base_path
+        assert service_name not in other_worker.storage_params
+
+    # ========================================================================
     # aws_s3 Storage On A Local Machine (Bug #1368)
     # ========================================================================
 
