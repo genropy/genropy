@@ -694,18 +694,33 @@ class GenroStorageHandler(LegacyStorageHandler):
         self.mount_configs.pop(service_name, None)
         self._genro_services.pop(service_name, None)
 
+    def _legacyReadonly(self, params):
+        """True when the legacy aws_s3 service would make this mount read-only:
+        on a local-mode or secondary instance, unless write_in_local is set.
+        Mirrors aws_s3.Service.__init__, including where it reads the config.
+        """
+        if params.get('implementation') != 'aws_s3' or params.get('write_in_local'):
+            return False
+        packages = self.site.gnrapp.config['packages']
+        secondary = 'gnrcore:sys' in packages and packages.getAttr('gnrcore:sys').get('secondary')
+        return bool(getattr(self.site, '_local_mode', False) or secondary)
+
     def storage(self, storage_name, **kwargs):
         """Return the genro-storage service for a registered mount, the legacy
         one otherwise.
 
         A call carrying kwargs overrides the stored parameters, which describes
-        a service configured on the fly: that stays legacy.
+        a service configured on the fly: that stays legacy. So does a mount the
+        legacy service would make read-only; it is checked here rather than in
+        _mountConfig because _local_mode is set on the site after it is built.
         """
         if kwargs or not self.manager.has_mount(storage_name):
             return super().storage(storage_name, **kwargs)
+        params = self.getStorageParameters(storage_name) or {}
+        if self._legacyReadonly(params):
+            return super().storage(storage_name)
         service = self._genro_services.get(storage_name)
         if service is None:
-            params = self.getStorageParameters(storage_name) or {}
             service = storage_genro.Service(
                 parent=self.site,
                 manager=self.manager,

@@ -37,6 +37,10 @@ class Service(StorageService):
                 urls through it (see the legacy_service property).
     """
 
+    # A mount the legacy service would make read-only is never served here
+    # (GenroStorageHandler.storage), so this one is always writable.
+    readonly = False
+
     def __init__(self, parent=None, manager=None, mount_name=None,
                  mount_config=None, expand_paths=False, versioned=None,
                  tags=None, legacy_service=None, **kwargs):

@@ -28,6 +28,8 @@ from gnr.lib.services import storage_genro  # noqa: E402
 
 SITE_NAME = 'gnrdevelop'
 SYMBOLIC_MOUNTS = ['rsrc', 'pkg', 'page', 'conn', 'user', 'temp', 'dojo', 'gnr', 'pages']
+S3_PARAMS = {'bucket': 'b', 'region_name': 'eu-west-1',
+             'aws_access_key_id': 'x', 'aws_secret_access_key': 'y'}
 
 
 @pytest.fixture(scope='module')
@@ -162,6 +164,33 @@ class TestMountRouting:
         handler._setStorageParams('nobucket', parameters={}, implementation='aws_s3')
         handler._configureMounts()
         assert handler.manager.has_mount('nobucket') is False
+
+    def test_s3_mount_in_local_mode_stays_on_the_legacy_readonly_service(self, site, monkeypatch):
+        """gnr web serve sets _local_mode after the site is built; from then on
+        the legacy aws_s3 service is read-only, and the switch must not turn
+        that mount writable."""
+        handler = GenroStorageHandler(site)
+        handler._setStorageParams('s3local', parameters=S3_PARAMS, implementation='aws_s3')
+        handler._configureMounts()
+        service = handler.storage('s3local')
+        assert isinstance(service, storage_genro.Service)
+        assert service.readonly is False
+        monkeypatch.setattr(site, '_local_mode', True, raising=False)
+        service = handler.storage('s3local')
+        assert not isinstance(service, storage_genro.Service)
+        assert service.readonly is True
+
+    def test_s3_mount_on_a_secondary_instance_stays_on_the_legacy_readonly_service(
+            self, site, monkeypatch):
+        sys_attr = site.gnrapp.config['packages'].getNode('gnrcore:sys').attr
+        monkeypatch.setitem(sys_attr, 'secondary', True)
+        handler = GenroStorageHandler(site)
+        handler._setStorageParams('s3secondary', parameters=S3_PARAMS,
+                                  implementation='aws_s3')
+        handler._configureMounts()
+        service = handler.storage('s3secondary')
+        assert not isinstance(service, storage_genro.Service)
+        assert service.readonly is True
 
 
 class TestRegistrySync:
