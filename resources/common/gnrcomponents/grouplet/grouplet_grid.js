@@ -877,6 +877,12 @@ gnr.GroupletGridController = class GroupletGridController {
             this.dataStore.setSort({field: this.sortField, store: !!kw.sortStore});
         }
         this._dirtyRows = new Set();
+        // collapsible cards: True starts them open, 'closed' collapsed; a
+        // collapsed card shows one summary line (collapsedTemplate, else the
+        // tab title)
+        this.collapsible = kw.collapsible || false;
+        this.collapsedTemplate = gnr.GroupletGridController.compileTemplate(kw.collapsedTemplate)
+            || this.titleTemplate;
         this.emptyTitle = kw.emptyTitle || _T('!!Untitled');
         this.activePkey = null;
         this._tabsByPkey = {};
@@ -1580,6 +1586,8 @@ gnr.GroupletGridController = class GroupletGridController {
             if (this.sortField && change.path === this.sortField) {
                 this._scheduleRowRefresh(null);
             }
+        } else if (this.collapsible && this.isCollapsed(change.pkey)) {
+            this._scheduleRowRefresh(change.pkey);
         }
     }
 
@@ -1594,7 +1602,11 @@ gnr.GroupletGridController = class GroupletGridController {
             const dirty = Array.from(this._dirtyRows);
             this._dirtyRows.clear();
             if (this._destroyed) return;
-            dirty.forEach((k) => { if (k !== null) this._refreshTabTitle(k); });
+            dirty.forEach((k) => {
+                if (k === null) return;
+                if (this._isTabsLayout()) this._refreshTabTitle(k);
+                else this._refreshCollapsedSummary(k);
+            });
             if (dirty.includes(null)) this._sortTabs();
         }, 0);
     }
@@ -1615,6 +1627,62 @@ gnr.GroupletGridController = class GroupletGridController {
 
     _tabOrder() {
         return this.dataStore.sortedKeys();
+    }
+
+    // ====================================================================
+    //  Collapsible cards — collapsible=True|'closed': a card folds to one
+    //  summary line; the state is kept by row path, across re-renders
+    // ====================================================================
+
+    _collapseKey(pkey) {
+        return this.storepath + '.' + pkey;
+    }
+
+    isCollapsed(pkey) {
+        if (!this.collapsible) return false;
+        const state = gnr.GroupletGridController._collapsedState[this._collapseKey(pkey)];
+        return (state === undefined) ? this.collapsible === 'closed' : state;
+    }
+
+    setCollapsed(pkey, collapsed) {
+        if (!this.collapsible || !this.dataStore.rowNode(pkey)) return;
+        gnr.GroupletGridController._collapsedState[this._collapseKey(pkey)] = !!collapsed;
+        this._applyCollapsed(pkey);
+    }
+
+    toggleCollapsed(pkey) {
+        this.setCollapsed(pkey, !this.isCollapsed(pkey));
+    }
+
+    collapseAll(collapsed = true) {
+        this.dataStore.getNodes().forEach((n) => this.setCollapsed(n.label, collapsed));
+    }
+
+    _applyCollapsed(pkey) {
+        const tile = this.tiles[pkey];
+        const dom = tile && tile.domNode();
+        if (!dom) return;
+        const collapsed = this.isCollapsed(pkey);
+        dom.classList.toggle('grouplet_grid_row--collapsed', collapsed);
+        const toggle = dom.querySelector(':scope > .grouplet_grid_row_collapse');
+        if (toggle) {
+            toggle.setAttribute('aria-expanded', String(!collapsed));
+            toggle.setAttribute('title', collapsed ? _T('!!Expand') : _T('!!Collapse'));
+        }
+        if (collapsed) this._refreshCollapsedSummary(pkey);
+    }
+
+    _refreshCollapsedSummary(pkey) {
+        if (!this.collapsible || !this.isCollapsed(pkey)) return;
+        const tile = this.tiles[pkey];
+        const dom = tile && tile.domNode();
+        const line = dom && dom.querySelector(':scope > .grouplet_grid_row_summaryline');
+        if (!line) return;
+        if (this.collapsedTemplate) {
+            line.innerHTML = this.renderTemplate(this.collapsedTemplate, pkey);
+            if (line.textContent.trim()) return;
+        }
+        line.textContent = this._readTabLabel(pkey);
     }
 
     _sortTabs() {
@@ -3686,6 +3754,7 @@ gnr.GroupletGridController = class GroupletGridController {
 };
 
 gnr.GroupletGridController._selectionGroups = {};
+gnr.GroupletGridController._collapsedState = {};
 
 gnr.GroupletGridController._FORMULA_WORDS = new Set([
     'Math', 'Number', 'String', 'Date', 'JSON', 'parseInt', 'parseFloat',
@@ -3913,6 +3982,9 @@ gnr.GroupletGridTile = class GroupletGridTile {
             }
             if (c.phantom && tile.tileDom) tile._wireDropIfEmpty(tile.tileDom);
             if (c.rowCheckbox && tile.tileDom) tile._mountCheckbox(tile.tileDom);
+            if (c.collapsible && !c.rowTemplate && !c.structAdapter && tile.tileDom) {
+                tile._mountCollapse(tile.tileDom);
+            }
         };
         return tileKw;
     }
@@ -3929,6 +4001,32 @@ gnr.GroupletGridTile = class GroupletGridTile {
         box.checked = !!(c._multiKeys && c._multiKeys.includes(pkey));
         box.addEventListener('click', (e) => c._onRowCheck(pkey, e));
         tileDom.insertBefore(box, tileDom.firstChild);
+    }
+
+    _mountCollapse(tileDom) {
+        // Plain DOM like the checkbox: the toggle and the summary line shown
+        // while folded; the controller holds the state.
+        const c = this.controller;
+        const pkey = this.pkey;
+        const toggle = document.createElement('div');
+        toggle.className = 'grouplet_grid_row_collapse';
+        toggle.setAttribute('role', 'button');
+        toggle.tabIndex = 0;
+        toggle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            c.toggleCollapsed(pkey);
+        });
+        toggle.addEventListener('keydown', (e) => {
+            if (e.key !== 'Enter' && e.key !== ' ') return;
+            e.preventDefault();
+            c.toggleCollapsed(pkey);
+        });
+        const line = document.createElement('div');
+        line.className = 'grouplet_grid_row_summaryline';
+        line.addEventListener('click', () => c.setCollapsed(pkey, false));
+        tileDom.insertBefore(line, tileDom.firstChild);
+        tileDom.insertBefore(toggle, tileDom.firstChild);
+        c._applyCollapsed(pkey);
     }
 
     _wireDropIfEmpty(tileDom) {

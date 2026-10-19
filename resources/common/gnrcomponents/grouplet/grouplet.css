@@ -2226,3 +2226,77 @@ body.drag_started .grouplet_grid_container {
     overflow: hidden;
 }
 
+
+/* Collapsible cards (`collapsible=True|'closed'`): a chevron left of the
+   delete folds the card to its summary line; a click on the line opens it. */
+.grouplet_grid_row_collapse {
+    position: absolute;
+    top: 6px;
+    right: 30px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    cursor: pointer;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--gg-text-muted, #9ca3af);
+    transition: background 160ms ease;
+    user-select: none;
+}
+/* the glyph turns, not the box: a turned box would carry the glyph's
+   optical offset sideways */
+.grouplet_grid_row_collapse::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-right: 1.5px solid currentColor;
+    border-bottom: 1.5px solid currentColor;
+    transform: translateY(-1.5px) rotate(45deg);
+    transition: transform 160ms ease;
+}
+.grouplet_grid_row_collapse:hover {
+    background: var(--gg-surface-alt);
+    color: var(--gg-text, #374151);
+}
+.grouplet_grid_row_collapse:focus-visible {
+    outline: 2px solid var(--accent-color);
+    outline-offset: 1px;
+}
+.grouplet_grid_row--collapsed > .grouplet_grid_row_collapse::before {
+    transform: translateX(-1.5px) rotate(-45deg);
+}
+.grouplet_grid_row_summaryline {
+    display: none;
+    min-height: 1.4em;
+    line-height: 1.4em;
+    padding-right: 2.6em;
+    cursor: pointer;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    color: var(--gg-text, #374151);
+}
+.grouplet_grid:not(.grouplet_grid--tabs) > .grouplet_grid_body > .grouplet_grid_row--collapsed {
+    padding-top: 0.45em;
+    padding-bottom: 0.45em;
+}
+.grouplet_grid:not(.grouplet_grid--tabs) > .grouplet_grid_body > .grouplet_grid_row--collapsed
+    > .grouplet_grid_row_summaryline {
+    display: block;
+}
+/* on the one line, the chevron, the delete and the box sit on its middle */
+.grouplet_grid:not(.grouplet_grid--tabs) > .grouplet_grid_body > .grouplet_grid_row.grouplet_grid_row--collapsed
+    > :is(.grouplet_grid_row_collapse, .grouplet_grid_row_delete, .grouplet_grid_row_check) {
+    top: 50%;
+    transform: translateY(-50%);
+}
+.grouplet_grid:not(.grouplet_grid--tabs) > .grouplet_grid_body > .grouplet_grid_row--collapsed
+    > :not(.grouplet_grid_row_summaryline, .grouplet_grid_row_collapse, .grouplet_grid_row_drag,
+           .grouplet_grid_row_delete, .grouplet_grid_row_check, .grouplet_grid_row_kebab) {
+    display: none;
+}
+.grouplet_grid--tabs > .grouplet_grid_body > .grouplet_grid_row > .grouplet_grid_row_collapse {
+    display: none;
+}

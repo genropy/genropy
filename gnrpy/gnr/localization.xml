@@ -438,6 +438,8 @@
 <en_keep_this_value base="Keep this value" it="Mantieni questo valore"></en_keep_this_value>
 <en_untitled base="Untitled" it="Senza titolo"></en_untitled>
 <en_new_row base="New row" it="Nuova riga"></en_new_row>
+<en_collapse base="Collapse" it="Comprimi"></en_collapse>
+<en_expand base="Expand" it="Espandi"></en_expand>
 <en_fill_in_the_fields_above_then_press_enter_or_click_to_add_the_row_ base="Fill in the fields above, then press Enter or click ↵ to add the row." it="Compila i campi qui sopra, poi premi Invio o fai clic su ↵ per aggiungere la riga."></en_fill_in_the_fields_above_then_press_enter_or_click_to_add_the_row_></grouplet_grid></grouplet>
 <attachmanager><attachmanager path="resources/common/gnrcomponents/attachmanager/attachmanager.py" ext="py"><en_filepath fr="Chemin Du Fichier" de="Dateipfad" en="Filepath" it="Filepath" base="Filepath"></en_filepath>
 <en_copied_into_clipboard base="Copied into clipboard"></en_copied_into_clipboard>

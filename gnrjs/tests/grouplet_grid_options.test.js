@@ -269,3 +269,39 @@ test('selectionGroup: one grid alone deletes through its own dialog', () => {
     a.grid._deleteSelected();
     assert.deepEqual(JSON.parse(JSON.stringify(a.deleted)), [['ask', ['d1']]]);
 });
+
+function fakeTileDom() {
+    const classes = new Set();
+    const line = {textContent: '', set innerHTML(v) { this.textContent = v; }};
+    const toggle = {attrs: {}, setAttribute(k, v) { this.attrs[k] = v; }};
+    return {classes, line, toggle,
+            classList: {toggle: (c, on) => (on ? classes.add(c) : classes.delete(c)), contains: (c) => classes.has(c)},
+            querySelector: (sel) => (sel.includes('summaryline') ? line : toggle)};
+}
+
+test('collapsible: closed cards fold to their summary, the state survives a re-render', async () => {
+    const s = createGrid({controller: {collapsible: 'closed', _dirtyRows: new Set()}});
+    chapters(s, [['r_a', '1', 'Crew', [100, 50]], ['r_b', '2', 'Cast', [10]]]);
+    const Ctrl = s.context.gnr.GroupletGridController;
+    s.controller.collapsedTemplate = Ctrl.compileTemplate({template: '$code $name $total',
+                                                           sums: {total: 'accounts.amount'}});
+    s.controller.dataStore.rowNode = (k) => s.lines.getNode(k);
+    const doms = {r_a: fakeTileDom(), r_b: fakeTileDom()};
+    s.controller.tiles = {r_a: {domNode: () => doms.r_a}, r_b: {domNode: () => doms.r_b}};
+    s.controller._applyCollapsed('r_a');
+    assert.ok(doms.r_a.classes.has('grouplet_grid_row--collapsed'));
+    assert.equal(doms.r_a.line.textContent, '1 Crew 150');
+    assert.equal(doms.r_a.toggle.attrs['aria-expanded'], 'false');
+    s.controller.toggleCollapsed('r_a');
+    assert.ok(!doms.r_a.classes.has('grouplet_grid_row--collapsed'));
+    s.controller._applyCollapsed('r_b');
+    s.lines.setItem('r_b.accounts.a1', new s.Bag({amount: 5}));
+    s.controller._onRowContentChanged(s.lines.getNode('r_b.accounts.a1'), s.lines.getParentNode());
+    await tick();
+    assert.equal(doms.r_b.line.textContent, '2 Cast 15', 'a folded card keeps its total live');
+    const again = Object.assign(Object.create(Ctrl.prototype), {collapsible: 'closed', storepath: 'record.lines'});
+    assert.equal(again.isCollapsed('r_a'), false, 'a new controller on the same rows keeps it open');
+    assert.equal(again.isCollapsed('r_c'), true);
+    const plainGrid = createGrid();
+    assert.equal(plainGrid.controller.isCollapsed('r_a'), false, 'not collapsible: never folded');
+});
