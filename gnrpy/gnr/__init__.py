@@ -9,6 +9,9 @@ VERSION = "26.09.29"
 gnrlog.init_logging_system()
 logger = logging.getLogger("gnr")
 
+if sys.version_info < (3, 11):
+    raise DeprecationWarning("Python < 3.11 is not supported anymore")
+
 if sys.version_info < (3, 12):
     # ensure visibility of the warning, promoting temporarily
     # users won't be able to filter this out.
@@ -20,5 +23,3 @@ if sys.version_info < (3, 12):
     )
     warnings.simplefilter("default", FutureWarning)
 
-if sys.version_info < (3, 11):
-    raise DeprecationWarning(f"Python < 3.11 is not supported anymore")
