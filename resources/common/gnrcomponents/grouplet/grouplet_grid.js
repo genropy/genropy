@@ -690,13 +690,46 @@ gnr.GroupletDataStore = class GroupletDataStore {
         return this.indexOfKey(pkey);
     }
 
-    // Phase 2 stubs — silent no-ops. Filter/sort will route through
-    // `_visualOrder()` (CSS on top of the store's `_filtered` array),
-    // never mutating the underlying Bag.
+    // Filter stubs — silent no-ops: a filter will hide tiles on top of
+    // the store, never mutating the underlying Bag.
     setFilter(_cb) {}
     clearFilter() {}
-    setSort(_spec) {}
-    clearSort() {}
+
+    // Sort: an order on top of the Bag ({field, store}); the Bag itself is
+    // reordered only with `store`, through applySortToStore.
+    setSort(spec) {
+        this._sortedBy = (typeof spec === 'string') ? {field: spec} : (spec || null);
+    }
+
+    clearSort() {
+        this._sortedBy = null;
+    }
+
+    sortedKeys() {
+        const data = this.getData();
+        const nodes = (data instanceof gnr.GnrBag) ? data.getNodes() : [];
+        if (!this._sortedBy) return nodes.map((n) => n.label);
+        const field = this._sortedBy.field;
+        const compare = gnr.GroupletGridController.naturalCompare;
+        return nodes.map((n, i) => {
+            const v = n.getValue();
+            return {key: n.label, idx: i, value: (v instanceof gnr.GnrBag) ? v.getItem(field) : null};
+        }).sort((a, b) => compare(a.value, b.value) || a.idx - b.idx).map((e) => e.key);
+    }
+
+    applySortToStore() {
+        // In place, as moveRow: no del/ins triggers, nested datapaths stay valid.
+        if (!this._sortedBy || !this._sortedBy.store) return false;
+        const data = this.getData();
+        if (!(data instanceof gnr.GnrBag)) return false;
+        const order = this.sortedKeys();
+        const nodes = data._nodes;
+        if (order.every((k, i) => nodes[i].label === k)) return false;
+        const byKey = {};
+        nodes.forEach((n) => { byKey[n.label] = n; });
+        nodes.splice(0, nodes.length, ...order.map((k) => byKey[k]));
+        return true;
+    }
 
     isFiltered() {
         return this.store().isFiltered();
@@ -833,6 +866,12 @@ gnr.GroupletGridController = class GroupletGridController {
         // Only meaningful for tab layouts; cards are all visible at once.
         this.lazyTabs = (kw.lazyTabs === true) && this._isTabsLayout();
         this.titleField = kw.titleField || null;
+        this.titleTemplate = gnr.GroupletGridController.compileTemplate(kw.titleTemplate);
+        this.sortField = kw.sortField || null;
+        if (this.sortField) {
+            this.dataStore.setSort({field: this.sortField, store: !!kw.sortStore});
+        }
+        this._dirtyRows = new Set();
         this.emptyTitle = kw.emptyTitle || _T('!!Untitled');
         this.activePkey = null;
         this._tabsByPkey = {};
@@ -1449,6 +1488,7 @@ gnr.GroupletGridController = class GroupletGridController {
             return;
         }
         this._clearBody();
+        this.dataStore.applySortToStore();
         this.updateCounterColumn();
         this._ensureTemplate(() => {
             this._fullSync();
@@ -1485,9 +1525,7 @@ gnr.GroupletGridController = class GroupletGridController {
             return;
         }
         if (parent_lv > 1) {
-            if (this._isTabsLayout() && this.titleField) {
-                this._maybeRefreshTabLabel(kw.node, storeNode);
-            }
+            this._onRowContentChanged(kw.node, storeNode);
             return;
         }
         const pkey = kw.node.label;
@@ -1504,31 +1542,148 @@ gnr.GroupletGridController = class GroupletGridController {
         }
     }
 
-    _maybeRefreshTabLabel(changedNode, storeNode) {
-        // Walk up to the row-level node, then check the mutated leaf
-        // path equals exactly `titleField` (filter out nested noise).
+    _rowChangeOf(changedNode, storeNode) {
+        // {pkey, path}: the row a nested change belongs to, and the path
+        // from that row to the changed node.
         let cur = changedNode;
-        let leafLabel = null;
+        let path = null;
         while (cur) {
             const parent = cur.getParentNode && cur.getParentNode();
-            if (!parent) break;
-            if (parent === storeNode) {
-                // `cur` is the row node; the path from row to changed
-                // leaf must be exactly `<titleField>`.
-                if (leafLabel !== this.titleField) return;
-                const chip = this._tabsByPkey[cur.label];
-                const titleDom = chip && chip.querySelector(
-                    ':scope > .grouplet_grid_tab_title');
-                if (titleDom) {
-                    titleDom.textContent = this._readTabLabel(cur.label);
-                }
-                return;
-            }
-            leafLabel = (leafLabel === null)
-                ? cur.label
-                : (cur.label + '.' + leafLabel);
+            if (!parent) return null;
+            if (parent === storeNode) return {pkey: cur.label, path: path};
+            path = (path === null) ? cur.label : (cur.label + '.' + path);
             cur = parent;
         }
+        return null;
+    }
+
+    _onRowContentChanged(changedNode, storeNode) {
+        const change = this._rowChangeOf(changedNode, storeNode);
+        if (!change || !change.pkey) return;
+        if (this._isTabsLayout()) {
+            if (this.titleTemplate) {
+                this._scheduleRowRefresh(change.pkey);
+            } else if (this.titleField && change.path === this.titleField) {
+                this._refreshTabTitle(change.pkey);
+            }
+            if (this.sortField && change.path === this.sortField) {
+                this._scheduleRowRefresh(null);
+            }
+        }
+    }
+
+    _scheduleRowRefresh(pkey) {
+        // A template total reads the whole row: a burst of nested changes
+        // (a pasted block, a moved subtree) is drawn once. null = re-sort.
+        this._dirtyRows.add(pkey);
+        if (this._rowRefreshScheduled) return;
+        this._rowRefreshScheduled = true;
+        setTimeout(() => {
+            this._rowRefreshScheduled = false;
+            const dirty = Array.from(this._dirtyRows);
+            this._dirtyRows.clear();
+            if (this._destroyed) return;
+            dirty.forEach((k) => { if (k !== null) this._refreshTabTitle(k); });
+            if (dirty.includes(null)) this._sortTabs();
+        }, 0);
+    }
+
+    _refreshTabTitle(pkey) {
+        const chip = this._tabsByPkey[pkey];
+        const titleDom = chip && chip.querySelector(':scope > .grouplet_grid_tab_title');
+        if (titleDom) this._renderTabTitle(titleDom, pkey);
+    }
+
+    _renderTabTitle(titleDom, pkey) {
+        if (this.titleTemplate) {
+            titleDom.innerHTML = this.renderTemplate(this.titleTemplate, pkey);
+            if (titleDom.textContent.trim()) return;
+        }
+        titleDom.textContent = this._readTabLabel(pkey);
+    }
+
+    _tabOrder() {
+        return this.dataStore.sortedKeys();
+    }
+
+    _sortTabs() {
+        if (!this.sortField) return;
+        if (this.dataStore.applySortToStore()) {
+            this.updateCounterColumn();
+            this._mirrorTileOrder();
+        }
+        const strip = this.tabstripDom;
+        if (!strip) return;
+        const chips = this._tabOrder().map((k) => this._tabsByPkey[k]).filter(Boolean);
+        if (chips.every((chip, i) => strip.children[i] === chip)) return;
+        chips.forEach((chip) => strip.appendChild(chip));
+    }
+
+    _mirrorTileOrder() {
+        let prev = null;
+        this.dataStore.getNodes().forEach((n) => {
+            const dom = this.tiles[n.label] && this.tiles[n.label].domNode();
+            if (!dom || !dom.parentNode) return;
+            const ref = prev ? prev.nextSibling : dom.parentNode.firstChild;
+            if (dom !== ref) dom.parentNode.insertBefore(dom, ref);
+            prev = dom;
+        });
+    }
+
+    static compileTemplate(spec) {
+        // A string, or {template, formats, sums}. `sums` = {name: 'path.field'}:
+        // $name shows the field summed at any depth under the row's `path`
+        // (the whole row when there is no path), kept live as rows change.
+        if (!spec) return null;
+        if (typeof spec === 'string') spec = {template: spec};
+        const bag = new gnr.GnrBag();
+        bag.setItem('main', spec.template || '', {formats: spec.formats || {}});
+        return {bag: bag, sums: spec.sums || {}};
+    }
+
+    renderTemplate(compiled, pkey) {
+        const row = this.dataStore.rowValue(pkey);
+        if (!compiled || !(row instanceof gnr.GnrBag)) return '';
+        const names = Object.keys(compiled.sums);
+        let data = row;
+        if (names.length) {
+            // a flat copy: the row's own Bags are not reparented
+            data = new gnr.GnrBag();
+            row.getNodes().forEach((n) => {
+                const v = n.getValue();
+                if (!(v instanceof gnr.GnrBag)) data.setItem(n.label, v, objectUpdate({}, n.attr || {}));
+            });
+            names.forEach((name) => {
+                data.setItem(name, gnr.GroupletGridController.deepSum(row, compiled.sums[name]));
+            });
+        }
+        return dataTemplate(compiled.bag, data, null, true);
+    }
+
+    static deepSum(bag, spec) {
+        const parts = String(spec).split('.');
+        const field = parts.pop();
+        const root = parts.length ? bag.getItem(parts.join('.')) : bag;
+        let total = 0;
+        const walk = (b) => b.getNodes().forEach((n) => {
+            const v = n.getValue();
+            if (v instanceof gnr.GnrBag) {
+                walk(v);
+            } else if (n.label === field) {
+                const x = parseFloat(v);
+                if (!isNaN(x)) total += x;
+            }
+        });
+        if (root instanceof gnr.GnrBag) walk(root);
+        return Math.round10 ? Math.round10(total) : total;
+    }
+
+    static naturalCompare(a, b) {
+        // Codes as people read them: 2 before 10, blanks last.
+        const blank = (v) => v === null || v === undefined || v === '';
+        if (blank(a) || blank(b)) return blank(a) - blank(b);
+        if (typeof a === 'number' && typeof b === 'number') return a - b;
+        return String(a).localeCompare(String(b), undefined, {numeric: true, sensitivity: 'base'});
     }
 
     // ====================================================================
@@ -1573,9 +1728,9 @@ gnr.GroupletGridController = class GroupletGridController {
             Object.keys(this.tiles).forEach((pkey) => {
                 this._addTabChip(pkey);
             });
-            const allKeys = Object.keys(this.tiles);
-            if (allKeys.length > 0 && !this.activePkey) {
-                this._activateTab(allKeys[0]);
+            const first = this._tabOrder().find((k) => this.tiles[k]);
+            if (first && !this.activePkey) {
+                this._activateTab(first);
             } else if (this.activePkey && this.tiles[this.activePkey]) {
                 this._setActiveTabClasses(this.activePkey);
                 // Defensive: ensure the active tile's body exists (e.g. a
@@ -1771,7 +1926,7 @@ gnr.GroupletGridController = class GroupletGridController {
         chip.setAttribute('data-rowkey', pkey);
         const title = document.createElement('div');
         title.className = 'grouplet_grid_tab_title';
-        title.textContent = this._readTabLabel(pkey);
+        this._renderTabTitle(title, pkey);
         chip.appendChild(title);
         if (this.delitem) {
             const closeBtn = document.createElement('div');
@@ -1788,9 +1943,9 @@ gnr.GroupletGridController = class GroupletGridController {
         chip.addEventListener('click', function() {
             that._activateTab(pkey);
         });
-        // Insert before the next mounted sibling chip (Bag order).
+        // Insert before the next mounted sibling chip (tab order).
         let inserted = false;
-        const allKeys = this.dataStore.getNodes().map((n) => n.label);
+        const allKeys = this._tabOrder();
         const idx = allKeys.indexOf(pkey);
         for (let j = idx + 1; j < allKeys.length; j++) {
             if (this._tabsByPkey[allKeys[j]]) {
@@ -2024,6 +2179,7 @@ gnr.GroupletGridController = class GroupletGridController {
             movedChip.parentNode.insertBefore(movedChip, ref);
         }
         this.updateCounterColumn();
+        this._sortTabs();
         if (this.tiles[pkey]) this.tiles[pkey].flash();
     }
 
@@ -2083,7 +2239,7 @@ gnr.GroupletGridController = class GroupletGridController {
         // tabs would build their body subtree while detached from layout
         // and miscalculate their geometry.
         if (this._isTabsLayout() && !this.activePkey && toAdd.length > 0) {
-            this.activePkey = toAdd[0];
+            this.activePkey = this._tabOrder().find((k) => toAdd.includes(k));
         }
         this.bodyNode.freeze();
         toAdd.forEach((pkey) => this._renderTile(pkey));
@@ -2245,7 +2401,9 @@ gnr.GroupletGridController = class GroupletGridController {
             // Pre-compute next active before removing the current chip.
             let nextActive = null;
             if (this.activePkey === pkey) {
-                const chipKeys = Object.keys(this._tabsByPkey);
+                const chipKeys = this.tabstripDom
+                    ? Array.from(this.tabstripDom.children).map((c) => c.getAttribute('data-rowkey'))
+                    : Object.keys(this._tabsByPkey);
                 const idx = chipKeys.indexOf(pkey);
                 if (idx > 0) nextActive = chipKeys[idx - 1];
                 else if (chipKeys.length > 1) nextActive = chipKeys[idx + 1];

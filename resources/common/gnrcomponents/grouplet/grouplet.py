@@ -1179,6 +1179,8 @@ class GroupletGridHandler(BaseComponent):
                         layout='cards',
                         lazyTabs=False,
                         titleField=None,
+                        titleTemplate=None,
+                        sortField=None, sortStore=False,
                         emptyTitle='!!Untitled',
                         dragCode=None,
                         onSelfDropRows=None,
@@ -1343,6 +1345,8 @@ class GroupletGridHandler(BaseComponent):
             editmenu_kwargs=editmenu_kwargs,
             layout=layout, lazyTabs=lazyTabs,
             titleField=titleField, emptyTitle=emptyTitle,
+            titleTemplate=self._gr_groupletGrid_template(titleTemplate),
+            sortField=sortField, sortStore=sortStore,
             defaultRow=defaultRow, minRows=minRows, maxRows=maxRows,
             counterField=counterField,
             formulas=formulas, totals=totals,
@@ -1352,6 +1356,16 @@ class GroupletGridHandler(BaseComponent):
             loaderrpc=self.gr_getGroupletGridTemplate,
             mapLoaderrpc=self.gr_getGroupletGridTemplateMap)
         return container
+
+    def _gr_groupletGrid_template(self, spec):
+        """A row template (tab title, collapsed card) in the shape the JS
+        compiles: a string, or dict(template=, formats=, sums=) where `sums`
+        maps a $name to 'path.field', the field summed under the row's path."""
+        if not spec:
+            return None
+        spec = dict(template=spec) if isinstance(spec, str) else dict(spec)
+        spec['template'] = self._(spec.get('template') or '')
+        return spec
 
     def _gr_groupletGrid_totals(self, totals, default_format=None):
         """The `totals=` entries in the shape the JS band reads: `key` is
@@ -1391,6 +1405,7 @@ class GroupletGridHandler(BaseComponent):
             additem, delitem, editmenu,
             additem_kwargs, delitem_kwargs, editmenu_kwargs,
             layout, lazyTabs, titleField, emptyTitle,
+            titleTemplate, sortField, sortStore,
             defaultRow, minRows, maxRows, counterField,
             formulas, totals, rowTemplate, selectionmenu, rowCheckbox,
             resolved_drag_code,
@@ -1436,6 +1451,9 @@ class GroupletGridHandler(BaseComponent):
                 layout: layout,
                 lazyTabs: lazyTabs,
                 titleField: titleField,
+                titleTemplate: titleTemplate,
+                sortField: sortField,
+                sortStore: sortStore,
                 emptyTitle: emptyTitle,
                 defaultRow: defaultRow,
                 minRows: minRows,
@@ -1471,6 +1489,9 @@ class GroupletGridHandler(BaseComponent):
             layout=layout,
             lazyTabs=lazyTabs,
             titleField=titleField,
+            titleTemplate=titleTemplate,
+            sortField=sortField,
+            sortStore=sortStore,
             emptyTitle=emptyTitle,
             defaultRow=defaultRow,
             minRows=minRows,

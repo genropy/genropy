@@ -65,6 +65,7 @@ function createGrid(kw = {}) {
         setData: (p, v) => data.setItem(p, v),
         getDataNode: p => data.getNode(p),
         time36Id: () => 'k' + (++counter),
+        safeHtmlContent: (v) => v,
         evaluate: expr => vm.runInContext('(' + expr + ')', context)
     });
     const controller = Object.create(context.gnr.GroupletGridController.prototype);
@@ -137,4 +138,80 @@ test('defaultRow: a blank entry row shows a default changed since it was cleared
     s.data.setItem('record.common.producer', 'P03');
     s.controller._refreshEntryDefaults();
     assert.equal(s.data.getItem('ws.entry.ProducerCode'), 'P02', 'a row being typed in keeps it');
+});
+
+function chapters(s, rows) {
+    rows.forEach(([key, code, name, amounts]) => {
+        const accounts = new s.Bag();
+        amounts.forEach((amount, i) => accounts.setItem('a' + i, new s.Bag({code: String(i), amount})));
+        s.lines.setItem(key, new s.Bag({code, name, accounts}));
+    });
+}
+
+test('naturalCompare orders codes as read, blanks last', () => {
+    const {context} = createGrid();
+    const cmp = context.gnr.GroupletGridController.naturalCompare;
+    const sorted = ['10', '2', null, '1.10', '1.2', 'B', 'a', ''].sort(cmp);
+    assert.deepEqual(sorted.slice(0, 6), ['1.2', '1.10', '2', '10', 'a', 'B']);
+    assert.ok(sorted.slice(6).every((v) => v === null || v === ''));
+    assert.equal(cmp(3, 20) < 0, true);
+});
+
+test('sortField orders the tab keys without touching the Bag, unless sortStore', () => {
+    const s = createGrid();
+    chapters(s, [['r_a', '10', 'Crew', []], ['r_b', '2', 'Cast', []], ['r_c', '1', 'Story', []]]);
+    const store = new s.context.gnr.GroupletDataStore({store: {getData: () => s.lines}}, {});
+    store.setSort({field: 'code'});
+    assert.deepEqual([...store.sortedKeys()], ['r_c', 'r_b', 'r_a']);
+    assert.equal(store.applySortToStore(), false);
+    assert.deepEqual([...s.lines.keys()], ['r_a', 'r_b', 'r_c']);
+    store.setSort({field: 'code', store: true});
+    assert.equal(store.applySortToStore(), true);
+    assert.deepEqual([...s.lines.keys()], ['r_c', 'r_b', 'r_a']);
+    store.clearSort();
+    assert.deepEqual([...store.sortedKeys()], ['r_c', 'r_b', 'r_a'], 'unsorted is the Bag order');
+});
+
+test('titleTemplate shows fields and a live subtree total', () => {
+    const s = createGrid();
+    chapters(s, [['r_a', '1', 'Story', [100, 250.5]]]);
+    const Ctrl = s.context.gnr.GroupletGridController;
+    const tpl = Ctrl.compileTemplate({template: '$code $name $total', sums: {total: 'accounts.amount'}});
+    assert.equal(s.controller.renderTemplate(tpl, 'r_a'), '1 Story 350.5');
+    s.lines.setItem('r_a.accounts.a2', new s.Bag({amount: 9.5}));
+    assert.equal(s.controller.renderTemplate(tpl, 'r_a'), '1 Story 360');
+    assert.equal(Ctrl.deepSum(s.lines.getItem('r_a'), 'amount'), 360, 'no path: the whole row');
+    assert.equal(s.controller.renderTemplate(Ctrl.compileTemplate('$name'), 'r_a'), 'Story');
+});
+
+test('a changed sort field re-sorts the strip once, a template row is redrawn', async () => {
+    const s = createGrid({controller: {layout: 'tabs'}});
+    chapters(s, [['r_a', '3', 'Crew', [1]], ['r_b', '2', 'Cast', [2]]]);
+    const store = new s.context.gnr.GroupletDataStore({store: {getData: () => s.lines}}, {});
+    store.setSort({field: 'code'});
+    const strip = {children: [], appendChild(chip) {
+        this.children = this.children.filter((c) => c !== chip).concat(chip);
+    }};
+    const titles = {};
+    const chip = (k) => ({key: k, querySelector: () => ({set innerHTML(v) { titles[k] = v; },
+                                                          get textContent() { return titles[k]; }})});
+    Object.assign(s.controller, {
+        dataStore: store, sortField: 'code', tabstripDom: strip, _dirtyRows: new Set(),
+        titleTemplate: s.context.gnr.GroupletGridController.compileTemplate('$code·$name'),
+        _tabsByPkey: {r_a: chip('r_a'), r_b: chip('r_b')}
+    });
+    strip.children = [s.controller._tabsByPkey.r_a, s.controller._tabsByPkey.r_b];
+    const storeNode = s.lines.getParentNode();
+    s.lines.setItem('r_a.code', '1');
+    s.controller._onRowContentChanged(s.lines.getNode('r_a.code'), storeNode);
+    s.controller._onRowContentChanged(s.lines.getNode('r_a.name'), storeNode);
+    assert.deepEqual(strip.children.map((c) => c.key), ['r_a', 'r_b'], 'deferred');
+    await tick();
+    assert.equal(titles.r_a, '1·Crew');
+    assert.deepEqual(strip.children.map((c) => c.key), ['r_a', 'r_b']);
+    s.lines.setItem('r_a.code', '9');
+    s.controller._onRowContentChanged(s.lines.getNode('r_a.code'), storeNode);
+    await tick();
+    assert.deepEqual(strip.children.map((c) => c.key), ['r_b', 'r_a']);
+    assert.equal(titles.r_a, '9·Crew');
 });
