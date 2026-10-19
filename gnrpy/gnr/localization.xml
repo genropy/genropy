@@ -342,16 +342,6 @@
 <en_header base="Header" it="Header" en="Header" zh="标题"></en_header>
 <en_fill_parameters base="Fill parameters" it="Compila i parametri"></en_fill_parameters>
 <en_edit base="Edit" de="Bearbeiten" en="Edit" fr="Éditer" it="Modifica"></en_edit></genro_grid>
-<genro_uo path="gnrjs/gnr_d11/js/genro_uo.js" ext="js"><en_missing_code base="Missing code"></en_missing_code>
-<en_code base="Code" en="Code" it="Codice"></en_code>
-<en_private fr="Privé" de="Privat" en="Private" it="Privato" base="Private"></en_private>
-<en_name base="Name" de="Name" en="Name" fr="Nom" it="Nome"></en_name>
-<en_authorization fr="Autorisation" de="Genehmigung" en="Authorization" it="Autorizzazione" base="Authorization"></en_authorization>
-<en_notes fr="Remarques" de="Aufzeichnungen" en="Notes" it="Note" base="Notes"></en_notes>
-<en_screenshot base="Screenshot"></en_screenshot>
-<en_save fr="Sauvegarder" de="Speichern" en="Save" it="Salva" base="Save"></en_save>
-<en_duplicate_as base="Duplicate as"></en_duplicate_as>
-<en_cancel base="Cancel" de="Stornieren" en="Cancel" fr="Annuler" it="Annulla"></en_cancel></genro_uo>
 <genro_wdg path="gnrjs/gnr_d11/js/genro_wdg.js" ext="js"><en_multi_assignment base="Multi assignment"></en_multi_assignment></genro_wdg>
 <genro_widgets path="gnrjs/gnr_d11/js/genro_widgets.js" ext="js"><en_invalid base="Invalid" it="Non valido"></en_invalid>
 <en_single_option base="Single option"></en_single_option>

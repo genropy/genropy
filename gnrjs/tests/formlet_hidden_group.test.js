@@ -4,6 +4,8 @@ const path = require('node:path');
 const {test} = require('node:test');
 const vm = require('node:vm');
 
+const sourceDir = () => process.env.GNR_JS_SOURCE || path.join(__dirname, '../gnr_d11/js');
+
 function loadContext() {
     const context = {console, File: function() {}, gnr: {}, genro: {}};
     context.dojo = {
@@ -13,6 +15,7 @@ function loadContext() {
         forEach: (items, callback) => Array.prototype.forEach.call(items || [], callback),
         some: (items, callback) => Array.prototype.some.call(items || [], callback),
         toJson: JSON.stringify,
+        require() {},
         declare(name, base, members) {
             function Declared(...args) {
                 if (base) base.apply(this, args);
@@ -28,9 +31,8 @@ function loadContext() {
         }
     };
     vm.createContext(context);
-    const sourceDir = process.env.GNR_JS_SOURCE || path.join(__dirname, '../gnr_d11/js');
     for (const filename of ['gnrlang.js', 'gnrbag.js', 'gnrdomsource.js']) {
-        vm.runInContext(readFileSync(path.join(sourceDir, filename), 'utf8'), context, {filename});
+        vm.runInContext(readFileSync(path.join(sourceDir(), filename), 'utf8'), context, {filename});
     }
     return context;
 }
@@ -69,4 +71,26 @@ test('showing the leader shows its group again', () => {
     const {leader, leaderWrapper, calls} = formletGroup();
     leader._setHiddenGroup(false, leaderWrapper);
     assert.deepEqual(calls, [['gamma', false, true]]);
+});
+
+// A plain HTML member gets no widget setHidden: built hidden, it must still
+// reach sourceNode.setHidden once the build ends, or its group stays visible.
+test('a plain HTML node built hidden hides its group after the build', () => {
+    vm.runInContext(readFileSync(path.join(sourceDir(), 'genro_wdg.js'), 'utf8'), context, {filename: 'genro_wdg.js'});
+    const afterBuild = [];
+    context.genro.src = {onBuiltCall: cb => afterBuild.push(cb)};
+    context.genro.dom = {getStyleDict: () => ({})};
+    context.genro.assert = () => {};
+    const wdg = Object.create(context.gnr.GnrWdgHandler.prototype);
+    wdg.noConvertStyle = {};
+    wdg.getHandler = () => ({_creating: () => ({}), _created() {}});
+    wdg.makeDomNode = () => ({});
+    wdg.createHtmlElement = () => ({});
+    wdg.linkSourceNode = () => {};
+    const hidden = [];
+    const sourceNode = {setHidden: value => hidden.push(value)};
+    wdg.create('div', {}, {hidden: true, hiddenGroup: 'g'}, -1, sourceNode);
+    assert.deepEqual(hidden, []);
+    afterBuild.forEach(cb => cb());
+    assert.deepEqual(hidden, [true]);
 });
