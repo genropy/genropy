@@ -1667,15 +1667,25 @@ dojo.declare("gnr.widgets.Dialog", gnr.widgets.baseDojo, {
         }
         var left = node.getBoundingClientRect().left+node.clientLeft;
         var width = node.scrollWidth;
+        var range = document.createRange();
         var visit = function(parent,trailing){
-            dojo.forEach(parent.children,function(n){
-                var r = n.getBoundingClientRect();
+            dojo.forEach(parent.childNodes,function(n){
+                var isElement = n.nodeType==1;
+                if(!isElement && n.nodeType!=3){
+                    return;
+                }
+                if(!isElement){
+                    range.selectNodeContents(n);
+                }
+                var r = (isElement? n : range).getBoundingClientRect();
                 if(r.width){
                     width = Math.max(width,Math.ceil(r.right-left+trailing));
                 }
-                var cs = dojo.getComputedStyle(n);
-                if(cs.overflowX=='visible'){
-                    visit(n,trailing+parseFloat(cs.paddingRight)+parseFloat(cs.borderRightWidth));
+                if(isElement){
+                    var cs = dojo.getComputedStyle(n);
+                    if(cs.display!='none' && cs.overflowX=='visible'){
+                        visit(n,trailing+parseFloat(cs.paddingRight)+parseFloat(cs.borderRightWidth));
+                    }
                 }
             });
         };
