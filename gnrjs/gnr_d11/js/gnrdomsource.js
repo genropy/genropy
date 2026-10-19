@@ -1456,7 +1456,8 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
                 }
             }
         }
-        if (!(kw.evt == 'ins' || kw.evt == 'del')) {
+        // a row inserted or deleted under the bound path leaves that path in place
+        if (!(kw.evt == 'ins' || kw.evt == 'del') || trigger_reason == 'child') {
             value = this.getAttributeFromDatasource(attr, true);
         }
         //value = (value != null) ? value : '';
