@@ -223,11 +223,6 @@
 .gridColumnFilterPane .gcf_zero .gcf_count{
     color: var(--text-secondary);
 }
-.gridColumnFilterPane .gcf_sep{
-    height: 1px;
-    margin: 4px 6px;
-    background: var(--menu-separator-color);
-}
 .gridColumnFilterPane .gcf_more{
     padding: 0 6px;
     color: var(--text-secondary);

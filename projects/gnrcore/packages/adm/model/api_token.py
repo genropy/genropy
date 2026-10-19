@@ -36,7 +36,7 @@ class Table(object):
         tbl.column('token_hint', size='8', name_long='!!Token Hint')
         tbl.formulaColumn('all_tags',
                           select=dict(table='adm.api_token_tag',
-                                      columns='@tag_id.authorization_tag',
+                                      columns=self.db.adapter.string_agg('$tag_code', separator=','),
                                       where='$api_token_id=#THIS.id'),
                           dtype='A', name_long='!!Tags')
         tbl.formulaColumn('status',
