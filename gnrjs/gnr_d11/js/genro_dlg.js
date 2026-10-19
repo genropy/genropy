@@ -679,7 +679,7 @@ dojo.declare("gnr.GnrDlgHandler", null, {
         var cols = objectPop(kw,'cols') || 1;
         var formlet = objectPop(kw,'formlet');
         if(isNullOrBlank(formlet)){
-            formlet = genro.startArgs.useFormlets;
+            formlet = genro.startArgs.useFormletsInJsFb;
         }
         genro.dlg.prompt_counter = genro.dlg.prompt_counter || 0;
         genro.dlg.prompt_counter++;
@@ -787,12 +787,10 @@ dojo.declare("gnr.GnrDlgHandler", null, {
                              padding:formlet?'10px 10px 0 10px':null});
             }
             if(typeof(wdg)=='string'){
-                fb = formlet? genro.dev.formlet(box,cols,{onEnter:onEnter})
-                    : genro.dev.formbuilder(box,cols,{border_spacing:'1px',onEnter:onEnter,width:'100%',fld_width:'100%'});
+                fb = genro.dev.formbuilder(box,cols,{formlet:formlet,border_spacing:'1px',onEnter:onEnter,width:'100%',fld_width:'100%'});
                 fb.addField(wdg,objectUpdate(objectUpdate({value:'^.promptvalue',lbl:kw.lbl},lblKw),objectExtract(kw,'wdg_*')));
             }else{
-                fb = formlet? genro.dev.formlet(box,cols,{onEnter:onEnter,datapath:'.promptvalue'})
-                    : genro.dev.formbuilder(box,cols,{border_spacing:'4px',width:'100%',onEnter:onEnter,fld_width:'100%',datapath:'.promptvalue'});
+                fb = genro.dev.formbuilder(box,cols,{formlet:formlet,border_spacing:'4px',width:'100%',onEnter:onEnter,fld_width:'100%',datapath:'.promptvalue'});
                 wdg.forEach(function(n){
                     n = objectUpdate({},n);
                     var w = objectPop(n,'wdg','textbox');

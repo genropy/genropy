@@ -1,4 +1,4 @@
-"""The instance configuration owns the client default for formlet dialogs."""
+"""The experimental instance flag owns the client default of genro.dev.formbuilder."""
 
 import json
 from types import MethodType, SimpleNamespace
@@ -14,6 +14,7 @@ from gnr.web.gnrwebpage import GnrWebPage
 def _page(config):
     application = SimpleNamespace(config=config)
     application.experimentalValue = MethodType(GnrApp.experimentalValue, application)
+    application.experimentalFlag = MethodType(GnrApp.experimentalFlag, application)
     static = SimpleNamespace(url=lambda *args: '/static/')
     page = SimpleNamespace(
         application=application,
@@ -41,13 +42,13 @@ def _page(config):
 
 @pytest.mark.parametrize('flag, expected', [
     (None, False), ('true', True), ('True', True), ('false', False), ('', False)])
-def test_use_formlets_comes_from_instance_configuration(flag, expected):
+def test_js_formbuilder_formlet_default_comes_from_experimental_flag(flag, expected):
     config = Bag()
     if flag is not None:
-        config.setItem('gui', None, use_formlets=flag)
+        config.setItem('experimental.gui', None, use_formlets_in_js_fb=flag)
     page = _page(config)
 
     # A request argument must neither enable nor disable the instance switch.
-    result = GnrWebPage.build_arg_dict(page, useFormlets=not expected)
+    result = GnrWebPage.build_arg_dict(page, useFormletsInJsFb=not expected)
     start_args = json.loads(result['startArgs'])
-    assert start_args['useFormlets'] == GnrClassCatalog().asTypedText(expected)
+    assert start_args['useFormletsInJsFb'] == GnrClassCatalog().asTypedText(expected)

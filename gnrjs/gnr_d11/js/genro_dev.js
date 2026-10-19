@@ -246,6 +246,14 @@ dojo.declare("gnr.GnrDevHandler", null, {
 
 
     formbuilder:function(node, col, tblattr) {
+        tblattr = tblattr || {};
+        var formlet = objectPop(tblattr,'formlet');
+        if(isNullOrBlank(formlet)){
+            formlet = genro.startArgs.useFormletsInJsFb;
+        }
+        if(formlet){
+            return this.formlet(node, col, tblattr);
+        }
         var defautlLblAttr = objectExtract(tblattr,'lbl_*');
         var tbl = node._('table', tblattr || {})._('tbody');
 
@@ -282,10 +290,16 @@ dojo.declare("gnr.GnrDevHandler", null, {
 
     formlet:function(node, cols, attr) {
         attr = objectUpdate({columns:cols || 1}, attr);
+        objectExtract(attr,'border_spacing,fld_width');
+        var tableOnlyLbl = 'lbl_text_align,lbl_vertical_align';
+        objectExtract(attr,tableOnlyLbl);
+        var defaultLblAttr = objectExtract(attr,'lbl_*',false,true);
         attr._class = attr._class? 'formlet '+attr._class : 'formlet';
         var grid = node._('gridbox', attr);
         grid.addField = function(tag, kw) {
             objectExtract(kw,'td_*');
+            objectExtract(kw,tableOnlyLbl);
+            kw = objectUpdate(objectUpdate({},defaultLblAttr),kw);
             if(kw.lbl){
                 kw.lbl = _T(kw.lbl);
             }

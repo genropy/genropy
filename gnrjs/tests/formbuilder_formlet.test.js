@@ -4,10 +4,11 @@ const path = require('node:path');
 const {test} = require('node:test');
 const vm = require('node:vm');
 
-// genro.dlg.prompt builds its fields either in the legacy formbuilder table
-// (label on the left) or in a formlet gridbox (label on top). The choice comes
-// from the explicit `formlet` kw, else from the instance default that the
-// server puts in startArgs.useFormlets.
+// genro.dev.formbuilder builds either the legacy table (label on the left) or
+// a formlet gridbox (label on top). The choice comes from the explicit
+// `formlet` attribute, else from the experimental instance flag
+// use_formlets_in_js_fb that the server puts in startArgs.useFormletsInJsFb.
+// genro.dlg.prompt, and so ask/askParameters, goes through it.
 
 function createPage(useFormlets) {
     const context = {console, gnr: {}, genro: {}};
@@ -31,7 +32,7 @@ function createPage(useFormlets) {
     }
     const genro = context.genro;
     const relativeData = [];
-    genro.startArgs = useFormlets === undefined ? {} : {useFormlets};
+    genro.startArgs = useFormlets === undefined ? {} : {useFormletsInJsFb: useFormlets};
     genro.mainGenroWindow = {genro};
     genro._pageLocals = {};
     genro.locale = () => 'en-US';
@@ -172,4 +173,36 @@ test('askParameters forwards formlet from the ask definition', () => {
     assert.equal(container.tag, 'gridbox');
     assert.deepEqual(container.children.map((c) => [c.attr.tag, c.attr.lbl, c.attr.value]),
         [['dateTextBox', 'When', '^.when']]);
+});
+
+test('formbuilder follows the instance flag and drops table-only attributes', () => {
+    const {genro, fakeNode} = createPage(true);
+    const fb = genro.dev.formbuilder(fakeNode('div'), 2, {border_spacing: '6px', fld_width: '100%',
+        lbl_color: '#666', lbl_text_align: 'right', datapath: '.record'});
+    assert.equal(fb.tag, 'gridbox');
+    assert.equal(fb.attr.columns, 2);
+    assert.equal(fb.attr.datapath, '.record');
+    for (const key of ['border_spacing', 'fld_width', 'lbl_color', 'lbl_text_align']) {
+        assert.equal(fb.attr[key], undefined, key);
+    }
+    const field = fb.addField('textbox', {value: '^.code', lbl: 'Code', lbl_vertical_align: 'top'});
+    assert.equal(field.attr.lbl_color, '#666');
+    assert.equal(field.attr.lbl_text_align, undefined);
+    assert.equal(field.attr.lbl_vertical_align, undefined);
+});
+
+test('formbuilder without the flag stays a table', () => {
+    const {genro, fakeNode} = createPage();
+    assert.equal(genro.dev.formbuilder(fakeNode('div'), 1, {border_spacing: '6px'}).tag, 'tbody');
+    assert.equal(genro.dev.formbuilder(fakeNode('div'), 1).tag, 'tbody');
+});
+
+test('formlet:false keeps a toolbar formbuilder a table whatever the flag', () => {
+    const {genro, fakeNode} = createPage(true);
+    assert.equal(genro.dev.formbuilder(fakeNode('div'), 3, {formlet: false, border_spacing: '1px'}).tag, 'tbody');
+});
+
+test('formlet:true asks for a formlet without the flag', () => {
+    const {genro, fakeNode} = createPage(false);
+    assert.equal(genro.dev.formbuilder(fakeNode('div'), 1, {formlet: true}).tag, 'gridbox');
 });

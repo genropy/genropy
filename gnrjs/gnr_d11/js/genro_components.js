@@ -1429,7 +1429,7 @@ dojo.declare("gnr.widgets.PaletteImporter", gnr.widgets.gnrwdg, {
        //                        value:'^.import_action',width:'6em',default_value:'insert'})
         bar = frame._('slotBar',{slots:'2,fbbottom,*',side:'bottom',_class:'slotbar_dialog_footer'});
 
-        var fb = genro.dev.formbuilder(bar._('div','fbbottom'),3,{border_spacing:'1px'});
+        var fb = genro.dev.formbuilder(bar._('div','fbbottom'),3,{formlet:false,border_spacing:'1px'});
         if(!gnrwdg.importerMethod){
             fb.addField('filteringSelect',{value:'^.import_method',width:'7em',
                 lbl_text_align:'right',
@@ -2860,7 +2860,7 @@ dojo.declare("gnr.widgets.VideoPlayer", gnr.widgets.gnrwdg, {
     },
     gnrwdg_videoSearchBox:function(bar,slotName){
         var sb = bar._('div',slotName)
-        var fb = genro.dev.formbuilder(sb,1,{border_spacing:'1px',font_size:'.9em'});
+        var fb = genro.dev.formbuilder(sb,1,{formlet:false,border_spacing:'1px',font_size:'.9em'});
         var videoNodeId = this.videoNodeId;
         var that = this;
 

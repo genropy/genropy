@@ -5,7 +5,9 @@
 The dynamic form pane is normally laid out by ``formbuilder``, which resolves to
 the HTML table backend unless the site preference ``theme.use_formlets`` or
 ``pageOptions['useFormlet']`` is on. ``df_formlet=True`` asks for the CSS grid
-backend for that pane alone, whatever the global switch says.
+backend for that pane alone, whatever the global switch says. Without
+``df_formlet`` the pane follows the experimental instance flag
+``<experimental><gui use_formlets_in_dynamicform="true"/></experimental>``.
 
 The flag travels through the whole family, so a relation based pane asks for it
 the same way::
