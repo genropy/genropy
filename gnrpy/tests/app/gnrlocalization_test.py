@@ -1,7 +1,41 @@
+import os
+
 import pytest
+import gnr
 import gnr.app.gnrlocalization as gl
+from gnr.core.gnrbag import Bag
+from gnr.core.gnrconfig import getGenroRoot
 from gnr.sql.gnrsql_exceptions import GnrSqlMissingTable
 from common import BaseGnrAppTest
+
+def catalogueModules(locbag):
+    modules = set()
+    locbag.walk(lambda n: modules.add(n.attr['path']) if n.attr.get('path') else None)
+    return modules
+
+
+def test_core_roots_source_checkout():
+    """In a checkout gnrjs and resources are not under the gnr package:
+    every core root must fall back to the repository layout and exist."""
+    packageFolder = os.path.dirname(gnr.__file__)
+    if os.path.isdir(os.path.join(packageFolder, 'gnrjs')):
+        pytest.skip('running from an installed distribution')
+    genroRoot = getGenroRoot()
+    roots = gl.coreLocalizationRoots(packageFolder)
+    assert roots == [(os.path.join(genroRoot, repoPath), repoPath)
+                     for repoPath, packagePath in gl.CORE_LOCALIZATION_ROOTS]
+    for folder, prefix in roots:
+        assert os.path.isdir(folder), folder
+
+
+def test_core_roots_installed_layout(tmp_path):
+    """In a distribution the roots live inside the package and are preferred."""
+    for repoPath, packagePath in gl.CORE_LOCALIZATION_ROOTS:
+        (tmp_path / packagePath).mkdir(parents=True, exist_ok=True)
+    roots = gl.coreLocalizationRoots(str(tmp_path))
+    assert roots == [(os.path.normpath(os.path.join(str(tmp_path), packagePath)), repoPath)
+                     for repoPath, packagePath in gl.CORE_LOCALIZATION_ROOTS]
+
 
 class TestGnrLocalization(BaseGnrAppTest):
     app_name = 'gnr_it'
@@ -70,3 +104,15 @@ class TestGnrLocalization(BaseGnrAppTest):
         r = al.getTranslation(gl.GnrLocString("bkasjklasjsd", lockey="xk"), "it")
         assert r["status"] == "NOKEY"
         assert r["translation"] == "bkasjklasjsd"
+
+    def test_core_scan_keeps_catalogue_modules(self):
+        """Scanning the core slot must find the gnrjs and resources modules
+        of the shipped catalogue, keyed in the repository layout."""
+        al = gl.AppLocalizer(self.app)
+        core = [s for s in al.slots if s['code'] == 'core'][0]
+        scanned = catalogueModules(al.scanSlot(core))
+        shipped = catalogueModules(Bag(os.path.join(core['destFolder'], 'localization.xml')))
+        external = {m for m in shipped if m.startswith(('gnrjs/', 'resources/'))}
+        assert external
+        assert external <= scanned
+        assert not [m for m in scanned if m.startswith('..')]

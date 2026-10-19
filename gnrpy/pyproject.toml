@@ -183,6 +183,9 @@ packages = [
 	    ]
 
 
+[tool.setuptools.package-data]
+"gnr" = ["localization.xml"]
+
 [tool.setuptools.package-dir]
 "gnr" = "gnr"
 "gnr.gnrjs" = "../gnrjs"
