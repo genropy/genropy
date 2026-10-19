@@ -172,3 +172,13 @@ class GnrCustomWebPage(object):
                        wdg_kwargs=Bag(dict(colspan=2, height=60)))]
         pane.div(datapath='.rec').dynamicFormGroup(fields=fields, ncol=2,
                               df_formlet={'on': True, 'off': False}.get(df_mode))
+
+    def test_11_user_object(self, pane):
+        "genro.dev.userObjectDialog, the save dialog of queries, views and other user objects"
+        self._instanceDefault(pane)
+        for label, preview in (('Save', 'false'), ('Save with preview', 'true')):
+            pane.button(label, action=f"""genro.dev.userObjectDialog('Save view','test_userobject',
+                            function(dlg){{dlg.close_action();}},{preview});""")
+        pane.div('==`${code||""} ${description||""} ${priv?"(private)":""}`',
+                 code='^test_userobject.code', description='^test_userobject.description',
+                 priv='^test_userobject.private', margin_top='6px')

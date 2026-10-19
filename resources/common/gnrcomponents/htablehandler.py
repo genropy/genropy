@@ -667,7 +667,7 @@ class HTableHandler(HTableHandlerBase):
                 var slotbar = dlg.bottom._('slotBar',{slots:'*,cancel,confirm',
                                                     action:function(){
                                                         dlg.close_action();
-                                                        if(this.attr.command='confirm'){
+                                                        if(this.attr.command=='confirm'){
                                                              cb(that.getRelativeData("gnr._dev.addrecord.count"));
                                                         }
                                                     }});

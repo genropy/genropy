@@ -551,7 +551,7 @@ class DynamicForm(BaseComponent):
         description = wdg_attr.pop('description',None) or code.title()
         fieldPrefix = fieldPrefix or '.'
         wdg_attr['value']='^%s%s' %(fieldPrefix,code)
-        if tag.lower() in ('checkbox' or 'radiobutton'):
+        if tag.lower() in ('checkbox', 'radiobutton'):
             wdg_attr['lbl'] = '&nbsp;'
             wdg_attr['label'] = description
         else:

@@ -517,7 +517,7 @@ dojo.declare("gnr.widgets.TooltipMultivalue", gnr.widgets.TooltipPane, {
         bar._('button','cancel',{'label':_T('Cancel'),command:'cancel'});
         bar._('button','confirm',{'label':_T('Confirm'),command:'confirm'});
         var box = dlg.center._('div',{padding:'5px'});
-        var fb = genro.dev.formbuilder(box,2,{border_spacing:'3px',width:'270px'});
+        var fb = genro.dev.formbuilder(box,2,{formlet:false,border_spacing:'3px',width:'270px'});
         var b = fb.addField('div',{text_align:'right'})
         b._('div',{innerHTML:'^.mv_label',_class:'mv_labels'})
         b._('menu',{values:labels,action:'SET .mv_label=$1.label',modifiers:'*',_class:'smallmenu'});
@@ -1108,15 +1108,6 @@ dojo.declare("gnr.widgets.PaletteMap", gnr.widgets.gnrwdg, {
         if(centerMarker){
             mapKw.centerMarker = true;
         }
-       //if(kw.searchOn){
-       //    //var bar = pane._('SlotBar',{'side':'top',slots:'fbpars,*',searchOn:objectPop(kw,'searchOn'),toolbar:true});
-       //    //var fb = genro.dev.formbuilder(bar._('div','fbpars',{}),{border_spacing:'1px',width:'100%',margin_bottom:'12px'});
-       //   // _('horizontalSlider',{'value':'^.zoom'});
-       //   // 
-       //   //         fb.horizontalSlider(value='^.zoom',lbl='Zoom',minimum=4,maximum=21,width='150px',discreteValues=18)
-       //
-       //}
-        
         var mapNode = pane._('GoogleMap',objectUpdate({'height':'100%',map_type:'roadmap'},mapKw)).getParentNode();
         
         var paletteNode = pane.getParentNode();

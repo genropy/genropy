@@ -206,3 +206,77 @@ test('formlet:true asks for a formlet without the flag', () => {
     const {genro, fakeNode} = createPage(false);
     assert.equal(genro.dev.formbuilder(fakeNode('div'), 1, {formlet: true}).tag, 'gridbox');
 });
+
+test('a single-column formlet checkbox puts its lbl on the right and collapses the label row', () => {
+    const {genro, fakeNode} = createPage(true);
+    const field = genro.dev.formbuilder(fakeNode('div'), 1, {}).addField('checkbox', {value: '^.urgent', lbl: 'Urgent'});
+    assert.equal(field.attr.label, 'Urgent');
+    assert.equal(field.attr.lbl, false);
+    assert.equal(field.attr.box__class, undefined);
+});
+
+test('a multi-column formlet checkbox keeps a placeholder label to line up with its row', () => {
+    const {genro, fakeNode} = createPage(true);
+    const fb = genro.dev.formbuilder(fakeNode('div'), 2, {});
+    const byTag = fb.addField('checkbox', {value: '^.urgent', lbl: 'Urgent'});
+    assert.equal(byTag.attr.label, 'Urgent');
+    assert.equal(byTag.attr.lbl, '&nbsp;');
+    assert.equal(byTag.attr.box__class, 'formlet_placeholder_label');
+    const byDtype = fb.addField('textbox', {value: '^.done', lbl: 'Done', tag: 'checkbox'});
+    assert.equal(byDtype.attr.label, 'Done');
+    const ownLabel = fb.addField('checkbox', {value: '^.x', lbl: 'Top', label: 'Right'});
+    assert.deepEqual([ownLabel.attr.lbl, ownLabel.attr.label], ['Top', 'Right']);
+});
+
+test('a legacy formbuilder checkbox keeps its lbl on the left', () => {
+    const {genro, fakeNode} = createPage(false);
+    const fb = genro.dev.formbuilder(fakeNode('div'), 1, {});
+    const field = fb.addField('checkbox', {value: '^.urgent', lbl: 'Urgent'});
+    assert.equal(field.attr.label, undefined);
+});
+
+function labelCells(tbody) {
+    return tbody.children.flatMap((tr) => tr.children).filter((td) => td.attr._class === 'gnrfieldlabel');
+}
+
+test('legacy formbuilder: a field lbl_* does not leak into the next labels', () => {
+    const {genro, fakeNode} = createPage(false);
+    const fb = genro.dev.formbuilder(fakeNode('div'), 1, {lbl_color: '#666'});
+    fb.addField('textbox', {value: '^.a', lbl: 'A', lbl_hidden: true});
+    fb.addField('textbox', {value: '^.b', lbl: 'B'});
+    const [first, second] = labelCells(fb);
+    assert.equal(first.attr.hidden, true);
+    assert.equal(second.attr.hidden, undefined);
+    assert.equal(second.attr.color, '#666');
+});
+
+test('legacy formbuilder: a formbuilder-level lbl_text_align wins over the right default', () => {
+    const {genro, fakeNode} = createPage(false);
+    const fb = genro.dev.formbuilder(fakeNode('div'), 1, {lbl_text_align: 'left'});
+    fb.addField('textbox', {value: '^.a', lbl: 'A'});
+    assert.equal(labelCells(fb)[0].attr.text_align, 'left');
+});
+
+test('legacy formbuilder: default_value does not reach the widget', () => {
+    const {genro, fakeNode, relativeData} = createPage(false);
+    const field = genro.dev.formbuilder(fakeNode('div'), 1, {}).addField('textbox', {value: '^.a', default_value: 'x'});
+    assert.equal(field.attr.default_value, undefined);
+    assert.deepEqual(relativeData, [['^.a', 'x']]);
+});
+
+test('query parameters: onEnter is the caller confirm and defaults do not carry over', () => {
+    const {genro, fakeNode} = createPage(false);
+    const items = {};
+    const wherebag = {setItem: (path, value) => { items[path] = value; }};
+    const confirm = () => 'confirmed';
+    const root = fakeNode('div');
+    genro.dev.dynamicQueryParsFb(root, wherebag, [
+        {lbl: 'Customer|Rossi', relpath: 'c_0'},
+        {lbl: 'City', relpath: 'c_1'},
+        {lbl: '|Bianchi', relpath: 'c_2'}
+    ], 1, confirm);
+    const table = root.children[0];
+    assert.equal(table.attr.onEnter, confirm);
+    assert.deepEqual(items, {c_0: 'Rossi', c_2: 'Bianchi'});
+    assert.deepEqual(labelCells(table.children[0]).map((td) => td.attr.innerHTML), ['Customer', 'City', null]);
+});
