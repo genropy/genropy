@@ -3838,7 +3838,7 @@ gnr.GroupletGridTile = class GroupletGridTile {
                       + "{action:'add',position:'>" + pkey + "'});"
             },
             'delete': {
-                label: _T('!!Delete'),
+                label: _T('!!Delete row'),
                 action: "genro.publish('" + topic + "',"
                       + "{action:'delete',rowKey:'" + pkey + "'});"
             }
