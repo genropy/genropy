@@ -182,3 +182,15 @@ class GnrCustomWebPage(object):
         pane.div('==`${code||""} ${description||""} ${priv?"(private)":""}`',
                  code='^test_userobject.code', description='^test_userobject.description',
                  priv='^test_userobject.private', margin_top='6px')
+
+    def test_12_fixed_width_fields(self, pane):
+        "Fields wider than the dialog: it grows to them and keeps the right margin as wide as the left"
+        self._instanceDefault(pane)
+        fields = [dict(name='order', lbl='Order', width='20em'),
+                  dict(name='chapter', lbl='Chapter', width='30em'),
+                  dict(name='account', lbl='Account', width='30em')]
+        action = "SET .fixed = [order,chapter,account].join(' / ');"
+        for label, formlet in (('Formlet', True), ('Formbuilder', False)):
+            pane.button(label, action=action,
+                        ask=dict(title='Allocation', formlet=formlet, fields=fields))
+        pane.div('^.fixed', margin_top='6px')

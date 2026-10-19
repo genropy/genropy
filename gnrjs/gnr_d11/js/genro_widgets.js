@@ -1653,9 +1653,44 @@ dojo.declare("gnr.widgets.Dialog", gnr.widgets.baseDojo, {
     },
 
     mixin_autoSize:function(){
-        if(this.containerNode.firstChild.scrollWidth>this.containerNode.firstChild.clientWidth){
-            this.containerNode.firstChild.style.width = this.containerNode.firstChild.scrollWidth+'px';
+        var fc = this.containerNode.firstChild;
+        if(fc.scrollWidth>fc.clientWidth){
+            fc.style.width = (this._overflowWidth(fc)-dojo._getPadExtents(fc).w)+'px';
         }
+    },
+
+    mixin__overflowWidth:function(node){
+        // scrollWidth stops at the farthest box and drops the right padding and border
+        // of the boxes containing it: every box is measured with those added back
+        if(node.scrollWidth<=node.clientWidth){
+            return node.scrollWidth;
+        }
+        var left = node.getBoundingClientRect().left+node.clientLeft;
+        var width = node.scrollWidth;
+        var range = document.createRange();
+        var visit = function(parent,trailing){
+            dojo.forEach(parent.childNodes,function(n){
+                var isElement = n.nodeType==1;
+                if(!isElement && n.nodeType!=3){
+                    return;
+                }
+                if(!isElement){
+                    range.selectNodeContents(n);
+                }
+                var r = (isElement? n : range).getBoundingClientRect();
+                if(r.width){
+                    width = Math.max(width,Math.ceil(r.right-left+trailing));
+                }
+                if(isElement){
+                    var cs = dojo.getComputedStyle(n);
+                    if(cs.display!='none' && cs.overflowX=='visible'){
+                        visit(n,trailing+parseFloat(cs.paddingRight)+parseFloat(cs.borderRightWidth));
+                    }
+                }
+            });
+        };
+        visit(node,parseFloat(dojo.getComputedStyle(node).paddingRight));
+        return width;
     },
 
     mixin_fitToContent:function(){
@@ -1720,7 +1755,7 @@ dojo.declare("gnr.widgets.Dialog", gnr.widgets.baseDojo, {
         });
         centerNode.parentNode.appendChild(probe);
         var contentHeight = Math.ceil(probe.getBoundingClientRect().height);
-        var contentWidth = probe.scrollWidth;
+        var contentWidth = this._overflowWidth(probe);
         probe.parentNode.removeChild(probe);
         // summed from the parts, as containerNodeResize splits them: before the first
         // layout the frame is collapsed and the dialog height says nothing
