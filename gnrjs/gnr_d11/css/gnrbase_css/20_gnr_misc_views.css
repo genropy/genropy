@@ -618,6 +618,11 @@
     background-color: color-mix(in srgb, var(--status-error, #E53935) 7%, var(--field-bg, white));
     overflow: visible;
 }
+/* the 1px nudge of the closed linker's field in error would make an open bar taller */
+.th_enableLinker.th_linker .dijitError.th_linkerField,
+.th_linkerAlwaysOpen .th_linker .dijitError.th_linkerField {
+    margin-top: 0;
+}
 
 
 .th_enableLinker.th_linker::before,.th_linkerAlwaysOpen .th_linker::before{
