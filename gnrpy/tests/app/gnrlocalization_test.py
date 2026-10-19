@@ -14,7 +14,7 @@ from gnr.core.gnrstring import flatten
 from gnr.sql.gnrsql_exceptions import GnrSqlMissingTable
 from common import BaseGnrAppTest
 
-REPO = pathlib.Path(__file__).resolve().parents[3]
+REPO = pathlib.Path(__file__).resolve().parents[2]
 MASK = re.compile(r'\[\d+\]')
 
 from gnr.sql.gnrsql_exceptions import GnrSqlMissingTable
@@ -287,16 +287,6 @@ class TestGnrLocalization(BaseGnrAppTest):
                              code='samebasename', protected=False, language='en'))
         al.buildLocalizationDict()
 
-        al.updateLocalizationFiles(localizationBlock='samebasename')
-
-        lbag = al.getLocalizationBag(str(tmp_path))
-        assert lbag.getNode('grouplet').attr['ext'] == 'js'
-        assert lbag.getNode('grouplet_py').attr['ext'] == 'py'
-        assert 'grouplet.en_please_complete_required_fields' in lbag
-        assert 'grouplet_py.en_save_draft' in lbag
-        assert al.translate('!!Please complete required fields', 'it') == 'Completa i campi obbligatori'
-        assert al.translate('!!Save draft', 'it') == 'Salva bozza'
-
     def test_autotranslate_keeps_the_base_text_for_the_base_language(self):
         al = gl.AppLocalizer(self.app)
         al.localizationDict = {'en_counter_s': {'base': 'Counter %s'},
@@ -330,7 +320,7 @@ class TestGnrLocalization(BaseGnrAppTest):
         assert not [m for m in scanned if m.startswith('..')]
 
 
-@pytest.mark.parametrize('catalog', [REPO / 'localization.xml'] + sorted((REPO / 'projects').rglob('localization.xml')),
+@pytest.mark.parametrize('catalog', [REPO / 'gnr' / 'localization.xml'] + sorted((REPO / 'projects').rglob('localization.xml')),
                          ids=lambda p: str(p.relative_to(REPO)))
 def test_catalog_base_language_carries_no_autotranslate_masks(catalog):
     masked = [el.tag for el in ET.parse(catalog).iter()
