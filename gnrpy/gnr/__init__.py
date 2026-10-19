@@ -14,7 +14,7 @@ if sys.version_info < (3, 12):
     # users won't be able to filter this out.
     warnings.simplefilter("always", FutureWarning)
     warnings.warn(
-        "Support for Python versions lower than 3.12 will be dropped in future 2027Q1 release.",
+        "Support for Python versions lower than 3.12 will be dropped in 2027Q1 release.",
         FutureWarning,
         stacklevel=2,
     )
