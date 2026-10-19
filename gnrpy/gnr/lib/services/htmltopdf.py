@@ -11,6 +11,10 @@ from gnr.core.gnrlang import  GnrException
 from gnr.lib.services import GnrBaseService,BaseServiceType
 from gnr.lib.services.storage import StorageNode
 
+#when set, the url of a kajenn print server: htmltopdf defaults to the kajennprint
+#implementation, connecting to that server
+KAJENN_PRINT_ENV = 'KAJENN_PRINT_URL'
+
 #a valid margin: non-negative number with an optional css length unit (bare number -> mm)
 CSS_LENGTH_RE = re.compile(r'^(?:\d+(?:\.\d+)?|\.\d+)(?P<unit>mm|cm|in|px|pt|pc|em|rem|%)?$')
 
@@ -20,6 +24,9 @@ class HtmlToPdfError(GnrException):
 
 class ServiceType(BaseServiceType):
     def conf_htmltopdf(self):
+        kajenn_url = os.environ.get(KAJENN_PRINT_ENV, '').strip()
+        if kajenn_url:
+            return dict(implementation='kajennprint', url=kajenn_url)
         try:
             import weasyprint
             pdf_pref = self.site.getPreference('.pdf_render',pkg='sys') if self.site else None
@@ -98,6 +105,45 @@ class HtmlToPdfService(GnrBaseService):
                 value = '%smm' % value
             margins[side] = value
         return margins
+
+    def pageStylesheets(self, pageSize=None, pageMargin=None, pdf_kwargs=None, stylesheets=None):
+        """The css sources setting page size and margins, appended to ``stylesheets``.
+
+        They are meant to be applied as user stylesheets, below the document's
+        own (author) css in the cascade. An explicit ``pageMargin`` wins over the
+        ``sys.pdf_render`` preference margins and over the document; preference
+        margins need ``!important`` to win over the ``@page {margin:0}`` every
+        GnrHtmlBuilder document emits. Once at least one side is set in the
+        preferences the missing sides default to 0 as plain declarations
+        (symmetric output), beating the renderer default margin but still losing
+        to margins declared by the document. With no preference margins at all
+        nothing is appended, so raw html without a ``@page`` rule of its own
+        (grid pdf export, pagededitor preview) keeps the renderer default margins.
+
+        :param pageSize: css page size, ``A4`` when only ``pageMargin`` is given
+        :param pageMargin: css margin shorthand imposed on every page
+        :param pdf_kwargs: dict possibly holding the preference ``margin_*`` entries
+        :param stylesheets: css sources to extend, left untouched (a copy is returned)
+        :returns: list of css strings"""
+        stylesheets = list(stylesheets or [])
+        apply_pref_margins = pageMargin is None
+        pref_margins = self.pageMarginsFromPdfKwargs(pdf_kwargs) if apply_pref_margins else {}
+        if pageSize or pageMargin is not None:
+            margin_priority = ' !important' if pageMargin is not None else ''
+            pageMargin = pageMargin if pageMargin is not None else 0
+            stylesheets.append(f"""@page {{
+                size: {pageSize or 'A4'}; /* Change from the default size of A4 */
+                margin: {pageMargin}{margin_priority}; /* Set margin on each page */
+            }}""")
+        if apply_pref_margins and pref_margins:
+            declarations = []
+            for side in ('top','bottom','left','right'):
+                if side in pref_margins:
+                    declarations.append(f'margin-{side}: {pref_margins[side]} !important;')
+                else:
+                    declarations.append(f'margin-{side}: 0;')
+            stylesheets.append('@page { %s }' % ' '.join(declarations))
+        return stylesheets
 
     @extract_kwargs(pdf=True)
     def htmlToPdf(self, srcPath, destPath=None, orientation=None, page_height=None,
