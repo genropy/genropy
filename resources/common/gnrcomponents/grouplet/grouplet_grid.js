@@ -2419,7 +2419,7 @@ gnr.GroupletGridController = class GroupletGridController {
                 ? null : editors[editorIndex];
             const el = target || editors[0];
             if (!el) return;
-            el.focus();
+            gnr.GroupletGridController.focusNode(el);
             // As a native Tab would: typing replaces the default in the field.
             if (target && el.select) el.select();
         }, 0);
@@ -2964,7 +2964,7 @@ gnr.GroupletGridController = class GroupletGridController {
         // cleared row. The first field keeps the focus and writes it here.
         const widget = this._entryWidget;
         const first = this._entryFocusTarget(dom);
-        if (first) first.focus();
+        if (first) gnr.GroupletGridController.focusNode(first);
         if (widget && widget._focused && widget._onBlur && widget.domNode
                 && dom.contains(widget.domNode)) {
             widget._onBlur();
@@ -3408,9 +3408,25 @@ gnr.GroupletGridController = class GroupletGridController {
         setTimeout(() => {
             const el = this._entryFocusTarget(dom);
             if (!el) return;
-            el.focus();
+            gnr.GroupletGridController.focusNode(el);
             if (el.select) el.select();
         }, 0);
+    }
+
+    static focusNode(el) {
+        // A field focused again while it has the DOM focus (the entry row just
+        // added) gets no focus event: dijit's focus, which a closing popup
+        // hands back to its opener, is not corrected, and the field's onfocus
+        // check does not run, the one that lets genro write a value typed
+        // over a validation error. Without both the next value is dropped on
+        // blur. dijit.focus and _refreshState do what that event would do.
+        if (!dijit.focus) {
+            el.focus();
+            return;
+        }
+        dijit.focus(el);
+        const widget = dijit.getEnclosingWidget(el);
+        if (widget && widget._refreshState) widget._refreshState();
     }
 
     _entryFocusTarget(dom) {
