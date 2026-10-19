@@ -840,8 +840,13 @@ gnr.GroupletGridController = class GroupletGridController {
         this._selAnchor = null;
         this.selectionNode = kw.selectionNode || null;
         this.selectionmenu = kw.selectionmenu || {};
-        // rowCheckbox: a checkbox per row and one for all, as in a mail list
-        this.rowCheckbox = !!(kw.rowCheckbox && this.rowTemplate);
+        // rowCheckbox: a checkbox per row and one for all, as in a mail list;
+        // on cards it is the only way to select them
+        this.rowCheckbox = !!(kw.rowCheckbox && Object.keys(this.selectionmenu).length);
+        // Grids sharing a selectionGroup act on their selections together:
+        // one count, one delete, `selection` = [{grid, rowKeys}] to actions.
+        this.selectionGroup = kw.selectionGroup || null;
+        if (this.selectionGroup) gnr.GroupletGridController._groupSet(this.selectionGroup).add(this);
         this.phantomPath = this.controllerPath + '.phantom';
         this.phantomTile = null;
         const storeNode = sourceNode._('dataController', {
@@ -898,6 +903,8 @@ gnr.GroupletGridController = class GroupletGridController {
             that._wireBodyDnD();
             that._initChangeManager();
             that.newDataStore();
+            that._mountSelectionBar();
+            that._wireChromeClicks();
             that._updateAddBtnState();
         });
     }
@@ -906,6 +913,10 @@ gnr.GroupletGridController = class GroupletGridController {
         if (this._destroyed) return;
         this._destroyed = true;
         this.sourceNode.unregisterSubscription(this.actionTopic);
+        if (this.selectionGroup) {
+            gnr.GroupletGridController._groupSet(this.selectionGroup).delete(this);
+            this._refreshGroupBars();
+        }
         Object.keys(this.tiles).forEach((pkey) => this._destroyTile(pkey));
         this._unmountPhantom();
         this._unmountEntry();
@@ -2497,7 +2508,7 @@ gnr.GroupletGridController = class GroupletGridController {
     selectTile(pkey) {
         // Tabs/vtabs use the active state; .selected is a cards-only
         // UX class that conflicts with the panel chrome here.
-        if (this._isTabsLayout()) return;
+        if (this._isTabsLayout() || this._multiKeys) return;
         if (this.selectedPkey === pkey) return;
         if (this.selectedPkey && this.tiles[this.selectedPkey]) {
             const prevDom = this.tiles[this.selectedPkey].domNode();
@@ -2711,26 +2722,29 @@ gnr.GroupletGridController = class GroupletGridController {
         this.entryTile.mount();
         this._mountSelectionBar();
         this._syncChecks();
-        if (!this._chromeClicksWired) {
-            // header pins and select-all boxes are rebuilt with their slot
-            this._chromeClicksWired = true;
-            const container = this._containerDom();
-            // a header pin leaves the focus in the entry row
-            container.addEventListener('mousedown', (e) => {
-                if (e.target.closest('.grouplet_grid__struct_keep')) e.preventDefault();
-            });
-            container.addEventListener('click', (e) => {
-                if (e.target.closest('.grouplet_grid') !== container) return;
-                const pin = e.target.closest('.grouplet_grid__struct_keep');
-                if (pin) this._toggleKeep(pin.dataset.field);
-                else if (e.target.closest('.grouplet_grid_check_all')) this._onCheckAll();
-            });
-        }
+        this._wireChromeClicks();
         // a row grafted while the page builds gets its widgets a tick later
         setTimeout(() => this._destroyed || this._syncKept(), 0);
         this._validateEntryRequired();
         this._updateAddBtnState();
         this._scheduleStructSync();
+    }
+
+    _wireChromeClicks() {
+        // header pins and select-all boxes are rebuilt with their slot
+        if (this._chromeClicksWired) return;
+        this._chromeClicksWired = true;
+        const container = this._containerDom();
+        // a header pin leaves the focus in the entry row
+        container.addEventListener('mousedown', (e) => {
+            if (e.target.closest('.grouplet_grid__struct_keep')) e.preventDefault();
+        });
+        container.addEventListener('click', (e) => {
+            if (e.target.closest('.grouplet_grid') !== container) return;
+            const pin = e.target.closest('.grouplet_grid__struct_keep');
+            if (pin) this._toggleKeep(pin.dataset.field);
+            else if (e.target.closest('.grouplet_grid_check_all')) this._onCheckAll();
+        });
     }
 
     _unmountEntry() {
@@ -3078,22 +3092,69 @@ gnr.GroupletGridController = class GroupletGridController {
             if (dom) dom.classList.toggle('selected', !!keys && keys.includes(k));
         });
         this._syncChecks();
+        this._refreshGroupBars();
         const bar = this.selectionNode && this.selectionNode.getDomNode();
         if (!bar || !keys) return;
-        const one = keys.length === 1;
-        bar.querySelector('.grouplet_grid_selection_count').textContent =
-            (one ? _T('!!1 row selected') : _T('!!$count rows selected')).replace('$count', keys.length);
-        const label = bar.querySelector('.grouplet_grid_selection_delete_label');
-        if (label) {
-            label.textContent = (one ? _T('!!Delete 1 row') : _T('!!Delete $count rows'))
-                .replace('$count', keys.length);
-        }
         if (entering && focusBar) {
             setTimeout(() => {
                 const first = bar.querySelector('[tabindex]');
                 if (first) first.focus();
             }, 0);
         }
+    }
+
+    _updateSelectionBar() {
+        // The count is the group's: every bar of a group acts on all of it.
+        const bar = this.selectionNode && this.selectionNode.getDomNode();
+        if (!bar || !this._multiKeys) return;
+        const count = this.groupSelection().reduce((n, e) => n + e.rowKeys.length, 0);
+        const one = count === 1;
+        const countDom = bar.querySelector('.grouplet_grid_selection_count');
+        if (countDom) {
+            countDom.textContent = (one ? _T('!!1 row selected') : _T('!!$count rows selected'))
+                .replace('$count', count);
+        }
+        const label = bar.querySelector('.grouplet_grid_selection_delete_label');
+        if (label) {
+            label.textContent = (one ? _T('!!Delete 1 row') : _T('!!Delete $count rows'))
+                .replace('$count', count);
+        }
+    }
+
+    _refreshGroupBars() {
+        const grids = this.selectionGroup
+            ? gnr.GroupletGridController.groupMembers(this.selectionGroup) : [this];
+        grids.forEach((g) => g._updateSelectionBar());
+    }
+
+    static _groupSet(code) {
+        const groups = gnr.GroupletGridController._selectionGroups;
+        if (!groups[code]) groups[code] = new Set();
+        return groups[code];
+    }
+
+    static groupMembers(code) {
+        return Array.from(gnr.GroupletGridController._groupSet(code)).filter((g) => !g._destroyed);
+    }
+
+    getSelectedKeys() {
+        return this._selectedKeys();
+    }
+
+    groupSelection() {
+        // [{grid, rowKeys}] of the grids in the group with a selection
+        const grids = this.selectionGroup
+            ? gnr.GroupletGridController.groupMembers(this.selectionGroup) : [this];
+        // another grid's row edited in its entry row is no selection
+        return grids.map((g) => ({grid: g, rowKeys: (g === this) ? g._selectedKeys()
+                                                                  : (g._multiKeys || []).slice()}))
+            .filter((e) => e.rowKeys.length);
+    }
+
+    clearSelection(wholeGroup) {
+        const grids = (wholeGroup && this.selectionGroup)
+            ? gnr.GroupletGridController.groupMembers(this.selectionGroup) : [this];
+        grids.forEach((g) => g._applySelection([]));
     }
 
     _mountSelectionBar() {
@@ -3159,20 +3220,23 @@ gnr.GroupletGridController = class GroupletGridController {
     }
 
     _runSelectionAction(spec) {
-        const keys = this._selectedKeys();
-        if (!keys.length) return;
+        const selection = this.groupSelection();
+        if (!selection.length) return;
         if (spec.key === 'delete') {
             this._deleteSelected();
             return;
         }
-        if (spec.action) funcApply(spec.action, {rowKeys: keys, grid: this}, this.sourceNode);
+        if (spec.action) {
+            funcApply(spec.action, {rowKeys: this._selectedKeys(), grid: this, selection: selection},
+                      this.sourceNode);
+        }
     }
 
     _onMultiKeydown(e) {
         const onDelete = !!e.target.closest('.grouplet_grid_selection_delete');
         if (e.key === 'Escape') {
             e.preventDefault();
-            this._applySelection([]);
+            this.clearSelection(true);
             this._focusEntry();
         } else if ((e.key === 'Enter' && onDelete)
                    || ((e.key === 'Delete' || e.key === 'Backspace') && this.selectionmenu['delete'])) {
@@ -3182,18 +3246,28 @@ gnr.GroupletGridController = class GroupletGridController {
     }
 
     _deleteSelected() {
-        const keys = this._selectedKeys();
-        if (!keys.length) return;
-        const form = this.sourceNode.getFormHandler();
-        if (form && form.isDisabled()) return;
-        if (this._rowCount() - keys.length < this.minRows) {
-            genro.dlg.floatingMessage(this.sourceNode, {
-                message: _T('!!At least $count rows are required').replace('$count', this.minRows),
-                messageType: 'warning'
-            });
+        const selection = this.groupSelection();
+        if (!selection.length) return;
+        for (const {grid, rowKeys} of selection) {
+            const form = grid.sourceNode.getFormHandler();
+            if (form && form.isDisabled()) return;
+            if (grid._rowCount() - rowKeys.length < grid.minRows) {
+                genro.dlg.floatingMessage(grid.sourceNode, {
+                    message: _T('!!At least $count rows are required').replace('$count', grid.minRows),
+                    messageType: 'warning'
+                });
+                return;
+            }
+        }
+        if (selection.length === 1) {
+            selection[0].grid.dataStore.deleteRowsAsk(selection[0].rowKeys);
             return;
         }
-        this.dataStore.deleteRowsAsk(keys);
+        // one question for the whole group, each grid deletes its own rows
+        const all = [].concat(...selection.map((e) => e.rowKeys));
+        this.store.deleteAsk(all, null, () => {
+            selection.forEach((e) => e.grid.store.deleteRows(e.rowKeys));
+        });
     }
 
     _loadRowInEntry(pkey) {
@@ -3610,6 +3684,8 @@ gnr.GroupletGridController = class GroupletGridController {
         return root;
     }
 };
+
+gnr.GroupletGridController._selectionGroups = {};
 
 gnr.GroupletGridController._FORMULA_WORDS = new Set([
     'Math', 'Number', 'String', 'Date', 'JSON', 'parseInt', 'parseFloat',

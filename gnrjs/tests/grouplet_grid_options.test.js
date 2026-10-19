@@ -215,3 +215,57 @@ test('a changed sort field re-sorts the strip once, a template row is redrawn', 
     assert.deepEqual(strip.children.map((c) => c.key), ['r_b', 'r_a']);
     assert.equal(titles.r_a, '9·Crew');
 });
+
+function groupGrid(context, code, keys) {
+    const Bag = context.gnr.GnrBag;
+    const rows = new Bag();
+    keys.forEach((k) => rows.setItem(k, new Bag({item: k})));
+    const deleted = [];
+    const grid = Object.create(context.gnr.GroupletGridController.prototype);
+    Object.assign(grid, {
+        selectionGroup: code, rowCheckbox: true, minRows: 0, tiles: {}, _multiKeys: null,
+        selectionmenu: {'delete': true},
+        sourceNode: {getFormHandler: () => null},
+        dataStore: {getData: () => rows, deleteRowsAsk: (k) => deleted.push(['ask', [...k]])},
+        store: {deleteAsk: (all, protect, cb) => { deleted.push(['group', [...all]]); cb(); },
+                deleteRows: (k) => deleted.push(['rows', [...k]])},
+        _containerDom: () => ({classList: {toggle() {}, remove() {}}, querySelectorAll: () => []})
+    });
+    keys.forEach((k) => { grid.tiles[k] = {domNode: () => null}; });
+    context.gnr.GroupletGridController._groupSet(code).add(grid);
+    return {grid, deleted};
+}
+
+test('selectionGroup: grids sharing a code expose one selection, deleted with one question', () => {
+    const {context} = createGrid();
+    const a = groupGrid(context, 'details', ['d1', 'd2']);
+    const b = groupGrid(context, 'details', ['d3']);
+    const other = groupGrid(context, 'accounts', ['x1']);
+    a.grid._onRowCheck('d2', {});
+    b.grid._onRowCheck('d3', {});
+    other.grid._onRowCheck('x1', {});
+    const shape = (sel) => JSON.parse(JSON.stringify(
+        sel.map((e) => [e.grid === a.grid ? 'a' : e.grid === b.grid ? 'b' : '?', [...e.rowKeys]])));
+    assert.deepEqual(shape(a.grid.groupSelection()), [['a', ['d2']], ['b', ['d3']]]);
+    assert.deepEqual(shape(b.grid.groupSelection()), [['a', ['d2']], ['b', ['d3']]]);
+    a.grid.sourceNode.attr = {};
+    a.grid._runSelectionAction({key: 'bulk', action: 'grid._got = [selection, rowKeys];'});
+    const got = a.grid._got;
+    assert.deepEqual(shape(got[0]), [['a', ['d2']], ['b', ['d3']]]);
+    assert.deepEqual([...got[1]], ['d2'], 'rowKeys stays the grid\'s own');
+    b.grid._deleteSelected();
+    assert.deepEqual(JSON.parse(JSON.stringify(b.deleted)), [['group', ['d2', 'd3']], ['rows', ['d3']]]);
+    assert.deepEqual(JSON.parse(JSON.stringify(a.deleted)), [['rows', ['d2']]], 'each grid deletes its own');
+    a.grid.clearSelection(true);
+    assert.equal(a.grid._multiKeys, null);
+    assert.equal(b.grid._multiKeys, null);
+    assert.deepEqual([...other.grid._multiKeys], ['x1'], 'another group is left alone');
+});
+
+test('selectionGroup: one grid alone deletes through its own dialog', () => {
+    const {context} = createGrid();
+    const a = groupGrid(context, 'solo', ['d1', 'd2']);
+    a.grid._onRowCheck('d1', {});
+    a.grid._deleteSelected();
+    assert.deepEqual(JSON.parse(JSON.stringify(a.deleted)), [['ask', ['d1']]]);
+});

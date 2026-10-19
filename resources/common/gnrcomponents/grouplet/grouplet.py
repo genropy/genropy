@@ -1189,6 +1189,7 @@ class GroupletGridHandler(BaseComponent):
                         defaultRow=None,
                         rowTemplate=None,
                         selectionmenu=None, rowCheckbox=False,
+                        selectionGroup=None,
                         counterField=None,
                         formulas=None, totals=None,
                         grouplet_kwargs=None,
@@ -1250,8 +1251,11 @@ class GroupletGridHandler(BaseComponent):
         else:
             rowTemplate = None
         # actions on several selected rows: rows are selectable in template
-        # mode; delete is preset whenever rows can be deleted
-        if not rowTemplate or selectionmenu is False:
+        # mode, cards and editable rows by their checkboxes; delete is preset
+        # whenever rows can be deleted
+        selectable = bool(rowTemplate or rowCheckbox) \
+            and layout not in ('tabs', 'vtabs')
+        if not selectable or selectionmenu is False:
             selectionmenu = {}
         elif selectionmenu is None:
             selectionmenu = {'delete': True} if delitem else {}
@@ -1351,7 +1355,7 @@ class GroupletGridHandler(BaseComponent):
             counterField=counterField,
             formulas=formulas, totals=totals,
             rowTemplate=rowTemplate, selectionmenu=selectionmenu,
-            rowCheckbox=rowCheckbox,
+            rowCheckbox=rowCheckbox, selectionGroup=selectionGroup,
             resolved_drag_code=resolved_drag_code,
             loaderrpc=self.gr_getGroupletGridTemplate,
             mapLoaderrpc=self.gr_getGroupletGridTemplateMap)
@@ -1408,7 +1412,7 @@ class GroupletGridHandler(BaseComponent):
             titleTemplate, sortField, sortStore,
             defaultRow, minRows, maxRows, counterField,
             formulas, totals, rowTemplate, selectionmenu, rowCheckbox,
-            resolved_drag_code,
+            selectionGroup, resolved_drag_code,
             loaderrpc, mapLoaderrpc):
         # Resolve the container via attributeOwnerNode at runtime: a fixed
         # containerNode kwarg would freeze on the template's sourceNode and
@@ -1431,6 +1435,7 @@ class GroupletGridHandler(BaseComponent):
                 rowTemplate: rowTemplate,
                 selectionmenu: selectionmenu,
                 rowCheckbox: rowCheckbox,
+                selectionGroup: selectionGroup,
                 resource: resource,
                 handler: handler,
                 resourceField: resourceField,
@@ -1502,6 +1507,7 @@ class GroupletGridHandler(BaseComponent):
             rowTemplate=rowTemplate,
             selectionmenu=selectionmenu,
             rowCheckbox=rowCheckbox,
+            selectionGroup=selectionGroup,
             dragCode=resolved_drag_code,
             loaderrpc=loaderrpc,
             mapLoaderrpc=mapLoaderrpc)

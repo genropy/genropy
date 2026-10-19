@@ -2069,6 +2069,12 @@ body.drag_started .grouplet_grid_container {
     transform: translateY(-50%);
     z-index: 2;
 }
+/* a card's box sits by its first line, not halfway down a tall card */
+.grouplet_grid--checkbox:not(.grouplet_grid--templated):not(.grouplet_grid--struct)
+    > .grouplet_grid_body > .grouplet_grid_row > .grouplet_grid_row_check {
+    top: 1.1em;
+    transform: none;
+}
 /* Several selected rows (`selectionmenu`): a bar below the rows, above
    the totals, with the delete as a button and the other actions in a kebab. */
 .grouplet_grid_selection {
