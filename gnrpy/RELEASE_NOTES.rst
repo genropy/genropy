@@ -1,3 +1,16 @@
+Release 26.10.19
+================
+
+Hotfix release:
+
+- localization: the core localization.xml is now shipped inside the
+  gnr package, so installations from a distribution (pip install
+  genropy) get the core translations again (#1417, #1442)
+- mdeditor: loading a record no longer marks the form as changed
+  (#1416, #1423)
+- Python 3.11 is deprecated: a FutureWarning is now emitted at import,
+  and support will be dropped in the 2027Q1 release (#1467, #1481)
+
 Release 26.09.29
 ================
 
