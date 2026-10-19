@@ -2310,9 +2310,25 @@ gnr.GroupletGridController = class GroupletGridController {
         if (this._isTabsLayout()) this._pendingActivate = newKey;
         this._pendingFocus = newKey;
         if (this.phantom) this._freshRows[newKey] = true;
-        const merged = objectUpdate({}, this.defaultRow || {});
+        const merged = this.defaultRowValues();
         objectUpdate(merged, defaults || {});
         this.dataStore.addRow(newKey, merged, position);
+    }
+
+    defaultRowValues() {
+        // A `=path` value is read when the row is made, from the grid's
+        // datapath (`=#FORM.common_values.mainProducer`), not frozen at build.
+        const raw = this.defaultRow || {};
+        const out = {};
+        Object.keys(raw).forEach((k) => {
+            let v = raw[k];
+            if (typeof v === 'string' && v.charAt(0) === '=' && v.charAt(1) !== '=') {
+                v = this.sourceNode.getRelativeData(v.slice(1));
+                if (v instanceof gnr.GnrBag) v = v.deepCopy();
+            }
+            out[k] = v;
+        });
+        return out;
     }
 
     _askAndDeleteItem(pkey) {
@@ -2393,7 +2409,8 @@ gnr.GroupletGridController = class GroupletGridController {
             genro.setData(path, new gnr.GnrBag());
             bag = genro.getData(path);
         }
-        const defaults = this.defaultRow || {};
+        const defaults = this.defaultRowValues();
+        this._blankDefaults = objectUpdate(this._blankDefaults || {}, {[path]: defaults});
         const fields = bag.getNodes().map((n) => n.label);
         Object.keys(defaults).forEach((k) => {
             if (fields.indexOf(k) < 0) fields.push(k);
@@ -2432,14 +2449,15 @@ gnr.GroupletGridController = class GroupletGridController {
     }
 
     _phantomHasValues() {
-        return this._hasEnteredValues(genro.getData(this.phantomPath));
+        return this._hasEnteredValues(genro.getData(this.phantomPath),
+                                      (this._blankDefaults || {})[this.phantomPath]);
     }
 
     _hasEnteredValues(rowBag, baseline) {
         // Computed columns are not an entry: in struct mode only the editable
         // cells count, in card mode every field but formulas and the counter.
         if (!(rowBag instanceof gnr.GnrBag)) return false;
-        const defaults = baseline || this.defaultRow || {};
+        const defaults = baseline || this.defaultRowValues();
         const editable = this.structAdapter
             ? this.structAdapter.cells.filter((c) => c.edit).map((c) => c.field)
             : null;
@@ -2569,7 +2587,7 @@ gnr.GroupletGridController = class GroupletGridController {
         const bag = this._resetBlankRow(this.entryPath, true);
         bag.subscribe(this._entrySubscriberId(),
                       {any: () => this._calcEntryFormulas()});
-        this._entryBaseline = objectUpdate({}, this.defaultRow || {});
+        this._entryBaseline = objectUpdate({}, (this._blankDefaults || {})[this.entryPath]);
         const kept = gnr.GroupletGridController._keptValues(bag);
         Object.keys(kept).forEach((path) => {
             const parts = path.split('.');
@@ -2587,6 +2605,19 @@ gnr.GroupletGridController = class GroupletGridController {
         }
         this._syncKept();
         this._validateEntryRequired();
+    }
+
+    _refreshEntryDefaults() {
+        // A blank entry row picks up a `=path` default changed since it was
+        // cleared; one being typed in or edited keeps what it shows.
+        if (this._editingKey || this._phantomResetting) return;
+        const bag = genro.getData(this.entryPath);
+        const shown = (this._blankDefaults || {})[this.entryPath] || {};
+        if (this._hasEnteredValues(bag, this._entryBaseline)) return;
+        const now = this.defaultRowValues();
+        if (Object.keys(now).some((k) => !(now[k] instanceof gnr.GnrBag) && now[k] !== shown[k])) {
+            this._resetEntry();
+        }
     }
 
     _validateEntryRequired() {
@@ -3131,8 +3162,7 @@ gnr.GroupletGridController = class GroupletGridController {
             if (this.maxRows && this._rowCount() >= this.maxRows) return;
             const key = 'r_' + genro.time36Id();
             if (this.phantom) this._freshRows[key] = true;
-            this.dataStore.addRow(key, objectUpdate(
-                objectUpdate({}, this.defaultRow || {}), values));
+            this.dataStore.addRow(key, objectUpdate(this.defaultRowValues(), values));
             last = key;
             added += 1;
         });
@@ -4039,6 +4069,7 @@ gnr.GroupletGridEntryTile = class GroupletGridEntryTile extends gnr.GroupletGrid
                         (e) => c._onEntryKeydown(e), true);
                     tile.tileDom.addEventListener('focusin', (e) => {
                         c._entryWidget = dijit.getEnclosingWidget(e.target);
+                        c._refreshEntryDefaults();
                     });
                     tile.tileDom.addEventListener('paste', (e) => c._onBlankPaste(e, tile));
                 }
