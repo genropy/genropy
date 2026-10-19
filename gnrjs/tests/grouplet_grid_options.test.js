@@ -262,6 +262,25 @@ test('selectionGroup: grids sharing a code expose one selection, deleted with on
     assert.deepEqual([...other.grid._multiKeys], ['x1'], 'another group is left alone');
 });
 
+test('selectionGroup: every grid of the group is marked selecting while one holds a selection', () => {
+    const {context} = createGrid();
+    const a = groupGrid(context, 'marks', ['d1']);
+    const b = groupGrid(context, 'marks', ['d2']);
+    const other = groupGrid(context, 'elsewhere', ['x1']);
+    const marked = (g) => {
+        const classes = new Set();
+        const dom = {classList: {toggle: (c, on) => (on ? classes.add(c) : classes.delete(c)), remove() {}},
+                     querySelectorAll: () => []};
+        g.grid._containerDom = () => dom;
+        return () => classes.has('grouplet_grid--selecting');
+    };
+    const [isA, isB, isOther] = [marked(a), marked(b), marked(other)];
+    a.grid._onRowCheck('d1', {});
+    assert.deepEqual([isA(), isB(), isOther()], [true, true, false]);
+    a.grid._onRowCheck('d1', {});
+    assert.deepEqual([isA(), isB()], [false, false]);
+});
+
 test('selectionGroup: one grid alone deletes through its own dialog', () => {
     const {context} = createGrid();
     const a = groupGrid(context, 'solo', ['d1', 'd2']);

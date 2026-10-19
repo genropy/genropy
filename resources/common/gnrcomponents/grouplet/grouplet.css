@@ -787,6 +787,13 @@
     user-select: none;
 }
 
+/* a card's handle sits by its first line, not halfway down a tall card */
+.grouplet_grid:not(.grouplet_grid--templated, .grouplet_grid--struct, .grouplet_grid--tabs)
+    > .grouplet_grid_body > .grouplet_grid_row > .grouplet_grid_row_drag {
+    top: 0.6em;
+    transform: none;
+}
+
 /* Per-row delete button — opt-in via `delitem=True`: a light trash at
    the top-right corner of the card, red on hover. Always visible (no
    hover gate). Click publishes {action:'delete', rowKey} on the action
@@ -2075,6 +2082,37 @@ body.drag_started .grouplet_grid_container {
     top: 1.1em;
     transform: none;
 }
+/* one gutter: a card's handle under its box */
+.grouplet_grid--checkbox:not(.grouplet_grid--templated, .grouplet_grid--struct)
+    > .grouplet_grid_body > .grouplet_grid_row {
+    padding-left: calc(1.2em + 13px);
+}
+.grouplet_grid--checkbox:not(.grouplet_grid--templated, .grouplet_grid--struct)
+    > .grouplet_grid_body > .grouplet_grid_row > .grouplet_grid_row_drag {
+    top: calc(1.1em + 17px);
+    left: calc(0.6em + 6.5px - 0.75em);
+    transform: none;
+}
+/* the gutter shows on the innermost row hovered or focused; the boxes stay
+   while the group holds a selection */
+.grouplet_grid--checkbox > .grouplet_grid_body > .grouplet_grid_row
+    > :is(.grouplet_grid_row_check, .grouplet_grid_row_drag) {
+    opacity: 0;
+    transition: opacity 160ms ease;
+}
+.grouplet_grid--checkbox > .grouplet_grid_body
+    > .grouplet_grid_row:is(:hover:not(:has(.grouplet_grid_row:hover)),
+                            :focus-within:not(:has(.grouplet_grid_row:focus-within)))
+    > :is(.grouplet_grid_row_check, .grouplet_grid_row_drag),
+.grouplet_grid--selecting > .grouplet_grid_body > .grouplet_grid_row > .grouplet_grid_row_check {
+    opacity: 1;
+}
+@media (hover: none) {
+    .grouplet_grid--checkbox > .grouplet_grid_body > .grouplet_grid_row
+        > :is(.grouplet_grid_row_check, .grouplet_grid_row_drag) {
+        opacity: 1;
+    }
+}
 /* Several selected rows (`selectionmenu`): a bar below the rows, above
    the totals, with the delete as a button and the other actions in a kebab. */
 .grouplet_grid_selection {
@@ -2289,6 +2327,11 @@ body.drag_started .grouplet_grid_container {
 /* on the one line, the chevron, the delete and the box sit on its middle */
 .grouplet_grid:not(.grouplet_grid--tabs) > .grouplet_grid_body > .grouplet_grid_row.grouplet_grid_row--collapsed
     > :is(.grouplet_grid_row_collapse, .grouplet_grid_row_delete, .grouplet_grid_row_check) {
+    top: 50%;
+    transform: translateY(-50%);
+}
+.grouplet_grid:not(.grouplet_grid--tabs, .grouplet_grid--checkbox) > .grouplet_grid_body
+    > .grouplet_grid_row.grouplet_grid_row--collapsed > .grouplet_grid_row_drag {
     top: 50%;
     transform: translateY(-50%);
 }

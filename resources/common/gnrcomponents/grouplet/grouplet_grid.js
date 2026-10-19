@@ -3348,7 +3348,13 @@ gnr.GroupletGridController = class GroupletGridController {
     _refreshGroupBars() {
         const grids = this.selectionGroup
             ? gnr.GroupletGridController.groupMembers(this.selectionGroup) : [this];
-        grids.forEach((g) => g._updateSelectionBar());
+        // while the group holds a selection every row shows its checkbox
+        const selecting = grids.some((g) => g._multiKeys && g._multiKeys.length);
+        grids.forEach((g) => {
+            const dom = g._containerDom();
+            if (dom) dom.classList.toggle('grouplet_grid--selecting', selecting);
+            g._updateSelectionBar();
+        });
     }
 
     static _groupSet(code) {
@@ -4188,6 +4194,9 @@ gnr.GroupletGridTile = class GroupletGridTile {
         box.setAttribute('aria-label', _T('!!Select row'));
         box.checked = !!(c._multiKeys && c._multiKeys.includes(pkey));
         box.addEventListener('click', (e) => c._onRowCheck(pkey, e));
+        box.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') c._onMultiKeydown(e);
+        });
         tileDom.insertBefore(box, tileDom.firstChild);
     }
 
