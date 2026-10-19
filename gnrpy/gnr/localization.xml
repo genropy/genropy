@@ -440,6 +440,7 @@
 <en_new_row base="New row" it="Nuova riga"></en_new_row>
 <en_collapse base="Collapse" it="Comprimi"></en_collapse>
 <en_expand base="Expand" it="Espandi"></en_expand>
+<en_correct_the_invalid_field base="Correct the invalid field" it="Correggi il campo non valido"></en_correct_the_invalid_field>
 <en_fill_in_the_fields_above_then_press_enter_or_click_to_add_the_row_ base="Fill in the fields above, then press Enter or click ↵ to add the row." it="Compila i campi qui sopra, poi premi Invio o fai clic su ↵ per aggiungere la riga."></en_fill_in_the_fields_above_then_press_enter_or_click_to_add_the_row_></grouplet_grid></grouplet>
 <attachmanager><attachmanager path="resources/common/gnrcomponents/attachmanager/attachmanager.py" ext="py"><en_filepath fr="Chemin Du Fichier" de="Dateipfad" en="Filepath" it="Filepath" base="Filepath"></en_filepath>
 <en_copied_into_clipboard base="Copied into clipboard"></en_copied_into_clipboard>

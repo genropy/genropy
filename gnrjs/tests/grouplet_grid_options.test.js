@@ -305,3 +305,103 @@ test('collapsible: closed cards fold to their summary, the state survives a re-r
     const plainGrid = createGrid();
     assert.equal(plainGrid.controller.isCollapsed('r_a'), false, 'not collapsible: never folded');
 });
+
+function pendingForm(context) {
+    const form = Object.create(context.gnr.GnrFrmHandler.prototype);
+    const calls = [];
+    Object.assign(form, {
+        gridEditors: {},
+        checkPendingGridEditor: () => null,
+        updateStatus: () => calls.push('status'),
+        publish: (command, kw) => calls.push(command + ':' + kw.command),
+        opStatus: 'saving',
+        autoSave: true
+    });
+    return {form, calls};
+}
+
+function fakeEditor(calls, {pending = true, ok = true, focused = false} = {}) {
+    const editor = {
+        values: pending,
+        isDestroyed: () => false,
+        isPending: () => editor.values || focused,
+        hasPendingChanges: () => editor.values,
+        prepareCommit: () => calls.push('blur'),
+        commitPending: () => {
+            calls.push('commit');
+            if (ok) editor.values = false;
+            return ok;
+        }
+    };
+    return editor;
+}
+
+test('form: a pending entry is a change, and save commits it before saving once', async () => {
+    const {context} = createGrid();
+    const {form, calls} = pendingForm(context);
+    assert.equal(form.registeredGridsStatus(), null);
+    const editor = fakeEditor(calls, {focused: true});
+    form.registerPendingEditor('grid', editor);
+    assert.equal(form.registeredGridsStatus(), 'changed');
+    const result = form.save();
+    assert.ok(result instanceof context.dojo.Deferred, 'deferred while the entry commits');
+    assert.deepEqual(calls, ['blur']);
+    await tick();
+    assert.deepEqual(calls, ['blur', 'commit', 'status'], 'the focused entry row does not commit again');
+    assert.equal(form.registeredGridsStatus(), null);
+    form.unregisterPendingEditor('grid');
+    assert.equal(form.livePendingEditors().length, 0);
+});
+
+test('form: an entry that refuses stops dismiss, nothing pending dismisses at once', async () => {
+    const {context} = createGrid();
+    const {form, calls} = pendingForm(context);
+    form.registerPendingEditor('grid', fakeEditor(calls, {ok: false}));
+    const result = form.dismiss();
+    await tick();
+    assert.equal(result.result, false);
+    assert.ok(!calls.includes('navigationEvent:dismiss'));
+    form.unregisterPendingEditor('grid');
+    form.dismiss();
+    assert.ok(calls.includes('navigationEvent:dismiss'));
+});
+
+test('entry row: pending values, a changed edit or a draft set aside; commit adds them', () => {
+    const s = createGrid({controller: {entry: true, defaultRow: {qty: 1},
+                                       entryTile: {domNode: () => null, tileContent: {walk: () => undefined}},
+                                       _announcer: {textContent: ''}}});
+    const c = s.controller;
+    c._resetEntry();
+    assert.equal(c.hasPendingEntry(), false, 'defaults are no entry');
+    s.data.setItem('ws.entry.item', 'Milk');
+    assert.equal(c.hasPendingEntry(), true);
+    assert.equal(c.commitPendingEntry(), true);
+    assert.deepEqual([...s.lines.keys()], ['r_k1']);
+    assert.equal(c.hasPendingEntry(), false);
+    c.rowTemplate = '$item';
+    c.tiles = {r_k1: {domNode: () => null, flash() {}}};
+    s.data.setItem('ws.entry.item', 'Bread');
+    c._editRowInEntry('r_k1');
+    assert.equal(c.hasPendingEntry(), true, 'the draft set aside is pending');
+    s.data.setItem('ws.entry.qty', 4);
+    assert.equal(c.commitPendingEntry(), true);
+    assert.equal(s.lines.getItem('r_k1.qty'), 4, 'the edit is saved');
+    assert.deepEqual([...s.lines.keys()].map((k) => s.lines.getItem(k + '.item')), ['Milk', 'Bread'],
+                     'and the draft added');
+});
+
+test('entry row: an invalid field stops the entry with its message', () => {
+    const s = createGrid({controller: {entry: true, _announcer: {textContent: ''}}});
+    const focused = [];
+    const field = {widget: {focus: () => focused.push('qty')}, attr: {},
+                   hasValidationError: () => true, getValidationError: () => 'min',
+                   getElementLabel: () => 'Qty ', _resolveErrorMessage: () => 'Too small'};
+    s.controller.entryTile = {domNode: () => null, tileContent: {walk: (cb) => cb(field)}};
+    s.controller._resetEntry();
+    s.data.setItem('ws.entry.qty', -1);
+    assert.equal(s.controller._addEntry(), false);
+    assert.equal(s.lines.len(), 0);
+    assert.deepEqual(focused, ['qty']);
+    assert.deepEqual(JSON.parse(JSON.stringify(s.published.at(-1))),
+                     ['floating_message', {message: 'Qty: Too small', sound: '$onerror', messageType: 'error'}]);
+});

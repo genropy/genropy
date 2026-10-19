@@ -406,6 +406,57 @@ dojo.declare("gnr.GnrFrmHandler", null, {
     registerGridEditor:function(nodeId,gridEditor){
         this.gridEditors[nodeId] = gridEditor;
     },
+
+    // An editor holding typed values outside the record (a grid entry row)
+    // registers here: {isPending, hasPendingChanges, prepareCommit,
+    // commitPending, isDestroyed}. Its pending values count as a change, and
+    // save/dismiss commit them first, or stop if one refuses.
+    registerPendingEditor:function(key,editor){
+        this.pendingEditors = this.pendingEditors || {};
+        this.pendingEditors[key] = editor;
+    },
+
+    unregisterPendingEditor:function(key){
+        if(this.pendingEditors){
+            delete this.pendingEditors[key];
+        }
+    },
+
+    livePendingEditors:function(){
+        var editors = this.pendingEditors || {};
+        return Object.keys(editors).map(k => editors[k]).filter(e => !e.isDestroyed());
+    },
+
+    commitPendingEditors:function(action,editors){
+        // the action runs once its editors are committed: an entry row that
+        // keeps the focus is pending again, and must not commit in a loop
+        var busy = this._committingEditors ? [] : (editors || this.livePendingEditors()).filter(e => e.isPending());
+        if(!busy.length){
+            return action();
+        }
+        if(this._pendingCommit){
+            return this._pendingCommit;
+        }
+        var deferred = new dojo.Deferred();
+        this._pendingCommit = deferred;
+        busy.forEach(e => e.prepareCommit());
+        var that = this;
+        // a tick: a field blurred above writes its value before the commit
+        setTimeout(function(){
+            that._pendingCommit = null;
+            try{
+                var committed = busy.every(e => e.commitPending());
+                that.updateStatus();
+                that._committingEditors = committed;
+                deferred.callback(committed ? action() : false);
+            }catch(error){
+                deferred.errback(error);
+            }finally{
+                that._committingEditors = false;
+            }
+        },0);
+        return deferred;
+    },
     
     unregisterChild:function(sourceNode){
         if(this._register[sourceNode._id]){
@@ -537,7 +588,7 @@ dojo.declare("gnr.GnrFrmHandler", null, {
     },
 
     dismiss:function(modifiers){
-        this.publish('navigationEvent',{'command':'dismiss',modifiers:modifiers});
+        return this.commitPendingEditors(() => this.publish('navigationEvent',{'command':'dismiss',modifiers:modifiers}));
     },
     resetChanges: function() {
         var formData = this.getFormData();
@@ -1444,6 +1495,9 @@ dojo.declare("gnr.GnrFrmHandler", null, {
                                     });
             return;
         }
+        if(!this._committingEditors && this.livePendingEditors().some(e => e.isPending())){
+            return this.commitPendingEditors(() => this.save(kw,modifiers));
+        }
         kw = kw || {};
         var always;
         if (typeof(kw)=='object'){
@@ -2174,6 +2228,9 @@ dojo.declare("gnr.GnrFrmHandler", null, {
             }else if(gridstatus.indexOf('changed')>=0){
                 status = 'changed';
             }
+        }
+        if(!status && this.livePendingEditors().some(e => e.hasPendingChanges())){
+            status = 'changed';
         }
         return status;
     },

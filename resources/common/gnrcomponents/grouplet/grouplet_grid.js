@@ -926,6 +926,8 @@ gnr.GroupletGridController = class GroupletGridController {
         Object.keys(this.tiles).forEach((pkey) => this._destroyTile(pkey));
         this._unmountPhantom();
         this._unmountEntry();
+        if (this._pendingForm) this._pendingForm.unregisterPendingEditor(this.nodeId);
+        gnr.GroupletGridController._entryGrids.delete(this);
         const phantomBag = genro.getData(this.phantomPath);
         if (phantomBag instanceof gnr.GnrBag) {
             phantomBag.unsubscribe(this._phantomSubscriberId());
@@ -1854,6 +1856,11 @@ gnr.GroupletGridController = class GroupletGridController {
     }
 
     setLayout(newLayout) {
+        if (newLayout === this.layout) return;
+        return this.withPendingEntries(() => this._setLayout(newLayout));
+    }
+
+    _setLayout(newLayout) {
         if (newLayout !== 'cards'
             && newLayout !== 'tabs'
             && newLayout !== 'vtabs') {
@@ -2020,7 +2027,7 @@ gnr.GroupletGridController = class GroupletGridController {
             chip.appendChild(closeBtn);
         }
         chip.addEventListener('click', function() {
-            that._activateTab(pkey);
+            that.activateTab(pkey);
         });
         // Insert before the next mounted sibling chip (tab order).
         let inserted = false;
@@ -2057,6 +2064,12 @@ gnr.GroupletGridController = class GroupletGridController {
             return _T(this.emptyTitle);
         }
         return String(v);
+    }
+
+    activateTab(pkey) {
+        // leaving a tab first commits the entry rows inside it
+        if (pkey === this.activePkey) return this._activateTab(pkey);
+        return this.withPendingEntries(() => this._activateTab(pkey));
     }
 
     _activateTab(pkey) {
@@ -2788,6 +2801,7 @@ gnr.GroupletGridController = class GroupletGridController {
         if (this.entryTile) return;
         this.entryTile = new gnr.GroupletGridEntryTile(this);
         this.entryTile.mount();
+        this._registerPendingEditor();
         this._mountSelectionBar();
         this._syncChecks();
         this._wireChromeClicks();
@@ -2825,8 +2839,10 @@ gnr.GroupletGridController = class GroupletGridController {
         // Kept fields survive (Enter, Esc, record load alike) and act as
         // defaults for the next row: alone, they are no entry.
         const bag = this._resetBlankRow(this.entryPath, true);
-        bag.subscribe(this._entrySubscriberId(),
-                      {any: () => this._calcEntryFormulas()});
+        bag.subscribe(this._entrySubscriberId(), {any: () => {
+            this._calcEntryFormulas();
+            if (!this._phantomResetting) this._updateFormStatus();
+        }});
         this._entryBaseline = objectUpdate({}, (this._blankDefaults || {})[this.entryPath]);
         const kept = gnr.GroupletGridController._keptValues(bag);
         Object.keys(kept).forEach((path) => {
@@ -2845,6 +2861,141 @@ gnr.GroupletGridController = class GroupletGridController {
         }
         this._syncKept();
         this._validateEntryRequired();
+        this._updateFormStatus();
+    }
+
+    // ====================================================================
+    //  Entry row and its form — a pending entry is a change of the form;
+    //  save, dismiss and switching tab or layout commit it first
+    // ====================================================================
+
+    _registerPendingEditor() {
+        gnr.GroupletGridController._entryGrids.add(this);
+        const form = this.sourceNode.getFormHandler();
+        if (!form || !form.registerPendingEditor || this._pendingForm === form) return;
+        this._pendingForm = form;
+        form.registerPendingEditor(this.nodeId, this);
+    }
+
+    _updateFormStatus() {
+        // once per burst: loading a row in the entry row sets every field
+        if (!this._pendingForm || this._formStatusScheduled) return;
+        this._formStatusScheduled = true;
+        setTimeout(() => {
+            this._formStatusScheduled = false;
+            const form = this._pendingForm;
+            if (!this._destroyed && form.opStatus !== 'loading') form.updateStatus();
+        }, 0);
+    }
+
+    hasPendingEntry() {
+        // values typed in the entry row and not added yet; while a row is
+        // edited there, its changes or the new row set aside meanwhile
+        if (!this.entryTile || this._destroyed) return false;
+        if (this._editingKey) {
+            return this._entryChanged() || this._hasEnteredValues(this._entryDraft, this._entryBaseline);
+        }
+        return this._hasEnteredValues(genro.getData(this.entryPath), this._entryBaseline);
+    }
+
+    commitPendingEntry() {
+        // true when nothing is left pending; false when a value stopped it,
+        // the field flagged and focused
+        if (this._editingKey && !this._entryChanged()) this._finishEntryEdit();
+        // at most the edited row, then the new row set aside meanwhile
+        for (let i = 0; i < 3 && this.hasPendingEntry(); i++) {
+            if (!this._addEntry()) return false;
+        }
+        return !this.hasPendingEntry();
+    }
+
+    _entryFocusedWidget() {
+        // The field with the focus in the entry row or in a popup of its
+        // fields; or the one the focus has just left, which dijit blurs (and
+        // so writes) up to 100ms later when a click elsewhere swallowed the
+        // mousedown.
+        const active = document.activeElement;
+        const dom = this.entryTile && this.entryTile.domNode();
+        const widget = active && dijit.getEnclosingWidget(active);
+        if (dom && active && dom.contains(active)) return widget;
+        const owner = widget && widget.sourceNode && widget.sourceNode.attributeOwnerNode('_gg_root');
+        if (owner && owner.gridController === this) return widget;
+        const last = this._entryWidget;
+        return (last && last._focused && dom && last.domNode && dom.contains(last.domNode)) ? last : null;
+    }
+
+    // the form's pending editor protocol (genro_frm registerPendingEditor)
+    isDestroyed() {
+        return this._destroyed;
+    }
+
+    isPending() {
+        return !!this._editingKey || this.hasPendingEntry() || !!this._entryFocusedWidget();
+    }
+
+    hasPendingChanges() {
+        return this.hasPendingEntry();
+    }
+
+    prepareCommit() {
+        // a field writes its value on blur
+        const widget = this._entryFocusedWidget();
+        if (widget && widget._onBlur) widget._onBlur();
+    }
+
+    commitPending() {
+        return this.commitPendingEntry();
+    }
+
+    withPendingEntries(action) {
+        // Runs action once the entry rows of this grid and of the grids
+        // nested in it are committed; not at all if one refuses.
+        const form = this.sourceNode.getFormHandler();
+        if (form && form.opStatus === 'loading') return action();
+        const dom = this._containerDom();
+        const grids = Array.from(gnr.GroupletGridController._entryGrids).filter((g) => (
+            !g._destroyed && (g === this || dom.contains(g._containerDom()))));
+        if (form && form.commitPendingEditors) return form.commitPendingEditors(action, grids);
+        const busy = grids.filter((g) => g.isPending());
+        if (!busy.length) return action();
+        busy.forEach((g) => g.prepareCommit());
+        setTimeout(() => {
+            if (busy.every((g) => g.commitPendingEntry())) action();
+        }, 0);
+    }
+
+    focusEntry() {
+        this._focusEntry();
+    }
+
+    commitEntry() {
+        this._commitEntry();
+    }
+
+    wireEntryDropTarget(dom) {
+        // a popup of the entry row's fields takes a drop as the row does
+        if (this.dnd && dom) this.dnd.wireAppendTarget(dom);
+    }
+
+    attachEntryPopup(dom) {
+        // A popup of entry fields (a tooltipPane): drop target, Enter adds
+        // the row and Esc goes back to it, closing the popup in both cases.
+        if (!dom) return;
+        this.wireEntryDropTarget(dom);
+        dom.addEventListener('keydown', (e) => {
+            const field = dijit.getEnclosingWidget(e.target);
+            if (field && field._isShowingNow) return;
+            if (e.key !== 'Escape' && (e.key !== 'Enter' || e.shiftKey || e.isComposing
+                    || e.target.tagName === 'TEXTAREA')) return;
+            e.preventDefault();
+            e.stopPropagation();
+            if (field && field._onBlur) field._onBlur();
+            const dialog = dom.closest('.dijitTooltipDialog');
+            const dialogWidget = dialog && dijit.getEnclosingWidget(dialog);
+            if (dialogWidget && dialogWidget.onCancel) dialogWidget.onCancel();
+            if (e.key === 'Enter') this._commitEntry();
+            else this._focusEntry();
+        }, true);
     }
 
     _refreshEntryDefaults() {
@@ -2988,6 +3139,11 @@ gnr.GroupletGridController = class GroupletGridController {
         const missing = this._entryMissingField();
         if (missing) {
             this._flagMissingField(missing);
+            return false;
+        }
+        const invalid = this._entryInvalidField();
+        if (invalid) {
+            this._flagInvalidField(invalid);
             return false;
         }
         if (editing) {
@@ -3390,6 +3546,21 @@ gnr.GroupletGridController = class GroupletGridController {
         }, 'static');
     }
 
+    _entryInvalidField() {
+        return this.entryTile.tileContent.walk((n) => (
+            (n.widget && n.hasValidationError && n.hasValidationError()) ? n : undefined
+        ), 'static');
+    }
+
+    _flagInvalidField(node) {
+        const error = node.getValidationError();
+        genro.publish('floating_message', {
+            message: (node.getElementLabel() || '').trim() + ': '
+                + (error ? node._resolveErrorMessage(error) : _T('!!Correct the invalid field')),
+            sound: '$onerror', messageType: 'error'});
+        node.widget.focus();
+    }
+
     _flagMissingField(node) {
         // a blank field shows no tooltip: the error is published
         const result = this._validateEntryField(node);
@@ -3771,6 +3942,7 @@ gnr.GroupletGridController = class GroupletGridController {
 
 gnr.GroupletGridController._selectionGroups = {};
 gnr.GroupletGridController._collapsedState = {};
+gnr.GroupletGridController._entryGrids = new Set();
 
 gnr.GroupletGridController._FORMULA_WORDS = new Set([
     'Math', 'Number', 'String', 'Date', 'JSON', 'parseInt', 'parseFloat',
