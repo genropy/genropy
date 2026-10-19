@@ -280,6 +280,32 @@ dojo.declare("gnr.GnrDevHandler", null, {
         return tbl;
     },
 
+    formlet:function(node, cols, attr) {
+        attr = objectUpdate({columns:cols || 1}, attr);
+        attr._class = attr._class? 'formlet '+attr._class : 'formlet';
+        var grid = node._('gridbox', attr);
+        grid.addField = function(tag, kw) {
+            objectExtract(kw,'td_*');
+            if(kw.lbl){
+                kw.lbl = _T(kw.lbl);
+            }
+            if(kw.label){
+                kw.label = _T(kw.label);
+            }
+            if(kw.hidden){
+                kw.box_hidden = kw.hidden;
+            }
+            var default_value = objectPop(kw,'default_value');
+            var res = this._(tag, kw);
+            var resNode = res.getParentNode();
+            if(default_value && resNode.attr.value){
+                resNode.setRelativeData(resNode.attr.value,default_value);
+            }
+            return res;
+        };
+        return grid;
+    },
+
     relationExplorer:function(table, title, rect) {
         rect = rect || {'top':'10px','right':'10px','height':'300px','width':'200px'};
         var code = table.replace('.', '_');

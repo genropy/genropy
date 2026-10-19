@@ -1382,6 +1382,7 @@ class GnrWebPage(GnrBaseWebPage):
         kwargs['websockets_endpoint'] = self.async_endpoint if self.wsk_enabled else None
         kwargs['dojoXhrPatch'] = self.application.experimentalValue(
             'page', 'dojo_xhr_patch') or ''
+        kwargs['useFormlets'] = boolean(self.application.config['gui?use_formlets']) is True
         self.getPwaIntegration(arg_dict)
         self.getSquareLogoUrl(arg_dict)
         self.getCoverLogoUrl(arg_dict)
