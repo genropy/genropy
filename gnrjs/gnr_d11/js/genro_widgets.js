@@ -1653,9 +1653,43 @@ dojo.declare("gnr.widgets.Dialog", gnr.widgets.baseDojo, {
     },
 
     mixin_autoSize:function(){
-        if(this.containerNode.firstChild.scrollWidth>this.containerNode.firstChild.clientWidth){
-            this.containerNode.firstChild.style.width = this.containerNode.firstChild.scrollWidth+'px';
+        var fc = this.containerNode.firstChild;
+        if(fc.scrollWidth>fc.clientWidth){
+            fc.style.width = (this._overflowWidth(fc)-dojo._getPadExtents(fc).w)+'px';
         }
+    },
+
+    mixin__overflowWidth:function(node){
+        // scrollWidth stops at the farthest box and drops the right padding and border
+        // of every box between it and node: they are added back here
+        if(node.scrollWidth<=node.clientWidth){
+            return node.scrollWidth;
+        }
+        var farthest = null;
+        var right = -Infinity;
+        var visit = function(parent){
+            dojo.forEach(parent.children,function(n){
+                var r = n.getBoundingClientRect();
+                if(r.width && r.right>right){
+                    right = r.right;
+                    farthest = n;
+                }
+                if(window.getComputedStyle(n).overflowX=='visible'){
+                    visit(n);
+                }
+            });
+        };
+        visit(node);
+        if(!farthest){
+            return node.scrollWidth;
+        }
+        var width = right-node.getBoundingClientRect().left-node.clientLeft;
+        for(var p=farthest.parentNode; p && p!==node; p=p.parentNode){
+            var cs = window.getComputedStyle(p);
+            width += parseFloat(cs.paddingRight)+parseFloat(cs.borderRightWidth);
+        }
+        width += parseFloat(window.getComputedStyle(node).paddingRight);
+        return Math.max(Math.ceil(width),node.scrollWidth);
     },
 
     mixin_fitToContent:function(){
@@ -1720,7 +1754,7 @@ dojo.declare("gnr.widgets.Dialog", gnr.widgets.baseDojo, {
         });
         centerNode.parentNode.appendChild(probe);
         var contentHeight = Math.ceil(probe.getBoundingClientRect().height);
-        var contentWidth = probe.scrollWidth;
+        var contentWidth = this._overflowWidth(probe);
         probe.parentNode.removeChild(probe);
         // summed from the parts, as containerNodeResize splits them: before the first
         // layout the frame is collapsed and the dialog height says nothing
