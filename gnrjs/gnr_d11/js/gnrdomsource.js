@@ -2112,19 +2112,37 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         if(domNode._gnrErrorTooltipBound){
             return;
         }
-        domNode.addEventListener('mouseenter', function(){
-            if(domNode._gnrErrorText){
-                dijit.showTooltip(
-                    '<span class="gnrErrorTooltip">' + domNode._gnrErrorText + '</span>',
-                    domNode
-                );
+        var that = this;
+        var showError = function(){
+            if(!domNode._gnrErrorText){
+                return;
             }
+            if(!dijit._masterTT){
+                dijit._masterTT = new dijit._MasterTooltip();
+            }
+            // the master tooltip is shared: only the error tooltip enters slower
+            var fadeIn = dijit._masterTT.fadeIn;
+            var duration = fadeIn.duration;
+            fadeIn.duration = that._errorTooltipFade;
+            dijit.showTooltip(
+                '<span class="gnrErrorTooltip">' + domNode._gnrErrorText + '</span>',
+                domNode
+            );
+            fadeIn.duration = duration;
+        };
+        domNode.addEventListener('mouseenter', function(){
+            clearTimeout(domNode._gnrErrorTooltipTimer);
+            domNode._gnrErrorTooltipTimer = setTimeout(showError, that._errorTooltipDelay);
         });
         domNode.addEventListener('mouseleave', function(){
+            clearTimeout(domNode._gnrErrorTooltipTimer);
             dijit.hideTooltip(domNode);
         });
         domNode._gnrErrorTooltipBound = true;
     },
+
+    _errorTooltipDelay: 500,
+    _errorTooltipFade: 400,
 
     _errorFallbacks: {
         'notnull':  '!!Required field',
