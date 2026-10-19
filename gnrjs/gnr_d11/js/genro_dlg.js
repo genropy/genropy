@@ -650,7 +650,7 @@ dojo.declare("gnr.GnrDlgHandler", null, {
             promptkw.widget = objectPop(promptkw,'fields');
         }
         if(!doAsk){
-            if(default_result && objectNotEmpty(default_result)){
+            if(objectNotEmpty(default_result)){
                 parameters._askResult = default_result;
             }
             funcApply(cb, parameters, sourceNode,argnames,argvalues);
@@ -677,6 +677,10 @@ dojo.declare("gnr.GnrDlgHandler", null, {
         var remote = kw.remote;
         var dflt = kw.dflt;
         var cols = objectPop(kw,'cols') || 1;
+        var formlet = objectPop(kw,'formlet');
+        if(isNullOrBlank(formlet)){
+            formlet = genro.startArgs.useFormletsInJsFb;
+        }
         genro.dlg.prompt_counter = genro.dlg.prompt_counter || 0;
         genro.dlg.prompt_counter++;
         var prompt_datapath = kw.datapath || 'gnr.promptDlg.prompt_'+genro.dlg.prompt_counter;
@@ -771,36 +775,37 @@ dojo.declare("gnr.GnrDlgHandler", null, {
             dlg.center._('multiValueEditor',objectUpdate({value:'^.promptvalue',height:'250px',width:'350px'},objectExtract(kw,'wdg_*')));
         }
         else{
-            kwbox.padding = '10px';
-            kwbox.width=dlg_kw.width;
+            kwbox.padding = formlet? null : '10px';
+            kwbox.width = formlet? null : dlg_kw.width;
             var box = dlg.center._('div',kwbox);
             var fb;
 
             var onEnter ='onEnter' in kw? funcCreate(kw.onEnter,null,sourceNode):null;
+            var lblKw = formlet? {} : {lbl_color:'#666',lbl_text_align:'right'};
             if(msg){
-                box._('div',{innerHTML:msg,color:'#666',margin_bottom:'10px',_class:'selectable'});
+                box._('div',{innerHTML:msg,color:'#666',_class:'selectable',
+                             margin_bottom:formlet?null:'10px',
+                             padding:formlet?'0 var(--formlet-padding)':null});
             }
             if(typeof(wdg)=='string'){
-                fb = genro.dev.formbuilder(box,cols,{border_spacing:'1px',onEnter:onEnter,width:'100%',fld_width:'100%'});
-                fb.addField(wdg,objectUpdate({value:'^.promptvalue',lbl:kw.lbl,lbl_color:'#666',lbl_text_align:'right'},objectExtract(kw,'wdg_*')));
+                fb = genro.dev.formbuilder(box,cols,{formlet:formlet,border_spacing:'1px',onEnter:onEnter,width:'100%',fld_width:'100%'});
+                fb.addField(wdg,objectUpdate(objectUpdate({value:'^.promptvalue',lbl:kw.lbl},lblKw),objectExtract(kw,'wdg_*')));
             }else{
-                fb = genro.dev.formbuilder(box,cols,{border_spacing:'4px',width:'100%',onEnter:onEnter,fld_width:'100%',datapath:'.promptvalue'});
+                fb = genro.dev.formbuilder(box,cols,{formlet:formlet,border_spacing:'4px',width:'100%',onEnter:onEnter,fld_width:'100%',datapath:'.promptvalue'});
                 wdg.forEach(function(n){
                     n = objectUpdate({},n);
                     var w = objectPop(n,'wdg','textbox');
-                    fb.addField(w,objectUpdate({lbl_color:'#666',lbl_text_align:'right'},n));
+                    fb.addField(w,objectUpdate(objectUpdate({},lblKw),n));
                 });
             }
         }
         dlg.show_action(function(){
-            //genro.bp(true);
             setTimeout(function(){
                 var inputNodes = dojo.query('input',dlg.getParentNode().widget.domNode) || [];
                 if(inputNodes.length){
                     inputNodes[0].focus();
                 }
             },500);
-            //console.log('dlg',dojo.query(dlg.getParentNode().domNode,'input'));
         });
     },
 
@@ -867,12 +872,13 @@ dojo.declare("gnr.GnrDlgHandler", null, {
         }
         var fields = objectPop(kw,'fields');
         var cols = objectPop(kw,'cols',1);
+        var formlet = objectPop(kw,'formlet');
 
         var tp = node._('tooltipPane',kw);
         if(fields){
             if(fields instanceof Array){
                 tp = tp._('div',{_class:'quickTooltipContainer'});
-                var fb = genro.dev.formbuilder(tp,cols,{border_spacing:'4px',width:'100%',fld_width:'100%'});
+                var fb = genro.dev.formbuilder(tp,cols,{formlet:formlet,border_spacing:'4px',width:'100%',fld_width:'100%'});
                 fields.forEach(function(n){
                     n = objectUpdate({},n);
                     var w = objectPop(n,'wdg','textbox');

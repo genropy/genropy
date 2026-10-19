@@ -90,3 +90,31 @@ class GnrCustomWebPage(object):
         fb.textbox(value='^.beta', lbl='Beta')
         fb.textbox(value='^.gamma', lbl='Gamma', hiddenGroup='alfa')
         fb.textbox(value='^.delta', lbl='Delta')
+
+    def test_6_hidden_group_formlet(self, pane):
+        """formlet: Hidden alfa hides Alfa and, through hiddenGroup='alfa', yyy (colspan 2) and R1 with their labels"""
+        fb = pane.formlet(cols=2)
+        fb.data('.hidden_alfa', True)
+        fb.checkbox(value='^.hidden_alfa', label='Hidden alfa')
+        fb.checkbox(value='^.other', label='Other')
+        fb.textbox(value='^.alfa', lbl='Alfa', hidden='^.hidden_alfa', hiddenGroup='alfa')
+        fb.textbox(value='^.beta', lbl='Beta')
+        fb.textbox(value='^.yyy', lbl='yyy', colspan=2, hiddenGroup='alfa')
+        fb.textbox(value='^.uuu', lbl='UUU')
+        fb.textbox(value='^.r1', lbl='R1', hiddenGroup='alfa')
+        fb.textbox(value='^.r2', lbl='R2')
+
+    def test_7_hidden_group_client_formlet(self, pane):
+        """The same group in a dialog built client side by genro.dev.formbuilder with formlet:true"""
+        pane.button('Open', action="""
+            genro.setData('test_client_group.hidden_alfa', true);
+            var dlg = genro.dlg.quickDialog('Client hiddenGroup', {datapath:'test_client_group', width:'320px'});
+            var box = dlg.center._('div', {padding:'10px'});
+            box._('checkbox', {value:'^.hidden_alfa', label:'Hidden alfa'});
+            var fb = genro.dev.formbuilder(box._('div'), 2, {formlet:true});
+            fb.addField('textbox', {value:'^.alfa', lbl:'Alfa', hidden:'^.hidden_alfa', hiddenGroup:'alfa'});
+            fb.addField('textbox', {value:'^.beta', lbl:'Beta'});
+            fb.addField('textbox', {value:'^.gamma', lbl:'Gamma', hiddenGroup:'alfa'});
+            fb.addField('textbox', {value:'^.delta', lbl:'Delta'});
+            dlg.bottom._('slotBar', {slots:'*,close'})._('button', 'close', {label:'Close', action:function(){dlg.close_action();}});
+            dlg.show_action();""")

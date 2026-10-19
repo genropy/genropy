@@ -369,6 +369,11 @@ dojo.declare("gnr.GnrWdgHandler", null, {
             }
             this.linkSourceNode(newobj, sourceNode, kw);
             newobj.gnr = handler;
+            if(sourceNode && currentHidden){
+                genro.src.onBuiltCall(function(){
+                    sourceNode.setHidden(currentHidden);
+                });
+            }
 
         }
         else {//This is dojo widget

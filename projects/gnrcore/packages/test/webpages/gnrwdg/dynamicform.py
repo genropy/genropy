@@ -5,7 +5,9 @@
 The dynamic form pane is normally laid out by ``formbuilder``, which resolves to
 the HTML table backend unless the site preference ``theme.use_formlets`` or
 ``pageOptions['useFormlet']`` is on. ``df_formlet=True`` asks for the CSS grid
-backend for that pane alone, whatever the global switch says.
+backend for that pane alone, whatever the global switch says. Without
+``df_formlet`` the pane follows the experimental instance flag
+``<experimental><gui use_formlets_in_dynamicform="true"/></experimental>``.
 
 The flag travels through the whole family, so a relation based pane asks for it
 the same way::
@@ -20,7 +22,7 @@ dynamic form table to run.
 from gnr.core.gnrbag import Bag
 
 
-def dynamicFields(paged=False):
+def dynamicFields(paged=False, grouped=False):
     """Field rows as df_getFieldsRows returns them.
 
     Exercised here: mandatory (validate_notnull), validate_range
@@ -44,6 +46,11 @@ def dynamicFields(paged=False):
         dict(code='omaggio', description='Omaggio', data_type='B',
              wdg_tag='checkbox'),
     ]
+    if grouped:
+        # "Garanzia mesi" leads the group: "Omaggio" follows its field_visible
+        for r in fields:
+            if r['code'] in ('garanzia', 'omaggio'):
+                r['hiddenGroup'] = 'garanzia'
     if paged:
         for r in fields:
             if r['code'] in ('garanzia', 'omaggio', 'totale'):
@@ -55,11 +62,11 @@ class GnrCustomWebPage(object):
     py_requires = """gnrcomponents/testhandler:TestHandlerFull,
                     gnrcomponents/dynamicform/dynamicform:DynamicForm"""
 
-    def _dfColumn(self, parent, title, code, df_formlet=None, paged=False):
+    def _dfColumn(self, parent, title, code, df_formlet=None, paged=False, grouped=False):
         col = parent.div(datapath='.%s' % code, border='1px solid #ccc', rounded=6,
                          padding='10px', background='#fafafa')
         col.div(title, font_weight='bold', color='#036', margin_bottom='8px')
-        fields = dynamicFields(paged=paged)
+        fields = dynamicFields(paged=paged, grouped=grouped)
         if paged:
             # the tabContainer dynamicFormPage builds is a layout widget: it needs a
             # sized region, in a plain div it collapses to zero height
@@ -137,3 +144,18 @@ class GnrCustomWebPage(object):
         box = pane.gridbox(columns=1, margin='10px', max_width='620px')
         self._dfColumn(box, 'df_formlet=True: formlet, paged', 'flp',
                        df_formlet=True, paged=True)
+
+    def test_3_hidden_group(self, pane):
+        """hiddenGroup on both backends
+
+        "Omaggio" shares hiddenGroup='garanzia' with "Garanzia mesi", whose
+        field_visible shows it only when Colore is Rosso: the two fields, labels
+        included, appear and disappear together on both sides.
+        """
+        self._checklist(
+            pane,
+            'Colore empty or Verde: neither "Garanzia mesi" nor "Omaggio" is shown, on both sides.',
+            'Colore Rosso: both appear, with their labels, on both sides.')
+        box = pane.gridbox(columns=2, gap='15px', margin='10px')
+        self._dfColumn(box, 'Default: formbuilder', 'gfb', grouped=True)
+        self._dfColumn(box, 'df_formlet=True: formlet', 'gfl', df_formlet=True, grouped=True)

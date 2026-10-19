@@ -1709,10 +1709,15 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
 
     },
     
-    setHidden:function(hidden){
+    setHidden:function(hidden,_fromGroup){
         let labelWrapper = this.getLabelWrapper();
         if(labelWrapper){
             labelWrapper.setHidden(hidden);
+        }
+        // the table formbuilder collects the group cells in _hiddenTargets; a formlet
+        // has no cells, so the members are its siblings carrying the same hiddenGroup
+        if(!_fromGroup && this.attr.hiddenGroup && !this._hiddenTargets){
+            this._setHiddenGroup(hidden,labelWrapper);
         }
         var parent = this.widget && this.widget.parentBorderContainer;
         var animatedRegion = parent && parent._drawerAnimations &&
@@ -1738,6 +1743,22 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         }
     },
     
+    _setHiddenGroup:function(hidden,labelWrapper){
+        let own = labelWrapper || this;
+        let container = own.getParentNode();
+        let siblings = container && container.getValue('static');
+        if(!(siblings instanceof gnr.GnrDomSource)){
+            return;
+        }
+        for(let node of siblings.getNodes()){
+            // a labeled member is hidden through its labledbox, which holds the whole cell
+            let memberAttr = (node._contentNode || node).attr;
+            if(node!==own && memberAttr.hiddenGroup===this.attr.hiddenGroup && (node.domNode || node.widget)){
+                node.setHidden(hidden,true);
+            }
+        }
+    },
+
     updateRemoteContent:function(forceUpdate,async) {
         var _onRemote = false;
         var currentValue = this.getValue('static');
