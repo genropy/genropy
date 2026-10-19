@@ -2141,7 +2141,7 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         domNode._gnrErrorTooltipBound = true;
     },
 
-    _errorTooltipDelay: 500,
+    _errorTooltipDelay: 1500,
     _errorTooltipFade: 400,
 
     _errorFallbacks: {
