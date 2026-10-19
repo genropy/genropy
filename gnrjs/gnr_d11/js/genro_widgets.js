@@ -1661,35 +1661,26 @@ dojo.declare("gnr.widgets.Dialog", gnr.widgets.baseDojo, {
 
     mixin__overflowWidth:function(node){
         // scrollWidth stops at the farthest box and drops the right padding and border
-        // of every box between it and node: they are added back here
+        // of the boxes containing it: every box is measured with those added back
         if(node.scrollWidth<=node.clientWidth){
             return node.scrollWidth;
         }
-        var farthest = null;
-        var right = -Infinity;
-        var visit = function(parent){
+        var left = node.getBoundingClientRect().left+node.clientLeft;
+        var width = node.scrollWidth;
+        var visit = function(parent,trailing){
             dojo.forEach(parent.children,function(n){
                 var r = n.getBoundingClientRect();
-                if(r.width && r.right>right){
-                    right = r.right;
-                    farthest = n;
+                if(r.width){
+                    width = Math.max(width,Math.ceil(r.right-left+trailing));
                 }
-                if(window.getComputedStyle(n).overflowX=='visible'){
-                    visit(n);
+                var cs = dojo.getComputedStyle(n);
+                if(cs.overflowX=='visible'){
+                    visit(n,trailing+parseFloat(cs.paddingRight)+parseFloat(cs.borderRightWidth));
                 }
             });
         };
-        visit(node);
-        if(!farthest){
-            return node.scrollWidth;
-        }
-        var width = right-node.getBoundingClientRect().left-node.clientLeft;
-        for(var p=farthest.parentNode; p && p!==node; p=p.parentNode){
-            var cs = window.getComputedStyle(p);
-            width += parseFloat(cs.paddingRight)+parseFloat(cs.borderRightWidth);
-        }
-        width += parseFloat(window.getComputedStyle(node).paddingRight);
-        return Math.max(Math.ceil(width),node.scrollWidth);
+        visit(node,parseFloat(dojo.getComputedStyle(node).paddingRight));
+        return width;
     },
 
     mixin_fitToContent:function(){
