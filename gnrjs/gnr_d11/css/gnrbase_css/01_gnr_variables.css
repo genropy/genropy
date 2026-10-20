@@ -1,7 +1,6 @@
 /* ==========================================================================
    01_gnr_variables.css — CSS custom properties (single source of truth).
-   Primitives live on :root, derived tokens on body (see the note there);
-   themes and color variants override them on body.
+   Themes override these in :root to customize appearance.
    ========================================================================== */
 
 :root {
@@ -50,6 +49,37 @@
     --font-size: 0.81rem; /* @theme @palette */
     --dialog-content-font-size: inherit;
 
+    /* --- Brand / Primary --- */
+    --primary-color: var(--gray-600); /* @theme */
+    --primary-dark: var(--gray-800); /* @theme */
+    --primary-light: var(--gray-300); /* @theme */
+    --primary-lighter: var(--gray-100); /* @theme */
+    --root-dark: var(--gray-800);
+    --accent-color: var(--accent-500); /* @theme */
+    --accent-on-color: var(--color-bg); /* @theme */
+
+    /* --- Surfaces --- */
+    --mainWindow-background: var(--color-bg); /* @theme */
+    --mainWindow-color: var(--gray-900); /* @theme */
+    --surface-light: var(--gray-50); /* @theme */
+    --surface-bg: var(--color-bg); /* @theme */
+    --surface-dark: var(--gray-800); /* @theme */
+    --surface-dark-color: var(--text-on-dark); /* @theme */
+    --card-surface: var(--gray-100); /* @theme */
+    --roundedgroup-surface: var(--card-surface);
+
+    /* --- Borders --- */
+    --border-color: var(--gray-300); /* @theme */
+    --border-light: var(--gray-200); /* @theme */
+    --border-strong: var(--gray-400); /* @theme */
+
+    /* --- Text --- */
+    --text-color: var(--gray-900); /* @theme */
+    --text-muted: var(--gray-700); /* @theme */
+    --text-secondary: var(--gray-500); /* @theme */
+    --text-placeholder: var(--gray-400); /* @theme */
+    --danger-color: var(--color-error); /* @theme */
+
     /* --- Shadows --- */
     --shadow-color: rgba(0,0,0,0.2); /* @theme */
     --shadow-sm: 0 1px 3px rgba(0,0,0,0.06); /* @theme */
@@ -78,6 +108,9 @@
 
     /* --- Grid --- */
     --grid-cell-inset-top: 3px; /* top offset from cell edge to content — keeps text, widgets and checkboxes aligned */
+    --grid-border-color: var(--gray-150); /* @theme */
+    --grid-header-bg: var(--surface-light); /* @theme */
+    --grid-header-color: var(--text-color); /* @theme */
     --grid-row-bg: rgba(255,255,255,.5); /* @theme */
     --grid-row-odd-bg: rgba(243,246,250,.5); /* @theme */
     --grid-row-selected-bg: rgba(175, 203, 236, .8); /* @theme */
@@ -88,10 +121,13 @@
     --grid-cell-hover-bg-disabled: #FFE7DD;
     --grid-cell-changed-bg: #C9E7CA; /* color-success #4CAF50 30% + white */
     --grid-cell-copy-bg: rgba(241, 145, 53, 0.50);
+    --grid-cell-focus-border: var(--gray-300);
+    --grid-cell-over-border: var(--gray-250);
     --grid-draft-color: #366DAB; /* gray-600 #636366 55% + accent-500 #007AFF — override in theme/variant files */
     --grid-lineno-color: #366DAB; /* gray-600 #636366 55% + accent-500 #007AFF — override in theme/variant files */
     --grid-paste-bg: rgba(99, 99, 102, 0.05); /* gray-600 #636366 5% + transparent */
     --grid-reporting-header-bg: #313133; /* gray-800 #3A3A3C 85% + black — override in theme/variant files */
+    --grid-reporting-header-color: var(--text-on-dark);
     --grid-footer-item-bg: rgba(255, 227, 60, .2);
     --grid-footer-filter-bg: rgba(221, 150, 90, 0.20);
     /* --- Drag & Drop --- */
@@ -102,7 +138,9 @@
 
     /* --- TreeGrid --- */
     --treegrid-header-bg: #343436; /* gray-800 #3A3A3C 90% + black — override in theme/variant files */
+    --treegrid-header-color: var(--text-on-dark);
     --treegrid-footer-bg: #F8CF00;
+    --treegrid-footer-color: var(--gray-800);
     --treegrid-groupby-folder-bg: rgba(255, 253, 123, 0.20);
     --treegrid-groupby-level-color: #2D6930; /* color-success #4CAF50 60% + black */
     --treegrid-open-pages-bg: #A5D7A7;      /* color-success 50% + white */
@@ -112,24 +150,58 @@
     --toolbar-height-lg: 2em;
     --toolbar-min-height: 2.3em;
     --toolbar-min-height-lg: 2.8em;
+    --toolbar-bg: var(--gray-300); /* @theme */
+    --toolbar-gradient: linear-gradient(to bottom, var(--gray-200), var(--gray-300)); /* @theme */
+    --toolbar-color: var(--gray-900); /* @theme */
+    --toolbar-dark-bg: var(--gray-600); /* @theme */
     --quickgrid-toolbar-min-height: 1.8em;
 
     /* --- Layout: frameindex --- */
+    --frameindexroot-background: var(--gray-100); /* @theme */
+    --frameindexcenter-background: var(--gray-100); /* @theme */
+    --frameindexroot-mobile-background: var(--gray-800); /* @theme */
+    --frameindex-tablist-background: var(--gray-800); /* @theme */
+    --frameindex-tablist-color: var(--text-on-dark); /* @theme */
     --frameindex-tablist-min-height: 3em;
     --frameindex-tab-height: 1.9em;
     --frameindex-tab-bg: #D8D8D8; /* white 80% + gray-800 #3A3A3C — override in theme/variant files */
+    --frameindex-tab-bg-hover: var(--gray-700); /* override in theme/variant files */
+    --frameindex-tab-border: var(--gray-200); /* @theme */
     --frameindex-subtab-bg: #4A4A4D; /* gray-800 60% + gray-600 — override in theme/variant files */
+    --frameindex-subtab-selected-bg: var(--gray-500); /* gray-600 55% + white — override in theme/variant files */
     --frameindex-closer-hover-bg: #5A5A5C; /* gray-800 #3A3A3C 65% + white — override in theme/variant files */
+    --root-top-background: var(--gray-600); /* @theme */
+    --root-top-color: var(--text-on-dark); /* @theme */
+
+    /* --- Dialogs --- */
+    --dialogtitlebar-background: var(--gray-600); /* @theme */
+    --dialogtitlebar-color: var(--text-on-dark); /* @theme */
+    --dlg-bg: var(--surface-light); /* @theme */
+    --dlg-pane-bg: var(--color-bg); /* @theme */
+    --dlg-border-color: var(--gray-250); /* @theme */
 
     /* --- Tabs --- */
+    --tab-background: var(--gray-100); /* @theme */
+    --tab-text-color: var(--gray-900); /* @theme */
+    --tab-selected-background: var(--color-bg); /* @theme */
+    --tab-selected-color: var(--border-color); /* @theme */
     --tab-vertical-max-width: 12em;
     --tab-vertical-height: 2em;
 
     /* --- Rounded groups --- */
+    --roundedgroup-bar: var(--gray-200); /* @theme */
+    --roundedgroup-bar-color: var(--gray-900); /* @theme */
+    --roundedgroup-border: var(--gray-200); /* @theme */
     --roundedgroup-shadow: rgba(0,0,0,0.06); /* @theme */
+    --rectgroup-bar-background: var(--gray-200); /* @theme */
 
     /* --- Expandbox (details/summary disclosure widget) --- */
+    --expandbox-border: var(--border-light); /* @theme */
+    --expandbox-radius: var(--radius-sm); /* @theme */
+    --expandbox-header-bg: var(--roundedgroup-bar); /* @theme */
+    --expandbox-header-color: var(--roundedgroup-bar-color); /* @theme */
     --expandbox-header-padding: 4px 8px; /* @theme */
+    --expandbox-header-font-size: var(--form-label-font-size); /* @theme */
     --expandbox-header-font-weight: bold; /* @theme */
     --expandbox-content-padding: 8px; /* @theme */
     --expandbox-transition-duration: 0.3s; /* @theme */
@@ -141,14 +213,29 @@
     /* === Forms === */
 
     /* --- Form fields --- */
+    --field-bg: var(--color-bg); /* @theme */
+    --field-color: var(--text-color); /* @theme */
+    --field-border: var(--gray-400); /* @theme */
     --field-error-border: #DE9091; /* color-error #E53935 45% + gray-300 #D8D8DC */
     --field-error-dot-size: 8px; /* @theme */
+    --field-error-dot-color: var(--color-error); /* @theme */
+    --field-error-dot-ring: var(--surface-color, white); /* @theme */
+    --field-disabled-border: var(--gray-250); /* @theme */
+    --field-disabled-bg: var(--gray-100);
+    --field-disabled-color: var(--gray-500);
     --field-disabled-opacity: 0.85;
+    --field-readonly-border: var(--gray-200);
+    --field-readonly-bg: var(--field-bg);
+    --field-readonly-color: var(--field-color);
+    --field-focus-bg: var(--color-bg);
+    --gnrfieldlabel-color: var(--gray-700); /* @theme — readable on light form surfaces */
 
     /* --- Field adornments (voice input mic, textarea action bar) --- */
     --field-adornment-size: 1.375rem;   /* @theme clickable box overlaid on the field */
     --field-adornment-glyph: 1rem;      /* @theme icon drawn inside that box */
     --field-adornment-inset: 0.125rem;  /* @theme gap between box and field border */
+    /* room the field must leave so text never runs under the adornment */
+    --field-adornment-reserve: calc(var(--field-adornment-size) + 2 * var(--field-adornment-inset));
     /* --- Numeric keypad / calculator popup (keypad=True) ---
        em, against the font-size the pad inherits from its own field: the pad has to
        look like it belongs to that field. keypad_size='large' swaps in absolute
@@ -164,14 +251,26 @@
     --bar-adornment-gap: 0.25rem;       /* @theme */
 
     /* --- Form-context field defaults (shared by formbuilder & formlet) --- */
+    --form-field-border: var(--field-border);
+    --form-field-bg: var(--field-bg);
+    --form-field-color: var(--field-color);
     --form-field-border-width: 1px;
+    --form-field-radius: var(--radius-sm);
     --form-label-font-size: .9em;
     --form-draft-label: 'DRAFT';
+    --form-draft-background: var(--status-warning, #ff9800);
 
     /* --- Formbuilder (table-layout forms) --- */
     --formbuilder-spacing: 6px;
     --formbuilder-label-padding-left: 4px;
     --formbuilder-label-font-weight: normal;
+    --formbuilder-label-font-size: var(--form-label-font-size);
+    --formbuilder-plaintext-border: var(--form-field-border);
+    --formbuilder-field-border: var(--form-field-border);
+    --formbuilder-field-bg: var(--form-field-bg);
+    --formbuilder-field-color: var(--form-field-color);
+    --formbuilder-field-border-width: var(--form-field-border-width);
+    --formbuilder-field-radius: var(--form-field-radius);
     --formbuilder-field-padding-x: 3px;
 
     /* --- Fake textbox (read-only field display) --- */
@@ -188,9 +287,12 @@
     /* --- Formlet (grid-layout forms) --- */
     --formlet-gap: 7px 20px;
     --formlet-padding: 7px;
+    --formlet-field-border-width: var(--form-field-border-width);
+    --formlet-field-radius: var(--form-field-radius);
     --formlet-field-padding-y: 0.3em;
     --formlet-field-padding-x: 0.5em;
     --formlet-label-font-weight: bold;
+    --formlet-label-font-size: var(--form-label-font-size);
 
     /* --- Linker (open search field in a linker bar) --- */
     --linker-field-padding-y: 2px; /* @theme how much taller than its text the open field is */
@@ -198,8 +300,15 @@
 
     /* --- topLabelTable --- */
     --topLabelTable-border-top: none;
+    --topLabelTable-separator: var(--gray-250); /* @theme */
 
     /* === Status & Feedback === */
+
+    /* --- Status --- */
+    --status-ok: var(--color-success); /* @theme */
+    --status-error: var(--color-error); /* @theme */
+    --status-warning: var(--color-warning); /* @theme */
+    --status-idle: var(--gray-300); /* @theme */
 
     /* --- Toast (gnr-toast notification cards) --- */
     --toast-container-gap: 8px;
@@ -218,15 +327,19 @@
     /* --- Traceback viewer (gnr-tb) --- */
     --tb-font-size: 13px;
     --tb-mono-font: "SF Mono", Menlo, monospace;
+    --tb-frame-border: var(--gray-200);
+    --tb-frame-border-open: var(--gray-300);
     --tb-frame-border-error: #f87171;
     --tb-frame-radius: 8px;
     --tb-summary-bg: #fafbfc;
     --tb-summary-hover: #f0f4f8;
+    --tb-num-bg: var(--gray-200);
     --tb-num-color: #666;
     --tb-num-error-bg: #fee2e2;
     --tb-func-color: #7c3aed;
     --tb-muted-color: #999;
     --tb-hash-color: #9ca3af;
+    --tb-hash-bg: var(--gray-100);
     --tb-locals-badge-bg: #dbeafe;
     --tb-locals-hdr-bg: #f8fafc;
     --tb-locals-th-bg: #f1f5f9;
@@ -248,14 +361,22 @@
 
     /* --- Accordion --- */
     --accordion-title-bg: #EAEAEF; /* @theme — gray-200 #D8D8DC 60% + gray-100 #F0F0F4 */
+    --accordion-selected-bg: var(--gray-600); /* @theme */
 
     /* --- Menu --- */
+    --menu-text-color: var(--text-color); /* @theme */
+    --menu-bg: var(--color-bg); /* @theme */
     --menu-border-color: rgba(0,0,0,0.18); /* @theme */
     --menu-border-top-color: rgba(0,0,0,0.25);
     --menu-separator-color: rgba(0,0,0,0.08);
     --menu-item-hover-bg: rgba(0,0,0,0.10);
+    --menu-item-hover-color: var(--mainWindow-color);
     --menutree-chevron-color: currentColor;
+    --menutree-selected-color: var(--primary-dark);
     --menutree-selected-weight: 600;
+    --menutree-mobile-selected-color: var(--frameindex-tablist-color);
+    --menutree-branch-selected-color: var(--primary-dark);
+    --menutree-mobile-branch-selected-color: var(--frameindex-tablist-color);
     --menutree-mobile-font-size: 1.15em;     /* @theme menu item font size */
     --menutree-mobile-font-size-l1: 1.3em;   /* @theme level-1 (top) items */
     --menutree-mobile-line-height: 2em;      /* @theme touch-friendly row height */
@@ -268,31 +389,52 @@
     /* === Buttons === */
 
     /* --- Buttons: filled (derived from accent-color) --- */
+    --btn-filled-bg: var(--accent-color, #007AFF); /* @theme */
+    --btn-filled-color: var(--color-bg); /* @theme */
     --btn-filled-hover-bg: #0061CC; /* @theme — accent-color #007AFF 80% + black — override in theme/variant */
     --btn-filled-pressed-bg: #004FA6; /* @theme — accent-color #007AFF 65% + black */
     --btn-filled-selected-bg: #004FA6; /* @theme — accent-color #007AFF 65% + black */
+    --btn-filled-disabled-bg: var(--accent-color, #007AFF);
+    --btn-filled-disabled-color: var(--color-bg);
 
     /* --- Buttons: deleting — filled specialization (destructive action) --- */
+    --btn-deleting-bg: var(--color-error, #D32F2F); /* @theme */
     --btn-deleting-color: #ffffff; /* @theme */
     --btn-deleting-hover-bg: #B71C1C; /* @theme — color-error 80% + black */
     --btn-deleting-pressed-bg: #951A1A; /* @theme — color-error 65% + black */
+    --btn-deleting-disabled-bg: var(--color-error, #D32F2F); /* @theme */
+    --btn-deleting-disabled-color: var(--btn-deleting-color); /* @theme */
 
     /* --- Buttons: deleting — tonal specialization --- */
     --btn-deleting-tonal-bg: #FDECEA; /* @theme — color-error 12% + white */
+    --btn-deleting-tonal-color: var(--color-error, #D32F2F); /* @theme */
     --btn-deleting-tonal-hover-bg: #F9D6D2; /* @theme — color-error 20% + white */
     --btn-deleting-tonal-pressed-bg: #F5C0BA; /* @theme — color-error 28% + white */
 
     /* --- Buttons: tonal (light version of accent-color) --- */
     --btn-tonal-bg: #E0EFFF; /* @theme — accent-color #007AFF 12% + white — override in theme/variant */
+    --btn-tonal-color: var(--accent-color, #007AFF);
     --btn-tonal-hover-bg: #CCE4FF; /* @theme — accent-color #007AFF 20% + white */
     --btn-tonal-pressed-bg: #B7D9FF; /* @theme — accent-color #007AFF 28% + white */
     --btn-tonal-selected-bg: #B7D9FF; /* @theme — accent-color #007AFF 28% + white */
+
+    /* --- Buttons: multibutton & button-in-grid --- */
+    --multibutton-selected-bg: var(--gray-700, #656567); /* @theme */
+    --button-in-grid-bg: var(--gray-200); /* @theme */
+
+    /* --- Menudiv token (menudiv rendered as a bare inline word + chevron) --- */
+    --menutoken-disabled-color: var(--text-muted); /* @theme */
 
     /* --- Checkstrip (contiguous checkboxes as a minimal toggle strip) ---
        em-based on purpose: the strip scales with the font-size of its context */
     --checkstrip-cell-min-width: 3em;
     --checkstrip-cell-padding: .4em .5em;
     --checkstrip-gap: .2em;
+    --checkstrip-color: var(--text-muted); /* @theme */
+    --checkstrip-selected-color: var(--text-on-dark); /* @theme */
+
+    /* --- Buttons: shared --- */
+    --btn-border-color: var(--border-color); /* @theme */
 
     /* === Icons === */
 
@@ -401,211 +543,23 @@
 
     /* --- Splitters --- */
     --splitter-size: 5px;
+    --splitter-bg: var(--surface-light); /* @theme */
+    --splitter-grip: var(--text-placeholder); /* @theme */
+    --splitter-grip-hover: var(--text-secondary); /* @theme */
     --icon-grip-h: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 8'%3E%3Ccircle cx='4' cy='4' r='2.5'/%3E%3Ccircle cx='12' cy='4' r='2.5'/%3E%3Ccircle cx='20' cy='4' r='2.5'/%3E%3C/svg%3E");
     --icon-grip-v: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 24'%3E%3Ccircle cx='4' cy='4' r='2.5'/%3E%3Ccircle cx='4' cy='12' r='2.5'/%3E%3Ccircle cx='4' cy='20' r='2.5'/%3E%3C/svg%3E");
 
 }
 
-/* Tokens derived from other tokens are declared on body, not :root: a custom
-   property resolves its var() where it is declared, so on :root it would freeze
-   the framework defaults, while themes and color variants redefine the
-   primitives on body. */
+/* Derived from --accent-color/--primary-color: resolved on body, where themes
+   and color variants redefine them (a var() on :root freezes the default). */
 body {
-    /* --- Brand / Primary --- */
-    --primary-color: var(--gray-600); /* @theme */
-    --primary-dark: var(--gray-800); /* @theme */
-    --primary-light: var(--gray-300); /* @theme */
-    --primary-lighter: var(--gray-100); /* @theme */
-    --root-dark: var(--gray-800);
-    --accent-color: var(--accent-500); /* @theme */
-    --accent-on-color: var(--color-bg); /* @theme */
-
-    /* --- Surfaces --- */
-    --mainWindow-background: var(--color-bg); /* @theme */
-    --mainWindow-color: var(--gray-900); /* @theme */
-    --surface-light: var(--gray-50); /* @theme */
-    --surface-bg: var(--color-bg); /* @theme */
-    --surface-dark: var(--gray-800); /* @theme */
-    --surface-dark-color: var(--text-on-dark); /* @theme */
-    --card-surface: var(--gray-100); /* @theme */
-    --roundedgroup-surface: var(--card-surface);
-
-    /* --- Borders --- */
-    --border-color: var(--gray-300); /* @theme */
-    --border-light: var(--gray-200); /* @theme */
-    --border-strong: var(--gray-400); /* @theme */
-
-    /* --- Text --- */
-    --text-color: var(--gray-900); /* @theme */
-    --text-muted: var(--gray-700); /* @theme */
-    --text-secondary: var(--gray-500); /* @theme */
-    --text-placeholder: var(--gray-400); /* @theme */
-    --danger-color: var(--color-error); /* @theme */
-
-    /* --- Grid --- */
-    --grid-border-color: var(--gray-150); /* @theme */
-    --grid-header-bg: var(--surface-light); /* @theme */
-    --grid-header-color: var(--text-color); /* @theme */
-    --grid-cell-focus-border: var(--gray-300);
-    --grid-cell-over-border: var(--gray-250);
-    --grid-reporting-header-color: var(--text-on-dark);
-
-    /* --- TreeGrid --- */
-    --treegrid-header-color: var(--text-on-dark);
-    --treegrid-footer-color: var(--gray-800);
-
-    /* --- Toolbar --- */
-    --toolbar-bg: var(--gray-300); /* @theme */
-    --toolbar-gradient: linear-gradient(to bottom, var(--gray-200), var(--gray-300)); /* @theme */
-    --toolbar-color: var(--gray-900); /* @theme */
-    --toolbar-dark-bg: var(--gray-600); /* @theme */
-
-    /* --- Layout: frameindex --- */
-    --frameindexroot-background: var(--gray-100); /* @theme */
-    --frameindexcenter-background: var(--gray-100); /* @theme */
-    --frameindexroot-mobile-background: var(--gray-800); /* @theme */
-    --frameindex-tablist-background: var(--gray-800); /* @theme */
-    --frameindex-tablist-color: var(--text-on-dark); /* @theme */
-    --frameindex-tab-bg-hover: var(--gray-700); /* override in theme/variant files */
-    --frameindex-tab-border: var(--gray-200); /* @theme */
-    --frameindex-subtab-selected-bg: var(--gray-500); /* gray-600 55% + white — override in theme/variant files */
-    --root-top-background: var(--gray-600); /* @theme */
-    --root-top-color: var(--text-on-dark); /* @theme */
-
-    /* --- Dialogs --- */
-    --dialogtitlebar-background: var(--gray-600); /* @theme */
-    --dialogtitlebar-color: var(--text-on-dark); /* @theme */
-    --dlg-bg: var(--surface-light); /* @theme */
-    --dlg-pane-bg: var(--color-bg); /* @theme */
-    --dlg-border-color: var(--gray-250); /* @theme */
-
-    /* --- Tabs --- */
-    --tab-background: var(--gray-100); /* @theme */
-    --tab-text-color: var(--gray-900); /* @theme */
-    --tab-selected-background: var(--color-bg); /* @theme */
-    --tab-selected-color: var(--border-color); /* @theme */
-
-    /* --- Rounded groups --- */
-    --roundedgroup-bar: var(--gray-200); /* @theme */
-    --roundedgroup-bar-color: var(--gray-900); /* @theme */
+    --tb-module-color: var(--accent-color);
+    --menutoken-color: var(--accent-color); /* @theme */
+    --menutoken-hover-color: var(--primary-color); /* @theme */
+    --checkstrip-selected-bg: var(--accent-color); /* @theme */
+    --splitter-line-active: var(--accent-color); /* @theme */
     /* header and footer bars of groups and linker boxes share one height,
        sized on the theme base font so a local font-size does not change it */
     --groupbar-min-height: calc(var(--font-size) * 2.3); /* @theme */
-    --roundedgroup-border: var(--gray-200); /* @theme */
-    --rectgroup-bar-background: var(--gray-200); /* @theme */
-
-    /* --- Expandbox (details/summary disclosure widget) --- */
-    --expandbox-border: var(--border-light); /* @theme */
-    --expandbox-radius: var(--radius-sm); /* @theme */
-    --expandbox-header-bg: var(--roundedgroup-bar); /* @theme */
-    --expandbox-header-color: var(--roundedgroup-bar-color); /* @theme */
-    --expandbox-header-font-size: var(--form-label-font-size); /* @theme */
-
-    /* --- Form fields --- */
-    --field-bg: var(--color-bg); /* @theme */
-    --field-color: var(--text-color); /* @theme */
-    --field-border: var(--gray-400); /* @theme */
-    --field-error-dot-color: var(--color-error); /* @theme */
-    --field-error-dot-ring: var(--surface-color, white); /* @theme */
-    --field-disabled-border: var(--gray-250); /* @theme */
-    --field-disabled-bg: var(--gray-100);
-    --field-disabled-color: var(--gray-500);
-    --field-readonly-border: var(--gray-200);
-    --field-readonly-bg: var(--field-bg);
-    --field-readonly-color: var(--field-color);
-    --field-focus-bg: var(--color-bg);
-    --gnrfieldlabel-color: var(--gray-700); /* @theme — readable on light form surfaces */
-
-    /* --- Field adornments (voice input mic, textarea action bar) --- */
-    /* room the field must leave so text never runs under the adornment */
-    --field-adornment-reserve: calc(var(--field-adornment-size) + 2 * var(--field-adornment-inset));
-
-    /* --- Form-context field defaults (shared by formbuilder & formlet) --- */
-    --form-field-border: var(--field-border);
-    --form-field-bg: var(--field-bg);
-    --form-field-color: var(--field-color);
-    --form-field-radius: var(--radius-sm);
-    --form-draft-background: var(--status-warning, #ff9800);
-
-    /* --- Formbuilder (table-layout forms) --- */
-    --formbuilder-label-font-size: var(--form-label-font-size);
-    --formbuilder-plaintext-border: var(--form-field-border);
-    --formbuilder-field-border: var(--form-field-border);
-    --formbuilder-field-bg: var(--form-field-bg);
-    --formbuilder-field-color: var(--form-field-color);
-    --formbuilder-field-border-width: var(--form-field-border-width);
-    --formbuilder-field-radius: var(--form-field-radius);
-
-    /* --- Formlet (grid-layout forms) --- */
-    --formlet-field-border-width: var(--form-field-border-width);
-    --formlet-field-radius: var(--form-field-radius);
-    --formlet-label-font-size: var(--form-label-font-size);
-
-    /* --- topLabelTable --- */
-    --topLabelTable-separator: var(--gray-250); /* @theme */
-
-    /* --- Status --- */
-    --status-ok: var(--color-success); /* @theme */
-    --status-error: var(--color-error); /* @theme */
-    --status-warning: var(--color-warning); /* @theme */
-    --status-idle: var(--gray-300); /* @theme */
-
-    /* --- Traceback viewer (gnr-tb) --- */
-    --tb-frame-border: var(--gray-200);
-    --tb-frame-border-open: var(--gray-300);
-    --tb-num-bg: var(--gray-200);
-    --tb-module-color: var(--accent-color);
-    --tb-hash-bg: var(--gray-100);
-
-    /* --- Accordion --- */
-    --accordion-selected-bg: var(--gray-600); /* @theme */
-
-    /* --- Menu --- */
-    --menu-text-color: var(--text-color); /* @theme */
-    --menu-bg: var(--color-bg); /* @theme */
-    --menu-item-hover-color: var(--mainWindow-color);
-    --menutree-selected-color: var(--primary-dark);
-    --menutree-mobile-selected-color: var(--frameindex-tablist-color);
-    --menutree-branch-selected-color: var(--primary-dark);
-    --menutree-mobile-branch-selected-color: var(--frameindex-tablist-color);
-
-    /* --- Buttons: filled (derived from accent-color) --- */
-    --btn-filled-bg: var(--accent-color, #007AFF); /* @theme */
-    --btn-filled-color: var(--color-bg); /* @theme */
-    --btn-filled-disabled-bg: var(--accent-color, #007AFF);
-    --btn-filled-disabled-color: var(--color-bg);
-
-    /* --- Buttons: deleting — filled specialization (destructive action) --- */
-    --btn-deleting-bg: var(--color-error, #D32F2F); /* @theme */
-    --btn-deleting-disabled-bg: var(--color-error, #D32F2F); /* @theme */
-    --btn-deleting-disabled-color: var(--btn-deleting-color); /* @theme */
-
-    /* --- Buttons: deleting — tonal specialization --- */
-    --btn-deleting-tonal-color: var(--color-error, #D32F2F); /* @theme */
-
-    /* --- Buttons: tonal (light version of accent-color) --- */
-    --btn-tonal-color: var(--accent-color, #007AFF);
-
-    /* --- Buttons: multibutton & button-in-grid --- */
-    --multibutton-selected-bg: var(--gray-700, #656567); /* @theme */
-    --button-in-grid-bg: var(--gray-200); /* @theme */
-
-    /* --- Menudiv token (menudiv rendered as a bare inline word + chevron) --- */
-    --menutoken-disabled-color: var(--text-muted); /* @theme */
-    --menutoken-color: var(--accent-color); /* @theme */
-    --menutoken-hover-color: var(--primary-color); /* @theme */
-
-    /* --- Checkstrip (contiguous checkboxes as a minimal toggle strip) --- */
-    --checkstrip-color: var(--text-muted); /* @theme */
-    --checkstrip-selected-color: var(--text-on-dark); /* @theme */
-    --checkstrip-selected-bg: var(--accent-color); /* @theme */
-
-    /* --- Buttons: shared --- */
-    --btn-border-color: var(--border-color); /* @theme */
-
-    /* --- Splitters --- */
-    --splitter-bg: var(--surface-light); /* @theme */
-    --splitter-grip: var(--text-placeholder); /* @theme */
-    --splitter-grip-hover: var(--text-secondary); /* @theme */
-    --splitter-line-active: var(--accent-color); /* @theme */
 }
