@@ -1252,9 +1252,10 @@ class GroupletGridHandler(BaseComponent):
         else:
             rowTemplate = None
         # actions on several selected rows: rows are selectable in template
-        # mode, cards and editable rows by their checkboxes; delete is preset
-        # whenever rows can be deleted
-        selectable = bool(rowTemplate or rowCheckbox) \
+        # mode, cards and editable rows by their checkboxes or, given a
+        # selectionmenu, by Cmd/Ctrl/Shift-click; delete is preset whenever
+        # rows can be deleted
+        selectable = bool(rowTemplate or rowCheckbox or selectionmenu) \
             and layout not in ('tabs', 'vtabs')
         if not selectable or selectionmenu is False:
             selectionmenu = {}

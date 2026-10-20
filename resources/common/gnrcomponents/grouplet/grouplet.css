@@ -2118,7 +2118,8 @@ body.drag_started .grouplet_grid_container {
 .grouplet_grid_selection {
     display: none;
 }
-.grouplet_grid--multi .grouplet_grid_selection {
+/* the grid's own bar: a grid nested in a selected row keeps its bar hidden */
+.grouplet_grid--multi > .grouplet_grid_slot_bottom > .grouplet_grid_selection {
     display: block;
 }
 /* above the body, or the rows would paint over the bar's shadow */

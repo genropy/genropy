@@ -1620,11 +1620,17 @@ gnr.GroupletGridController = class GroupletGridController {
     }
 
     _renderTabTitle(titleDom, pkey) {
-        if (this.titleTemplate) {
-            titleDom.innerHTML = this.renderTemplate(this.titleTemplate, pkey);
-            if (titleDom.textContent.trim()) return;
+        this._renderTitle(titleDom, this.titleTemplate, pkey);
+    }
+
+    _renderTitle(dom, compiled, pkey) {
+        // a row whose own fields are blank shows its label: its sums alone are no title
+        const own = compiled && this.renderTemplate(compiled, pkey, false);
+        if (own && own.replace(/<[^>]*>|&nbsp;/g, '').trim()) {
+            dom.innerHTML = this.renderTemplate(compiled, pkey);
+            return;
         }
-        titleDom.textContent = this._readTabLabel(pkey);
+        dom.textContent = this._readTabLabel(pkey);
     }
 
     _tabOrder() {
@@ -1680,11 +1686,7 @@ gnr.GroupletGridController = class GroupletGridController {
         const dom = tile && tile.domNode();
         const line = dom && dom.querySelector(':scope > .grouplet_grid_row_summaryline');
         if (!line) return;
-        if (this.collapsedTemplate) {
-            line.innerHTML = this.renderTemplate(this.collapsedTemplate, pkey);
-            if (line.textContent.trim()) return;
-        }
-        line.textContent = this._readTabLabel(pkey);
+        this._renderTitle(line, this.collapsedTemplate, pkey);
     }
 
     _sortTabs() {
@@ -1722,7 +1724,7 @@ gnr.GroupletGridController = class GroupletGridController {
         return {bag: bag, sums: spec.sums || {}};
     }
 
-    renderTemplate(compiled, pkey) {
+    renderTemplate(compiled, pkey, withSums = true) {
         const row = this.dataStore.rowValue(pkey);
         if (!compiled || !(row instanceof gnr.GnrBag)) return '';
         const names = Object.keys(compiled.sums);
@@ -1735,7 +1737,7 @@ gnr.GroupletGridController = class GroupletGridController {
                 if (!(v instanceof gnr.GnrBag)) data.setItem(n.label, v, objectUpdate({}, n.attr || {}));
             });
             names.forEach((name) => {
-                data.setItem(name, gnr.GroupletGridController.deepSum(row, compiled.sums[name]));
+                data.setItem(name, withSums ? gnr.GroupletGridController.deepSum(row, compiled.sums[name]) : '');
             });
         }
         return dataTemplate(compiled.bag, data, null, true);
@@ -3229,7 +3231,18 @@ gnr.GroupletGridController = class GroupletGridController {
         return this.rowCheckbox ? 1 : 2;
     }
 
-    _onRowCheck(pkey, e) {
+    _clickSelects(e) {
+        // cards with a selection menu: Cmd/Ctrl-click toggles a row, Shift-click adds a range
+        return !!(e && !e._groupletSelected && (e.metaKey || e.ctrlKey || e.shiftKey)
+                  && Object.keys(this.selectionmenu || {}).length);
+    }
+
+    _clickClearsSelection(e) {
+        return !!(e && !e._groupletSelected && !this.rowCheckbox
+                  && this.groupSelection().length);
+    }
+
+    _onRowCheck(pkey, e, focusBar = false) {
         const current = this._multiKeys ? this._multiKeys.slice() : [];
         let keys;
         if (e.shiftKey && this._selAnchor && this.tiles[this._selAnchor]) {
@@ -3240,7 +3253,7 @@ gnr.GroupletGridController = class GroupletGridController {
                 ? current.filter((k) => k !== pkey) : current.concat(pkey);
         }
         this._selAnchor = pkey;
-        this._applyChecks(keys);
+        this._applyChecks(keys, focusBar);
     }
 
     _onCheckAll() {
@@ -3249,14 +3262,14 @@ gnr.GroupletGridController = class GroupletGridController {
         this._applyChecks(current.length === all.length ? [] : all);
     }
 
-    _applyChecks(keys) {
+    _applyChecks(keys, focusBar = false) {
         if (!keys.length) {
             this._setMulti(null);
             return;
         }
         const enter = () => {
             this._finishEntryEdit();
-            this._setMulti(keys, false);
+            this._setMulti(keys, focusBar);
         };
         if (this._entryChanged()) this._commitEntry(enter);
         else enter();
@@ -4159,8 +4172,19 @@ gnr.GroupletGridTile = class GroupletGridTile {
                     && evt.target.closest('.grouplet_grid_row_delete,'
                         + '.grouplet_grid_row_kebab,.grouplet_grid_row_drag,'
                         + '.grouplet_grid_row_check');
-                if (c.rowTemplate && !onChrome) c._onTemplateRowClick(pkey, evt);
-                else c.selectTile(pkey);
+                if (c.rowTemplate && !onChrome) {
+                    c._onTemplateRowClick(pkey, evt);
+                } else if (!onChrome && c._clickSelects(evt)) {
+                    // the innermost row takes the click: the rows around it keep theirs
+                    evt._groupletSelected = true;
+                    c._onRowCheck(pkey, evt, true);
+                } else if (!onChrome && c._clickClearsSelection(evt)) {
+                    // without checkboxes a plain click leaves the selection
+                    evt._groupletSelected = true;
+                    c.clearSelection(true);
+                } else {
+                    c.selectTile(pkey);
+                }
             }
         };
         tileKw.onCreated = function(domnode) {

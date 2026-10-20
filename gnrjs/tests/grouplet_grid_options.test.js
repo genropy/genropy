@@ -184,6 +184,20 @@ test('titleTemplate shows fields and a live subtree total', () => {
     assert.equal(s.controller.renderTemplate(Ctrl.compileTemplate('$name'), 'r_a'), 'Story');
 });
 
+test('a row whose own fields are blank shows its label, not its sums alone', () => {
+    const s = createGrid();
+    chapters(s, [['r_a', '1', 'Story', [100]], ['r_n', '', '', []]]);
+    const tpl = s.context.gnr.GroupletGridController.compileTemplate(
+        {template: '<b>$code</b> $name <i>$total</i>', sums: {total: 'accounts.amount'}});
+    const dom = () => ({textContent: '', set innerHTML(v) { this.textContent = v; }});
+    const shown = dom();
+    s.controller._renderTitle(shown, tpl, 'r_a');
+    assert.equal(shown.textContent, '<b>1</b> Story <i>100</i>');
+    const blank = dom();
+    s.controller._renderTitle(blank, tpl, 'r_n');
+    assert.equal(blank.textContent, 'r_n', 'no titleField: the key');
+});
+
 test('a changed sort field re-sorts the strip once, a template row is redrawn', async () => {
     const s = createGrid({controller: {layout: 'tabs'}});
     chapters(s, [['r_a', '3', 'Crew', [1]], ['r_b', '2', 'Cast', [2]]]);
@@ -423,4 +437,22 @@ test('entry row: an invalid field stops the entry with its message', () => {
     assert.deepEqual(focused, ['qty']);
     assert.deepEqual(JSON.parse(JSON.stringify(s.published.at(-1))),
                      ['floating_message', {message: 'Qty: Too small', sound: '$onerror', messageType: 'error'}]);
+});
+
+test('cards without checkboxes: Cmd/Ctrl/Shift-click selects, once, only with a selection menu', () => {
+    const {context} = createGrid();
+    const a = groupGrid(context, 'clicks', ['d1', 'd2', 'd3']);
+    a.grid.rowCheckbox = false;
+    assert.equal(a.grid._clickSelects({metaKey: true}), true);
+    assert.equal(a.grid._clickSelects({}), false, 'a plain click edits');
+    assert.equal(a.grid._clickSelects({ctrlKey: true, _groupletSelected: true}), false,
+                 'an inner row already took it');
+    a.grid._onRowCheck('d1', {metaKey: true}, true);
+    a.grid._onRowCheck('d3', {shiftKey: true}, true);
+    assert.deepEqual([...a.grid._multiKeys], ['d1', 'd2', 'd3']);
+    assert.equal(a.grid._clickClearsSelection({}), true, 'a plain click leaves the selection');
+    a.grid.clearSelection(true);
+    assert.equal(a.grid._clickClearsSelection({}), false, 'nothing selected: the click edits');
+    a.grid.selectionmenu = {};
+    assert.equal(a.grid._clickSelects({metaKey: true}), false);
 });
