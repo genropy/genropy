@@ -491,7 +491,7 @@ class ResourceLoader(object):
         js_requires = getattr(component,'js_requires',[])
         for css in css_requires:
             if css and css not in page.envelope_css_requires and css not in page.css_requires:
-                page.envelope_css_requires[css] = page.getResourceUri(css,'css',add_mtime=True,pkg=pkg)
+                page.envelope_css_requires[css] = self.getResourceUriCascade(page, css, 'css', pkg=pkg)
         for js in js_requires:
             if js and js not in page.envelope_js_requires and js not in page.js_requires:
                 page.envelope_js_requires[js] = page.getResourceUri(js,'js',add_mtime=True,pkg=pkg)
@@ -501,6 +501,15 @@ class ResourceLoader(object):
         page.mixin_set.add(((tuple(path),tuple(kwargs.items()))))
         return component
         
+    def getResourceUriCascade(self, page, path, ext, pkg=None):
+        """Return the uri of every ``path`` resource found along the resource dirs,
+        like the page-level ``css_requires`` served by ``get_css_path``: each package
+        shipping a same-named file contributes its own. None when nothing is found."""
+        resourceDirs = self.package_resourceDirs(pkg) if pkg else page.resourceDirs
+        uris = [page.resolveResourceUri(f, add_mtime=True, pkg=pkg)
+                for f in self.getResourceList(resourceDirs, path, ext)]
+        return [uri for uri in uris if uri] or None
+
     def _loadTableScript_getclass(self,modPathList,class_name):
         modPathList.reverse()
         basePath = modPathList.pop(0)
