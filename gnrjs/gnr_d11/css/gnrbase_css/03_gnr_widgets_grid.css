@@ -232,6 +232,49 @@ div.cellContent{
     margin:2px;
 }
 
+/* editor=True: one framed field, the action bar inscribed under the editor */
+.textAreaIsEditor{
+    border: var(--form-field-border-width) solid var(--form-field-border);
+    border-radius: var(--form-field-radius);
+    overflow: hidden;
+    box-sizing: border-box;
+    background: var(--form-field-bg);
+}
+.textAreaIsEditor .jodit-container:not(.jodit_fullsize){
+    border: 0;
+    border-radius: 0;
+}
+.textAreaIsEditor .textAreaWrapperButtons{
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--bar-adornment-gap);
+    margin-left: 0;
+    padding: 1px 0.4em;
+    border-top: 1px solid var(--border-light);
+    background: var(--surface-light);
+}
+.textAreaIsEditor .TAeditorPalette{
+    width: auto;
+    height: auto;
+    background: none;
+    font-size: 0.85em;
+    font-weight: bold;
+    line-height: var(--bar-adornment-size);
+    color: var(--text-secondary);
+}
+.textAreaIsEditor .TAeditorPalette:hover{
+    color: var(--text-color);
+}
+.textAreaIsEditor:has(.jodit_disabled) .TAeditorPalette{
+    color: var(--text-placeholder);
+    cursor: default;
+    pointer-events: none;
+}
+.textAreaIsEditor .textAreaWrapperButtons .gnr_speech_button{
+    margin: 0;
+}
+
 .TAeditorPalette{
     background: transparent var(--icon-text-editor) no-repeat center center;
     background-size: var(--bar-adornment-glyph);

@@ -345,6 +345,8 @@
 <genro_wdg path="gnrjs/gnr_d11/js/genro_wdg.js" ext="js"><en_multi_assignment base="Multi assignment"></en_multi_assignment></genro_wdg>
 <genro_widgets path="gnrjs/gnr_d11/js/genro_widgets.js" ext="js"><en_invalid base="Invalid" it="Non valido"></en_invalid>
 <en_single_option base="Single option"></en_single_option>
+<en_full_editor base="Full editor" en="Full editor" it="Editor completo"></en_full_editor>
+<en_open_in_a_floating_editor base="Open in a floating editor" en="Open in a floating editor" it="Apri in un editor separato"></en_open_in_a_floating_editor>
 <en_date fr="Date" de="Datum" en="Date" it="Data" base="Date"></en_date>
 <en_time base="Time" en="Time" it="Ora"></en_time>
 <en_formula base="Formula" de="Formel" en="Formula" fr="Formule" it="Formula"></en_formula>

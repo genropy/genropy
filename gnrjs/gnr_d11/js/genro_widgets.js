@@ -2117,18 +2117,23 @@ dojo.declare("gnr.widgets.SimpleTextarea", gnr.widgets.baseDojo, {
             var speechAttrs = objectExtract(currAttr,'speech_*',false,true);
             sourceNode.attr = objectUpdate(objectUpdate({'tag':'div',_class:_class},wrapperAttrs),speechAttrs);
             var tKw = {overflow:'hidden',_class:'textAreaWrapperArea'};
-            if(editor){
-                tKw['border'] = '1px solid silver';
-                tKw['rounded'] = 4;
-            }
             var top = sourceNode._('div',tKw,notrigger);
             var bottom = sourceNode._('div',{_class:'textAreaWrapperButtons',transition:'1s all'},notrigger)
             if(editor){
-                bottom._('div',{_class:'TAeditorPalette',title:'Open in a floating editor',connect_onclick:function(){
+                bottom._('div',{_class:'TAeditorPalette',innerHTML:_T('Full editor'),title:_T('Open in a floating editor'),connect_onclick:function(evt){
+                    var wrapper = evt.target.closest('.textAreaWrapper');
+                    if(wrapper && wrapper.querySelector('.jodit_disabled')){
+                        return;
+                    }
                     genro.dlg.floatingEditor(textarea,{});
                 }},{'doTrigger':false})
                 tag = 'joditEditor';
                 objectPop(areaAttr,'tag')
+                // the wrapper owns the size: the editor fills the area left above the buttons bar
+                objectPop(areaAttr,'width');
+                if(objectPop(areaAttr,'height')){
+                    areaAttr['height'] = '100%';
+                }
                 areaAttr['toolbar'] = false;
                 this._dojotag = null;
             }
