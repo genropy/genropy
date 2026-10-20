@@ -252,23 +252,15 @@ div.cellContent{
     gap: var(--bar-adornment-gap);
     margin-left: 0;
     padding: 1px 0.4em;
-    border-top: 1px solid var(--border-light);
-    background: transparent;
 }
 .textAreaIsEditor .TAeditorPalette{
-    width: auto;
-    height: auto;
-    background: none;
-    font-size: 0.85em;
-    font-weight: normal;
-    line-height: var(--bar-adornment-size);
-    color: var(--text-placeholder);
+    opacity: 0.6;
 }
 .textAreaIsEditor .TAeditorPalette:hover{
-    color: var(--text-secondary);
+    opacity: 1;
 }
 .textAreaIsEditor:has(.jodit_disabled) .TAeditorPalette{
-    opacity: .5;
+    opacity: 0.3;
     cursor: default;
     pointer-events: none;
 }
