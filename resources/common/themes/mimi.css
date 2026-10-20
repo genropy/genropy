@@ -55,7 +55,10 @@ body {
     /* --- Dialogs --- */
     --dialogtitlebar-background: #6B6E72;
     --dialogtitlebar-color: #ffffff;
-    --dlg-border-color: #BDBFC2; /* gray-300 #9EA0A3 70% + white */
+    --dlg-border-color: #C1C7CD;
+    --shadow-dialog: 0 0 22px 6px rgba(77,83,88,0.28), 0 0 6px 1px rgba(77,83,88,0.22), 0 10px 30px rgba(18,22,25,0.14);
+    --palette-border-color: var(--dlg-border-color);
+    --palette-shadow: var(--shadow-dialog);
 
     /* --- Form fields --- */
     --field-border: #9EA0A3;
@@ -193,9 +196,7 @@ body.color_variant_gray {
     /* --- Dialogs --- */
     --dialogtitlebar-background: #DDE1E6;
     --dialogtitlebar-color: #121619;
-    --dlg-border-color: #DDE1E6;
     --dlg-bg: #F8F9FB;
-    --shadow-dialog: 0 12px 40px rgba(18,22,25,0.16), 0 0 0 1px rgba(18,22,25,0.06);
 
     /* --- Toolbar --- */
     --toolbar-bg: #F8F9FB;

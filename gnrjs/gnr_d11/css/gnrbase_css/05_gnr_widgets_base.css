@@ -410,8 +410,8 @@ textarea:disabled {
 
 ._common_d11 .dojoxFloatingPane {
     border-radius: var(--radius-sm);
-    box-shadow: var(--shadow-lg);
-    border-color: var(--border-color);
+    box-shadow: var(--palette-shadow, var(--shadow-lg));
+    border-color: var(--palette-border-color, var(--border-color));
 }
 
 ._common_d11 .dojoxFloatingPaneTitle {

@@ -60,6 +60,12 @@ body {
     --btn-tonal-hover-bg:     #CCE4FF; /* #007AFF 20% + white */
     --btn-tonal-pressed-bg:   #B7D9FF; /* #007AFF 28% + white */
     --btn-tonal-selected-bg:  #B7D9FF;
+
+    /* --- Dialogs --- */
+    --dlg-border-color: #C1C7CD;
+    --shadow-dialog: 0 0 22px 6px rgba(77,83,88,0.28), 0 0 6px 1px rgba(77,83,88,0.22), 0 10px 30px rgba(18,22,25,0.14);
+    --palette-border-color: var(--dlg-border-color);
+    --palette-shadow: var(--shadow-dialog);
 }
 /* @end */
 
@@ -124,9 +130,7 @@ body.color_variant_gray {
     /* --- Dialogs --- */
     --dialogtitlebar-background: #DDE1E6;
     --dialogtitlebar-color: #121619;
-    --dlg-border-color: #DDE1E6;
     --dlg-bg: #F8F9FB;
-    --shadow-dialog: 0 12px 40px rgba(18,22,25,0.16), 0 0 0 1px rgba(18,22,25,0.06);
 
     /* --- Toolbar --- */
     --toolbar-bg: #F8F9FB;
