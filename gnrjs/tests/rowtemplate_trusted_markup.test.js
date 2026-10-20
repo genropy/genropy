@@ -232,6 +232,24 @@ test("the quotes wrapping a bare field value count in the quote structure the fi
                      {name: "<a href='javascript:alert(1)//", id: 'A'});
 });
 
+// Review on #1456: \x01 in a row value was removed only after the final pass, re-joining what that pass had left inert.
+const CTRL_A_CASES = [
+    ['an attribute name', `<div onclick="ok()">$txt</div>`, {txt: '<img src=x on\x01error=alert(1)>'}, /onerror/i],
+    ['a javascript: href', `<a href="$url" onclick="ok()">x</a>`, {url: 'java\x01script:alert(1)'}, /javascript:/i]
+];
+for (const [where, template, row, live] of CTRL_A_CASES) {
+    for (const [kind, makeRow] of [['Bag', (ctx, r) => new ctx.gnr.GnrBag(r)], ['plain-object', (ctx, r) => r]]) {
+        test(`\\x01 in ${where} of a ${kind} row value does not survive as live markup`, () => {
+            const {context, warnings} = createContext();
+            const html = context.dataTemplate(template, makeRow(context, row), null, null, {trustedMarkup: true});
+            assert.ok(!live.test(html), html);
+            assert.ok(!html.includes('\x01'), html);
+            assert.deepEqual(handlersIn(html).map(h => h.code), ['ok()'], html);
+            assert.equal(warnings.length, 1, 'stripped by the final pass with the usual warning');
+        });
+    }
+}
+
 test('a bare field inside a single-quoted handler is wrapped with the other quote', () => {
     const {context, warnings} = createContext();
     const html = render(context, `<a onclick='go($id)'>1</a>`, {id: 'A'});

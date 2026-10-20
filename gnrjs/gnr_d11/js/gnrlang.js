@@ -509,6 +509,12 @@ function dataTemplate(str, data, path, showAlways,kw) {
     // The final pass must see the quote structure the browser will parse: each
     // handler is interpolated first and stays in place, masked except for its quotes.
     if(kw.trustedMarkup){
+        // \u0001 is reserved for the markers below: one left in a value would be removed only after the final pass.
+        var interpolate = substitute;
+        substitute = function() {
+            var value = interpolate.apply(this, arguments);
+            return typeof value == 'string' ? value.replace(/\u0001/g, '') : value;
+        };
         nonce = '\u0001' + Math.random().toString(36).slice(2) + '_';
         handlers = [];
         jsContext = true;
