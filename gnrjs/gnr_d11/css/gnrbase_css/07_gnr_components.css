@@ -326,7 +326,7 @@ tr[_is_valid_item='true'].multiColumnSelectHover td {
     color: var(--roundedgroup-bar-color);
     font-weight: bold;
     border: none;
-    border-radius: var(--radius-md) var(--radius-md) 0 0;
+    border-radius: calc(var(--radius-md) - 1px) calc(var(--radius-md) - 1px) 0 0;
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -357,7 +357,7 @@ tr[_is_valid_item='true'].multiColumnSelectHover td {
     padding-left: 0.5em;
     font-size: 0.9em;
     background-color: var(--roundedgroup-bar);
-    border-radius: 0 0 var(--radius-md) var(--radius-md);
+    border-radius: 0 0 calc(var(--radius-md) - 1px) calc(var(--radius-md) - 1px);
 }
 /* @end */
 
