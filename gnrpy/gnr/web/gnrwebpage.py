@@ -152,6 +152,7 @@ class GnrWebPage(GnrBaseWebPage):
         self.extraFeatures.update(dictExtract(request_kwargs,'_extrafeature_',pop=True))
         self.base_dbstore = request_kwargs.pop('base_dbstore',None)
         self.temp_dbstore = request_kwargs.pop('temp_dbstore',None)
+        self.temp_tenant_schema = request_kwargs.pop('temp_tenant_schema',None)
         if self.temp_dbstore is False:
             self.temp_dbstore = self.application.db.rootstore
         dbstore = self.temp_dbstore or self.base_dbstore
@@ -516,6 +517,8 @@ class GnrWebPage(GnrBaseWebPage):
             envPageArgs = dictExtract(self.pageArgs,'env_')
             if envPageArgs:
                 self._db.updateEnv(**envPageArgs)
+            if self.temp_tenant_schema:
+                self._db.updateEnv(tenant_schema=self.temp_tenant_schema)
             envCallArgs = dictExtract(self._call_kwargs,'dbenv_')
             if envCallArgs:
                 self._db.updateEnv(**envCallArgs)
