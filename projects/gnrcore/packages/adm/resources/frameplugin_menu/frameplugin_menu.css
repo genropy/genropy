@@ -245,12 +245,18 @@
     width: 100%;
     vertical-align: bottom;
 }
-.menu_plugin_searchbar .slotbar_cell:has(> .windowaddIcon) {
+.menu_plugin_searchbar .slotbar_cell:has(> .windowaddButton) {
     width: 1px;
     vertical-align: bottom;
 }
+.menu_plugin_searchbar .windowaddButton {
+    width: 1.7em;
+    height: 1.7em;
+    margin: 2px 0;
+}
 .menu_plugin_searchbar .windowaddIcon {
-    margin-bottom: .3em;
+    width: 1.4em;
+    height: 1.4em;
 }
 .menu_plugin_searchbar .searchboxLabel {
     display: none;
