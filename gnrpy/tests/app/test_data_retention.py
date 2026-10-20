@@ -71,6 +71,23 @@ class TestRetentionOverrides:
         assert default['retention_period'] == 60
         assert 'retention_period_custom' not in default
 
+    def test_empty_custom_retention_removes_override(self, db_sqlite):
+        app = db_sqlite.application
+        row = dict(table_fullname='sys.error', filter_column='__ins_ts',
+                   retention_period_default=60, retention_period_custom=90)
+        try:
+            app.saveRetentionPolicy({'sys.error': row})
+            assert app.retentionPolicy['sys.error']['retention_period'] == 90
+            row['retention_period_custom'] = None
+            app.saveRetentionPolicy({'sys.error': row})
+            assert db_sqlite.table('sys.dataretention').query(where='$table_fullname=:t',
+                                                              t='sys.error').count() == 0
+            policy = app.retentionPolicy['sys.error']
+            assert policy['retention_period'] == 60
+            assert 'retention_period_custom' not in policy
+        finally:
+            _clear_overrides(db_sqlite)
+
 
 class TestCleanupAction:
 

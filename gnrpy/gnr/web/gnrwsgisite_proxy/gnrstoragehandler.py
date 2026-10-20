@@ -14,6 +14,7 @@ The module defines:
 """
 
 import os
+from datetime import datetime
 
 from gnr.lib.services.storage import StorageNode as LegacyStorageNode
 from gnr.core.gnrsys import expandpath
@@ -70,6 +71,8 @@ class BaseStorageHandler:
         """
         self.site = site
         self.domain = domain
+        self._params_ts = {}
+        self._loaded_ts = datetime.now()
         if storage_params is not None:
             self.storage_params = storage_params
         else:
@@ -249,6 +252,7 @@ class BaseStorageHandler:
                 parameters=parameters_bag,
                 implementation=implementation
             )
+            self._params_ts[service_name] = self._loaded_ts
 
     def getStorageParameters(self, storage_name):
         """Get parameters for a storage service.
@@ -295,6 +299,8 @@ class BaseStorageHandler:
         Returns:
             True if update was successful, False otherwise
         """
+        self._params_ts[service_name] = datetime.now()
+        self._dropServiceInstance(service_name)
         # Query the specific service record
         # Use explicit domain if set, otherwise fall back to currentDomain
         storename = False
@@ -337,10 +343,29 @@ class BaseStorageHandler:
         Returns:
             True if service was in parameters and removed, False otherwise
         """
+        self._dropServiceInstance(service_name)
         if service_name in self.storage_params:
             del self.storage_params[service_name]
             return True
         return False
+
+    def _dropServiceInstance(self, service_name):
+        storage_type = self.site.services_handler.service_types.get('storage')
+        if storage_type:
+            storage_type.service_instances.pop(service_name, None)
+
+    def _refreshChangedStorageParams(self, storage_name):
+        # Another process may have changed the sys.service record: its triggers
+        # refreshed only that process's registry. Built-in and siteconfig entries
+        # are skipped, as BaseServiceType.__call__ does (issue #1153).
+        if storage_name in self.storage_params and storage_name not in self._params_ts:
+            return
+        if 'sys' not in self.site.gnrapp.packages.keys():
+            return
+        changed_ts = self.site.register.globalStore().getItem(
+            'globalServices_lastChangedConfigTS.storage_%s' % storage_name)
+        if changed_ts and changed_ts > self._params_ts.get(storage_name, self._loaded_ts):
+            self.updateStorageParams(storage_name)
 
     @deprecated('Storage services should be accessed via storage_params registry, not dynamically created')
     def getVolumeService(self, storage_name=None):
@@ -471,6 +496,7 @@ class LegacyStorageHandler(BaseStorageHandler):
         Returns:
             Storage service instance
         """
+        self._refreshChangedStorageParams(storage_name)
         stored_params = self.getStorageParameters(storage_name)
         if not stored_params:
             volume_path = expandpath(os.path.join(self.site.site_static_dir, storage_name))
@@ -483,11 +509,19 @@ class LegacyStorageHandler(BaseStorageHandler):
         service_params = dict(stored_params)
         service_params.pop('service_name', None)
         service_params.update(kwargs)
-        return self.site.getService(
+        service = self.site.getService(
             service_type='storage',
             service_name=storage_name,
             **service_params
         )
+        if service_params.get('implementation') == 'relative' and service.parentServiceChanged():
+            self.site.services_handler('storage').service_instances.pop(storage_name, None)
+            service = self.site.getService(
+                service_type='storage',
+                service_name=storage_name,
+                **service_params
+            )
+        return service
     
     def _adapt_path(self, *args, **kwargs):
         """Adapt and parse legacy path formats.

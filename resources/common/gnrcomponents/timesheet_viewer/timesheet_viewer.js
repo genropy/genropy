@@ -50,7 +50,7 @@ dojo.declare('gnr.TimesheetViewerController',null,{
             bottom.popNode('captions');
             var box = bottom._('div','captions',{position:'absolute',top:'2px',bottom:'2px',right:'50px'});
             var colors = this.colors;
-            var fb = genro.dev.formbuilder(box,this.channels.length,{border_spacing:'5px'});
+            var fb = genro.dev.formbuilder(box,this.channels.length,{formlet:false,border_spacing:'5px'});
 
             this.channels.forEach(function(channel){
                 fb.addField('div',{height:'20px',width:'20px',background:colors[channel],lbl:channel,lbl_padding_left:'50px'});

@@ -1,6 +1,8 @@
 import os
 import pytest
 
+from werkzeug.test import EnvironBuilder
+
 import gnr.web.gnrwsgisite as gws
 
 from webcommon import BaseGnrDaemonTest
@@ -112,6 +114,19 @@ class TestGnrWsgiSite(BaseGnrDaemonTest):
         response = self.client.get('/sys/test')
         assert "200 " in response.get('status')
         assert b'genro' in response.get('data')
+
+    def test_storage_segment_with_many_colons_returns_404(self):
+        path = '.env.production::$DATA'
+        node = self.site.storageNodeFromPathList([path])
+        assert not node.exists
+        statuses = []
+
+        def start_response(status, headers, exc_info=None):
+            statuses.append(status)
+
+        environ = EnvironBuilder(path=f'/{path}').get_environ()
+        self.site.storageDispatcher([path], environ, start_response)
+        assert statuses and statuses[0].startswith('404')
 
     def _error_rows(self, pkey):
         db = self.site.db

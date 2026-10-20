@@ -246,8 +246,16 @@ dojo.declare("gnr.GnrDevHandler", null, {
 
 
     formbuilder:function(node, col, tblattr) {
-        var defautlLblAttr = objectExtract(tblattr,'lbl_*');
-        var tbl = node._('table', tblattr || {})._('tbody');
+        tblattr = tblattr || {};
+        var formlet = objectPop(tblattr,'formlet');
+        if(isNullOrBlank(formlet)){
+            formlet = genro.startArgs.useFormletsInJsFb;
+        }
+        if(formlet){
+            return this.formlet(node, col, tblattr);
+        }
+        var defaultLblAttr = objectExtract(tblattr,'lbl_*');
+        var tbl = node._('table', tblattr)._('tbody');
 
         tbl.col_max = col || 1;
         tbl.col_count = tbl.col_max + 1;
@@ -262,14 +270,13 @@ dojo.declare("gnr.GnrDevHandler", null, {
             if(kw.label){
                 kw.label = _T(kw.label);
             }
-            var lblpars = {innerHTML:lbl?_T(lbl,true):null,_class:'gnrfieldlabel',
-                        hidden:kw.hidden,text_align:'right'};
-            lblpars = objectUpdate(defautlLblAttr,lblpars);
+            var lblpars = objectUpdate({innerHTML:lbl || null,_class:'gnrfieldlabel',
+                                        hidden:kw.hidden,text_align:'right'},defaultLblAttr);
             objectUpdate(lblpars, objectExtract(kw, 'lbl_*'));
             var tr = this.curr_tr;
             tr._('td', lblpars);
-            var res = tr._('td',objectUpdate({colspan:colspan},objectExtract(kw,'td_*')))._(tag, kw);
             var default_value = objectPop(kw,'default_value');
+            var res = tr._('td',objectUpdate({colspan:colspan},objectExtract(kw,'td_*')))._(tag, kw);
             var resNode = res.getParentNode();
             if(default_value && resNode.attr.value){
                 resNode.setRelativeData(resNode.attr.value,default_value);
@@ -278,6 +285,51 @@ dojo.declare("gnr.GnrDevHandler", null, {
             return res;
         };
         return tbl;
+    },
+
+    formlet:function(node, cols, attr) {
+        attr = objectUpdate({columns:cols || 1}, attr);
+        objectExtract(attr,'border_spacing,fld_width');
+        if(attr.width=='100%'){
+            // a block grid already fills its box: 100% plus the formlet padding overflows it
+            delete attr.width;
+        }
+        var tableOnlyLbl = 'lbl_text_align,lbl_vertical_align';
+        objectExtract(attr,tableOnlyLbl);
+        var defaultLblAttr = objectExtract(attr,'lbl_*',false,true);
+        attr._class = attr._class? 'formlet '+attr._class : 'formlet';
+        var grid = node._('gridbox', attr);
+        grid.addField = function(tag, kw) {
+            objectExtract(kw,'td_*');
+            objectExtract(kw,tableOnlyLbl);
+            kw = objectUpdate(objectUpdate({},defaultLblAttr),kw);
+            if(kw.lbl && !kw.label && (kw.tag || tag).toLowerCase()=='checkbox'){
+                kw.label = kw.lbl;
+                if((cols || 1)==1){
+                    kw.lbl = false;
+                }else{
+                    kw.lbl = '&nbsp;';
+                    kw.box__class = kw.box__class || 'formlet_placeholder_label';
+                }
+            }
+            if(kw.lbl){
+                kw.lbl = _T(kw.lbl);
+            }
+            if(kw.label){
+                kw.label = _T(kw.label);
+            }
+            if(kw.hidden && kw.lbl){
+                kw.box_hidden = kw.hidden;
+            }
+            var default_value = objectPop(kw,'default_value');
+            var res = this._(tag, kw);
+            var resNode = res.getParentNode();
+            if(default_value && resNode.attr.value){
+                resNode.setRelativeData(resNode.attr.value,default_value);
+            }
+            return res;
+        };
+        return grid;
     },
 
     relationExplorer:function(table, title, rect) {
@@ -1158,7 +1210,7 @@ dojo.declare("gnr.GnrDevHandler", null, {
                 });
             },label:_T('Screenshot')});
             fb.addField('br',{});
-            fb.addField('img',{src:'^.preview',height:'50px',width:'200px',boder:'1px solid silver'});
+            fb.addField('img',{src:'^.preview',height:'50px',width:'200px',border:'1px solid silver'});
         }
         var bottom = dlg.bottom._('div');
         var saveattr = {'float':'right',label:_T('Save')};        
@@ -1201,7 +1253,7 @@ dojo.declare("gnr.GnrDevHandler", null, {
 
     translateQueryPars: function(currwhere) {
         var parslist = [];
-        var cb = function(node, parslist, idx) {
+        var cb = function(node, parslist) {
             if (node.attr.value_caption) {
                 if(node.attr.value_caption[0]=='?'){
                     var relpath = node.getFullpath('static', currwhere);
@@ -1213,7 +1265,7 @@ dojo.declare("gnr.GnrDevHandler", null, {
                     result.relpath = relpath;
                     result.parcode = flattenString(result.lbl,['.',' ']);
                     parslist.push(result);
-                }else if(node.attr.value_caption && node.attr.value_caption.indexOf('set:')==0){
+                }else if(node.attr.value_caption.indexOf('set:')==0){
                     return;
                 }else{
                     node.setValue(node.attr.value_caption);
@@ -1224,30 +1276,26 @@ dojo.declare("gnr.GnrDevHandler", null, {
         return parslist;
     },
 
-    dynamicQueryParsFb:function(sourceNode,wherebag,parslist,cols){
+    dynamicQueryParsFb:function(sourceNode,wherebag,parslist,cols,onEnter){
         parslist = parslist || this.translateQueryPars(wherebag);
-        var queryform = genro.dev.formbuilder(sourceNode,cols || 1,{border_spacing:'3px',onEnter:confirm,margin_top:'6px'});
-        var tr, attrs;
-        for (var i = 0; i < parslist.length; i++) {
-            attrs = parslist[i];
-            var lbl = attrs.lbl || attrs.value_caption.slice(1);
-            var dflt;
-
+        var queryform = genro.dev.formbuilder(sourceNode,cols || 1,{border_spacing:'3px',onEnter:onEnter || null,margin_top:'6px'});
+        for (let attrs of parslist) {
+            let lbl = attrs.lbl || attrs.value_caption.slice(1);
+            let dflt;
             if(!('dflt' in attrs)){
-                if(lbl.indexOf('|')){
-                    var l = lbl.split('|');
-                    lbl=l[0];
-                    dflt = l[1] ;
+                if(lbl.indexOf('|')>=0){
+                    let l = lbl.split('|');
+                    lbl = l[0];
+                    dflt = l[1];
                 }
             }else{
                 dflt = attrs.dflt;
             }
-            
             if(dflt){
                 wherebag.setItem(attrs.relpath,dflt);
             }
             if(attrs.column_relationTo){
-                var ro = attrs.column_relationTo.split('.');
+                let ro = attrs.column_relationTo.split('.');
                 queryform.addField('dbselect',{lbl:lbl,value:'^.' + attrs.relpath, width:'12em',dbtable:ro[0]+'.'+ro[1]});
             }else{
                 queryform.addField('textbox',{lbl:lbl,value:'^.' + attrs.relpath, width:'12em'});
@@ -1484,7 +1532,7 @@ dojo.declare("gnr.GnrDevHandler", null, {
                 });
             },label:_T('Screenshot')});
             fb.addField('br',{});
-            fb.addField('img',{src:'^.screenshot',height:'100px',width:'300px',boder:'1px solid silver'});
+            fb.addField('img',{src:'^.screenshot',height:'100px',width:'300px',border:'1px solid silver'});
 
         });
 

@@ -351,7 +351,7 @@ dojo.declare('gnr.GenroClient', null, {
         this._sanitizedContents[key] = true;
         console.warn('[sanitize_js] active JS removed from rendered HTML.',
                      'Migrate this content to a sanitize-safe pattern (e.g. format_isbutton/format_onclick,',
-                     'a delegated onCellClick handler, or a whitelisted template/js cell),',
+                     'a delegated onCellClick handler, a literal rowTemplate or a whitelisted template/js cell),',
                      'or set <switches sanitize_js="f"/> in instanceconfig as a temporary opt-out.',
                      'Content:', str);
         if(this.isDeveloper){
@@ -418,6 +418,12 @@ dojo.declare('gnr.GenroClient', null, {
     onWindowUnload:function(e) {
         if(genro.external_window_key){
             genro.mainGenroWindow.genro.publish('closeExternalWindow',{windowKey:genro.external_window_key});
+        }
+        if(genro.root_page_id){
+            let mainGenro = genro.mainGenroWindow && genro.mainGenroWindow.genro;
+            if(mainGenro){
+                mainGenro.setFastPolling(false,genro.page_id);
+            }
         }
         this.notifyPageClosing();
     },
@@ -825,9 +831,19 @@ dojo.declare('gnr.GenroClient', null, {
         }, 100);
     },
 
-    setFastPolling:function(fast){
-        this.fast_polling = fast;
-        this.setAutoPolling(fast);
+    setFastPolling:function(fast,requester){
+        requester = requester || this.page_id;
+        if(this.root_page_id){
+            return this.mainGenroWindow.genro.setFastPolling(fast,requester);
+        }
+        this._fast_polling_requests = this._fast_polling_requests || {};
+        if(fast){
+            this._fast_polling_requests[requester] = true;
+        }else{
+            delete this._fast_polling_requests[requester];
+        }
+        this.fast_polling = objectNotEmpty(this._fast_polling_requests);
+        this.setAutoPolling(this.fast_polling);
     },
 
     setAutoPolling:function(fast){
