@@ -413,6 +413,7 @@ class DynamicForm(BaseComponent):
             return
 
         pane.attributes.update(kwargs)
+        df_formlet = self.df_useFormlet(df_formlet)
         df_tblobj = self.db.table(df_table)
         pkeylist = df_groups.digest('#a.pkey') if df_groups else [df_pkey]
         global_fields = dict([(pkey,df_tblobj.df_getFieldsRows(pkey=pkey)) for pkey in pkeylist])
@@ -469,7 +470,7 @@ class DynamicForm(BaseComponent):
     @struct_method
     def df_dynamicFormGroup(self,pane,fields=None,ncol=None,colswidth=None,spacing=3,setInAttributes=False,df_formlet=None,**kwargs):
         box = pane.div(margin_right='10px')
-        if df_formlet:
+        if self.df_useFormlet(df_formlet):
             # lblpos='T': formbuilder_formlet defaults to the legacy left label,
             # the formlet norm is top and it is what the surrounding form uses.
             fb = box.formbuilder_formlet(cols=self.df_formletColumns(ncol,colswidth),lblpos='T')
@@ -477,6 +478,11 @@ class DynamicForm(BaseComponent):
             fb = box.formbuilder(cols=ncol or 1,keeplabel=True,colswidth=colswidth,width='100%',border_spacing='3px',
                                                             spacing=spacing,tdf_width='100%',lbl_white_space='nowrap',lbl=False)
         fb.addDynamicFields(fields=fields,setInAttributes=setInAttributes,**kwargs)
+
+    def df_useFormlet(self,df_formlet=None):
+        if df_formlet is None:
+            return self.application.experimentalFlag('gui','use_formlets_in_dynamicform')
+        return df_formlet
 
     def df_formletColumns(self,ncol=None,colswidth=None):
         """Translate the formbuilder df_colswidth (comma separated) into a
@@ -501,7 +507,7 @@ class DynamicForm(BaseComponent):
             r.pop('page',None)
         if fbattrs is not False:
             fbattrs = fbattrs or dict()
-            if df_formlet:
+            if self.df_useFormlet(df_formlet):
                 # a formlet has no rows: the formbuilder row_datapath scoping becomes
                 # the datapath of the grid container
                 fb = pane.formbuilder_formlet(cols=self.df_formletColumns(fbattrs.get('cols'),fbattrs.get('colswidth')),
@@ -545,7 +551,7 @@ class DynamicForm(BaseComponent):
         description = wdg_attr.pop('description',None) or code.title()
         fieldPrefix = fieldPrefix or '.'
         wdg_attr['value']='^%s%s' %(fieldPrefix,code)
-        if tag.lower() in ('checkbox' or 'radiobutton'):
+        if tag.lower() in ('checkbox', 'radiobutton'):
             wdg_attr['lbl'] = '&nbsp;'
             wdg_attr['label'] = description
         else:

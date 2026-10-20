@@ -517,7 +517,7 @@ dojo.declare("gnr.widgets.TooltipMultivalue", gnr.widgets.TooltipPane, {
         bar._('button','cancel',{'label':_T('Cancel'),command:'cancel'});
         bar._('button','confirm',{'label':_T('Confirm'),command:'confirm'});
         var box = dlg.center._('div',{padding:'5px'});
-        var fb = genro.dev.formbuilder(box,2,{border_spacing:'3px',width:'270px'});
+        var fb = genro.dev.formbuilder(box,2,{formlet:false,border_spacing:'3px',width:'270px'});
         var b = fb.addField('div',{text_align:'right'})
         b._('div',{innerHTML:'^.mv_label',_class:'mv_labels'})
         b._('menu',{values:labels,action:'SET .mv_label=$1.label',modifiers:'*',_class:'smallmenu'});
@@ -1108,15 +1108,6 @@ dojo.declare("gnr.widgets.PaletteMap", gnr.widgets.gnrwdg, {
         if(centerMarker){
             mapKw.centerMarker = true;
         }
-       //if(kw.searchOn){
-       //    //var bar = pane._('SlotBar',{'side':'top',slots:'fbpars,*',searchOn:objectPop(kw,'searchOn'),toolbar:true});
-       //    //var fb = genro.dev.formbuilder(bar._('div','fbpars',{}),{border_spacing:'1px',width:'100%',margin_bottom:'12px'});
-       //   // _('horizontalSlider',{'value':'^.zoom'});
-       //   // 
-       //   //         fb.horizontalSlider(value='^.zoom',lbl='Zoom',minimum=4,maximum=21,width='150px',discreteValues=18)
-       //
-       //}
-        
         var mapNode = pane._('GoogleMap',objectUpdate({'height':'100%',map_type:'roadmap'},mapKw)).getParentNode();
         
         var paletteNode = pane.getParentNode();
@@ -1429,7 +1420,7 @@ dojo.declare("gnr.widgets.PaletteImporter", gnr.widgets.gnrwdg, {
        //                        value:'^.import_action',width:'6em',default_value:'insert'})
         bar = frame._('slotBar',{slots:'2,fbbottom,*',side:'bottom',_class:'slotbar_dialog_footer'});
 
-        var fb = genro.dev.formbuilder(bar._('div','fbbottom'),3,{border_spacing:'1px'});
+        var fb = genro.dev.formbuilder(bar._('div','fbbottom'),3,{formlet:false,border_spacing:'1px'});
         if(!gnrwdg.importerMethod){
             fb.addField('filteringSelect',{value:'^.import_method',width:'7em',
                 lbl_text_align:'right',
@@ -2860,7 +2851,7 @@ dojo.declare("gnr.widgets.VideoPlayer", gnr.widgets.gnrwdg, {
     },
     gnrwdg_videoSearchBox:function(bar,slotName){
         var sb = bar._('div',slotName)
-        var fb = genro.dev.formbuilder(sb,1,{border_spacing:'1px',font_size:'.9em'});
+        var fb = genro.dev.formbuilder(sb,1,{formlet:false,border_spacing:'1px',font_size:'.9em'});
         var videoNodeId = this.videoNodeId;
         var that = this;
 
@@ -6938,6 +6929,11 @@ dojo.declare("gnr.stores._Collection",null,{
         return -1;
     },
     
+    currentItems:function(){
+        var items = this.getItems();
+        return this._filtered? this._filtered.map(function(idx){return items[idx];}):items;
+    },
+
     absIndex:function(idx,reverse){
         //if (this.invalidFilter()) {
         //    console.log('invalid filter');
@@ -7298,7 +7294,7 @@ dojo.declare("gnr.stores.ValuesBagRows",gnr.stores.BagRows,{
     },
 
     currentPkeys:function(caption_field){
-        var data = this.getData();
+        var data = this.currentItems();
         var result = [];
         var r;
         let identifier = this.identifier;
@@ -7354,7 +7350,7 @@ dojo.declare("gnr.stores.AttributesBagRows",gnr.stores.BagRows,{
         return n.attr[this.identifier];
     },
     currentPkeys:function(caption_field){
-        var data = this.getData();
+        var data = this.currentItems();
         var result = [];
         var r;
         let identifier = this.identifier;
@@ -7793,7 +7789,7 @@ dojo.declare("gnr.stores.Selection",gnr.stores.AttributesBagRows,{
 
 
     currentPkeys:function(caption_field){
-        var data = this.getData();
+        var data = this.currentItems();
         var result = [];
         var r;
         data.forEach(function(n){

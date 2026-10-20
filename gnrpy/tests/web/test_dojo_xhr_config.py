@@ -18,6 +18,7 @@ def test_transport_bootstrap_uses_instance_configuration(transport):
         config.setItem('experimental.page', None, dojo_xhr_patch=transport)
     application = SimpleNamespace(config=config)
     application.experimentalValue = MethodType(GnrApp.experimentalValue, application)
+    application.experimentalFlag = MethodType(GnrApp.experimentalFlag, application)
     static = SimpleNamespace(url=lambda *args: '/static/')
     page = SimpleNamespace(
         application=application,

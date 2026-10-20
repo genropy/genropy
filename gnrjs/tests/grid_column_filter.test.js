@@ -56,7 +56,7 @@ function filterCell(context, attrs) {
 }
 
 // a NewIncludedView over an attributes store with three filterable columns
-function createGrid({virtual = false} = {}) {
+function createGrid({virtual = false, selection = false} = {}) {
     const context = createContext();
     const {gnr, genro} = context;
     const data = new gnr.GnrBag();
@@ -67,8 +67,12 @@ function createGrid({virtual = false} = {}) {
         getRelativeData: p => data.getItem(p),
         setRelativeData: (p, v) => data.setItem(p, v)
     };
-    const storeClass = virtual ? gnr.stores.VirtualSelection : gnr.stores.AttributesBagRows;
+    const storeClass = virtual ? gnr.stores.VirtualSelection : selection ? gnr.stores.Selection : gnr.stores.AttributesBagRows;
     const store = Object.assign(Object.create(storeClass.prototype), {storeNode, storepath: 'grid.store', identifier: '_pkey'});
+    if (selection) {
+        Object.assign(store, {storeType: 'Selection'});
+        storeNode.attr = {};
+    }
     genro.nodeById = id => (id === 'invoices_store' ? {store} : null);
     const grid = {};
     const proto = gnr.widgets.NewIncludedView.prototype;
@@ -173,4 +177,93 @@ test('a virtual store ignores filterField: no icon and no filter', () => {
     assert.equal(g.grid.hasColumnFilters(), false);
     const header = g.gnr.widgets.NewIncludedView.prototype.cellHeaderContent(g.grid.sourceNode, g.grid.cellmap.status);
     assert.ok(!header.includes('gridColumnFilter'));
+});
+
+function structCell(context, gridAttr, cellAttr) {
+    const {gnr, genro} = context;
+    genro.dom = {getStyleDict: () => ({})};
+    genro.evaluate = v => v;
+    const struct = new gnr.GnrBag();
+    const rows = new gnr.GnrBag();
+    rows.setItem('c0', null, cellAttr);
+    struct.setItem('view_0.rows_0', rows);
+    struct.setBackRef();
+    const sourceNode = {attr: gridAttr, currentFromDatasource: v => v};
+    return gnr.widgets.NewIncludedView.prototype.structFromBag_cell(sourceNode, struct.getNode('view_0.rows_0.c0'), new gnr.GnrBag());
+}
+
+test('filterFieldDefault on the grid turns filterField on for plain data cells only', () => {
+    const context = createContext();
+    const on = {filterFieldDefault: true};
+    assert.equal(structCell(context, on, {field: 'status'}).filterField, true);
+    assert.equal(structCell(context, on, {field: '@customer_id.name'}).filterField_key, '_customer_id_name');
+    assert.equal(structCell(context, on, {field: 'status', filterField: false}).filterField, false);
+    assert.equal(structCell(context, on, {field: 'agent', filterField: 'agent_id'}).filterField, 'agent_id');
+    for (const attrs of [{template: '$a $b'}, {rowTemplate: '$a'}, {template_columns: 'a,b'}, {calculated: true},
+                         {values: 'A:Open,C:Closed'}, {format_isbutton: true}, {format_buttonclass: 'iconbox'}]) {
+        assert.equal(structCell(context, on, Object.assign({field: 'status'}, attrs)).filterField, undefined, JSON.stringify(attrs));
+    }
+    assert.equal(structCell(context, {}, {field: 'status'}).filterField, undefined);
+});
+
+test('a template cell filtered on another field captions the filtered value', () => {
+    const g = createGrid();
+    const {context, grid} = g;
+    const cell = filterCell(context, {field: 'customer_id', field_getter: 'customer_id', filterField: 'status',
+                                      _filterCaptionFromValue: true});
+    assert.equal(grid.columnFilterCaption(cell, INVOICES[0], INVOICES[0].status), 'Paid');
+    assert.equal(grid.columnFilterCaption(grid.cellmap._customer_id_name, INVOICES[0], 'C1'), 'Rossi');
+});
+
+test('filter values follow the natural order of the column, empty last', () => {
+    const context = createContext();
+    const {gnr} = context;
+    const date = (y, m, d) => vm.runInContext(`new Date(${y}, ${m}, ${d})`, context);
+    const order = (cell, items) => {
+        const pane = Object.assign(Object.create(gnr.GridColumnFilterPane.prototype), {cell});
+        return items.map(([value, caption]) => ({value, caption: caption === undefined ? value : caption,
+                                                 key: gnr.columnFilterKey(value), count: 0}))
+                    .sort(pane.compareItems.bind(pane)).map(item => pane.captionText(item));
+    };
+    assert.deepEqual(order({filterField: true}, [[10, '10,00'], [null], [9, '9,00'], [-5, '-5,00']]),
+                     ['-5,00', '9,00', '10,00', '(empty)']);
+    assert.deepEqual(order({filterField: true}, [[date(2026, 1, 1), '01/02/2026'], [date(2025, 0, 15), '15/01/2025']]),
+                     ['15/01/2025', '01/02/2026']);
+    assert.deepEqual(order({filterField: true}, [['zeta'], [''], ['Beta'], ['alfa'], ['PO 10'], ['PO 9']]),
+                     ['alfa', 'Beta', 'PO 9', 'PO 10', 'zeta', '(empty)']);
+    assert.deepEqual(order({filterField: true, caption_field: '_c'}, [[3, 'Rossi'], [1, 'Verdi'], [2, 'Bianchi']]),
+                     ['Bianchi', 'Rossi', 'Verdi']);
+});
+
+test('the pkeys of the grid are the rows the filters leave visible', () => {
+    const g = createGrid();
+    assert.deepEqual(Array.from(g.grid.getAllPkeys()), ['I0', 'I1', 'I2', 'I3', 'I4']);
+    g.filter('status', ['Paid']);
+    g.visible();
+    assert.deepEqual(Array.from(g.grid.getAllPkeys()), ['I0', 'I2']);
+    assert.deepEqual(Array.from(g.grid.getAllPkeys('_customer_id_name'), r => `${r.pkey}:${r.caption}`),
+                     ['I0:Rossi', 'I2:Verdi']);
+});
+
+test('print and batch with no row selected get the visible rows of a static selection', () => {
+    const g = createGrid({selection: true});
+    Object.assign(g.grid, {getSelectedPkeys: () => [], getSelectedRowidx: () => []});
+    g.filter('_customer_id_name', ['C2']);
+    g.visible();
+    const kw = g.grid.currentSelectionPars();
+    assert.deepEqual(Array.from(kw.selectedPkeys), ['I2', 'I4']);
+    assert.equal(kw.selectionCount, 2);
+});
+
+test('the export of a filtered grid holds the visible rows, none when nothing matches', () => {
+    const g = createGrid();
+    const exported = () => Array.from(g.grid.currentData('all', true, true).getNodes(), n => n.attr._pkey);
+    assert.deepEqual(exported(), ['I0', 'I1', 'I2', 'I3', 'I4']);
+    g.filter('status', ['Sent']);
+    g.visible();
+    assert.deepEqual(exported(), ['I1', 'I4']);
+    g.filter('_customer_id_name', ['C3']);
+    g.visible();
+    assert.deepEqual(exported(), []);
+    assert.equal(g.grid.currentData('all', true, false).len(), 5);
 });

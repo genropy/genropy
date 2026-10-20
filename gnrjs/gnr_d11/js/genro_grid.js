@@ -1929,6 +1929,15 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
         return cell.filterField===true? cell.field:cell.filterField.replace(/^\$/,'').replace(/\W/g, '_');
     },
 
+    columnFilterComposite:function(cell){
+        return !!(cell.template || cell.rowTemplate || cell.template_columns || cell._customGetter);
+    },
+
+    columnFilterByDefault:function(cell){
+        return !(this.columnFilterComposite(cell) || cell.calculated || cell.values || cell.checkBoxColumn ||
+                 cell.userSets || cell.format_isbutton || cell.format_buttonclass);
+    },
+
     structFromBag_cell:function(sourceNode,cellNode,columnsets){
         var rowattrs = objectUpdate({}, cellNode.getParentNode().attr);
         rowattrs = objectExtract(rowattrs, 'classes,headerClasses,cellClasses');
@@ -1941,6 +1950,12 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
         }
         
         cell = objectUpdate(cell, cellNode.attr);
+        if(!('filterField' in cell) && sourceNode.attr.filterFieldDefault && this.columnFilterByDefault(cell)){
+            cell.filterField = true;
+        }
+        if(cell.filterField && this.columnFilterComposite(cell)){
+            cell._filterCaptionFromValue = true;
+        }
         if(!cell.width && cell.dfltwidth){
             cell.width = cell.dfltwidth;
         }
@@ -4716,7 +4731,7 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
     },
 
     mixin_columnFilterCaption:function(cell,rowdata,value){
-        var caption = rowdata[cell.field_getter];
+        var caption = cell._filterCaptionFromValue? null:rowdata[cell.field_getter];
         if(caption===undefined || caption===null){
             caption = value;
         }
@@ -5330,21 +5345,16 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
     mixin_currentData:function(nodes, rawData,applyFilter){
         nodes = nodes || (this.getSelectedRowidx().length<1?'all':'selected');
         var result = new gnr.GnrBag();
-        var filtered = [];
         if (rawData===true){
             if(nodes=='all'){
-                if(applyFilter){
-                    filtered = this.collectionStore()._filtered || [];
-                }
-                nodes = this.collectionStore().getData().getNodes();
+                var store = this.collectionStore();
+                nodes = applyFilter? store.currentItems():store.getData().getNodes();
             }else if(nodes=='selected'){
                 //selectedNodes apply the current filter
                 nodes = this.getSelectedNodes();
             }
-            nodes.forEach(function(n,idx){
-                if(filtered.length == 0 || filtered.indexOf(idx)>=0){
-                    result.addItem(n.label,n);
-                }
+            nodes.forEach(function(n){
+                result.addItem(n.label,n);
             });
         }else{
             var col_fields = this.structbag().getItem('#0.#0').digest('#a.field,#a.hidden');

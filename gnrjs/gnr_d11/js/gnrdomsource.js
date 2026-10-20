@@ -1709,10 +1709,15 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
 
     },
     
-    setHidden:function(hidden){
+    setHidden:function(hidden,_fromGroup){
         let labelWrapper = this.getLabelWrapper();
         if(labelWrapper){
             labelWrapper.setHidden(hidden);
+        }
+        // the table formbuilder collects the group cells in _hiddenTargets; a formlet
+        // has no cells, so the members are its siblings carrying the same hiddenGroup
+        if(!_fromGroup && this.attr.hiddenGroup && !this._hiddenTargets){
+            this._setHiddenGroup(hidden,labelWrapper);
         }
         var parent = this.widget && this.widget.parentBorderContainer;
         var animatedRegion = parent && parent._drawerAnimations &&
@@ -1738,6 +1743,22 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         }
     },
     
+    _setHiddenGroup:function(hidden,labelWrapper){
+        let own = labelWrapper || this;
+        let container = own.getParentNode();
+        let siblings = container && container.getValue('static');
+        if(!(siblings instanceof gnr.GnrDomSource)){
+            return;
+        }
+        for(let node of siblings.getNodes()){
+            // a labeled member is hidden through its labledbox, which holds the whole cell
+            let memberAttr = (node._contentNode || node).attr;
+            if(node!==own && memberAttr.hiddenGroup===this.attr.hiddenGroup && (node.domNode || node.widget)){
+                node.setHidden(hidden,true);
+            }
+        }
+    },
+
     updateRemoteContent:function(forceUpdate,async) {
         var _onRemote = false;
         var currentValue = this.getValue('static');
@@ -2091,19 +2112,37 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         if(domNode._gnrErrorTooltipBound){
             return;
         }
-        domNode.addEventListener('mouseenter', function(){
-            if(domNode._gnrErrorText){
-                dijit.showTooltip(
-                    '<span class="gnrErrorTooltip">' + domNode._gnrErrorText + '</span>',
-                    domNode
-                );
+        var that = this;
+        var showError = function(){
+            if(!domNode._gnrErrorText){
+                return;
             }
+            if(!dijit._masterTT){
+                dijit._masterTT = new dijit._MasterTooltip();
+            }
+            // the master tooltip is shared: only the error tooltip enters slower
+            var fadeIn = dijit._masterTT.fadeIn;
+            var duration = fadeIn.duration;
+            fadeIn.duration = that._errorTooltipFade;
+            dijit.showTooltip(
+                '<span class="gnrErrorTooltip">' + domNode._gnrErrorText + '</span>',
+                domNode
+            );
+            fadeIn.duration = duration;
+        };
+        domNode.addEventListener('mouseenter', function(){
+            clearTimeout(domNode._gnrErrorTooltipTimer);
+            domNode._gnrErrorTooltipTimer = setTimeout(showError, that._errorTooltipDelay);
         });
         domNode.addEventListener('mouseleave', function(){
+            clearTimeout(domNode._gnrErrorTooltipTimer);
             dijit.hideTooltip(domNode);
         });
         domNode._gnrErrorTooltipBound = true;
     },
+
+    _errorTooltipDelay: 1500,
+    _errorTooltipFade: 400,
 
     _errorFallbacks: {
         'notnull':  '!!Required field',

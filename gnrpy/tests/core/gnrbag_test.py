@@ -297,6 +297,15 @@ class TestBasicBag(object):
         b.setBackRef()
         assert b['just.a.simple'].fullpath == 'just.a.simple'
 
+    def test_getLeaves(self):
+        b = Bag()
+        b['a.b.c'] = 1
+        b['a.d'] = 2
+        b['e'] = 3
+        assert b.getLeaves() == [('a.b.c', 1), ('a.d', 2), ('e', 3)]
+        assert [p for p, n in b.getIndex()] == [['a'], ['a', 'b'], ['a', 'b', 'c'],
+                                                ['a', 'd'], ['e']]
+
 class TestBagTrigger(object):
     def setup_class(cls):
         cls.mybag = Bag(BAG_DATA)

@@ -218,8 +218,8 @@
 <en_scale_max base="Scale max"></en_scale_max>
 <en_minutes base="Minutes"></en_minutes>
 <en_comment base="Comment" de="Kommentar" en="Comment" fr="Commentaire" it="Commento"></en_comment>
-<en_delete_row base="Delete row"></en_delete_row>
-<en_add_row base="Add row"></en_add_row>
+<en_delete_row base="Delete row" it="Elimina riga"></en_delete_row>
+<en_add_row base="Add row" it="Aggiungi riga"></en_add_row>
 <en_add_column base="Add column"></en_add_column>
 <en_add_col base="Add col"></en_add_col>
 <en_template_not_yet_created base="Template not yet created" it="Template non ancora creato"></en_template_not_yet_created>
@@ -342,16 +342,6 @@
 <en_header base="Header" it="Header" en="Header" zh="标题"></en_header>
 <en_fill_parameters base="Fill parameters" it="Compila i parametri"></en_fill_parameters>
 <en_edit base="Edit" de="Bearbeiten" en="Edit" fr="Éditer" it="Modifica"></en_edit></genro_grid>
-<genro_uo path="gnrjs/gnr_d11/js/genro_uo.js" ext="js"><en_missing_code base="Missing code"></en_missing_code>
-<en_code base="Code" en="Code" it="Codice"></en_code>
-<en_private fr="Privé" de="Privat" en="Private" it="Privato" base="Private"></en_private>
-<en_name base="Name" de="Name" en="Name" fr="Nom" it="Nome"></en_name>
-<en_authorization fr="Autorisation" de="Genehmigung" en="Authorization" it="Autorizzazione" base="Authorization"></en_authorization>
-<en_notes fr="Remarques" de="Aufzeichnungen" en="Notes" it="Note" base="Notes"></en_notes>
-<en_screenshot base="Screenshot"></en_screenshot>
-<en_save fr="Sauvegarder" de="Speichern" en="Save" it="Salva" base="Save"></en_save>
-<en_duplicate_as base="Duplicate as"></en_duplicate_as>
-<en_cancel base="Cancel" de="Stornieren" en="Cancel" fr="Annuler" it="Annulla"></en_cancel></genro_uo>
 <genro_wdg path="gnrjs/gnr_d11/js/genro_wdg.js" ext="js"><en_multi_assignment base="Multi assignment"></en_multi_assignment></genro_wdg>
 <genro_widgets path="gnrjs/gnr_d11/js/genro_widgets.js" ext="js"><en_invalid base="Invalid" it="Non valido"></en_invalid>
 <en_single_option base="Single option"></en_single_option>
@@ -429,6 +419,28 @@
 <en_add_next base="Add next" it="Inserisci dopo"></en_add_next>
 <en_drag_to_reorder base="Drag to reorder" it="Trascina per riordinare"></en_drag_to_reorder>
 <en_row_actions base="Row actions" it="Azioni riga"></en_row_actions>
+<en_1_row_selected base="1 row selected" it="1 riga selezionata"></en_1_row_selected>
+<en__count_rows_selected base="$count rows selected" it="$count righe selezionate"></en__count_rows_selected>
+<en_esc_to_clear base="Esc to clear" it="Esc per deselezionare"></en_esc_to_clear>
+<en_actions_on_the_selected_rows base="Actions on the selected rows" it="Azioni sulle righe selezionate"></en_actions_on_the_selected_rows>
+<en_select_all_rows base="Select all rows" it="Seleziona tutte le righe"></en_select_all_rows>
+<en_select_row base="Select row" it="Seleziona la riga"></en_select_row>
+<en_row_added base="Row added" it="Riga aggiunta"></en_row_added>
+<en_row_saved base="Row saved" it="Riga salvata"></en_row_saved>
+<en_rows_added base="Rows added" it="Righe aggiunte"></en_rows_added>
+<en_delete_row base="Delete row" it="Elimina riga"></en_delete_row>
+<en_delete_1_row base="Delete 1 row" it="Elimina 1 riga"></en_delete_1_row>
+<en_delete_count_rows base="Delete $count rows" it="Elimina $count righe"></en_delete_count_rows>
+<en_add_row base="Add row" it="Aggiungi riga"></en_add_row>
+<en_add_enter_ base="Add (Enter)" it="Aggiungi (Invio)"></en_add_enter_>
+<en_save_enter_esc_to_cancel base="Save (Enter), Esc to cancel" it="Salva (Invio), Esc per annullare"></en_save_enter_esc_to_cancel>
+<en_at_least_count_rows_are_required base="At least $count rows are required" it="Servono almeno $count righe"></en_at_least_count_rows_are_required>
+<en_keep_this_value base="Keep this value" it="Mantieni questo valore"></en_keep_this_value>
+<en_untitled base="Untitled" it="Senza titolo"></en_untitled>
+<en_new_row base="New row" it="Nuova riga"></en_new_row>
+<en_collapse base="Collapse" it="Comprimi"></en_collapse>
+<en_expand base="Expand" it="Espandi"></en_expand>
+<en_correct_the_invalid_field base="Correct the invalid field" it="Correggi il campo non valido"></en_correct_the_invalid_field>
 <en_fill_in_the_fields_above_then_press_enter_or_click_to_add_the_row_ base="Fill in the fields above, then press Enter or click ↵ to add the row." it="Compila i campi qui sopra, poi premi Invio o fai clic su ↵ per aggiungere la riga."></en_fill_in_the_fields_above_then_press_enter_or_click_to_add_the_row_></grouplet_grid></grouplet>
 <attachmanager><attachmanager path="resources/common/gnrcomponents/attachmanager/attachmanager.py" ext="py"><en_filepath fr="Chemin Du Fichier" de="Dateipfad" en="Filepath" it="Filepath" base="Filepath"></en_filepath>
 <en_copied_into_clipboard base="Copied into clipboard"></en_copied_into_clipboard>
