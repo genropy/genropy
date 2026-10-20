@@ -562,27 +562,4 @@ body {
     /* header and footer bars of groups and linker boxes share one height,
        sized on the theme base font so a local font-size does not change it */
     --groupbar-min-height: calc(var(--font-size) * 2.3); /* @theme */
-    /* Borders and field text follow the variant grays; surfaces and chrome stay
-       on :root, since variants also use --gray-* as brand colors. */
-    --border-color: var(--gray-300);
-    --border-light: var(--gray-200);
-    --border-strong: var(--gray-400);
-    --btn-border-color: var(--border-color);
-    --tab-selected-color: var(--border-color);
-    --frameindex-tab-border: var(--gray-200);
-    --roundedgroup-border: var(--gray-200);
-    --expandbox-border: var(--border-light);
-    --dlg-border-color: var(--gray-250);
-    --tb-frame-border: var(--gray-200);
-    --tb-frame-border-open: var(--gray-300);
-    --grid-border-color: var(--gray-150);
-    --grid-cell-focus-border: var(--gray-300);
-    --grid-cell-over-border: var(--gray-250);
-    --field-border: var(--gray-400);
-    --field-disabled-border: var(--gray-250);
-    --field-disabled-color: var(--gray-500);
-    --field-readonly-border: var(--gray-200);
-    --form-field-border: var(--field-border);
-    --formbuilder-plaintext-border: var(--form-field-border);
-    --formbuilder-field-border: var(--form-field-border);
 }
