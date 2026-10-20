@@ -264,7 +264,7 @@ class FrameIndex(BaseComponent):
     @customizable
     def prepareBottom_std(self,bc):
         pane = bc.contentPane(region='bottom',overflow='hidden')
-        sb = pane.slotToolbar("""5,genrologo,1,helpdesk,1,settings,10,refresh,10,newWindow,10,phonelink,left_placeholder,*,
+        sb = pane.slotToolbar("""5,genrologo,1,helpdesk,1,settings,10,refresh,10,phonelink,left_placeholder,*,
                                     right_placeholder,count_errors,10,owner_name,user_name,logout,debugping,5""",
                                     _class='slotbar_toolbar framefooter', background='var(--surface-light)',border_top='1px solid var(--border-color)')
         return sb

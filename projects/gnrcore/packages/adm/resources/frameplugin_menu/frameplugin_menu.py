@@ -32,7 +32,7 @@ class MenuIframes(BaseComponent):
 
     def mainLeft_iframemenu_plugin(self, tc):
         frame = tc.framePane(title="Menu", pageName='menu_plugin')
-        frame.top.slotToolbar('searchOn',searchOn=True,searchOn_width='100%',
+        frame.top.slotToolbar('searchOn' if self.isMobile else 'searchOn,6,newWindow',searchOn=True,searchOn_width='100%',
                               searchOn_placeholder='!!Search',_class='menu_plugin_searchbar')
         bc = frame.center.borderContainer()
         self.mainLeft_clientLogo(bc.contentPane(region='bottom'))
