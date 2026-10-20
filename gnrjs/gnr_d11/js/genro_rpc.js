@@ -589,8 +589,12 @@ dojo.declare("gnr.GnrRpcHandler", null, {
         }
         for (k in css_requires){
             if(!(k in this.dynRequires.css)){
-                if(css_requires[k]){
-                    jslist.push({htype:'link',href:css_requires[k]});
+                // a name may resolve to one file per package (#148)
+                let hrefs = css_requires[k];
+                if(hrefs){
+                    (Array.isArray(hrefs)? hrefs : [hrefs]).forEach(function(href){
+                        jslist.push({htype:'link',href:href});
+                    });
                 }
                 this.dynRequires.css[k] = true;
             }
