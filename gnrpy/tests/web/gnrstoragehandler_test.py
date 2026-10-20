@@ -1134,6 +1134,246 @@ class TestStorageHandler(BaseGnrDaemonTest):
         assert self.site.storage(parent_name).base_path is None
         assert self.site.storage(service_name).base_path is None
 
+    @pytest.fixture
+    def storage_record(self):
+        """Inserts storage service records in sys.service, deleted at the end of the test"""
+        tblservice = self.site.db.table('sys.service')
+        records = []
+
+        def insert(service_name, implementation, **parameters):
+            record = tblservice.newrecord(service_type='storage', service_name=service_name,
+                                          implementation=implementation, parameters=Bag(parameters))
+            tblservice.insert(record)
+            self.site.db.commit()
+            records.append(record)
+            return service_name
+
+        yield insert
+        storage_type = self.services_handler('storage')
+        for record in reversed(records):
+            tblservice.delete(record)
+            self.site.db.commit()
+            storage_type.service_instances.pop(record['service_name'], None)
+
+    def _updateStorageRecord(self, service_name, **parameters):
+        tblservice = self.site.db.table('sys.service')
+        with tblservice.recordToUpdate(service_type='storage', service_name=service_name) as record:
+            record_parameters = Bag(record['parameters'])
+            record_parameters.update(parameters)
+            record['parameters'] = record_parameters
+        self.site.db.commit()
+
+    def test_relative_storage_node_operations(self, relative_storages):
+        """Test mkdir, copy and move between a relative storage and another storage."""
+        parent_name, child_name = relative_storages
+        parent_base_path = self.site.storage(parent_name).base_path
+        child_dir = os.path.join(parent_base_path, 'docs', 'invoices')
+
+        year_node = self.site.storageNode('%s:2026' % child_name)
+        year_node.mkdir()
+        assert year_node.isdir
+        assert year_node.internal_path == os.path.join(child_dir, '2026')
+
+        with self.site.storageNode('%s:incoming.txt' % parent_name).open(mode='w') as output_file:
+            output_file.write('incoming')
+        copied = self.site.storageNode('%s:incoming.txt' % parent_name).copy(
+            self.site.storageNode('%s:2026/copied.txt' % child_name))
+        assert copied.exists
+        assert os.path.isfile(os.path.join(child_dir, '2026', 'copied.txt'))
+
+        copied.move(self.site.storageNode('%s:archive/moved.txt' % parent_name))
+        assert copied.fullpath == '%s:archive/moved.txt' % parent_name
+        assert not self.site.storageNode('%s:2026/copied.txt' % child_name).exists
+        with open(os.path.join(parent_base_path, 'archive', 'moved.txt')) as moved_file:
+            assert moved_file.read() == 'incoming'
+
+        self.site.storageNode('%s:archive/moved.txt' % parent_name).move(
+            self.site.storageNode('%s:2026/back.txt' % child_name))
+        assert os.path.isfile(os.path.join(child_dir, '2026', 'back.txt'))
+        assert [child.basename for child in year_node.children()] == ['back.txt']
+
+        year_node.delete()
+        assert not os.path.exists(os.path.join(child_dir, '2026'))
+
+    def test_relative_storage_url_is_served(self, relative_storages):
+        """Test that the url of a relative storage file is served by the site."""
+        parent_name, child_name = relative_storages
+        node = self.site.storageNode('%s:served.txt' % child_name)
+        with node.open(mode='w') as output_file:
+            output_file.write('served content')
+
+        assert node.internal_url().endswith('/_storage/%s/served.txt' % child_name)
+        assert node.url() == node.internal_url()
+        response = self.client.get('/%s' % '/'.join(self.site.pathListFromUrl(node.url())))
+        assert '200 ' in response['status']
+        assert response['data'] == b'served content'
+
+    def test_relative_storage_siteconfig_parent(self, monkeypatch):
+        """Test relative storages whose parent is declared in siteconfig."""
+        parent_dir = os.path.join(self.test_dir, 'siteconfig_parent')
+        os.makedirs(parent_dir, exist_ok=True)
+        config = Bag(self.site.config)
+        config.setItem('services.storage.rel_sc_parent', None,
+                       implementation='local', base_path=parent_dir)
+        config.setItem('services.storage.rel_sc_child', None,
+                       implementation='relative', parent_service='rel_sc_parent',
+                       relative_path='docs')
+        monkeypatch.setattr(self.site, 'config', config)
+        monkeypatch.setattr(self.site.domains[self.site.currentDomain], '_storage_handler',
+                            LegacyStorageHandler(self.site))
+        storage_type = self.services_handler('storage')
+        try:
+            service = self.site.storage('rel_sc_child')
+            assert service.base_path == '%s/docs' % parent_dir
+            with self.site.storageNode('rel_sc_child:from_siteconfig.txt',
+                                       autocreate=-1).open(mode='w') as output_file:
+                output_file.write('siteconfig')
+            assert os.path.isfile(os.path.join(parent_dir, 'docs', 'from_siteconfig.txt'))
+        finally:
+            for service_name in ('rel_sc_parent', 'rel_sc_child'):
+                storage_type.service_instances.pop(service_name, None)
+
+    def test_relative_storage_builtin_parent(self):
+        """Test a relative storage whose parent is the built-in home storage."""
+        service_name = self._addStorage('rel_home_storage', implementation='relative',
+                                         parent_service='home', relative_path='rel_home_docs')
+        assert self.site.storage(service_name).base_path == '%s/rel_home_docs' % self.site.site_static_dir
+
+    def test_relative_storage_follows_parent_record_change(self, storage_record):
+        """Test that a relative storage follows a change of its parent parameters.
+
+        Both services are records of sys.service: changing the base path of the
+        parent must move the relative storage along with it.
+        """
+        first_dir = os.path.join(self.test_dir, 'first_parent_dir')
+        second_dir = os.path.join(self.test_dir, 'second_parent_dir')
+        parent_name = storage_record('rel_changing_parent', 'local', base_path=first_dir)
+        child_name = storage_record('rel_following_child', 'relative',
+                                    parent_service=parent_name, relative_path='docs')
+        assert self.site.storage(child_name).base_path == '%s/docs' % first_dir
+
+        self._updateStorageRecord(parent_name, base_path=second_dir)
+        assert self.site.storage(parent_name).base_path == second_dir
+        assert self.site.storage(child_name).base_path == '%s/docs' % second_dir
+
+    def test_relative_storage_chain_follows_root_record_change(self, storage_record):
+        """Test that a relative storage on a relative parent follows a change of the root."""
+        first_dir = os.path.join(self.test_dir, 'first_root_dir')
+        second_dir = os.path.join(self.test_dir, 'second_root_dir')
+        root_name = storage_record('rel_changing_root', 'local', base_path=first_dir)
+        middle_name = storage_record('rel_chain_middle', 'relative',
+                                     parent_service=root_name, relative_path='docs')
+        leaf_name = storage_record('rel_chain_leaf', 'relative',
+                                   parent_service=middle_name, relative_path='2026')
+        assert self.site.storage(leaf_name).base_path == '%s/docs/2026' % first_dir
+
+        self._updateStorageRecord(root_name, base_path=second_dir)
+        assert self.site.storage(leaf_name).base_path == '%s/docs/2026' % second_dir
+
+    def test_relative_storage_follows_own_record_change(self, storage_record):
+        """Test that a relative storage follows a change of its own parameters."""
+        parent_dir = os.path.join(self.test_dir, 'own_change_parent')
+        parent_name = storage_record('rel_own_change_parent', 'local', base_path=parent_dir)
+        child_name = storage_record('rel_own_change_child', 'relative',
+                                    parent_service=parent_name, relative_path='docs')
+        assert self.site.storage(child_name).base_path == '%s/docs' % parent_dir
+
+        self._updateStorageRecord(child_name, relative_path='archive')
+        assert self.site.storage(child_name).base_path == '%s/archive' % parent_dir
+
+    def test_relative_storage_on_s3_parent(self, s3_record):
+        """Test that a relative storage on an aws_s3 parent uses its bucket and credentials.
+
+        No request reaches the bucket: keys and signed urls are built locally.
+        """
+        parent_name = s3_record('rel_s3_parent', base_path='root',
+                                aws_access_key_id='AKIDEXAMPLE', aws_secret_access_key='secret')
+        child_name = self._addStorage('rel_s3_child', implementation='relative',
+                                       parent_service=parent_name, relative_path='docs/invoices')
+        parent_service = self.site.storage(parent_name)
+        service = self.site.storage(child_name)
+
+        assert service.parent_service is parent_service
+        assert service.bucket == 'mybucket'
+        assert service.aws_access_key_id == 'AKIDEXAMPLE'
+        assert service.location_identifier == parent_service.location_identifier
+        assert service.internal_path('receipt.pdf') == 'root/docs/invoices/receipt.pdf'
+        url = service.url('receipt.pdf')
+        assert url.startswith('https://mybucket.s3.amazonaws.com/root/docs/invoices/receipt.pdf?')
+        assert 'X-Amz-Credential=AKIDEXAMPLE' in url
+
+    # ========================================================================
+    # Storage Records Changed By Another Process (Bug #1681)
+    # ========================================================================
+
+    @pytest.fixture
+    def local_record(self):
+        """Inserts local storage records, deleted at the end of the test"""
+        tblservice = self.site.db.table('sys.service')
+        names = []
+
+        def insert(service_name, base_path):
+            record = tblservice.newrecord(service_type='storage', service_name=service_name,
+                                          implementation='local',
+                                          parameters=Bag(dict(base_path=base_path)))
+            tblservice.insert(record)
+            self.site.db.commit()
+            names.append(service_name)
+            return service_name
+
+        yield insert
+        for service_name in names:
+            tblservice.deleteSelection(where='$service_type=:st AND $service_name=:sn',
+                                       st='storage', sn=service_name)
+            self.site.db.commit()
+            self.services_handler('storage').service_instances.pop(service_name, None)
+
+    def test_storage_record_updated_by_another_process(self, local_record):
+        """A worker whose registry the triggers did not refresh builds the new parameters."""
+        service_name = local_record('changed_elsewhere', os.path.join(self.test_dir, 'before'))
+        other_worker = LegacyStorageHandler(self.site)
+        assert other_worker.storage(service_name).base_path == os.path.join(self.test_dir, 'before')
+
+        tblservice = self.site.db.table('sys.service')
+        with tblservice.recordToUpdate(service_type='storage', service_name=service_name) as record:
+            parameters = Bag(record['parameters'])
+            parameters['base_path'] = os.path.join(self.test_dir, 'after')
+            record['parameters'] = parameters
+        self.site.db.commit()
+
+        assert other_worker.storage(service_name).base_path == os.path.join(self.test_dir, 'after')
+        assert other_worker.storage_params[service_name]['base_path'] == os.path.join(self.test_dir, 'after')
+
+    def test_storage_record_inserted_by_another_process(self, local_record):
+        """A storage created elsewhere is not served as a folder of site_static_dir."""
+        other_worker = LegacyStorageHandler(self.site)
+        service_name = local_record('created_elsewhere', os.path.join(self.test_dir, 'created'))
+        assert service_name not in other_worker.storage_params
+        assert other_worker.storage(service_name).base_path == os.path.join(self.test_dir, 'created')
+
+    def test_storage_record_inserted_after_fallback(self, local_record):
+        """A name first served by the legacy fallback switches to its new record."""
+        service_name = 'created_after_fallback'
+        fallback = self.site.storage(service_name)
+        assert fallback.base_path == os.path.join(self.site.site_static_dir, service_name)
+        local_record(service_name, os.path.join(self.test_dir, 'created_after'))
+        assert self.site.storage(service_name).base_path == os.path.join(self.test_dir, 'created_after')
+
+    def test_storage_record_deleted_by_another_process(self, local_record):
+        """A worker does not keep serving a storage deleted elsewhere."""
+        service_name = local_record('deleted_elsewhere', os.path.join(self.test_dir, 'deleted'))
+        other_worker = LegacyStorageHandler(self.site)
+        other_worker.storage(service_name)
+
+        tblservice = self.site.db.table('sys.service')
+        tblservice.deleteSelection(where='$service_type=:st AND $service_name=:sn',
+                                   st='storage', sn=service_name)
+        self.site.db.commit()
+
+        assert service_name not in self.storage_handler.storage_params
+        assert other_worker.storage(service_name).base_path == self.site.storage(service_name).base_path
+        assert service_name not in other_worker.storage_params
+
     # ========================================================================
     # aws_s3 Storage On A Local Machine (Bug #1368)
     # ========================================================================

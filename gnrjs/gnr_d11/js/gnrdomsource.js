@@ -1456,7 +1456,8 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
                 }
             }
         }
-        if (!(kw.evt == 'ins' || kw.evt == 'del')) {
+        // a row inserted or deleted under the bound path leaves that path in place
+        if (!(kw.evt == 'ins' || kw.evt == 'del') || trigger_reason == 'child') {
             value = this.getAttributeFromDatasource(attr, true);
         }
         //value = (value != null) ? value : '';
@@ -2051,6 +2052,11 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         }
         let side = this.getInheritedAttributes().lbl_side || 'top';
         if(side!='top' && side!='bottom'){
+            return false;
+        }
+        // a single column formlet has no sibling on the same row to line up with
+        let columns = parentNode.attr.grid_template_columns || parentNode.attr.columns || parentNode.attr.cols;
+        if(isNullOrBlank(columns) || /^\s*(1|1fr|repeat\(\s*1\s*,\s*1fr\s*\))\s*$/.test(String(columns))){
             return false;
         }
         let siblings = parentNode.getValue('static');

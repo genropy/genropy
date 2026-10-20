@@ -1179,6 +1179,9 @@ class GroupletGridHandler(BaseComponent):
                         layout='cards',
                         lazyTabs=False,
                         titleField=None,
+                        titleTemplate=None,
+                        sortField=None, sortStore=False,
+                        collapsible=False, collapsedTemplate=None,
                         emptyTitle='!!Untitled',
                         dragCode=None,
                         onSelfDropRows=None,
@@ -1187,6 +1190,7 @@ class GroupletGridHandler(BaseComponent):
                         defaultRow=None,
                         rowTemplate=None,
                         selectionmenu=None, rowCheckbox=False,
+                        selectionGroup=None,
                         counterField=None,
                         formulas=None, totals=None,
                         grouplet_kwargs=None,
@@ -1248,8 +1252,11 @@ class GroupletGridHandler(BaseComponent):
         else:
             rowTemplate = None
         # actions on several selected rows: rows are selectable in template
-        # mode; delete is preset whenever rows can be deleted
-        if not rowTemplate or selectionmenu is False:
+        # mode, cards and editable rows by their checkboxes; delete is preset
+        # whenever rows can be deleted
+        selectable = bool(rowTemplate or rowCheckbox) \
+            and layout not in ('tabs', 'vtabs')
+        if not selectable or selectionmenu is False:
             selectionmenu = {}
         elif selectionmenu is None:
             selectionmenu = {'delete': True} if delitem else {}
@@ -1343,15 +1350,29 @@ class GroupletGridHandler(BaseComponent):
             editmenu_kwargs=editmenu_kwargs,
             layout=layout, lazyTabs=lazyTabs,
             titleField=titleField, emptyTitle=emptyTitle,
+            titleTemplate=self._gr_groupletGrid_template(titleTemplate),
+            sortField=sortField, sortStore=sortStore,
+            collapsible=collapsible,
+            collapsedTemplate=self._gr_groupletGrid_template(collapsedTemplate),
             defaultRow=defaultRow, minRows=minRows, maxRows=maxRows,
             counterField=counterField,
             formulas=formulas, totals=totals,
             rowTemplate=rowTemplate, selectionmenu=selectionmenu,
-            rowCheckbox=rowCheckbox,
+            rowCheckbox=rowCheckbox, selectionGroup=selectionGroup,
             resolved_drag_code=resolved_drag_code,
             loaderrpc=self.gr_getGroupletGridTemplate,
             mapLoaderrpc=self.gr_getGroupletGridTemplateMap)
         return container
+
+    def _gr_groupletGrid_template(self, spec):
+        """A row template (tab title, collapsed card) in the shape the JS
+        compiles: a string, or dict(template=, formats=, sums=) where `sums`
+        maps a $name to 'path.field', the field summed under the row's path."""
+        if not spec:
+            return None
+        spec = dict(template=spec) if isinstance(spec, str) else dict(spec)
+        spec['template'] = self._(spec.get('template') or '')
+        return spec
 
     def _gr_groupletGrid_totals(self, totals, default_format=None):
         """The `totals=` entries in the shape the JS band reads: `key` is
@@ -1391,9 +1412,11 @@ class GroupletGridHandler(BaseComponent):
             additem, delitem, editmenu,
             additem_kwargs, delitem_kwargs, editmenu_kwargs,
             layout, lazyTabs, titleField, emptyTitle,
+            titleTemplate, sortField, sortStore,
+            collapsible, collapsedTemplate,
             defaultRow, minRows, maxRows, counterField,
             formulas, totals, rowTemplate, selectionmenu, rowCheckbox,
-            resolved_drag_code,
+            selectionGroup, resolved_drag_code,
             loaderrpc, mapLoaderrpc):
         # Resolve the container via attributeOwnerNode at runtime: a fixed
         # containerNode kwarg would freeze on the template's sourceNode and
@@ -1416,6 +1439,7 @@ class GroupletGridHandler(BaseComponent):
                 rowTemplate: rowTemplate,
                 selectionmenu: selectionmenu,
                 rowCheckbox: rowCheckbox,
+                selectionGroup: selectionGroup,
                 resource: resource,
                 handler: handler,
                 resourceField: resourceField,
@@ -1436,6 +1460,11 @@ class GroupletGridHandler(BaseComponent):
                 layout: layout,
                 lazyTabs: lazyTabs,
                 titleField: titleField,
+                titleTemplate: titleTemplate,
+                sortField: sortField,
+                sortStore: sortStore,
+                collapsible: collapsible,
+                collapsedTemplate: collapsedTemplate,
                 emptyTitle: emptyTitle,
                 defaultRow: defaultRow,
                 minRows: minRows,
@@ -1471,6 +1500,11 @@ class GroupletGridHandler(BaseComponent):
             layout=layout,
             lazyTabs=lazyTabs,
             titleField=titleField,
+            titleTemplate=titleTemplate,
+            sortField=sortField,
+            sortStore=sortStore,
+            collapsible=collapsible,
+            collapsedTemplate=collapsedTemplate,
             emptyTitle=emptyTitle,
             defaultRow=defaultRow,
             minRows=minRows,
@@ -1481,6 +1515,7 @@ class GroupletGridHandler(BaseComponent):
             rowTemplate=rowTemplate,
             selectionmenu=selectionmenu,
             rowCheckbox=rowCheckbox,
+            selectionGroup=selectionGroup,
             dragCode=resolved_drag_code,
             loaderrpc=loaderrpc,
             mapLoaderrpc=mapLoaderrpc)

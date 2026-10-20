@@ -552,7 +552,8 @@ class DynamicForm(BaseComponent):
         fieldPrefix = fieldPrefix or '.'
         wdg_attr['value']='^%s%s' %(fieldPrefix,code)
         if tag.lower() in ('checkbox', 'radiobutton'):
-            wdg_attr['lbl'] = '&nbsp;'
+            if getattr(fb, 'fbuilder', None):
+                wdg_attr['lbl'] = '&nbsp;'
             wdg_attr['label'] = description
         else:
             wdg_attr['lbl'] = description

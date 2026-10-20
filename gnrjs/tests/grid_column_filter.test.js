@@ -188,7 +188,8 @@ function structCell(context, gridAttr, cellAttr) {
     rows.setItem('c0', null, cellAttr);
     struct.setItem('view_0.rows_0', rows);
     struct.setBackRef();
-    const sourceNode = {attr: gridAttr, currentFromDatasource: v => v};
+    const sourceNode = {attr: gridAttr, currentFromDatasource: v => v,
+                        isPointerPath: gnr.GnrDomSourceNode.prototype.isPointerPath};
     return gnr.widgets.NewIncludedView.prototype.structFromBag_cell(sourceNode, struct.getNode('view_0.rows_0.c0'), new gnr.GnrBag());
 }
 
