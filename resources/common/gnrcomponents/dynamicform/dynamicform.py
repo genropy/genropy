@@ -596,8 +596,9 @@ class DynamicForm(BaseComponent):
         if customizer:
             customizer(wdg_attr,dbstore_kwargs=dbstore_kwargs)
         dictExtract(wdg_attr,'source_',pop=True)
+        calculated = bool(wdg_attr.get('formula'))
         self._df_handleFieldFormula(wdg_attr,fb=fb,fields=fields,**kwargs)
-        self._df_handleFieldValidation(wdg_attr,fields=fields)
+        self._df_handleFieldValidation(wdg_attr,fields=fields,calculated=calculated)
         code = wdg_attr.pop('code')
         getter = wdg_attr.pop('getter',None)
         default_value = wdg_attr.pop('default_value',None)
@@ -698,7 +699,7 @@ class DynamicForm(BaseComponent):
         if rec:
             return rec[column][innerpath] if innerpath else rec[column]
 
-    def _df_handleFieldValidation(self,attr,fields):
+    def _df_handleFieldValidation(self,attr,fields,calculated=False):
         if attr.get('validate_range'):
             r = attr.pop('validate_range')
             min_v,max_v = r.split(':')
@@ -724,10 +725,13 @@ class DynamicForm(BaseComponent):
             condition = attr.pop('field_visible')
 
             variables = ','.join([x['code'] for x in fields if x['code'] in condition])
-            tpv = (variables,"", "",attr['code'])
+            #a calculated field keeps the value of its formula when hidden: the formula and
+            #the hidden evaluation fire on the same trigger, and their order is not guaranteed
+            reset = "" if calculated else "if(!sourceNode._isBuilding){sourceNode.setRelativeData('.%s',null);}" %attr['code']
+            tpv = (variables,"", "",reset)
             if attr.get('validate_notnull'):
                 attr['validate_notnull']  = "^#WORKSPACE.%s.do_validations" %attr['code']
-                tpv = (variables,"sourceNode.setRelativeData('#WORKSPACE.%s.do_validations',true);" %attr['code'], "sourceNode.setRelativeData('#WORKSPACE.%s.do_validations',false);" %attr['code'],attr['code'])
+                tpv = (variables,"sourceNode.setRelativeData('#WORKSPACE.%s.do_validations',true);" %attr['code'], "sourceNode.setRelativeData('#WORKSPACE.%s.do_validations',false);" %attr['code'],reset)
             
             attr['_formulaVisibleIf'] = condition
             attr['hidden'] = """==function(sourceNode){
@@ -739,9 +743,7 @@ class DynamicForm(BaseComponent):
                                                 return false;
                                             }else{
                                                 %s
-                                                if(!sourceNode._isBuilding){
-                                                    sourceNode.setRelativeData('.%s',null);
-                                                }
+                                                %s
                                                 return true;
                                             }
                                         }catch(e){
