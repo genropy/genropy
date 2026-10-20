@@ -2054,6 +2054,11 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         if(side!='top' && side!='bottom'){
             return false;
         }
+        // a single column formlet has no sibling on the same row to line up with
+        let columns = parentNode.attr.grid_template_columns || parentNode.attr.columns || parentNode.attr.cols;
+        if(isNullOrBlank(columns) || /^\s*(1|1fr|repeat\(\s*1\s*,\s*1fr\s*\))\s*$/.test(String(columns))){
+            return false;
+        }
         let siblings = parentNode.getValue('static');
         if(!(siblings instanceof gnr.GnrDomSource)){
             return false;

@@ -710,3 +710,15 @@ class GnrCustomWebPage(object):
         fl.textbox(value='^.f_code', lbl='Code')
         fl.checkbox(value='^.f_privacy', lbl='Privacy')
         fl.checkbox(value='^.f_active', label='Active')
+
+        # Case G: single column — no sibling shares the row, so label-only
+        # checkboxes between labeled fields must not reserve an empty label row
+        pane.div('G. cols=1: label-only checkboxes between labeled fields, no empty label row',
+                margin='10px', color='#666')
+        fl = pane.formlet(cols=1, gap='10px', margin='10px',
+                          item_lbl_side='top', width='700px')
+        fl.textbox(value='^.g_origin', lbl='Origin')
+        fl.checkbox(value='^.g_appointment', label='Needs appointment')
+        fl.checkbox(value='^.g_feedback', label='Give feedback')
+        fl.textbox(value='^.g_kind', lbl='Kind')
+        fl.checkbox(value='^.g_check', label='Check needed')
