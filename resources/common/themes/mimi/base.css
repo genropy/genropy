@@ -29,6 +29,7 @@
     --frameindex-tablist-background: #1B5E43;
     --card-surface: #F5FAF7;
     --roundedgroup-bar: #D0DED6;
+    --roundedgroup-border: #CFDCD5; /* mimi #D8D9DC luminance, variant hue */
     --menu-item-hover-bg: #DCF0E6;
     --menu-item-hover-color: #1B5E43;
 
@@ -91,6 +92,7 @@
     --frameindex-tablist-background: #1C4678;
     --card-surface: #F6F8FC;
     --roundedgroup-bar: #CDD6E4;
+    --roundedgroup-border: #D1DAE6; /* mimi #D8D9DC luminance, variant hue */
     --menu-item-hover-bg: #D8E4F4;
     --menu-item-hover-color: #1C4678;
 
@@ -151,6 +153,7 @@
     --frameindex-tablist-background: #880E4F;
     --card-surface: #FBF6F8;
     --roundedgroup-bar: #E0E1E3;
+    --roundedgroup-border: #E8D4DD; /* mimi #D8D9DC luminance, variant hue */
     --menu-item-hover-bg: #F4DCE8;
     --menu-item-hover-color: #880E4F;
 
@@ -209,6 +212,7 @@
     --frameindex-tablist-background: #3A1830;
     --card-surface: #FAF8F6;
     --roundedgroup-bar: #E0D8DE;
+    --roundedgroup-border: #DFD7DD; /* mimi #D8D9DC luminance, variant hue */
     --menu-item-hover-bg: #F5DFD0;
     --menu-item-hover-color: #3A1830;
 
@@ -270,6 +274,7 @@
     --frameindex-tablist-background: #3C3D40;
     --card-surface: #FAFAF6;
     --roundedgroup-bar: #FFF0B8;
+    --roundedgroup-border: #E7D9A7; /* mimi #D8D9DC luminance, variant hue */
     --menu-item-hover-bg: #FFF0B8;
     --menu-item-hover-color: #3C3D40;
 

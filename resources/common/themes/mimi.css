@@ -76,6 +76,7 @@ body {
     --roundedgroup-bar: #E0E1E3;
     --roundedgroup-bar-color: #5A5C60;
     --roundedgroup-border: #D8D9DC;
+    --border-strong: var(--gray-400); /* re-resolved on body so color variants tint it */
     --roundedgroup-shadow: rgba(0,0,0,0.04);
     --rectgroup-bar-background: #E0E1E3;
 
