@@ -354,6 +354,7 @@ textarea:disabled {
 .searchInputBox>input{
     width:100%;
     border:0;
+    background: transparent;
 }
 
 .searchInput {
