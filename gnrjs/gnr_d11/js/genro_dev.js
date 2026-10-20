@@ -1193,13 +1193,14 @@ dojo.declare("gnr.GnrDevHandler", null, {
     userObjectDialog:function(title,datapath,saveCb,preview){
         var dlg = genro.dlg.quickDialog(title);
         var center = dlg.center;
-        var box = center._('div', {datapath:datapath,padding:'20px'});
-        var fb = genro.dev.formbuilder(box, 2, {border_spacing:'6px'});
-        fb.addField('textbox', {lbl:_T("Code"),value:'^.code',width:'10em'});
+        var formlet = genro.startArgs.useFormletsInJsFb;
+        var box = center._('div', {datapath:datapath,padding:formlet?null:'20px'});
+        var fb = genro.dev.formbuilder(box, 2, {formlet:formlet,border_spacing:'6px'});
+        fb.addField('textbox', {lbl:_T("Code"),value:'^.code',width:formlet?'100%':'10em'});
         fb.addField('checkbox', {label:_T("Private"),value:'^.private'});
         fb.addField('textbox', {lbl:_T("Name"),value:'^.description',width:'100%',colspan:2});
         fb.addField('textbox', {lbl:_T("Authorization"),value:'^.authtags',width:'100%',colspan:2});
-        fb.addField('simpleTextArea', {lbl:_T("Notes"),value:'^.notes',width:'100%',height:'5ex',colspan:2,lbl_vertical_align:'top'});
+        fb.addField('simpleTextArea', {lbl:_T("Notes"),value:'^.notes',width:'100%',height:formlet?'8ex':'5ex',colspan:2,lbl_vertical_align:'top'});
         if(preview){
             fb.addField('button',{action:function(){
                 var that = this;
@@ -1212,25 +1213,20 @@ dojo.declare("gnr.GnrDevHandler", null, {
             fb.addField('br',{});
             fb.addField('img',{src:'^.preview',height:'50px',width:'200px',border:'1px solid silver'});
         }
-        var bottom = dlg.bottom._('div');
-        var saveattr = {'float':'right',label:_T('Save')};        
-        saveattr.action = function(evt,counter,modifiers){
-            saveCb(dlg,evt,counter,modifiers);
-        };
-        bottom._('button', saveattr);
-
         var meta = genro.getData(datapath) || new gnr.GnrBag();
-        if(meta.getItem('id') || meta.getItem('pkey')){
-            var savecopy = {'float':'right',label:_T('Duplicate as')};        
-            savecopy.action = function(evt,counter,modifiers){
+        var canDuplicate = meta.getItem('id') || meta.getItem('pkey');
+        var bar = dlg.bottom._('slotBar',{slots:canDuplicate?'*,cancel,duplicate,save':'*,cancel,save'});
+        bar._('button','cancel',{label:_T('Cancel'),action:dlg.close_action});
+        if(canDuplicate){
+            bar._('button','duplicate',{label:_T('Duplicate as'),action:function(evt,counter,modifiers){
                 genro.getData(datapath).setItem('id',null);
                 genro.getData(datapath).setItem('pkey',null);
                 saveCb(dlg,evt,counter,modifiers);
-            };
-            bottom._('button', savecopy);
+            }});
         }
-
-        bottom._('button', {'float':'right',label:_T('Cancel'),action:dlg.close_action});
+        bar._('button','save',{label:_T('Save'),action:function(evt,counter,modifiers){
+            saveCb(dlg,evt,counter,modifiers);
+        }});
         dlg.show_action();
     },
 

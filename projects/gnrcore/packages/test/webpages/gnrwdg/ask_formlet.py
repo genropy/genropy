@@ -194,3 +194,12 @@ class GnrCustomWebPage(object):
             pane.button(label, action=action,
                         ask=dict(title='Allocation', formlet=formlet, fields=fields))
         pane.div('^.fixed', margin_top='6px')
+
+    def test_13_delete_archive_ask(self, pane):
+        "Delete and archive confirmations of a collection store: type the count, Enter confirms"
+        for label, method, count in (('Delete one', 'deleteAsk', 1), ('Delete four', 'deleteAsk', 4),
+                                     ('Archive four', 'archiveAsk', 4)):
+            pane.button(label, action=f"""var store = Object.create(gnr.stores._Collection.prototype);
+                            var pkeys = ['a','b','c','d'].slice(0,{count});
+                            store.{method}(pkeys,null,function(pkeys){{SET .asked = '{method} '+pkeys.length;}});""")
+        pane.div('^.asked', margin_top='6px')

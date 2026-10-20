@@ -28,3 +28,15 @@
 .dffb_calculated .field_calculated.df_row{
     display:table-row;
 }
+
+.df_placeholder{
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1em;
+    text-align: center;
+    color: var(--text-placeholder);
+    font-style: italic;
+}
