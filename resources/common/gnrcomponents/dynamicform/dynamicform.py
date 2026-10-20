@@ -551,6 +551,7 @@ class DynamicForm(BaseComponent):
 
     @customizable
     def df_makeDynamicField(self,fb,tag=None,wdg_attr=None,data_type=None,fields=None,dbstore_kwargs=None,fieldPrefix=None,df_is_new=None,**kwargs):
+        wdg_attr = dict(dictExtract(kwargs,'fld_'),**wdg_attr)
         mask = wdg_attr.pop('field_mask',None)
         if tag.endswith('_nopopup'):
             tag = tag.replace('_nopopup','')
