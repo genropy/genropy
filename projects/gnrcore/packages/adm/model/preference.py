@@ -31,7 +31,7 @@ class Table(object):
         if self.db.usingMultiStore():
             return self.getMainStorePreference()
         storename = self.db.currentEnv.get('storename')
-        pref_cache_key = '_storepref_%s' %storename
+        pref_cache_key = self.storePreferenceCacheKey(storename)
         preference = None
         if not self.db.application.cache.expiredItem(self.get_application_cache_key()):
             preference = self.db.application.cache.getItem(pref_cache_key)
@@ -50,9 +50,16 @@ class Table(object):
                     else:
                         preference[pkgid] = preference[pkgid] or Bag()
                         preference[pkgid].update(pkgstorepref,ignoreNone=True)
-
+            if self.db.multidomain:
+                preference.update(self.db.package('multidb').getHostingPreference(storename),ignoreNone=True)
             self.db.application.cache.setItem(pref_cache_key,preference)
         return preference.deepcopy()
+
+    def storePreferenceCacheKey(self, storename):
+        return f'_storepref_{storename}'
+
+    def invalidateStorePreference(self, storename):
+        self.db.application.cache.updatedItem(self.storePreferenceCacheKey(storename))
 
     def getPreference(self, path, pkg=None, dflt=None, mandatoryMsg=None):
         prefdata = self.getStorePreferences() if self.db.package('multidb') \

@@ -28,11 +28,23 @@ class Package(GnrDboPackage):
         store_record = self.db.table(self.db.storetable).record(dbstore=storename).output('record')
         return store_record['preferences'] or Bag()
 
-    def setStorePreference(self,pkg=None,value=None):
-        storename = self.db.currentEnv.get('storename')
+    def getHostingPreference(self,storename=None):
+        storename = storename or self.db.currentEnv.get('storename')
+        if not self.db.storetable or not storename or storename==self.db.rootstore:
+            return Bag()
+        with self.db.tempEnv(connectionName='system',storename=self.db.rootstore):
+            store_record = self.db.table(self.db.storetable).record(dbstore=storename,
+                                                                    ignoreMissing=True).output('record')
+            self.db.rollback()
+        return store_record['preferences'] or Bag()
+
+    def setStorePreference(self,pkg=None,value=None,path=None,storename=None,_attributes=None):
+        storename = storename or self.db.currentEnv.get('storename')
         with self.db.tempEnv(connectionName='system',storename=self.db.rootstore):
             with self.db.table(self.db.storetable).recordToUpdate(dbstore=storename) as rec:
-                rec['preferences'][pkg] = value
+                if rec['preferences'] is None:
+                    rec['preferences'] = Bag()
+                rec['preferences'].setItem(f'{pkg}.{path}' if path else pkg,value,_attributes=_attributes)
             self.db.commit()
 
     def onApplicationInited(self):
@@ -328,6 +340,8 @@ class MultidbTable(object):
     def trigger_onUpdated_multidb(self, record,old_record=None,**kwargs):
         if self.db.usingRootstore():  
             self.onSubscriberTrigger(record,old_record=old_record,event='U')
+            if self.fullname==self.db.storetable and self.fieldsChanged('preferences',record,old_record):
+                self.db.table('adm.preference').invalidateStorePreference(record['dbstore'])
 
     def onLoading_multidb(self,record,newrecord,loadingParameters,recInfo):
         if loadingParameters.get('_eager_record_stack') or newrecord:

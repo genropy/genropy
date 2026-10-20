@@ -162,7 +162,7 @@ class AppPrefHandler(BasePreferenceTabs):
     
     @public_method
     def ph_updatePrefCache(self,prefdbstore=None,**kwargs):
-        self.db.application.cache.updatedItem( '_storepref_%s' %prefdbstore)
+        self.db.table('adm.preference').invalidateStorePreference(prefdbstore)
     
 
     @struct_method
@@ -301,7 +301,7 @@ class UserPrefHandler(BasePreferenceTabs):
     
     @public_method
     def ph_updatePrefCache(self,prefdbstore=None,**kwargs):
-        self.db.application.cache.updatedItem( '_storepref_%s' %prefdbstore)
+        self.db.table('adm.preference').invalidateStorePreference(prefdbstore)
     
 
 class UserPrefMenu(BaseComponent):
