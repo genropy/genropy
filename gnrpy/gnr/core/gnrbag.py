@@ -66,6 +66,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 import urllib.request, urllib.parse, urllib.error
 import urllib.parse
+from xml.sax.saxutils import escape as xml_escape
 
 import requests
 
@@ -80,6 +81,7 @@ class AllowMissingDict(dict):
         return "{"+key+"}"
 
 TEMPLATE_PLACEHOLDER = re.compile(r'\{([A-Za-z_][A-Za-z0-9_]*)\}')
+XML_QUOTE_ENTITIES = {'"': '&quot;', "'": '&apos;'}
 
 def expandTemplate(source, template_kwargs):
     unresolved = set()
@@ -87,7 +89,7 @@ def expandTemplate(source, template_kwargs):
     def replace(match):
         key = match.group(1)
         if key in template_kwargs:
-            return str(template_kwargs[key])
+            return xml_escape(str(template_kwargs[key]), XML_QUOTE_ENTITIES)
         if not key.startswith('GNR_'):
             unresolved.add(key)
         return match.group(0)

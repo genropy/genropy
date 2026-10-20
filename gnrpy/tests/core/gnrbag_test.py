@@ -53,6 +53,16 @@ class TestBasicBag(object):
         b = Bag(str(source), _template_kwargs=dict(TESTVAR="admin"))
         assert b['name'] == "{MISSINGVAR}"
         assert b['code'] == '{"a": 1}'
+
+    def test_template_kwargs_xml_escaped(self, tmp_path):
+        secret = 'p&ss<w>"\'rd'
+        source = tmp_path / 'instanceconfig.xml'
+        source.write_text("<?xml version='1.0' encoding='UTF-8'?>"
+                          "<GenRoBag><db password=\"{SECRET}\" user='{SECRET}'>{SECRET}</db></GenRoBag>")
+        b = Bag(str(source), _template_kwargs=dict(SECRET=secret))
+        assert b['db'] == secret
+        assert b.getAttr('db', 'password') == secret
+        assert b.getAttr('db', 'user') == secret
         
     def test_fillFromBag(self):
         c = Bag(self.mybag)
