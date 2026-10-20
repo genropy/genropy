@@ -748,6 +748,7 @@ class GenroStorageHandler(LegacyStorageHandler):
         legacy service would make read-only; it is checked here rather than in
         _mountConfig because _local_mode is set on the site after it is built.
         """
+        self._refreshChangedStorageParams(storage_name)
         if kwargs or not self.manager.has_mount(storage_name):
             return super().storage(storage_name, **kwargs)
         params = self.getStorageParameters(storage_name) or {}

@@ -10,7 +10,8 @@ from gnr.core.gnrbag import Bag
 from gnr.core.gnrconfig import getGenroRoot
 from gnr.core.gnrlang import GnrException, gnrImport
 from gnr.lib.services.storage import StorageResolver
-from gnr.web.gnrwsgisite_proxy.gnrstoragehandler import LegacyStorageHandler
+from gnr.web.gnrwsgisite_proxy.gnrstoragehandler import (GenroStorageHandler,
+                                                         LegacyStorageHandler)
 
 from webcommon import BaseGnrDaemonTest
 
@@ -1343,6 +1344,28 @@ class TestStorageHandler(BaseGnrDaemonTest):
 
         assert other_worker.storage(service_name).base_path == os.path.join(self.test_dir, 'after')
         assert other_worker.storage_params[service_name]['base_path'] == os.path.join(self.test_dir, 'after')
+
+    def test_genro_storage_mount_updated_by_another_process(self, local_record):
+        """A mount served by genro-storage picks up a change made elsewhere too."""
+        pytest.importorskip('genro_storage')
+        before = os.path.join(self.test_dir, 'genro_before')
+        after = os.path.join(self.test_dir, 'genro_after')
+        os.makedirs(before, exist_ok=True)
+        os.makedirs(after, exist_ok=True)
+        service_name = local_record('genro_changed_elsewhere', before)
+        other_worker = GenroStorageHandler(self.site)
+        assert other_worker.manager.has_mount(service_name)
+        assert other_worker.storage(service_name).base_path == before
+
+        tblservice = self.site.db.table('sys.service')
+        with tblservice.recordToUpdate(service_type='storage', service_name=service_name) as record:
+            parameters = Bag(record['parameters'])
+            parameters['base_path'] = after
+            record['parameters'] = parameters
+        self.site.db.commit()
+
+        assert other_worker.storage(service_name).base_path == after
+        assert other_worker.mount_configs[service_name]['base_path'] == after
 
     def test_storage_record_inserted_by_another_process(self, local_record):
         """A storage created elsewhere is not served as a folder of site_static_dir."""
