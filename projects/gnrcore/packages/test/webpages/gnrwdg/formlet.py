@@ -722,3 +722,4 @@ class GnrCustomWebPage(object):
         fl.checkbox(value='^.g_feedback', label='Give feedback')
         fl.textbox(value='^.g_kind', lbl='Kind')
         fl.checkbox(value='^.g_check', label='Check needed')
+        fl.checkbox(value='^.g_privacy', lbl='Privacy (lbl only)')

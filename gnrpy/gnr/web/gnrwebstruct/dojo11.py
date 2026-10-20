@@ -849,12 +849,10 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
                       :ref:`datapath` section
         """
         if lbl and not label and not getattr(self,'fbuilder',None):
+            # the client adds a placeholder label only where a sibling on the
+            # same row needs it (_formletNeedsPlaceholderLbl)
             label = lbl
-            lbl = '&nbsp;'
-            # Placeholder label: keeps the label height with top/bottom label
-            # side so the checkbox lines up with the sibling inputs
-            if 'box__class' not in kwargs:
-                kwargs['box__class'] = 'formlet_placeholder_label'
+            lbl = None
         return self.child('checkbox', value=value, label=label,lbl=lbl, **kwargs)
         
     def dropdownbutton(self, label=None, **kwargs):
