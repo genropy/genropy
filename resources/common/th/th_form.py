@@ -335,7 +335,7 @@ class TableHandlerForm(BaseComponent):
             if fkeyfield and  'condition' not in tree_kwargs:
                 tree_kwargs['condition'] = '${fkeyfield}=:curr_{fkeyfield}'.format(fkeyfield=fkeyfield)
                 tree_kwargs['condition_curr_{fkeyfield}'.format(fkeyfield=fkeyfield)] = '^#FORM/parent/#FORM.pkey'
-            bar = form.left.slotBar('htreeSearchbar,htreeSlot,0',width=tree_kwargs.pop('width','200px'),border_right='1px solid silver',**leftkw)
+            bar = form.left.slotBar('htreeSearchbar,htreeSlot,0',width=tree_kwargs.pop('width','200px'),border_right='1px solid var(--border-color)',**leftkw)
             searchCode = form.attributes['frameCode']
             treeslots = '2,left_placeholder,searchOn,*,treeSortingTool,right_placeholder,2'
             hviewPicker = tree_kwargs.get('picker')

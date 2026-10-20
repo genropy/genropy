@@ -388,7 +388,7 @@ class AttachManager(BaseComponent):
                             cursor='pointer',nodeId='%(nodeId)s_uploader' %th.attributes,
                             **{f'rpc_{k}':v for k,v in default_kwargs.items()},
                             **uploader_kwargs)
-        fpane_kw = dict(margin='2px',border='1px solid silver')
+        fpane_kw = dict(margin='2px',border='1px solid var(--border-color)')
         fpane_kw.update(fpane_kwargs)
         readerpane = bc.contentPane(region='center',datapath=datapath,overflow='hidden',**fpane_kw)
         readerstack = readerpane.stackContainer(selectedPage='^.reader_mode',height='100%',width='100%')
@@ -478,7 +478,7 @@ class AttachManager(BaseComponent):
             thkwargs['table'] = table
             thkwargs['condition'] = "$maintable_id=:maintable_id"
             thkwargs['condition_maintable_id'] = maintable_id
-        th = bc.contentPane(splitter=True,childname='atcgrid',border_right='1px solid silver',closable=True,**d[mode]).plainTableHandler(
+        th = bc.contentPane(splitter=True,childname='atcgrid',border_right='1px solid var(--border-color)',closable=True,**d[mode]).plainTableHandler(
                                         viewResource= viewResource or 'gnrcomponents/attachmanager/attachmanager:AttachGalleryView',
                                         hider=True,addrow=False,delrow=False,_class='noheader atc_gallerygrid',
                                         nodeId=nodeId or 'thattachments_#',
@@ -491,7 +491,7 @@ class AttachManager(BaseComponent):
                                                                         """,
                                         searchOn=False,
                                         **thkwargs)
-        th.view.top.bar.replaceSlots('#','2,searchOn,*',toolbar=False,background='#DBDBDB',border_bottom='1px solid silver')
+        th.view.top.bar.replaceSlots('#','2,searchOn,*',toolbar=False,background='#DBDBDB',border_bottom='1px solid var(--border-color)')
         readerpane = bc.contentPane(region='center',childname='atcviewer',overflow='hidden')
         readerpane.dataController('SET .reader_url=fileurl',fileurl='^.th.view.grid.selectedId?fileurl')
         readerpane.attachmentPreviewViewer(src='^.reader_url',

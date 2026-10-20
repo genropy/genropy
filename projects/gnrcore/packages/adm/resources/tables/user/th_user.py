@@ -131,7 +131,7 @@ class FormFrom2FaSettings(BaseComponent):
                       secret='^#FORM.2fa_enabler.2fa_data.secret')       
         fb = bottom.formbuilder()
         fb.textbox(value='^.otp',lbl='OTP')
-        bar = frame.bottom.slotBar('*,confirm,5',childname='confirmbar',height='22px',border='1px solid silver')
+        bar = frame.bottom.slotBar('*,confirm,5',childname='confirmbar',height='22px',border='1px solid var(--border-color)')
         rpc = bar.slotButton('Add').dataRpc(
             self.confirmOTP,otp='=.otp',
             user_id='=#FORM.record.id',
@@ -352,7 +352,7 @@ class FormProfile(BaseComponent):
     @customizable
     def adm_profile_tabs(self,tc):
         self.authenticationsPane(tc.contentPane(title='!!Authentication'))
-        frame_preference = tc.framePane(title='!![en]Preferences',margin='2px',border='1px solid silver',rounded=6)
+        frame_preference = tc.framePane(title='!![en]Preferences',margin='2px',border='1px solid var(--border-color)',rounded=6)
         frame_preference.top.slotToolbar('*,stackButtons,*',_class='mobile_bar')
         frame_preference.center.userPreferencesTabs(datapath='#FORM.record.preferences',margin='2px',region='center',wdg='stack')
 

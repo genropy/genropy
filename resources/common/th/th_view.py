@@ -85,7 +85,7 @@ class TableHandlerView(BaseComponent):
             bar = view.top.bar.replaceSlots('#','#,structPalette,5')
             scode = structure_field.replace('.','_').replace('@','_')
             bar.structPalette.palettePane(paletteCode=scode,title='!![en]Structure',dockButton=True).borderContainer(closable=True,width='300px',
-                                    border_right='1px solid silver'
+                                    border_right='1px solid var(--border-color)'
                                     ).contentPane(region='center'
                                     ).structureTree(structure_field=structure_field,view=view,**structure_field_kwargs)
         return view
@@ -546,7 +546,7 @@ class TableHandlerView(BaseComponent):
 
     def _th_handle_stats_pages(self,view):
         bc = view.borderContainer(title='!!Stats tools',pageName='statsTools',childname='statsTools',
-                                    margin='5px',rounded=4,border='1px solid silver',
+                                    margin='5px',rounded=4,border='1px solid var(--border-color)',
                                     datapath='.statsTools')
         bar = bc.contentPane(region='top').slotToolbar('20,*,s_title,*,closbtn,2',
                                                     background='#444',height='22px',
@@ -567,7 +567,7 @@ class TableHandlerView(BaseComponent):
     @struct_method
     def th_viewLeftDrawer(self,pane,table,th_root):
         bar = pane.slotBar('drawerStack',min_width='160px',closable='close',
-                            splitter=True,border_right='1px solid silver')
+                            splitter=True,border_right='1px solid var(--border-color)')
         bar.drawerStack.attributes['height'] = '100%'
         sc = bar.drawerStack.stackContainer(height='100%')
         sc.contentPane(background='red')

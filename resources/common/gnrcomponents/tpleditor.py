@@ -297,13 +297,13 @@ class TemplateEditor(TemplateEditorBase):
             frame.left.slotBar('5,fieldsTree,*',
                             fieldsTree_table=table,
                             fieldsTree_dragCode='fieldvars',
-                            border_right='1px solid silver',
+                            border_right='1px solid var(--border-color)',
                             closable=True,width='150px',fieldsTree_height='100%',
                             splitter=True,**fieldsTree_kwargs)
         else:
             bar = frame.left.slotBar('5,sourceTree,*',
                             #fieldsTree_dragCode='fieldvars',
-                            border_right='1px solid silver',
+                            border_right='1px solid var(--border-color)',
                             closable=True,width='150px',
                             splitter=True)
 
@@ -466,7 +466,7 @@ class TemplateEditor(TemplateEditorBase):
                        height='^.editor.height', width='^.editor.width', _init=True)
         if plainText:
             bc.simpleTextArea(value='^.data.content',region='center',
-                            margin='3px',margin_left='6px',border='1px solid silver',
+                            margin='3px',margin_left='6px',border='1px solid var(--border-color)',
                             dropTarget=True,dropTypes="text/plain",
                             onDrop_text_plain="""let v = this.widget.getValue()
                             v += (' ' + data);
@@ -495,7 +495,7 @@ class TemplateEditor(TemplateEditorBase):
                    compiled='=.data.compiled')
         bc = frame.center.borderContainer()
         
-        bc.contentPane(region='center',overflow='hidden',border='1px solid silver',margin='3px'
+        bc.contentPane(region='center',overflow='hidden',border='1px solid var(--border-color)',margin='3px'
                             ).iframeDiv(value='^.preview.renderedtemplate',
                                                 contentCss='^.data.content_css',
                                                 height='100%',width='100%')

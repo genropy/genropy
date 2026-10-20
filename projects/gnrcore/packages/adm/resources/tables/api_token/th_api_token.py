@@ -102,7 +102,7 @@ class Form(BaseComponent):
         strip = parent.div(datapath='.record',
                            margin='10px', padding='6px 10px',
                            background='#fafafa',
-                           border='1px solid #eee', border_radius='4px',
+                           border='1px solid var(--border-light)', border_radius='4px',
                            font_size='.85em', color='#555',
                            display='flex', align_items='center')
         info = strip.formlet(cols=4, border_spacing='6px', flex='1')

@@ -41,7 +41,7 @@ class Form(BaseComponent):
                         lbl='!![en]Location',
                         colspan=2,width='100%',
                         selected_position='.geocoder')
-        bc.contentPane(region='center',border_top='1px solid silver').GoogleMap(height='100%',
+        bc.contentPane(region='center',border_top='1px solid var(--border-color)').GoogleMap(height='100%',
                      map_center="^#FORM.record.geocoder",
                      map_type='roadmap',
                      map_zoom=15,

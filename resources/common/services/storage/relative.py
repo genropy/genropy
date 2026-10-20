@@ -197,10 +197,10 @@ class ServiceParameters(BaseComponent):
                            values=self.relativeStorageParents(service_name=service_name))
         fb.textbox(value='^.relative_path', lbl='!!Relative path')
         bc.storageTreeFrame(frameCode='relativeStorage', storagepath='^#FORM.record.service_name?=#v+":"',
-                                border='1px solid silver', margin='2px', rounded=4,
+                                border='1px solid var(--border-color)', margin='2px', rounded=4,
                                 region='center', preview_region='right',
                                 store__onBuilt=True,
-                                preview_border_left='1px solid silver', preview_width='50%')
+                                preview_border_left='1px solid var(--border-color)', preview_width='50%')
 
     def relativeStorageParents(self, service_name=None):
         """Returns the storage services usable as parent of a relative service"""

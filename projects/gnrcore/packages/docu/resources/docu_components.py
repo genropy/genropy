@@ -172,7 +172,7 @@ class RstDocumentationHandler(BaseComponent):
         menu.menuLine('*text*',action='this.getAttributeFromDatasource("cm").externalWidget.gnr_quoteSelection("*","*");',cm=cm)
         menu.menuLine('**text**',action='this.getAttributeFromDatasource("cm").externalWidget.gnr_quoteSelection("**","**");',cm=cm)
 
-        right = center.contentPane(region='right',overflow='hidden',splitter=True,border_left='1px solid silver',background='white')
+        right = center.contentPane(region='right',overflow='hidden',splitter=True,border_left='1px solid var(--border-color)',background='white')
         pane.dataController("""var width = 0;
                             status = status || 'rstonly';
                              if(status=='mixed'){
