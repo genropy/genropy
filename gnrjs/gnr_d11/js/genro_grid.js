@@ -1156,7 +1156,7 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
             var box = sourceNode.getValue()._('div','dynamicSearch',{position:'absolute',
                                                 top:headerHeight+'px',right:'18px',font_size:'.9em',
                                                 background:'#ececec',padding:'1px',
-                                                rounded_left:4,border:'1px solid silver'})
+                                                rounded_left:4,border:'1px solid var(--border-color)'})
     
             box._('SearchBox', {nodeId:searchId,datapath:'.searchbox',parentForm:false,
                                search_kw:{font_size:'.9em'}});

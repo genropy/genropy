@@ -6409,13 +6409,13 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
         var preview = sc._('ContentPane',{pageName:'preview'});
         var cropPage = sc._('ContentPane',{pageName:'crop'});
         video._('video',{autoplay:true,margin:'10px',
-                            border:'1px solid silver',
+                            border:'1px solid var(--border-color)',
                             height:videoHeight+'px',
                             width:videoWidth+'px',
                             nodeId:videoNodeId,
                         selfsubscribe_takePicture:function(){
                             var preview_canvas = preview._('canvas','currentCanvas',{height:videoHeight+'px',nodeId:canvasNodeId,
-                                                border:'1px solid silver',
+                                                border:'1px solid var(--border-color)',
                                                 width:videoWidth+'px',display:'block',margin:'10px',hidden:false})     
                             preview_canvas.getParentNode().takePhoto(this);
                             let cropperBox = cropPage._('div',{height:videoHeight+'px',width:videoWidth+'px',nodeId:cropperNodeId});
