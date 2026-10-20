@@ -351,7 +351,7 @@ dojo.declare('gnr.GenroClient', null, {
         this._sanitizedContents[key] = true;
         console.warn('[sanitize_js] active JS removed from rendered HTML.',
                      'Migrate this content to a sanitize-safe pattern (e.g. format_isbutton/format_onclick,',
-                     'a delegated onCellClick handler, or a whitelisted template/js cell),',
+                     'a delegated onCellClick handler, a literal rowTemplate or a whitelisted template/js cell),',
                      'or set <switches sanitize_js="f"/> in instanceconfig as a temporary opt-out.',
                      'Content:', str);
         if(this.isDeveloper){
