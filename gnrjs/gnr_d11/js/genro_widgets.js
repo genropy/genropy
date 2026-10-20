@@ -2135,6 +2135,7 @@ dojo.declare("gnr.widgets.SimpleTextarea", gnr.widgets.baseDojo, {
                     areaAttr['height'] = '100%';
                 }
                 areaAttr['toolbar'] = false;
+                areaAttr = objectUpdate({enter: 'br', config_addNewLine: false}, areaAttr);
                 if(!('bodyStyle' in areaAttr)){
                     // the editor body lives in an iframe, out of reach of the page's CSS variables:
                     // give it the theme's field padding instead of jodit's default 10px
