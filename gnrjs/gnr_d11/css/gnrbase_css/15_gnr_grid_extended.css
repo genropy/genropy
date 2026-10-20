@@ -743,3 +743,8 @@ textarea.cellEditFixed {
 ._common_d11 .dojoxGrid-scrollbox {
     overflow: auto;
 }
+
+/* A closed grouper is a 1px stub: its border would double the separator of the container it sits against */
+.closedSide:has(> .grouper_opener) {
+    border-right-color: transparent !important;
+}

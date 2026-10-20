@@ -225,3 +225,38 @@
 ._common_d11 .menutree.menutree_branchiconright .dijitTreeContent:has(.label_emptydir):hover{
     background: var(--menutree-node-background);
 }
+
+.slotbar_toolbar.menu_plugin_searchbar {
+    height: 2.45em;
+    min-height: 0;
+    padding: 0 10px;
+    background: transparent;
+    background-image: none;
+    border-bottom: 0;
+    box-sizing: border-box;
+}
+.menu_plugin_searchbar .slotbar_table,
+.menu_plugin_searchbar .slotbar_cell table {
+    width: 100%;
+    height: 100%;
+}
+.menu_plugin_searchbar .slotbar_cell,
+.menu_plugin_searchbar td:has(> .searchInputBox) {
+    width: 100%;
+    vertical-align: bottom;
+}
+.menu_plugin_searchbar .searchboxLabel {
+    display: none;
+}
+.menu_plugin_searchbar .searchInputBox {
+    display: flex;
+    align-items: center;
+    height: 1.7em;
+    box-sizing: border-box;
+}
+.menu_plugin_searchbar .searchInputBox > input::placeholder {
+    font-size: .9em;
+}
+.menu_plugin_tree .menutree {
+    margin-top: 0;
+}

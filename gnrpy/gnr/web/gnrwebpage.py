@@ -1915,13 +1915,14 @@ class GnrWebPage(GnrBaseWebPage):
     @public_method
     def getAvailableColorVariants(self, theme=None, theme_variant=None):
         """Discover available color variants by parsing .color_variant_* classes
-        from the active theme variant CSS file."""
+        from the theme CSS file and the active theme variant CSS file."""
         theme = theme or self.get_css_theme() or DEFAULT_CSS_THEME
         theme_variant = theme_variant or self.get_css_theme_variant() or 'base'
         color_variants = set()
-        css_path = 'themes/%s/%s' % (theme, theme_variant)
-        css_files = self.site.resource_loader.getResourceList(
-            self.resourceDirs, css_path, 'css')
+        css_files = []
+        for css_path in ('themes/%s' % theme, 'themes/%s/%s' % (theme, theme_variant)):
+            css_files.extend(self.site.resource_loader.getResourceList(
+                self.resourceDirs, css_path, 'css'))
         for fpath in css_files:
             snode = self.site.storageNode(fpath)
             if snode.exists:

@@ -131,8 +131,9 @@ body {
 
 /* @end */
 
-/* @group Default palette without color variant — IBM Carbon Cool Gray */
-body:not([class*="color_variant_"]) {
+/* @group Default palette (no color variant, or color variant "gray") — IBM Carbon Cool Gray */
+body:not([class*="color_variant_"]),
+body.color_variant_gray {
     /* --- Palette (gray scale + accent) --- */
     --gray-900: #121619;
     --gray-800: #21272A;

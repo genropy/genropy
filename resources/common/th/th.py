@@ -1028,8 +1028,7 @@ class ThLinker(BaseComponent):
 
     @struct_method          
     def th_linkerBar(self,pane,field=None, label=None, _class='pbl_roundedGroupLabel',newRecordOnly=True, addEnabled=None, **kwargs):
-        # min_height, not height: the bar follows the field, which the theme may make taller
-        bar = pane.slotBar('lbl,*,linkerslot,5',min_height='20px',
+        bar = pane.slotBar('lbl,*,linkerslot,5',
                            _class='%s th_linkerBar' % _class)
         linker = bar.linkerslot.linker(field=field,newRecordOnly=newRecordOnly, addEnabled=addEnabled, **kwargs)
         bar.linker = linker

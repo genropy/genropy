@@ -276,7 +276,7 @@ tr[_is_valid_item='true'].multiColumnSelectHover td {
     bottom: 2px;
     left: 2px;
     right: 2px;
-    border: 1px solid var(--border-strong, #aab4c4);
+    border: 1px solid var(--roundedgroup-border, var(--border-strong));
     background: var(--roundedgroup-surface);
     border-radius: var(--radius-md);
     box-shadow: var(--shadow-sm);
@@ -298,7 +298,7 @@ tr[_is_valid_item='true'].multiColumnSelectHover td {
 
 /* @group pbl_roundedGroup */
 .pbl_roundedGroup {
-    border: 1px solid var(--border-strong, #aab4c4);
+    border: 1px solid var(--roundedgroup-border, var(--border-strong));
     background: var(--roundedgroup-surface);
     border-radius: var(--radius-md);
     box-shadow: var(--shadow-sm);
@@ -312,7 +312,7 @@ tr[_is_valid_item='true'].multiColumnSelectHover td {
 }
 
 .pbl_roundedGroup .framegrid_center {
-    border-top: 1px solid var(--border-strong, #aab4c4);
+    border-top: 1px solid var(--roundedgroup-border, var(--border-strong));
 }
 
 .pbl_roundedGroup:has(.quickgrid_container) .pbl_roundedGroupLabel {
@@ -320,7 +320,7 @@ tr[_is_valid_item='true'].multiColumnSelectHover td {
 }
 
 .pbl_roundedGroupLabel {
-    min-height: var(--toolbar-min-height);
+    min-height: var(--groupbar-min-height);
     font-size: 0.9em;
     background: var(--roundedgroup-bar);
     color: var(--roundedgroup-bar-color);

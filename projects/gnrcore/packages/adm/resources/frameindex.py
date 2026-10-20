@@ -264,9 +264,9 @@ class FrameIndex(BaseComponent):
     @customizable
     def prepareBottom_std(self,bc):
         pane = bc.contentPane(region='bottom',overflow='hidden')
-        sb = pane.slotToolbar("""5,genrologo,1,helpdesk,1,settings,10,refresh,10,phonelink,left_placeholder,*,
+        sb = pane.slotToolbar("""5,genrologo,1,helpdesk,1,settings,10,refresh,10,newWindow,10,phonelink,left_placeholder,*,
                                     right_placeholder,count_errors,10,owner_name,user_name,logout,debugping,5""",
-                                    _class='slotbar_toolbar framefooter', background='#EEEEEE',border_top='1px solid silver')
+                                    _class='slotbar_toolbar framefooter', background='var(--surface-light)',border_top='1px solid var(--border-color)')
         return sb
 
     @customizable
@@ -274,7 +274,7 @@ class FrameIndex(BaseComponent):
         pane = bc.contentPane(region='bottom',overflow='hidden')
         sb = pane.slotToolbar("""5,genrologo,2,helpdesk,2,settings,5,refresh,5,left_placeholder,*,
                                 right_placeholder,user_name,logout,debugping,5""",
-                                _class='slotbar_toolbar framefooter', background='#EEEEEE',border_top='1px solid silver')
+                                _class='slotbar_toolbar framefooter', background='var(--surface-light)',border_top='1px solid var(--border-color)')
         pane.div(height='10px',background='black')
         return sb
     
@@ -448,7 +448,7 @@ class FrameIndex(BaseComponent):
 
     def prepareCenter_std(self,bc):
         sc = bc.stackContainer(selectedPage='^selectedFrame',nodeId='iframe_stack',region='center',
-                                #border_left='1px solid silver',
+                                border_left='1px solid var(--border-color)',
                                 onCreated='genro.framedIndexManager = new gnr.FramedIndexManager(this);',_class='frameindexcenter')
         sc.dataController("""setTimeout(function(){
                                 genro.framedIndexManager.selectIframePage(selectIframePage[0])
@@ -522,7 +522,7 @@ class FrameIndex(BaseComponent):
             return
         pane = bc.contentPane(region='left',splitter=True,width='210px',datapath='left',_lazyBuild=True,
                                    drawer_animate=True,
-                                   overflow='hidden',hidden=self.hideLeftPlugins,border_right='1px solid #eee')
+                                   overflow='hidden',hidden=self.hideLeftPlugins,border_right='1px solid var(--border-color)')
         sc = pane.stackContainer(selectedPage='^.selected',nodeId='gnr_main_left_center',
                                 subscribe_open_plugin="""var plugin_name = $1.plugin;
                                                          SET left.selected = plugin_name;

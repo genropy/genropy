@@ -1998,6 +1998,13 @@ dojo.declare("gnr.widgets.SearchBox", gnr.widgets.gnrwdg, {
         searchlbl._('menu', {'modifiers':'*',_class:'smallmenu',storepath:'.menubag',
             selected_col:'.field',selected_caption:'.caption',action:'SET .value = null;SET .currentValue = null;'});
         
+        var inputAttrs = {'value':'^.value',connect_onkeyup:kw.onKeyUp,
+                          parentForm:false,width:objectPop(kw,'width') || '6em',
+                          tabindex:"-1",connect_focus:function(){this.domNode.select()}};
+        var placeholder = objectPop(kw,'placeholder');
+        if(placeholder){
+            inputAttrs.placeholder = placeholder;
+        }
         searchbox._('td')._('div',{_class:'searchInputBox',connect_onclick:function(e){
             if(e.target.tagName.toLowerCase()!='input'){
                 var that = this;
@@ -2009,9 +2016,7 @@ dojo.declare("gnr.widgets.SearchBox", gnr.widgets.gnrwdg, {
                 genro.publish(nodeId+"_stopSearch",{inputSourceNode:this,finalize:finalize});
                
             }
-        }})._('input', {'value':'^.value',connect_onkeyup:kw.onKeyUp,
-                         parentForm:false,width:objectPop(kw,'width') || '6em',
-                         tabindex:"-1",connect_focus:function(){this.domNode.select()}});
+        }})._('input', inputAttrs);
         sourceNode.registerSubscription(nodeId + '_updmenu', this, function(searchOn) {
             menubag = this._prepareSearchBoxMenu(searchOn, sourceNode.getRelativeData(),sourceNode);
         });
@@ -6422,7 +6427,8 @@ dojo.declare("gnr.widgets.SlotBar", gnr.widgets.gnrwdg, {
             searchId = searchCode+'_searchbox';
         }
         div._('SearchBox', {searchOn:slotValue,nodeId:searchId,datapath:'.searchbox',parentForm:false,
-                            'width':objectPop(slotKw,'_original_width'),search_kw:slotKw});
+                            'width':objectPop(slotKw,'_original_width'),
+                            placeholder:objectPop(slotKw,'placeholder'),search_kw:slotKw});
     },
 
     slot_pageBranchSelector:function(pane,slotValue,slotKw,frameCode){
