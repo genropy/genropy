@@ -315,6 +315,7 @@ dojo.declare("gnr.GnrFrmHandler", null, {
     applyDisabledStatus:function(){
         var form_disabled = this.isDisabled();
         var disabled_status = this.disabledStatus();
+        var protectedPaths = this.getProtectedPaths();
         this.publish('onDisabledChange',{disabled:form_disabled,locked:this.locked});
         genro.dom.setClass(this.sourceNode,'lockedContainer',form_disabled);
         var node,disabled;
@@ -330,9 +331,33 @@ dojo.declare("gnr.GnrFrmHandler", null, {
                 if(disabled==false && 'unmodifiable' in node.attr){
                     disabled = !this.isNewRecord();
                 }
+                if(!disabled && protectedPaths.length && typeof(node.attr.value)=="string"){
+                    disabled = this.isProtectedPath(node.absDatapath(node.attr.value),protectedPaths);
+                }
             }
             node.setDisabled(disabled);
         }
+    },
+
+    getProtectedPaths:function(){
+        var recordPath = this.sourceNode.absDatapath(this.formDatapath);
+        var ownPaths = this.getDataNodeAttributes()._protected_paths;
+        var result = ownPaths?ownPaths.split(',').map(p => recordPath+'.'+p):[];
+        var locationpath = this.store?this.store.locationpath:null;
+        var parentForm = this.getParentForm();
+        if(locationpath && parentForm){
+            parentForm.getProtectedPaths().forEach(function(p){
+                if(p.indexOf(locationpath+'.')===0){
+                    result.push(recordPath+p.slice(locationpath.length));
+                }
+            });
+        }
+        return result;
+    },
+
+    isProtectedPath:function(path,protectedPaths){
+        protectedPaths = protectedPaths || this.getProtectedPaths();
+        return protectedPaths.some(p => path==p || path.indexOf(p+'.')===0);
     },
 
     _protectedNode:function(node){

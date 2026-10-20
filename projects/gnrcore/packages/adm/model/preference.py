@@ -61,6 +61,38 @@ class Table(object):
     def invalidateStorePreference(self, storename):
         self.db.application.cache.updatedItem(self.storePreferenceCacheKey(storename))
 
+    def hostingPreferenceLeaves(self):
+        if not self.db.multidomain or self.db.usingRootstore():
+            return {}
+        hosting = self.db.package('multidb').getHostingPreference()
+        # getLeaves() keeps the folder nodes below the first level
+        return {path: value for path, value in hosting.getLeaves()
+                if value is not None and not isinstance(value, Bag)}
+
+    def applyHostingPreferences(self, record, recInfo):
+        if (record['code'] or '').strip() != MAIN_PREFERENCE:
+            return
+        hosting = self.hostingPreferenceLeaves()
+        if not hosting:
+            return
+        if record['data'] is None:
+            record['data'] = Bag()
+        for path, value in hosting.items():
+            record['data'].setItem(path, value)
+        recInfo['_protected_paths'] = ','.join(f'data.{path}' for path in hosting)
+
+    def restoreTenantPreferences(self, data):
+        hosting = self.hostingPreferenceLeaves()
+        if not hosting or not isinstance(data, Bag):
+            return
+        tenant_data = self.record(MAIN_PREFERENCE).output('record')['data'] or Bag()
+        for path in hosting:
+            tenant_node = tenant_data.getNode(path)
+            if tenant_node is None:
+                data.popNode(path)
+            else:
+                data.setItem(path, tenant_node.value, _attributes=dict(tenant_node.attr))
+
     def getPreference(self, path, pkg=None, dflt=None, mandatoryMsg=None):
         prefdata = self.getStorePreferences() if self.db.package('multidb') \
                     and not self.db.usingRootstore() else self.getMainStorePreference()
