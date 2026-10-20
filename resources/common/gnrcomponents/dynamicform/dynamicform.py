@@ -312,7 +312,7 @@ class DynamicForm(BaseComponent):
         pane.contentPane(_workspace=True).remote(self.df_remoteDynamicForm,df_table=df_table,df_pkey=df_pkey,df_is_new=True,cachedRemote=True,**kwargs)
         
     @struct_method
-    def df_dynamicFieldsPane(self,pane,field=None,**kwargs):
+    def df_dynamicFieldsPane(self,pane,field=None,placeholder=None,**kwargs):
         column = self.db.model.column(field) if '.' in field else self.db.table(pane.getInheritedAttributes()['table']).column(field)
         df_field = column.attributes['subfields']
         df_column = column.table.column(df_field)
@@ -329,6 +329,7 @@ class DynamicForm(BaseComponent):
                             _fired='^#FORM.changed_df_type_%s' %field,
                             df_pkey='=#FORM.record.%s' %df_field,datapath='#FORM.record.%s' %field,
                             df_is_new='==!this.getRelativeData("#FORM.record.%s")' %field,
+                            df_placeholder=placeholder,
                             _onRemote="""
                             var frm = this.form;
                             this.delayedCall(
@@ -336,7 +337,7 @@ class DynamicForm(BaseComponent):
                                     frm.checkInvalidFields()
                                 },1,'buildingDynamicForm'
                             )""",**kwargs)
-  
+
     @struct_method
     def df_appendDynamicFields(self,pane,field=None,**kwargs):
         column = self.db.model.column(field) if '.' in field else self.db.table(pane.getInheritedAttributes()['table']).column(field)
@@ -407,9 +408,9 @@ class DynamicForm(BaseComponent):
 
     @public_method
     def df_remoteDynamicForm(self,pane,df_table=None,df_pkey=None,datapath=None,df_groups_cols=None,df_groups=None,
-                             df_formlet=None,**kwargs):
+                             df_formlet=None,df_placeholder=None,**kwargs):
         if not (df_pkey or df_groups):
-            pane.div()
+            self.df_placeholderBox(pane,df_placeholder)
             return
 
         pane.attributes.update(kwargs)
@@ -444,8 +445,17 @@ class DynamicForm(BaseComponent):
         else:
             ncol,colswidth = df_tblobj.readColumns(columns='$df_fbcolumns,$df_colswidth',pkey=df_pkey)
             fields = global_fields[df_pkey]
+            if not fields:
+                self.df_placeholderBox(pane,df_placeholder)
+                return
             pane.dynamicFormPage(fields=fields,ncol=ncol,colswidth=colswidth or None,datapath=datapath,df_formlet=df_formlet,**kwargs)
             
+    def df_placeholderBox(self,pane,placeholder=None):
+        if placeholder:
+            pane.div(placeholder,_class='df_placeholder')
+        else:
+            pane.div()
+
     @struct_method
     def df_dynamicFormPage(self,pane,fields=None,ncol=None,colswidth=None,datapath=None,**kwargs):
         group_kwargs = dictExtract(kwargs,'group_')
