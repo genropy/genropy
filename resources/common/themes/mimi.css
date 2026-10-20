@@ -1,6 +1,6 @@
 /*mimi*/
 
-/* @group Default color palette — Titanium metallic gray */
+/* @group Base palette inherited by color variants — Titanium metallic gray */
 body {
     --font-size: 0.75rem;
 
@@ -129,4 +129,135 @@ body {
     --form-field-border: var(--primary-light);
 }
 
+/* @end */
+
+/* @group Default palette without color variant — IBM Carbon Cool Gray */
+body:not([class*="color_variant_"]) {
+    /* --- Palette (gray scale + accent) --- */
+    --gray-900: #121619;
+    --gray-800: #21272A;
+    --gray-700: #4D5358;
+    --gray-600: #697077;
+    --gray-500: #787F87;
+    --gray-400: #A2A9B0;
+    --gray-300: #C1C7CD;
+    --gray-250: #D2D7DC;
+    --gray-200: #DDE1E6;
+    --gray-150: #E8EBEF;
+    --gray-100: #F2F4F8;
+    --gray-50:  #F8F9FB;
+    --accent-500: #0F62FE;
+
+    /* --- Brand / Primary --- */
+    --primary-color: #697077;
+    --primary-dark: #121619;
+    --primary-light: #C1C7CD;
+    --primary-lighter: #F2F4F8;
+    --root-dark: #21272A;
+    --accent-color: #0F62FE;
+    --login-underlay-bg: #DDE1E6;
+
+    /* --- Surfaces --- */
+    --mainWindow-background: #F8F9FB;
+    --mainWindow-color: #121619;
+    --surface-light: #F8F9FB;
+    --card-surface: #F8F9FB;
+    --roundedgroup-surface: #FFFFFF;
+    --splitter-bg: #F2F4F8;
+
+    /* --- Borders and text --- */
+    --border-color: #DDE1E6;
+    --border-light: #E8EBEF;
+    --border-strong: #C1C7CD;
+    --text-color: #121619;
+    --text-muted: #4D5358;
+    --text-secondary: #697077;
+    --text-placeholder: #A2A9B0;
+
+    /* --- Layout: frameindex --- */
+    --frameindexroot-background: #F2F4F8;
+    --frameindexcenter-background: #F2F4F8;
+    --frameindex-tablist-background: #C1C7CD;
+    --frameindex-tablist-color: #121619;
+    --frameindex-tab-bg: #D0E2FF;
+    --frameindex-tab-bg-hover: #E8EBEF;
+    --frameindex-subtab-bg: #DDE1E6;
+    --frameindex-subtab-selected-bg: #D0E2FF;
+    --frameindex-closer-hover-bg: #C1C7CD;
+    --root-top-background: #DDE1E6;
+    --root-top-color: #121619;
+    --toolbar-dark-bg: #DDE1E6;
+
+    /* --- Dialogs --- */
+    --dialogtitlebar-background: #DDE1E6;
+    --dialogtitlebar-color: #121619;
+    --dlg-border-color: #DDE1E6;
+    --dlg-bg: #F8F9FB;
+    --shadow-dialog: 0 12px 40px rgba(18,22,25,0.16), 0 0 0 1px rgba(18,22,25,0.06);
+
+    /* --- Toolbar --- */
+    --toolbar-bg: #F8F9FB;
+    --toolbar-color: #121619;
+    --toolbar-gradient: linear-gradient(to bottom, #FFFFFF, #F8F9FB);
+
+    /* --- Tabs --- */
+    --tab-background: #F2F4F8;
+    --tab-text-color: #4D5358;
+    --tab-selected-background: #FFFFFF;
+    --tab-selected-color: #DDE1E6;
+
+    /* --- Rounded/Rect groups --- */
+    --roundedgroup-bar: #F8F9FB;
+    --roundedgroup-bar-color: #4D5358;
+    --roundedgroup-border: #DDE1E6;
+    --roundedgroup-shadow: rgba(18,22,25,0.04);
+    --rectgroup-bar-background: #F2F4F8;
+    --accordion-title-bg: #F2F4F8;
+    --accordion-selected-bg: #4D5358;
+
+    /* --- Form fields --- */
+    --field-border: #C1C7CD;
+    --field-bg: #FFFFFF;
+    --field-disabled-border: #DDE1E6;
+    --field-disabled-bg: #F2F4F8;
+    --field-disabled-color: #4D5358;
+    --field-readonly-border: #DDE1E6;
+    --field-readonly-bg: #F8F9FB;
+    --form-field-border: #C1C7CD;
+    --formbuilder-field-border: #A2A9B0;
+    --formbuilder-field-bg: #FFFFFF;
+    --gnrfieldlabel-color: #697077;
+
+    /* --- Grid --- */
+    --grid-border-color: #E8EBEF;
+    --grid-header-bg: #F8F9FB;
+    --grid-header-color: #4D5358;
+    --grid-row-odd-bg: rgba(242,244,248,0.55);
+    --grid-row-selected-bg: rgba(15,98,254,0.13);
+    --grid-reporting-header-bg: #21272A;
+    --treegrid-header-bg: #21272A;
+    --grid-draft-color: #0F62FE;
+    --grid-lineno-color: #787F87;
+
+    /* --- Buttons: Carbon blue 60 --- */
+    --btn-border-color: #C1C7CD;
+    --btn-filled-bg: #0F62FE;
+    --btn-filled-color: #FFFFFF;
+    --btn-filled-hover-bg: #0D53D8;
+    --btn-filled-pressed-bg: #0B47B7;
+    --btn-filled-selected-bg: #0B47B7;
+    --btn-filled-disabled-bg: #93B8FF;
+    --btn-tonal-bg: #E9F1FF;
+    --btn-tonal-color: #0E58E5;
+    --btn-tonal-hover-bg: #DBE7FF;
+    --btn-tonal-pressed-bg: #CADCFF;
+    --btn-tonal-selected-bg: #CADCFF;
+
+    /* --- Menu --- */
+    --menu-text-color: #343A3F;
+    --menu-item-hover-bg: #E7EFFF;
+    --menu-item-hover-color: #121619;
+    --menutree-selected-color: #0043CE;
+    --menutree-branch-selected-color: #121619;
+}
 /* @end */
