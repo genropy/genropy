@@ -2356,6 +2356,7 @@ class GnrWebPage(GnrBaseWebPage):
         self._db = None #resetting db property after setting dbenv
         google_mapkey = self.application.config['google?mapkey']
         api_keys = Bag(self.application.config['api_keys'])
+        api_keys.pop('private')
         if 'google' not in api_keys and google_mapkey:
             api_keys.setItem('google',None,mapkey = google_mapkey)
         page.data('gnr.api_keys',api_keys)
