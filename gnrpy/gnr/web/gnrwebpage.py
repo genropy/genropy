@@ -341,6 +341,8 @@ class GnrWebPage(GnrBaseWebPage):
         kwargs = {k:v for k,v in kwargs.items() if k not in files}
         if init_info:
             init_info = dict(init_info, request_kwargs=kwargs)
+        if class_info:
+            class_info = dict(class_info, request_kwargs=kwargs)
         page_info = dict([(k,getattr(self,k,None)) for k in ATTRIBUTES_SIMPLEWEBPAGE])
         page_info['_call_kwargs'] = {k:v for k,v in self._call_kwargs.items() if k not in files}
         data = Bag()

@@ -103,13 +103,17 @@ class _RegisterCapture(object):
 
 
 class _RegisterPageStub(object):
-    wsk_enabled = False
+    wsk_enabled = True
 
     def __init__(self, request_kwargs, files):
+        self.async_registration = None
         self.connection = type('Connection', (), {'connection_id': 'conn_1'})()
         self.request = type('Request', (), {'files': files})()
         self.site = type('Site', (), {'register': _RegisterCapture()})()
         self._call_kwargs = dict(request_kwargs)
+
+    def registerToAsyncServer(self, **kwargs):
+        self.async_registration = kwargs
 
     def onPageRegistered(self, **kwargs):
         pass
@@ -121,11 +125,21 @@ def test_register_new_page_keeps_uploaded_files_out_of_register_data():
     request_kwargs = {'file': upload, 'q': 'x'}
     page = _RegisterPageStub(request_kwargs, MultiDict({'file': upload}))
     init_info = dict(request_kwargs=request_kwargs, request_args=())
-    GnrWebPage._register_new_page(page, kwargs=request_kwargs, init_info=init_info)
+    class_info = dict(basepath='/app/pages', relpath='upload.py', pkg=None,
+                      request_args=(), request_kwargs=request_kwargs)
+    GnrWebPage._register_new_page(page, kwargs=request_kwargs,
+                                  class_info=class_info, init_info=init_info)
     data = pickle.loads(pickle.dumps(page.site.register.data))
+    assert 'file' not in data['class_info']['request_kwargs']
+    assert data['class_info']['request_kwargs']['q'] == 'x'
+    assert class_info['request_kwargs'] is request_kwargs
     assert 'file' not in data['pageArgs']
     assert data['pageArgs']['q'] == 'x'
     assert 'file' not in data['init_info']['request_kwargs']
     assert data['init_info']['request_kwargs']['q'] == 'x'
     assert request_kwargs['file'] is upload
     assert page._call_kwargs['file'] is upload
+    async_registration = pickle.loads(pickle.dumps(page.async_registration))
+    assert 'file' not in async_registration['class_info']['request_kwargs']
+    assert 'file' not in async_registration['init_info']['request_kwargs']
+    assert 'file' not in async_registration['page_info']['_call_kwargs']
