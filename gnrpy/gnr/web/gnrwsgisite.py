@@ -830,7 +830,7 @@ class GnrWsgiSite(object):
             storageType = self.storageType(path_list)
         if ':' in storageType:
             #site:image -> site
-            storage_name, path_list[0] = storageType.split(':')
+            storage_name, path_list[0] = storageType.split(':', 1)
         elif storageType == 'storage':
             #/_storage/site/pippo -> site
             storage_name, path_list = path_list[1], path_list[2:]
