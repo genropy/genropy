@@ -184,7 +184,7 @@ body:not([class*="color_variant_"]) {
     --frameindex-subtab-bg: #DDE1E6;
     --frameindex-subtab-selected-bg: #D0E2FF;
     --frameindex-closer-hover-bg: #C1C7CD;
-    --root-top-background: #DDE1E6;
+    --root-top-background: #E4EAF2;
     --root-top-color: #121619;
     --toolbar-dark-bg: #DDE1E6;
 
@@ -257,7 +257,7 @@ body:not([class*="color_variant_"]) {
     --menu-text-color: #343A3F;
     --menu-item-hover-bg: #E7EFFF;
     --menu-item-hover-color: #121619;
-    --menutree-selected-color: #0043CE;
+    --menutree-selected-color: #0071E3;
     --menutree-branch-selected-color: #121619;
 }
 /* @end */
