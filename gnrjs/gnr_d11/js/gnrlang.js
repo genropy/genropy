@@ -67,9 +67,20 @@ function _T(str,lazy){
     }
     var localsdict = genro.getFromStorage('local',localekey) || {};
     if(isNullOrBlank(localsdict[str])){
+        if(genro.dev.isConnectionLost() || _T.pending){
+            return str;
+        }
         var toTranslate = noLocMarker?'!!'+str:str;
-        var result = genro.serverCall('getRemoteTranslation',{txt:toTranslate,language:language}) || {};
+        _T.pending = true;
+        try{
+            var result = genro.serverCall('getRemoteTranslation',{txt:toTranslate,language:language}) || {};
+        }finally{
+            _T.pending = false;
+        }
         var localizedString = result['translation'];
+        if(isNullOrBlank(localizedString)){
+            return str;
+        }
         if(result.status!='OK'){
             localsdict[str] ='<span class="unlocalized">'+localizedString+'</span>';
         }
