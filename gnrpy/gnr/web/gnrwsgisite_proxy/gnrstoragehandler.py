@@ -496,11 +496,19 @@ class LegacyStorageHandler(BaseStorageHandler):
         service_params = dict(stored_params)
         service_params.pop('service_name', None)
         service_params.update(kwargs)
-        return self.site.getService(
+        service = self.site.getService(
             service_type='storage',
             service_name=storage_name,
             **service_params
         )
+        if service_params.get('implementation') == 'relative' and service.parentServiceChanged():
+            self.site.services_handler('storage').service_instances.pop(storage_name, None)
+            service = self.site.getService(
+                service_type='storage',
+                service_name=storage_name,
+                **service_params
+            )
+        return service
     
     def _adapt_path(self, *args, **kwargs):
         """Adapt and parse legacy path formats.
