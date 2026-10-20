@@ -41,6 +41,10 @@ from gnr.web.gnrwebpage_proxy.frontend.template_lookup import lookup_template_cl
 
 
 DEFAULT_CSS_THEME = os.environ.get('GNR_CSS_THEME', 'mimi')
+# the explicit variant of the palette a theme shows when no color variant is set
+DEFAULT_COLOR_VARIANT = 'gray'
+# a values= key cannot be empty: the select offers this one and the pane stores null for it
+UNSET_COLOR_VARIANT = '_default_'
 
 from gnr.core.gnrstring import toText, toJson, concat, jsquote,splitAndStrip,boolean,asDict
 from gnr.core.gnrdict import dictExtract
@@ -1913,9 +1917,13 @@ class GnrWebPage(GnrBaseWebPage):
         return ','.join(sorted(variants))
 
     @public_method
-    def getAvailableColorVariants(self, theme=None, theme_variant=None):
+    def getAvailableColorVariants(self, theme=None, theme_variant=None, unset_option=None):
         """Discover available color variants by parsing .color_variant_* classes
-        from the theme CSS file and the active theme variant CSS file."""
+        from the theme CSS file and the active theme variant CSS file.
+
+        unset_option prepends an UNSET_COLOR_VARIANT entry: 'theme' labels it as the
+        theme default (merging DEFAULT_COLOR_VARIANT into it), 'application' as the
+        application default."""
         theme = theme or self.get_css_theme() or DEFAULT_CSS_THEME
         theme_variant = theme_variant or self.get_css_theme_variant() or 'base'
         color_variants = set()
@@ -1930,7 +1938,16 @@ class GnrWebPage(GnrBaseWebPage):
                     content = f.read()
                 for match in re.finditer(r'\.color_variant_([\w-]+)\s*\{', content):
                     color_variants.add(match.group(1))
-        return ','.join(sorted(color_variants))
+        color_variants = sorted(color_variants)
+        if unset_option == 'theme':
+            caption = '!![en]Default'
+            if DEFAULT_COLOR_VARIANT in color_variants:
+                color_variants.remove(DEFAULT_COLOR_VARIANT)
+                caption = '!![en]Gray (default)'
+            color_variants.insert(0, f'{UNSET_COLOR_VARIANT}:{self.localize(caption)}')
+        elif unset_option == 'application':
+            color_variants.insert(0, f"{UNSET_COLOR_VARIANT}:{self.localize('!![en]Application default')}")
+        return ','.join(color_variants)
 
     def get_css_icons(self):
         """Get the css_icons and return it. The css_icons get is the one defined the :ref:`siteconfig_gui`
