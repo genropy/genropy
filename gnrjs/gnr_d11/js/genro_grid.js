@@ -135,6 +135,11 @@ gnr.columnFilterDay = function(value){
     return value? (''+value).slice(0,10):'';
 };
 
+gnr.columnFilterInRange = function(value,range){
+    var day = gnr.columnFilterDay(value);
+    return !!day && (!range.from || day>=range.from) && (!range.to || day<=range.to);
+};
+
 gnr.columnFilterActive = function(cell){
     return !!((cell.filterValues && cell.filterValues.length) || cell.filterRange);
 };
@@ -4688,8 +4693,7 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
         return function(rowdata){
             return filters.every(function(f){
                 if(f.range){
-                    var day = gnr.columnFilterDay(rowdata[f.key]);
-                    return !!day && (!f.range.from || day>=f.range.from) && (!f.range.to || day<=f.range.to);
+                    return gnr.columnFilterInRange(rowdata[f.key],f.range);
                 }
                 return f.keys.has(gnr.columnFilterKey(rowdata[f.key]));
             });
@@ -4786,9 +4790,26 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
             return;
         }
         var grid = this;
-        genro.dlg.quickTooltipPane({domNode:anchor,nodeId:'columnFilter_'+this.sourceNode.getStringId()},function(tp,kw){
+        var stringId = this.sourceNode.getStringId();
+        var rangePath = (cell.dtype=='D' || cell.dtype=='DH')? 'gnr.columnFilter.'+stringId:null;
+        var holder = {};
+        genro.dlg.quickTooltipPane({domNode:anchor,nodeId:'columnFilter_'+stringId,datapath:rangePath},function(tp,kw){
+            if(rangePath){
+                var range = cell.filterRange || {};
+                genro.setData(rangePath+'.from',convertFromText(range.from,'D'));
+                genro.setData(rangePath+'.to',convertFromText(range.to,'D'));
+                var box = tp._('div',{_class:'gcf_range',onCreated:function(domNode){holder.rangeNode = domNode;}});
+                var from = box._('div',{_class:'gcf_rangefield'});
+                from._('div',{_class:'gcf_rangecaption',innerHTML:_T('From')});
+                from._('dateTextBox',{value:'^.from',period_to:'.to',width:'100%'});
+                var to = box._('div',{_class:'gcf_rangefield'});
+                to._('div',{_class:'gcf_rangecaption',innerHTML:_T('To')});
+                to._('dateTextBox',{value:'^.to',width:'100%'});
+                tp._('dataController',{script:'if(holder.pane){holder.pane.setRange(from,to);}',
+                                       holder:holder,from:'^.from',to:'^.to',_delay:1});
+            }
             tp._('div',{onCreated:function(domNode){
-                new gnr.GridColumnFilterPane(grid,cell,domNode,kw.tooltipOpenerId);
+                holder.pane = new gnr.GridColumnFilterPane(grid,cell,domNode,kw.tooltipOpenerId,holder.rangeNode,rangePath);
             }});
         });
     },

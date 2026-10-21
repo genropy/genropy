@@ -317,3 +317,46 @@ test('the order of the filter values turns descending, empty still last', () => 
     assert.deepEqual(order({filterField: true, _filterDescending: true}, [['alfa'], [''], ['PO 9'], ['PO 10']]),
                      ['PO 10', 'PO 9', 'alfa', '(empty)']);
 });
+
+test('with a period the list checks the days inside it, and a click turns them into checked values', () => {
+    const context = createContext();
+    const {gnr} = context;
+    const date = (y, m, d) => vm.runInContext(`new Date(${y}, ${m}, ${d})`, context);
+    const items = [date(2026, 1, 20), date(2026, 2, 5), date(2026, 2, 14), date(2026, 3, 1)]
+        .map(value => ({value, key: gnr.columnFilterKey(value), count: 1}));
+    const cell = {field: 'issued', filterField: true, filterRange: {from: '2026-03-01', to: '2026-03-31'}};
+    const calls = [];
+    const cleared = [];
+    const pane = Object.assign(Object.create(gnr.GridColumnFilterPane.prototype), {
+        cell, items,
+        grid: {setColumnFilter: (c, values, range) => {
+            calls.push({values, range});
+            c.filterValues = values && values.length ? values : null;
+            c.filterRange = range || null;
+        }},
+        clearRange: () => cleared.push(true),
+        renderList() {}
+    });
+    assert.deepEqual(Array.from(pane.checkedKeys()), [items[1].key, items[2].key]);
+    pane.toggle({dataset: {idx: '0'}, checked: true, parentNode: {classList: {toggle() {}}}});
+    assert.deepEqual(calls.at(-1).values.map(v => gnr.columnFilterKey(v)), [items[1].key, items[2].key, items[0].key]);
+    assert.equal(cell.filterRange, null);
+    assert.equal(cleared.length, 1);
+});
+
+test('the period fields set the filter only when the period changes', () => {
+    const context = createContext();
+    const {gnr} = context;
+    const date = (y, m, d) => vm.runInContext(`new Date(${y}, ${m}, ${d})`, context);
+    const calls = [];
+    const cell = {field: 'issued', filterField: true, filterValues: ['x']};
+    const pane = Object.assign(Object.create(gnr.GridColumnFilterPane.prototype), {
+        cell, grid: {setColumnFilter: (c, values, range) => { calls.push(range); c.filterRange = range; }}, renderList() {}
+    });
+    pane.setRange(null, null);
+    assert.equal(calls.length, 0);
+    pane.setRange(date(2026, 4, 1), date(2026, 4, 31));
+    assert.deepEqual({...calls[0]}, {from: '2026-05-01', to: '2026-05-31'});
+    pane.setRange(date(2026, 4, 1), date(2026, 4, 31));
+    assert.equal(calls.length, 1);
+});

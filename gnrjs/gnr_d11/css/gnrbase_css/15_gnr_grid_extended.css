@@ -167,9 +167,6 @@
     display: flex;
     gap: 6px;
 }
-.gridColumnFilterPane .gcf_range[hidden]{
-    display: none;
-}
 .gridColumnFilterPane .gcf_rangefield{
     flex: 1;
     min-width: 0;
@@ -180,20 +177,6 @@
 .gridColumnFilterPane .gcf_rangecaption{
     color: var(--text-secondary);
     font-size: .9em;
-}
-.gridColumnFilterPane .gcf_rangefield input{
-    min-width: 0;
-    height: 26px;
-    padding: 0 4px;
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-sm);
-    background: var(--surface-bg);
-    color: var(--text-color);
-    font: inherit;
-}
-.gridColumnFilterPane .gcf_rangefield input:focus{
-    outline: none;
-    border-color: var(--accent-color);
 }
 .gridColumnFilterPane .gcf_searchbox{
     display: flex;

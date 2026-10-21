@@ -2022,11 +2022,12 @@ dojo.declare("gnr.GridColumnFilterPane", null, {
     maxRows:200,
     searchThreshold:6,
 
-    constructor:function(grid,cell,domNode,openerId){
+    constructor:function(grid,cell,domNode,openerId,rangeNode,rangePath){
         this.grid = grid;
         this.cell = cell;
         this.domNode = domNode;
         this.openerId = openerId;
+        this.rangePath = rangePath;
         this.search = '';
         this.items = [];
         domNode.classList.add('gridColumnFilterPane');
@@ -2036,10 +2037,6 @@ dojo.declare("gnr.GridColumnFilterPane", null, {
         this.orderNode = this.element('button','gcf_order');
         this.orderNode.type = 'button';
         title.append(this.element('span','gcf_titletext',label.textContent),this.orderNode);
-        this.rangeNode = this.element('div','gcf_range');
-        this.rangeNode.hidden = !(cell.dtype=='D' || cell.dtype=='DH');
-        this.fromNode = this.rangeField(_T('From'));
-        this.toNode = this.rangeField(_T('To'));
         this.searchBox = this.element('label','gcf_searchbox');
         this.searchBox.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></svg>';
         this.searchNode = this.element('input','gcf_search');
@@ -2055,15 +2052,15 @@ dojo.declare("gnr.GridColumnFilterPane", null, {
         this.countNode = this.element('span','gcf_rowcount');
         var foot = this.element('div','gcf_foot');
         foot.append(this.clearNode,this.countNode);
-        domNode.append(title,this.rangeNode,this.searchBox,this.listNode,this.moreNode,foot);
+        domNode.append(title);
+        if(rangeNode){
+            domNode.appendChild(rangeNode);
+        }
+        domNode.append(this.searchBox,this.listNode,this.moreNode,foot);
         var that = this;
         this.orderNode.addEventListener('click',function(){
             that.cell._filterDescending = !that.cell._filterDescending;
             that.items.sort(that.compareItems.bind(that));
-            that.renderList();
-        });
-        this.rangeNode.addEventListener('change',function(){
-            that.grid.setColumnFilter(that.cell,null,{from:that.fromNode.value || null,to:that.toNode.value || null});
             that.renderList();
         });
         this.searchNode.addEventListener('input',function(){
@@ -2077,6 +2074,7 @@ dojo.declare("gnr.GridColumnFilterPane", null, {
         });
         this.clearNode.addEventListener('click',function(){
             that.grid.setColumnFilter(that.cell,null);
+            that.clearRange();
             that.renderList();
         });
         domNode.addEventListener('keydown',function(e){
@@ -2088,13 +2086,21 @@ dojo.declare("gnr.GridColumnFilterPane", null, {
         this.setItems(grid.columnFilterValues(cell));
     },
 
-    rangeField:function(caption){
-        var field = this.element('label','gcf_rangefield');
-        var input = document.createElement('input');
-        input.type = 'date';
-        field.append(this.element('span','gcf_rangecaption',caption),input);
-        this.rangeNode.appendChild(field);
-        return input;
+    setRange:function(from,to){
+        var range = {from:from? gnr.columnFilterDay(from):null,to:to? gnr.columnFilterDay(to):null};
+        var current = this.cell.filterRange || {};
+        if(range.from==(current.from || null) && range.to==(current.to || null)){
+            return;
+        }
+        this.grid.setColumnFilter(this.cell,null,range);
+        this.renderList();
+    },
+
+    clearRange:function(){
+        if(this.rangePath){
+            genro.setData(this.rangePath+'.from',null);
+            genro.setData(this.rangePath+'.to',null);
+        }
     },
 
     element:function(tag,className,text){
@@ -2107,6 +2113,14 @@ dojo.declare("gnr.GridColumnFilterPane", null, {
     },
 
     checkedKeys:function(){
+        var range = this.cell.filterRange;
+        if(range){
+            return new Set(this.items.filter(function(item){
+                return gnr.columnFilterInRange(item.value,range);
+            }).map(function(item){
+                return item.key;
+            }));
+        }
         return new Set((this.cell.filterValues || []).map(gnr.columnFilterKey));
     },
 
@@ -2194,9 +2208,6 @@ dojo.declare("gnr.GridColumnFilterPane", null, {
         var descending = !!this.cell._filterDescending;
         this.orderNode.textContent = descending? '\u2193':'\u2191';
         this.orderNode.title = descending? _T('Descending order'):_T('Ascending order');
-        var range = this.cell.filterRange || {};
-        this.fromNode.value = range.from || '';
-        this.toNode.value = range.to || '';
         var rest = matches-shown;
         this.moreNode.hidden = rest<=0;
         this.moreNode.textContent = rest+' '+_T('more. Type to search.');
@@ -2211,14 +2222,19 @@ dojo.declare("gnr.GridColumnFilterPane", null, {
 
     toggle:function(input){
         var item = this.items[parseInt(input.dataset.idx)];
-        var values = (this.cell.filterValues || []).filter(function(value){
+        var ranged = !!this.cell.filterRange;
+        var checked = this.checkedKeys();
+        var current = ranged? this.items.filter(function(i){return checked.has(i.key);}).map(function(i){return i.value;})
+                            :(this.cell.filterValues || []);
+        var values = current.filter(function(value){
             return gnr.columnFilterKey(value)!==item.key;
         });
         if(input.checked){
             values.push(item.value);
         }
         this.grid.setColumnFilter(this.cell,values);
-        if(this.fromNode.value || this.toNode.value){
+        if(ranged){
+            this.clearRange();
             this.renderList();
             return;
         }
