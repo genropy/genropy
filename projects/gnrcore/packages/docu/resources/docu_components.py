@@ -541,7 +541,8 @@ class ContentsComponent(BaseComponent):
             pane.tinyMce(value='^.html', textpath='.text', nodeId='contentHtml',
                         height='100%', **kwargs)
         else:
-            pane.joditEditor(value='^.html', nodeId='contentHtml', height='100%', **kwargs)
+            pane.joditEditor(value='^.html', textpath='.text', nodeId='contentHtml',
+                        height='100%', **kwargs)
     
     def contentEditor_md(self, pane, initialEditType='wysiwyg', previewStyle='vertical', **kwargs):
         "Markdown editor with preview. Default initialEditType to 'wysiwyg' if not provided"

@@ -5,7 +5,10 @@ const {test} = require('node:test');
 const vm = require('node:vm');
 
 function loadHandler(globals) {
-    const context = {console, gnr: {widgets: {}}, genro: {locale: () => 'it-IT'},
+    // _T leaves a string untranslated while the connection is down: no server call from a test.
+    const genro = {locale: () => 'it-IT', getFromStorage: () => ({}), _pageLocals: {},
+                   dev: {isConnectionLost: () => true}};
+    const context = {console, gnr: {widgets: {}}, genro,
                      dijit: {getEnclosingWidget: () => null}, ...globals};
     context.dojo = {
         eval,
@@ -66,6 +69,7 @@ function makeSourceNode(value, attr) {
         attr: Object.assign({value: '^.html'}, attr),
         getAttributeFromDatasource: (name) => store[name],
         setAttributeInDatasource: (name, v) => { store[name] = v; writes.push([name, v]); },
+        setRelativeData: (path, v) => { store[path] = v; writes.push([path, v]); },
         delayedCall: (fn) => fn(),
         isPointerPath: (p) => typeof p === 'string' && p[0] === '^'
     };
@@ -305,7 +309,7 @@ function initializeWith(sourceEditor) {
     return made.sourceEditor;
 }
 
-function initializeEditor(value, parentWidget) {
+function initializeEditor(value, parentWidget, attr) {
     const listeners = {};
     const editor = {
         value,
@@ -326,7 +330,7 @@ function initializeEditor(value, parentWidget) {
         Jodit: {make: () => editor},
         dijit: {getEnclosingWidget: () => parentWidget || null}
     });
-    const sourceNode = makeSourceNode(value);
+    const sourceNode = makeSourceNode(value, attr);
     const widget = {classList: {add() {}}, appendChild() {}};
     handler.initialize(widget, create(handler, {}), sourceNode);
     return {editor, sourceNode};
@@ -419,4 +423,170 @@ test('source view uses CodeMirror, or the plain textarea for any other sourceEdi
     assert.equal(typeof initializeWith('codemirror'), 'function');
     assert.equal(initializeWith('area'), 'area');
     assert.equal(initializeWith('ace'), 'area');
+});
+
+test('the plain text is written only on blur, and only after a user edit', () => {
+    const handler = loadHandler();
+    const sourceNode = makeSourceNode('<p>a</p>', {textpath: '.text'});
+    const editor = makeEditor(handler, sourceNode, '<p>a</p>');
+    editor.text = 'a';
+    handler.writeValue(editor, true);
+    assert.deepEqual(sourceNode.writes, []);
+    editor._gnrUserEdit = true;
+    editor.value = '<p>ab</p>';
+    editor.text = 'ab';
+    handler.onEditorChange(editor);
+    assert.deepEqual(sourceNode.writes, [['value', '<p>ab</p>']]);
+    handler.writeValue(editor, true);
+    assert.deepEqual(sourceNode.writes, [['value', '<p>ab</p>'], ['.text', 'ab']]);
+});
+
+test('an emptied editor stores no plain text either', () => {
+    const handler = loadHandler();
+    const sourceNode = makeSourceNode('<p>a</p>', {textpath: '.text'});
+    const editor = makeEditor(handler, sourceNode, '');
+    editor._gnrUserEdit = true;
+    editor.text = '';
+    handler.writeValue(editor, true);
+    assert.deepEqual(sourceNode.writes, [['value', null], ['.text', null]]);
+});
+
+test('leaving the editor stores the plain text, typing in it does not', () => {
+    const {editor, sourceNode} = initializeEditor('<p>a</p>', null, {textpath: '.text'});
+    editor.fire('keydown');
+    editor.value = '<p>ab</p>';
+    editor.text = 'ab';
+    editor.fire('change');
+    assert.deepEqual(sourceNode.writes, [['value', '<p>ab</p>']]);
+    editor.fire('blur');
+    assert.deepEqual(sourceNode.writes, [['value', '<p>ab</p>'], ['.text', 'ab']]);
+});
+
+test('maxLength blocks input at the limit and takes the place of the Jodit counters', () => {
+    const handler = loadHandler();
+    const options = create(handler, {maxLength: 200}).options;
+    assert.equal(options.limitChars, 200);
+    // without countTextSpaces the plugin counts the words joined: it would block
+    // at a different number than the statusbar shows
+    assert.equal(options.countTextSpaces, true);
+    assert.deepEqual([options.statusbar, options.showCharsCounter, options.showWordsCounter],
+                     [true, false, false]);
+    const unlimited = create(handler, {}).options;
+    assert.equal('limitChars' in unlimited, false);
+    assert.deepEqual([unlimited.statusbar, 'showCharsCounter' in unlimited], [false, false]);
+});
+
+function countCharacters(limit, text) {
+    const handler = loadHandler({document: {createElement: () => ({style: {}})}});
+    const listeners = {};
+    const editor = {
+        text, o: {limitChars: limit},
+        statusbar: {append(node, atEnd) { editor.counter = node; editor.counterAtEnd = atEnd; }},
+        e: {on(events, callback) { for (const name of events.split(' ')) (listeners[name] ||= []).push(callback); }},
+        fire: (name) => (listeners[name] || []).forEach((callback) => callback())
+    };
+    handler.setupCharCounter(editor);
+    return editor;
+}
+
+test('the statusbar counts the characters left and warns as the budget runs out', () => {
+    const editor = countCharacters(100, 'a'.repeat(40));
+    assert.equal(editor.counterAtEnd, true);
+    assert.deepEqual([editor.counter.textContent, editor.counter.style.color], ['Remaining: 60', '']);
+    editor.text = 'a'.repeat(95);
+    editor.fire('keyup');
+    assert.deepEqual([editor.counter.textContent, editor.counter.style.color], ['Remaining: 5', 'orange']);
+    // only a value loaded over the limit goes negative: typing stops at it
+    editor.text = 'a'.repeat(120);
+    editor.fire('change');
+    assert.deepEqual([editor.counter.textContent, editor.counter.style.color], ['Remaining: -20', 'red']);
+});
+
+test('the counter counts what the limit plugin counts: spaces in, block newlines out', () => {
+    const handler = loadHandler();
+    // editor.text is innerText: two paragraphs of nine characters joined by a newline
+    assert.equal(handler.textLength({text: 'one two x\nfour five'}), 18);
+    assert.equal(handler.textLength({text: 'a\uFEFFb'}), 2);
+    assert.equal(handler.textLength({}), 0);
+    assert.equal(countCharacters(30, 'one two x\nfour five').counter.textContent, 'Remaining: 12');
+});
+
+test('no counter without a character limit', () => {
+    assert.equal(countCharacters(0, '').counter, undefined);
+});
+
+test('placeholders add a $ button inserting the name at the caret', () => {
+    const options = create(loadHandler(), {placeholders: 'name, surname'}).options;
+    // extraButtons is appended on its own: naming it here too renders it a second time
+    assert.deepEqual([...options.buttons], [...loadHandler().toolbars.standard]);
+    const [button] = options.extraButtons;
+    assert.equal(button.text, '$');
+    assert.deepEqual({...button.list}, {$name: '$name', $surname: '$surname'});
+    let inserted;
+    button.exec({s: {insertHTML: (html) => { inserted = html; }}}, null, {control: {args: ['$surname']}});
+    assert.equal(inserted, '$surname');
+});
+
+test('placeholders accept a list as well as a comma string', () => {
+    const [button] = create(loadHandler(), {placeholders: ['name', 'surname']}).options.extraButtons;
+    assert.deepEqual({...button.list}, {$name: '$name', $surname: '$surname'});
+});
+
+test('placeholders have nowhere to go without a toolbar', () => {
+    const options = create(loadHandler(), {placeholders: 'name', toolbar: false}).options;
+    assert.equal('extraButtons' in options, false);
+    assert.deepEqual([...options.buttons], []);
+});
+
+test('imageData embeds images as data URIs without discarding a configured uploader', () => {
+    const handler = loadHandler();
+    assert.equal(create(handler, {}).options.uploader, undefined);
+    assert.deepEqual({...create(handler, {imageData: true}).options.uploader},
+                     {insertImageAsBase64URI: true});
+    const configured = create(handler, {imageData: true, config_uploader: {url: '/upload'}}).options;
+    assert.deepEqual({...configured.uploader}, {insertImageAsBase64URI: true, url: '/upload'});
+    const refused = create(handler, {imageData: true,
+                                     config_uploader: {insertImageAsBase64URI: false}}).options;
+    assert.equal(refused.uploader.insertImageAsBase64URI, false);
+});
+
+test('codeBlock adds a labelled button, never one falling back to its control name', () => {
+    const [button] = create(loadHandler(), {codeBlock: true}).options.extraButtons;
+    assert.equal(button.name, 'codeBlock');
+    // with no icon Jodit renders control.text, or the bare control name when text is missing
+    assert.equal(button.text, '{ }');
+    assert.ok(button.tooltip);
+});
+
+test('codeBlock inserts an empty pre/code block and leaves the caret inside it', () => {
+    const handler = loadHandler();
+    const nodes = [];
+    const editor = {
+        createInside: {element: (tag, children) => {
+            const node = {tag, children: children || []};
+            nodes.push(node);
+            return node;
+        }},
+        s: {insertNode: (node) => { editor.inserted = node; },
+            setCursorIn: (node) => { editor.caretIn = node; }}
+    };
+    handler.insertCodeBlock(editor);
+    assert.deepEqual(nodes.map((node) => node.tag), ['code', 'pre']);
+    assert.equal(editor.inserted.tag, 'pre');
+    assert.deepEqual([...editor.inserted.children], [editor.caretIn]);
+    assert.equal(editor.caretIn.tag, 'code');
+    assert.deepEqual(editor.caretIn.children, []);
+});
+
+test('codeBlock and placeholders are two buttons, neither of them in the toolbar list', () => {
+    const handler = loadHandler();
+    const options = create(handler, {codeBlock: true, placeholders: 'name'}).options;
+    assert.deepEqual([...options.extraButtons].map((button) => button.name), ['placeholders', 'codeBlock']);
+    assert.deepEqual([...options.buttons], [...handler.toolbars.standard]);
+    const none = create(handler, {codeBlock: true, placeholders: 'name', toolbar: false}).options;
+    assert.equal('extraButtons' in none, false);
+});
+
+test('no extraButtons key when nothing asks for one', () => {
+    assert.equal('extraButtons' in create(loadHandler(), {}).options, false);
 });

@@ -128,6 +128,22 @@ gnr.columnFilterKey = function(value){
     return ''+value;
 };
 
+gnr.columnFilterDay = function(value){
+    if(value instanceof Date){
+        return new Date(value.getTime()-value.getTimezoneOffset()*60000).toISOString().slice(0,10);
+    }
+    return value? (''+value).slice(0,10):'';
+};
+
+gnr.columnFilterInRange = function(value,range){
+    var day = gnr.columnFilterDay(value);
+    return !!day && (!range.from || day>=range.from) && (!range.to || day<=range.to);
+};
+
+gnr.columnFilterActive = function(cell){
+    return !!((cell.filterValues && cell.filterValues.length) || cell.filterRange);
+};
+
 // ********* Grid ************
 dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
     constructor: function(application) {
@@ -1902,7 +1918,7 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
         var classes = 'cellHeaderContent';
         if(cell.filterField && this.columnFilterSupport && this.columnFilterAllowed(sourceNode)){
             classes += ' withColumnFilter';
-            var active = cell.filterValues && cell.filterValues.length;
+            var active = gnr.columnFilterActive(cell);
             content += '<span class="gridColumnFilter'+(active?' gridColumnFilterActive':'')+'" title="'+_T('Filter')+'">'+
                        '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h18l-7 8.5V19l-4 2v-7.5z"/></svg></span>';
         }
@@ -4640,7 +4656,7 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
             return [];
         }
         return objectValues(this.cellmap).filter(function(cell){
-            return cell.filterField && cell.field!=skipField && cell.filterValues && cell.filterValues.length;
+            return cell.filterField && cell.field!=skipField && gnr.columnFilterActive(cell);
         });
     },
 
@@ -4650,20 +4666,24 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
 
     mixin_columnFilterSignature:function(){
         return this.columnFilterCells().map(function(cell){
-            return cell.field+'='+cell.filterValues.map(gnr.columnFilterKey).join('|');
+            var range = cell.filterRange;
+            return cell.field+'='+(range? (range.from || '')+'..'+(range.to || ''):'')+
+                   (cell.filterValues? '|'+cell.filterValues.map(gnr.columnFilterKey).join('|'):'');
         }).join(';');
     },
 
     mixin_columnFilterCb:function(skipField){
         var filters = this.columnFilterCells(skipField).map(function(cell){
-            return {key:cell.filterField_key,keys:new Set(cell.filterValues.map(gnr.columnFilterKey))};
+            return {key:cell.filterField_key,range:cell.filterRange,
+                    keys:cell.filterValues? new Set(cell.filterValues.map(gnr.columnFilterKey)):null};
         });
         if(!filters.length){
             return null;
         }
         return function(rowdata){
             return filters.every(function(f){
-                return f.keys.has(gnr.columnFilterKey(rowdata[f.key]));
+                return (!f.range || gnr.columnFilterInRange(rowdata[f.key],f.range)) &&
+                       (!f.keys || f.keys.has(gnr.columnFilterKey(rowdata[f.key])));
             });
         };
     },
@@ -4680,11 +4700,13 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
         return node instanceof gnr.GnrBagNode? node:null;
     },
 
-    mixin_setColumnFilter:function(cell,values){
-        cell.filterValues = values && values.length? values:null;
+    mixin_setColumnFilter:function(cell,values,range){
+        cell.filterRange = range && (range.from || range.to)? range:null;
+        // inside a period no value checked is a filter that keeps no row, not the absence of a filter
+        cell.filterValues = values && (values.length || cell.filterRange)? values:null;
         var cellNode = this.structCellNode(cell);
         if(cellNode){
-            cellNode.updAttributes({filterValues:cell.filterValues},false);
+            cellNode.updAttributes({filterValues:cell.filterValues,filterRange:cell.filterRange},false);
         }
         this.refreshColumnFilterHeaders();
         this.applyColumnFilters();
@@ -4757,9 +4779,26 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
             return;
         }
         var grid = this;
-        genro.dlg.quickTooltipPane({domNode:anchor,nodeId:'columnFilter_'+this.sourceNode.getStringId()},function(tp,kw){
+        var stringId = this.sourceNode.getStringId();
+        var rangePath = (cell.dtype=='D' || cell.dtype=='DH')? 'gnr.columnFilter.'+stringId:null;
+        var holder = {};
+        genro.dlg.quickTooltipPane({domNode:anchor,nodeId:'columnFilter_'+stringId,datapath:rangePath},function(tp,kw){
+            if(rangePath){
+                var range = cell.filterRange || {};
+                genro.setData(rangePath+'.from',convertFromText(range.from,'D'));
+                genro.setData(rangePath+'.to',convertFromText(range.to,'D'));
+                var box = tp._('div',{_class:'gcf_range',onCreated:function(domNode){holder.rangeNode = domNode;}});
+                var from = box._('div',{_class:'gcf_rangefield'});
+                from._('div',{_class:'gcf_rangecaption',innerHTML:_T('From')});
+                from._('dateTextBox',{value:'^.from',period_to:'.to',width:'100%'});
+                var to = box._('div',{_class:'gcf_rangefield'});
+                to._('div',{_class:'gcf_rangecaption',innerHTML:_T('To')});
+                to._('dateTextBox',{value:'^.to',width:'100%'});
+                tp._('dataController',{script:'if(holder.pane){holder.pane.setRange(from,to);}',
+                                       holder:holder,from:'^.from',to:'^.to',_delay:1});
+            }
             tp._('div',{onCreated:function(domNode){
-                new gnr.GridColumnFilterPane(grid,cell,domNode,kw.tooltipOpenerId);
+                holder.pane = new gnr.GridColumnFilterPane(grid,cell,domNode,kw.tooltipOpenerId,holder.rangeNode,rangePath);
             }});
         });
     },

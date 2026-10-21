@@ -293,6 +293,9 @@
 <en_font_weight base="Font weight"></en_font_weight>
 <en_font_variant base="Font variant"></en_font_variant>
 <en_font_family base="Font family"></en_font_family></genro_dom>
+<genro_editors path="gnrjs/gnr_d11/js/genro_editors.js" ext="js"><en_insert_field base="Insert field" it="Inserisci campo"></en_insert_field>
+<en_remaining base="Remaining" it="Rimanenti"></en_remaining>
+<en_code_block base="Code block" it="Blocco di codice"></en_code_block></genro_editors>
 <genro_frm path="gnrjs/gnr_d11/js/genro_frm.js" ext="js"><en_no_record_loaded base="No record loaded" it="Nessun record caricato"></en_no_record_loaded>
 <en_read_only base="Read Only" it="Sola lettura"></en_read_only>
 <en_no_changes_to_save base="No changes to save" it="Nessuna modifica da salvare"></en_no_changes_to_save>
@@ -429,7 +432,11 @@
 <en_select_row base="Select row" it="Seleziona la riga"></en_select_row>
 <en_row_added base="Row added" it="Riga aggiunta"></en_row_added>
 <en_row_saved base="Row saved" it="Riga salvata"></en_row_saved>
-<en_rows_added base="Rows added" it="Righe aggiunte"></en_rows_added>
+<en_copy base="Copy" it="Copia"></en_copy>
+<en_copy_count_rows base="Copy $count rows" it="Copia $count righe"></en_copy_count_rows>
+<en_rows_pasted base="Rows pasted" it="Righe incollate"></en_rows_pasted>
+<en_1_row_copied base="1 row copied" it="1 riga copiata"></en_1_row_copied>
+<en__count_rows_copied base="$count rows copied" it="$count righe copiate"></en__count_rows_copied>
 <en_delete_row base="Delete row" it="Elimina riga"></en_delete_row>
 <en_delete_1_row base="Delete 1 row" it="Elimina 1 riga"></en_delete_1_row>
 <en_delete_count_rows base="Delete $count rows" it="Elimina $count righe"></en_delete_count_rows>

@@ -303,3 +303,109 @@ test('a mousedown on the filter icon cannot start a column drag, elsewhere it go
     assert.equal(onTitle.prevented, false);
     assert.deepEqual(forwarded, [onTitle]);
 });
+
+test('a period on a date column keeps the rows whose day falls in it, bounds included', () => {
+    const g = createGrid();
+    const date = (y, m, d, h = 0) => vm.runInContext(`new Date(${y}, ${m}, ${d}, ${h})`, g.context);
+    const cell = filterCell(g.context, {field: 'issued', field_getter: 'issued', filterField: true, dtype: 'DH'});
+    g.grid.cellmap.issued = cell;
+    cell.filterRange = {from: '2026-03-01', to: '2026-03-31'};
+    const keep = g.grid.columnFilterCb();
+    assert.equal(keep({issued: date(2026, 2, 1)}), true);
+    assert.equal(keep({issued: date(2026, 2, 31, 23)}), true);
+    assert.equal(keep({issued: date(2026, 3, 1)}), false);
+    assert.equal(keep({issued: date(2026, 1, 28, 23)}), false);
+    assert.equal(keep({issued: null}), false);
+    assert.equal(keep({issued: '2026-03-15'}), true);
+    cell.filterRange = {from: null, to: '2026-03-31'};
+    assert.equal(g.grid.columnFilterCb()({issued: date(2020, 0, 1)}), true);
+    assert.equal(g.grid.columnFilterSignature(), 'issued=..2026-03-31');
+});
+
+test('a period and checked values add up, and either marks the header active', () => {
+    const g = createGrid();
+    const date = (y, m, d) => vm.runInContext(`new Date(${y}, ${m}, ${d})`, g.context);
+    const cell = filterCell(g.context, {field: 'issued', field_getter: 'issued', filterField: true, dtype: 'D'});
+    g.grid.cellmap = {issued: cell};
+    Object.assign(g.grid, {structCellNode: () => null, refreshColumnFilterHeaders() {}, applyColumnFilters() {}});
+    const march = {from: '2026-03-01', to: '2026-03-31'};
+    g.grid.setColumnFilter(cell, null, march);
+    assert.ok(g.gnr.widgets.NewIncludedView.prototype.cellHeaderContent({attr: {}}, cell).includes('gridColumnFilterActive'));
+    const d5 = date(2026, 2, 5);
+    g.grid.setColumnFilter(cell, [d5], march);
+    const keep = g.grid.columnFilterCb();
+    assert.equal(keep({issued: d5}), true);
+    assert.equal(keep({issued: date(2026, 2, 14)}), false);
+    assert.equal(g.grid.columnFilterSignature(), `issued=2026-03-01..2026-03-31|${g.gnr.columnFilterKey(d5)}`);
+    g.grid.setColumnFilter(cell, [], march);
+    assert.deepEqual(Array.from(cell.filterValues), []);
+    assert.equal(g.grid.columnFilterCb()({issued: d5}), false);
+    g.grid.setColumnFilter(cell, [], null);
+    assert.equal(cell.filterValues, null);
+    assert.equal(g.gnr.columnFilterActive(cell), false);
+});
+
+test('the order of the filter values turns descending, empty still last', () => {
+    const context = createContext();
+    const {gnr} = context;
+    const date = (y, m, d) => vm.runInContext(`new Date(${y}, ${m}, ${d})`, context);
+    const order = (cell, items) => {
+        const pane = Object.assign(Object.create(gnr.GridColumnFilterPane.prototype), {cell});
+        return items.map(([value, caption]) => ({value, caption: caption === undefined ? value : caption,
+                                                 key: gnr.columnFilterKey(value), count: 0}))
+                    .sort(pane.compareItems.bind(pane)).map(item => pane.captionText(item));
+    };
+    assert.deepEqual(order({filterField: true, _filterDescending: true},
+                           [[date(2025, 0, 15), '15/01/2025'], [null], [date(2026, 1, 1), '01/02/2026']]),
+                     ['01/02/2026', '15/01/2025', '(empty)']);
+    assert.deepEqual(order({filterField: true, _filterDescending: true}, [['alfa'], [''], ['PO 9'], ['PO 10']]),
+                     ['PO 10', 'PO 9', 'alfa', '(empty)']);
+});
+
+test('a period narrows the list with its days checked, a click refines it, emptying it keeps the checks', () => {
+    const context = createContext();
+    const {gnr} = context;
+    const date = (y, m, d) => vm.runInContext(`new Date(${y}, ${m}, ${d})`, context);
+    const items = [date(2026, 1, 20), date(2026, 2, 5), date(2026, 2, 14), date(2026, 3, 1)]
+        .map(value => ({value, key: gnr.columnFilterKey(value), count: 1}));
+    const march = {from: '2026-03-01', to: '2026-03-31'};
+    const cell = {field: 'issued', filterField: true, filterRange: march};
+    const pane = Object.assign(Object.create(gnr.GridColumnFilterPane.prototype), {
+        cell, items, rangePath: null,
+        grid: {setColumnFilter: (c, values, range) => {
+            c.filterRange = range && (range.from || range.to) ? range : null;
+            c.filterValues = values && (values.length || c.filterRange) ? values : null;
+        }},
+        renderList() {}, updateFoot() {}
+    });
+    const row = (idx, checked) => ({dataset: {idx: `${idx}`}, checked, parentNode: {classList: {toggle() {}}}});
+    const keys = () => Array.from(pane.checkedKeys());
+    assert.deepEqual(keys(), [items[1].key, items[2].key]);
+    pane.toggle(row(2, false));
+    assert.deepEqual(cell.filterValues.map(gnr.columnFilterKey), [items[1].key]);
+    assert.equal(cell.filterRange, march);
+    pane.toggle(row(2, true));
+    assert.equal(cell.filterValues, null);
+    pane.toggle(row(2, false));
+    pane.setRange(null, null);
+    assert.equal(cell.filterRange, null);
+    assert.deepEqual(cell.filterValues.map(gnr.columnFilterKey), [items[1].key]);
+    assert.deepEqual(keys(), [items[1].key]);
+});
+
+test('the period fields set the filter only when the period changes', () => {
+    const context = createContext();
+    const {gnr} = context;
+    const date = (y, m, d) => vm.runInContext(`new Date(${y}, ${m}, ${d})`, context);
+    const calls = [];
+    const cell = {field: 'issued', filterField: true, filterValues: ['x']};
+    const pane = Object.assign(Object.create(gnr.GridColumnFilterPane.prototype), {
+        cell, grid: {setColumnFilter: (c, values, range) => { calls.push(range); c.filterRange = range; }}, renderList() {}
+    });
+    pane.setRange(null, null);
+    assert.equal(calls.length, 0);
+    pane.setRange(date(2026, 4, 1), date(2026, 4, 31));
+    assert.deepEqual({...calls[0]}, {from: '2026-05-01', to: '2026-05-31'});
+    pane.setRange(date(2026, 4, 1), date(2026, 4, 31));
+    assert.equal(calls.length, 1);
+});
