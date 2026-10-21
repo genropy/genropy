@@ -242,7 +242,6 @@
 				<en_default_color_palette base="Default color palette" it="Colore palette default" en="Default color palette"/>
 				<en_default_color_steps base="Default color steps" it="Gradini colore default" en="Default color steps"/>
 				<en_use_formlets base="Use formlets"/>
-				<en_use_tinymce_beta_ base="Use TinyMCE (beta)"/>
 				<en_print_modes base="Print Modes" en=""/>
 				<en_print_options_enabled base="Print Options Enabled" en="Print Options Enabled" it="Opzioni di stampa abilitate"/>
 				<en_pdf_render base="PDF Render" en="PDF Render" it="Rendering PDF"/>
