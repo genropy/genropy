@@ -2022,17 +2022,21 @@ dojo.declare("gnr.GridColumnFilterPane", null, {
     maxRows:200,
     searchThreshold:6,
 
-    constructor:function(grid,cell,domNode,openerId){
+    constructor:function(grid,cell,domNode,openerId,rangeNode,rangePath){
         this.grid = grid;
         this.cell = cell;
         this.domNode = domNode;
         this.openerId = openerId;
+        this.rangePath = rangePath;
         this.search = '';
         this.items = [];
         domNode.classList.add('gridColumnFilterPane');
         var label = document.createElement('div');
         label.innerHTML = cell.original_name || '';
-        var title = this.element('div','gcf_title',label.textContent);
+        var title = this.element('div','gcf_title');
+        this.orderNode = this.element('button','gcf_order');
+        this.orderNode.type = 'button';
+        title.append(this.element('span','gcf_titletext',label.textContent),this.orderNode);
         this.searchBox = this.element('label','gcf_searchbox');
         this.searchBox.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></svg>';
         this.searchNode = this.element('input','gcf_search');
@@ -2048,8 +2052,17 @@ dojo.declare("gnr.GridColumnFilterPane", null, {
         this.countNode = this.element('span','gcf_rowcount');
         var foot = this.element('div','gcf_foot');
         foot.append(this.clearNode,this.countNode);
-        domNode.append(title,this.searchBox,this.listNode,this.moreNode,foot);
+        domNode.append(title);
+        if(rangeNode){
+            domNode.appendChild(rangeNode);
+        }
+        domNode.append(this.searchBox,this.listNode,this.moreNode,foot);
         var that = this;
+        this.orderNode.addEventListener('click',function(){
+            that.cell._filterDescending = !that.cell._filterDescending;
+            that.items.sort(that.compareItems.bind(that));
+            that.renderList();
+        });
         this.searchNode.addEventListener('input',function(){
             that.search = that.searchNode.value;
             that.renderList();
@@ -2061,6 +2074,7 @@ dojo.declare("gnr.GridColumnFilterPane", null, {
         });
         this.clearNode.addEventListener('click',function(){
             that.grid.setColumnFilter(that.cell,null);
+            that.clearRange();
             that.renderList();
         });
         domNode.addEventListener('keydown',function(e){
@@ -2072,6 +2086,32 @@ dojo.declare("gnr.GridColumnFilterPane", null, {
         this.setItems(grid.columnFilterValues(cell));
     },
 
+    setRange:function(from,to){
+        var range = {from:from? gnr.columnFilterDay(from):null,to:to? gnr.columnFilterDay(to):null};
+        var current = this.cell.filterRange || {};
+        if(current.from && !range.from && range.to){
+            // From drives the period as period_to does: emptying it removes the whole period
+            genro.setData(this.rangePath+'.to',null);
+            range.to = null;
+        }
+        if(range.from==(current.from || null) && range.to==(current.to || null)){
+            return;
+        }
+        var values = null;
+        if(!range.from && !range.to){
+            values = this.checkedValues(this.checkedKeys());
+        }
+        this.grid.setColumnFilter(this.cell,values,range);
+        this.renderList();
+    },
+
+    clearRange:function(){
+        if(this.rangePath){
+            genro.setData(this.rangePath+'.from',null);
+            genro.setData(this.rangePath+'.to',null);
+        }
+    },
+
     element:function(tag,className,text){
         var node = document.createElement(tag);
         node.className = className;
@@ -2081,8 +2121,28 @@ dojo.declare("gnr.GridColumnFilterPane", null, {
         return node;
     },
 
+    rangeItems:function(){
+        var range = this.cell.filterRange;
+        return range? this.items.filter(function(item){
+            return gnr.columnFilterInRange(item.value,range);
+        }):[];
+    },
+
     checkedKeys:function(){
-        return new Set((this.cell.filterValues || []).map(gnr.columnFilterKey));
+        if(this.cell.filterValues){
+            return new Set(this.cell.filterValues.map(gnr.columnFilterKey));
+        }
+        return new Set(this.rangeItems().map(function(item){
+            return item.key;
+        }));
+    },
+
+    checkedValues:function(checked){
+        return this.items.filter(function(item){
+            return checked.has(item.key);
+        }).map(function(item){
+            return item.value;
+        });
     },
 
     captionText:function(item){
@@ -2097,14 +2157,18 @@ dojo.declare("gnr.GridColumnFilterPane", null, {
             return a.key===''? 1:-1;
         }
         var cell = this.cell;
+        var result;
         if(cell.filterField===true && !cell.caption_field && !cell.values){
             var va = a.value instanceof Date? a.value.getTime():a.value;
             var vb = b.value instanceof Date? b.value.getTime():b.value;
             if(typeof(va)=='number' && typeof(vb)=='number'){
-                return va-vb;
+                result = va-vb;
             }
         }
-        return this.captionText(a).localeCompare(this.captionText(b),undefined,{numeric:true,sensitivity:'base'});
+        if(result===undefined){
+            result = this.captionText(a).localeCompare(this.captionText(b),undefined,{numeric:true,sensitivity:'base'});
+        }
+        return cell._filterDescending? -result:result;
     },
 
     setItems:function(items){
@@ -2133,6 +2197,7 @@ dojo.declare("gnr.GridColumnFilterPane", null, {
 
     renderList:function(){
         var query = this.search.trim().toLowerCase();
+        var range = this.cell.filterRange;
         var checked = this.checkedKeys();
         var fragment = document.createDocumentFragment();
         var shown = 0;
@@ -2140,6 +2205,9 @@ dojo.declare("gnr.GridColumnFilterPane", null, {
         var that = this;
         this.items.forEach(function(item,idx){
             var text = that.captionText(item);
+            if(range && !gnr.columnFilterInRange(item.value,range)){
+                return;
+            }
             if(query && text.toLowerCase().indexOf(query)<0){
                 return;
             }
@@ -2162,6 +2230,9 @@ dojo.declare("gnr.GridColumnFilterPane", null, {
             fragment.appendChild(this.element('div','gcf_more',_T('No value')));
         }
         this.listNode.replaceChildren(fragment);
+        var descending = !!this.cell._filterDescending;
+        this.orderNode.textContent = descending? '\u2193':'\u2191';
+        this.orderNode.title = descending? _T('Descending order'):_T('Ascending order');
         var rest = matches-shown;
         this.moreNode.hidden = rest<=0;
         this.moreNode.textContent = rest+' '+_T('more. Type to search.');
@@ -2170,19 +2241,25 @@ dojo.declare("gnr.GridColumnFilterPane", null, {
 
     updateFoot:function(){
         var store = this.grid.collectionStore();
-        this.clearNode.hidden = !(this.cell.filterValues && this.cell.filterValues.length);
+        this.clearNode.hidden = !gnr.columnFilterActive(this.cell);
         this.countNode.textContent = store.len(true)+' / '+store.len();
     },
 
     toggle:function(input){
         var item = this.items[parseInt(input.dataset.idx)];
-        var values = (this.cell.filterValues || []).filter(function(value){
-            return gnr.columnFilterKey(value)!==item.key;
-        });
+        var checked = this.checkedKeys();
         if(input.checked){
-            values.push(item.value);
+            checked.add(item.key);
+        }else{
+            checked.delete(item.key);
         }
-        this.grid.setColumnFilter(this.cell,values);
+        var range = this.cell.filterRange;
+        var values = this.checkedValues(checked);
+        var inRange = this.rangeItems();
+        if(range && inRange.length==values.length && inRange.every(function(i){return checked.has(i.key);})){
+            values = null;
+        }
+        this.grid.setColumnFilter(this.cell,values,range);
         input.parentNode.classList.toggle('gcf_checked',input.checked);
         this.updateFoot();
     }
