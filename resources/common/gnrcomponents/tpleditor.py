@@ -473,10 +473,6 @@ class TemplateEditor(TemplateEditorBase):
                             this.widget.setValue(v,true);
                             """,
                             rounded=6,padding='5px')
-        elif self.getPreference('theme.tinymce_beta', pkg='sys'):
-            bc.contentPane(region='center',margin='2px',margin_left='5px').tinymce(
-                            value='^.data.content',css_value='^.data.content_css',
-                            height='^.editor.height', width='^.editor.width', **editorConstrain)
         else:
             bc.ExtendedJoditEditor(region='center',margin='2px',margin_left='5px',
                             value='^.data.content',css_value='^.data.content_css',
