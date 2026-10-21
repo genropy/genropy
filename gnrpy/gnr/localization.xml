@@ -432,7 +432,11 @@
 <en_select_row base="Select row" it="Seleziona la riga"></en_select_row>
 <en_row_added base="Row added" it="Riga aggiunta"></en_row_added>
 <en_row_saved base="Row saved" it="Riga salvata"></en_row_saved>
-<en_rows_added base="Rows added" it="Righe aggiunte"></en_rows_added>
+<en_copy base="Copy" it="Copia"></en_copy>
+<en_copy_count_rows base="Copy $count rows" it="Copia $count righe"></en_copy_count_rows>
+<en_rows_pasted base="Rows pasted" it="Righe incollate"></en_rows_pasted>
+<en_1_row_copied base="1 row copied" it="1 riga copiata"></en_1_row_copied>
+<en__count_rows_copied base="$count rows copied" it="$count righe copiate"></en__count_rows_copied>
 <en_delete_row base="Delete row" it="Elimina riga"></en_delete_row>
 <en_delete_1_row base="Delete 1 row" it="Elimina 1 riga"></en_delete_1_row>
 <en_delete_count_rows base="Delete $count rows" it="Elimina $count righe"></en_delete_count_rows>

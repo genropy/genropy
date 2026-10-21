@@ -90,6 +90,7 @@ function createGrid(kw = {}) {
         dataStore: {
             addRow: (key, values) => lines.setItem(key, new Bag(values)),
             rowValue: key => lines.getItem(key),
+            rowNode: key => lines.getNode(key),
             removeRow: key => lines.popNode(key),
             getData: () => lines,
             getNodes: () => lines.getNodes(),

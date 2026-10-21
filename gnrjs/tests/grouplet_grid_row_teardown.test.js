@@ -88,6 +88,7 @@ function createGrid({minRows = 0} = {}) {
         minRows,
         addBtnDom: null,
         selectedPkey: null,
+        sourceNode: {getFormHandler: () => form},
         dataStore: {deleteRowAsk: pkey => asked.push(pkey)}
     });
     const tile = new context.gnr.GroupletGridTile(controller, 'r_1');

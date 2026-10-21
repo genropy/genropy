@@ -72,6 +72,7 @@ function createGrid({defaultRow = {qty: 1, bought: false}, disabled = false, max
         dataStore: {
             addRow: (key, values) => lines.setItem(key, new Bag(values)),
             rowValue: key => lines.getItem(key),
+            rowNode: key => lines.getNode(key),
             removeRow: key => lines.popNode(key),
             updateRow: (key, dict) => Object.keys(dict).forEach(k => lines.setItem(key + '.' + k, dict[k]))
         },
@@ -327,6 +328,7 @@ function selectableGrid() {
     });
     Object.assign(s.controller.dataStore, {
         getData: () => s.lines,
+        rowNode: key => s.lines.getNode(key),
         deleteRowsAsk: (keys) => deleted.push(keys)
     });
     return {...s, deleted};
@@ -428,7 +430,7 @@ test('pasting adds one row per line at the tail, over the defaults', () => {
     s.controller.tiles = {};
     s.controller.phantomTile = {domNode: () => null};
     s.controller._announcer = {textContent: ''};
-    s.controller._blankRowFields = () => [
+    s.controller._rowFields = () => [
         {path: 'item', labels: ['item'], node: {attr: {tag: 'textbox'}, widget: {domNode: null}}}];
     s.controller._pasteRows('Milk\nBread', s.controller.phantomTile, null);
     assert.equal(s.lines.len(), 2);
@@ -481,4 +483,393 @@ test('Tab skips a kept struct column, and reaches it again once unpinned', () =>
     assert.equal(focusNodes.item.tabIndex, 0);
     s.controller._toggleKeep('shop');
     assert.equal(focusNodes.shop.tabIndex, 0);
+});
+
+function clipboardGrid() {
+    // rows with a boolean, a text, a number and a date, the blank row's
+    // fields as real source nodes; numbers in an Italian-like locale
+    const s = createGrid({defaultRow: {}});
+    const {context, lines} = s;
+    const Bag = lines.constructor;
+    const copied = [];
+    context.dojo.number = {
+        format: v => String(v).replace('.', ','),
+        parse: t => (/^-?[\d.]*(,\d+)?$/.test(t) ? parseFloat(t.replace(/\./g, '').replace(',', '.')) : NaN)
+    };
+    context.dojo.date = {locale: {parse: () => null}};
+    s.genro.textToClipboard = (text, message) => copied.push([text, message]);
+    const when = vm.runInContext('new Date(2026, 9, 21)', context);
+    lines.setItem('r_a', new Bag({bought: true, item: 'Milk', qty: 1.5, when}));
+    lines.setItem('r_b', new Bag({bought: false, item: 'say "hi"', qty: 2, when: null}));
+    const c = s.controller;
+    const fieldTile = (datapath, pkey) => {
+        const root = new context.gnr.GnrDomSource();
+        root._('div', 'row', {datapath});
+        root.setBackRef();
+        const row = root.getItem('row');
+        const doms = {};
+        [['bought', {tag: 'checkbox', lbl: 'Bought'}, null],
+         ['item', {lbl: 'Item'}, null],
+         ['qty', {lbl: 'Qty'}, 'dijit.form.NumberTextBox'],
+         ['when', {}, 'dijit.form.DateTextBox']].forEach(([field, attr, cls]) => {
+            row._(attr.tag || 'textbox', field, Object.assign({tag: 'textbox', value: '^.' + field}, attr));
+            doms[field] = {field};
+            row.getNode(field).widget = {declaredClass: cls, constraints: {},
+                                         domNode: {contains: t => t === doms[field]}};
+        });
+        return {pkey, tileContent: row, doms, domNode: () => null, flash() {}};
+    };
+    Object.assign(c, {
+        storepath: 'record.lines',
+        tiles: {r_a: fieldTile('record.lines.r_a', 'r_a'), r_b: fieldTile('record.lines.r_b', 'r_b')},
+        phantomTile: fieldTile('ws.phantom'),
+        _announcer: {textContent: ''},
+        selectionmenu: {copy: true, 'delete': true}
+    });
+    c._containerDom = () => ({classList: {toggle() {}, remove() {}}, querySelectorAll: () => []});
+    c.dataStore.getData = () => lines;
+    c.dataStore.rowNode = key => lines.getNode(key);
+    c.dataStore.addRow = (key, values, position) => lines.setItem(key, new Bag(values), null,
+                                                                   position ? {_position: position} : undefined);
+    return {...s, c, copied, fieldTile};
+}
+
+test('copied rows are a header and one tab-separated line each, in store order', () => {
+    const s = clipboardGrid();
+    assert.equal(s.c._rowsAsText([{grid: s.c, rowKeys: ['r_b', 'r_a']}]),
+                 'Bought\tItem\tQty\twhen\n'
+                 + '1\tMilk\t1,5\t2026-10-21\n'
+                 + '0\t"say ""hi"""\t2\t\n');
+    assert.equal(s.c._rowsAsText([{grid: s.c, rowKeys: []}]), null, 'nothing selected, nothing copied');
+});
+
+test('a struct grid copies every column, a computed one too', () => {
+    const s = clipboardGrid();
+    s.c.structAdapter = {cells: [{field: 'bought', name: ' '}, {field: 'item', name: 'Item'},
+                                 {field: 'qty', name: 'Qty'}, {field: 'total', name: 'Total'}]};
+    s.lines.setItem('r_a.total', 3);
+    assert.equal(s.c._rowsAsText([{grid: s.c, rowKeys: ['r_a']}]), 'bought\tItem\tQty\tTotal\n1\tMilk\t1,5\t3\n');
+});
+
+test('copied rows paste back by their header, wherever the paste lands', () => {
+    const s = clipboardGrid();
+    const text = s.c._rowsAsText([{grid: s.c, rowKeys: ['r_a', 'r_b']}]);
+    s.c._pasteRows(text, s.c.phantomTile, s.c.phantomTile.doms.qty);
+    assert.deepEqual([...s.lines.keys()], ['r_a', 'r_b', 'r_k1', 'r_k2']);
+    assert.equal(s.lines.getItem('r_k1.bought'), true);
+    assert.equal(s.lines.getItem('r_k1.item'), 'Milk');
+    assert.equal(s.lines.getItem('r_k1.qty'), 1.5);
+    assert.equal(s.lines.getItem('r_k1.when').getTime(), new Date(2026, 9, 21).getTime());
+    assert.equal(s.lines.getItem('r_k2.bought'), false);
+    assert.equal(s.lines.getItem('r_k2.item'), 'say "hi"');
+    assert.equal(s.lines.getItem('r_k2.when'), null);
+});
+
+test('a header column no field takes is skipped, the others go by name', () => {
+    const s = clipboardGrid();
+    s.c.structAdapter = {cells: [{field: 'item', name: 'Item'}, {field: 'total', name: 'Total'},
+                                 {field: 'qty', name: 'Qty'}]};
+    s.c._pasteRows('Total\tQty\tItem\n9\t4\tEggs\n', s.c.phantomTile, null);
+    assert.deepEqual(JSON.parse(JSON.stringify(s.lines.getItem('r_k1').asDict())), {item: 'Eggs', qty: 4});
+});
+
+test('pasted into a row\'s field the first row replaces it, the others follow it in order', () => {
+    const s = clipboardGrid();
+    s.c.dataStore.updateRow = (key, dict) => Object.keys(dict).forEach(k => s.lines.setItem(key + '.' + k, dict[k]));
+    s.c._pasteRows('Eggs\t3\nFlour\t1', s.c.tiles.r_a, s.c.tiles.r_a.doms.item);
+    assert.deepEqual([...s.lines.keys()], ['r_a', 'r_k1', 'r_b']);
+    assert.equal(s.lines.getItem('r_a.item'), 'Eggs', 'a full row is replaced too');
+    assert.equal(s.lines.getItem('r_a.qty'), 3);
+    assert.equal(s.lines.getItem('r_a.bought'), true, 'a column not pasted keeps its value');
+    assert.equal(s.lines.getItem('r_k1.item'), 'Flour');
+});
+
+test('a row paste splits only a block, and leaves one an inner grid already took', () => {
+    const s = clipboardGrid();
+    s.c.dataStore.updateRow = (key, dict) => Object.keys(dict).forEach(k => s.lines.setItem(key + '.' + k, dict[k]));
+    const paste = (text, defaultPrevented = false) => {
+        const e = {defaultPrevented, target: null, clipboardData: {getData: () => text},
+                   preventDefault() { e.defaultPrevented = true; }};
+        s.c._onRowsPaste(e, s.c.tiles.r_a);
+        return e.defaultPrevented;
+    };
+    assert.equal(paste('just a value'), false);
+    assert.equal(paste('Eggs\nFlour', true), true);
+    assert.equal(s.lines.len(), 2, 'nothing added');
+    assert.equal(paste('Eggs\nFlour'), true);
+    assert.equal(s.lines.len(), 3, 'one replaced, one added');
+});
+
+test('the row kebab copies its row, or the whole selection the row is in', () => {
+    const s = clipboardGrid();
+    s.c._handleAction({action: 'copy', rowKey: 'r_b'});
+    assert.equal(s.copied.length, 1);
+    assert.equal(s.copied[0][0].split('\n')[1], '0\t"say ""hi"""\t2\t');
+    assert.equal(s.copied[0][1], '!!1 row copied');
+    s.c._setMulti(['r_a', 'r_b']);
+    s.c._handleAction({action: 'copy', rowKey: 'r_b'});
+    assert.equal(s.copied[1][0].trim().split('\n').length, 3);
+    assert.equal(s.copied[1][1], '!!2 rows copied');
+});
+
+test('the selection bar copies the selection from its menu', () => {
+    const s = clipboardGrid();
+    s.c._setMulti(['r_a', 'r_b']);
+    const copy = s.c._selectionSpecs().find(spec => spec.key === 'copy');
+    assert.equal(copy.label, '!!Copy');
+    s.c._runSelectionAction(copy);
+    assert.equal(s.copied.length, 1);
+    assert.equal(s.copied[0][0].trim().split('\n').length, 3);
+    assert.equal(s.copied[0][1], '!!2 rows copied');
+});
+
+test('Cmd/Ctrl+C copies the selected rows of the grid last selected in, never over selected text', () => {
+    const s = clipboardGrid();
+    const c = s.c;
+    const messages = [];
+    s.genro.dlg = {floatingMessage: (node, kw) => messages.push(kw.message)};
+    s.genro.nodeById = () => null;
+    const inGrid = new Set();
+    c._containerDom = () => ({classList: {toggle() {}, remove() {}}, querySelectorAll: () => [],
+                              contains: el => inGrid.has(el)});
+    const copy = (target) => {
+        const data = {};
+        const e = {target, defaultPrevented: false, clipboardData: {setData: (t, v) => { data[t] = v; }},
+                   preventDefault() { e.defaultPrevented = true; }};
+        c._onCopy(e);
+        return e.defaultPrevented ? data['text/plain'] : null;
+    };
+    s.context.document = {activeElement: null};
+    const field = (start, end) => {
+        const f = {selectionStart: start, selectionEnd: end};
+        f.closest = () => f;
+        inGrid.add(f);
+        s.context.document.activeElement = f;
+        return f;
+    };
+    const box = {closest: () => null};
+    assert.equal(copy(box), null, 'nothing selected, nothing copied');
+    c._setMulti(['r_b']);
+    assert.equal(copy(box).split('\n')[1], '0\t"say ""hi"""\t2\t');
+    assert.equal(messages[0], '!!1 row copied');
+    assert.equal(copy(null).split('\n').length, 3, 'nothing focused: the selection is copied');
+    assert.equal(copy(field(0, 4)), null, 'text selected in a field is copied as text');
+    assert.ok(copy(field(2, 2)), 'a field with no text selected copies the rows');
+    const auto = field(0, 4);
+    auto._ggAutoSelected = true;
+    assert.ok(copy(auto), 'text the grid selected itself does not stop the row copy');
+    const outside = {selectionStart: 2, selectionEnd: 2};
+    outside.closest = () => outside;
+    s.context.document.activeElement = outside;
+    assert.equal(copy(outside), null, 'a field of another grid is not ours');
+    const left = field(0, 4);
+    s.context.document.activeElement = null;
+    assert.ok(copy(left), 'a field without the focus is only where the page selection lingers');
+    const caret = field(1, 1);
+    s.c.phantomTile = {domNode: () => ({contains: el => el === caret})};
+    assert.equal(copy(caret), null, 'never from the blank row');
+    s.c.phantomTile = {domNode: () => null};
+    s.context.gnr.GroupletGridController._lastSelected = {nodeId: 'other'};
+    assert.equal(copy(box), null, 'another grid selected since answers instead');
+});
+
+test('a field laid out by a formlet is named by its label wrapper', () => {
+    const s = clipboardGrid();
+    const root = new s.context.gnr.GnrDomSource();
+    root._('div', 'row', {datapath: 'record.lines.r_a'});
+    root.setBackRef();
+    root.getItem('row')._('labledbox', 'box', {_labelWrapperId: 'w1', label: 'Product'});
+    root.getItem('row.box')._('textbox', 'item', {tag: 'textbox', value: '^.item', _labelWrapper: 'w1'});
+    root.getNode('row.box.item').widget = {domNode: null};
+    const fields = s.c._rowFields({pkey: 'r_a', tileContent: root.getItem('row')});
+    assert.deepEqual([...fields].map(f => [f.path, f.label]), [['item', 'Product']]);
+    assert.ok(fields[0].labels.includes('product'));
+});
+
+test('the band\'s kebab: the editmenu entries, then Copy, then Delete only when rows can be deleted', () => {
+    const s = clipboardGrid();
+    const tile = Object.create(s.context.gnr.GroupletGridTile.prototype);
+    const spec = (editmenuSpec, hasDelete) => {
+        Object.assign(tile, {editmenuSpec, hasDelete});
+        return JSON.parse(JSON.stringify(tile._bandMenuSpec()));
+    };
+    assert.deepEqual(spec(null, true), {copy: true, 'delete': true});
+    assert.deepEqual(spec(null, false), {copy: true}, 'delitem=False drops Delete');
+    assert.deepEqual(Object.keys(spec({addPrev: true, 'delete': true, addNext: true}, true)),
+                     ['addPrev', 'addNext', 'copy', 'delete']);
+    assert.deepEqual(spec({'delete': true}, false), {copy: true}, 'an editmenu delete is no delitem');
+    assert.deepEqual(spec({copy: false, 'delete': 'Remove'}, true), {copy: false, 'delete': 'Remove'});
+});
+
+test('cards use the band unless chromeSide is off; line rows, tabs and blank rows never do', () => {
+    const s = clipboardGrid();
+    const c = s.c;
+    const tile = Object.create(s.context.gnr.GroupletGridTile.prototype);
+    tile.controller = c;
+    c._isTabsLayout = () => c.layout !== 'cards';
+    c.chromeSide = 'top';
+    assert.equal(tile._usesBand(), true);
+    c.chromeSide = null;
+    assert.equal(tile._usesBand(), false);
+    c.chromeSide = 'left';
+    c.layout = 'tabs';
+    assert.equal(tile._usesBand(), false);
+    c.layout = 'cards';
+    c.structAdapter = {cells: []};
+    assert.equal(tile._usesBand(), false);
+    c.structAdapter = null;
+    c.rowTemplate = '$item';
+    assert.equal(tile._usesBand(), false);
+    c.rowTemplate = null;
+    const blank = Object.create(s.context.gnr.GroupletGridPhantomTile.prototype);
+    blank.controller = c;
+    assert.equal(blank._usesBand(), false);
+});
+
+test('the row kebab says and does what it acts on: its row, or the whole selection the row is in', () => {
+    const s = clipboardGrid();
+    const c = s.c;
+    c.controllerPath = 'ws.ctrl';
+    const menu = () => JSON.parse(JSON.stringify(s.data.getItem('ws.ctrl.row_menu').asDict()));
+    c.minRows = 0;
+    c._refreshRowMenu('r_a');
+    assert.deepEqual(menu(), {copy_label: '!!Copy', delete_label: '!!Delete row', delete_locked: false});
+    c.minRows = 2;
+    c._refreshRowMenu('r_a');
+    assert.equal(menu().delete_locked, true, 'two rows, minRows=2');
+    c.minRows = 0;
+    c._setMulti(['r_a', 'r_b']);
+    c._refreshRowMenu('r_b');
+    assert.deepEqual(menu(), {copy_label: '!!Copy $count rows'.replace('$count', 2),
+                              delete_label: '!!Delete $count rows'.replace('$count', 2), delete_locked: false});
+    c.minRows = 1;
+    c._refreshRowMenu('r_b');
+    assert.equal(menu().delete_locked, true, 'the selection would leave fewer than minRows');
+    const asked = [];
+    c.dataStore.deleteRowsAsk = keys => asked.push([...keys]);
+    c.minRows = 0;
+    c._handleAction({action: 'delete', rowKey: 'r_a'});
+    assert.deepEqual(asked, [['r_a', 'r_b']], 'the kebab of a selected row deletes the selection');
+    c.sourceNode.getFormHandler = () => ({isDisabled: () => true});
+    assert.equal(c._deleteLocked(), true);
+    assert.equal(c._selectionDeleteLocked(), true);
+});
+
+test('a selection ticks the checkboxes in the chrome band too', () => {
+    const s = clipboardGrid();
+    const c = s.c;
+    c.rowCheckbox = true;
+    const boxes = {};
+    Object.keys(c.tiles).forEach((k) => {
+        boxes[k] = {checked: false};
+        c.tiles[k].domNode = () => ({
+            classList: {toggle() {}},
+            querySelector: sel => (sel.includes('.grouplet_grid_row_band > .grouplet_grid_row_check') ? boxes[k] : null)
+        });
+    });
+    c._rowCount = () => Object.keys(c.tiles).length;
+    c._setMulti(['r_b']);
+    assert.deepEqual(Object.keys(boxes).map(k => boxes[k].checked), [false, true]);
+});
+
+test('Cmd/Ctrl+C copies a card selected by a plain click, which is not ticked', () => {
+    const s = clipboardGrid();
+    const c = s.c;
+    s.genro.dlg = {floatingMessage() {}};
+    s.genro.nodeById = () => null;
+    c.layout = 'cards';
+    c._isTabsLayout = () => false;
+    c.tiles.r_a.domNode = () => ({classList: {add() {}, remove() {}}});
+    c.selectTile('r_a');
+    assert.ok(!c._multiKeys, 'one card is no multiple selection');
+    const data = {};
+    const e = {target: null, defaultPrevented: false, clipboardData: {setData: (t, v) => { data[t] = v; }},
+               preventDefault() { e.defaultPrevented = true; }};
+    c._onCopy(e);
+    assert.equal(e.defaultPrevented, true);
+    assert.equal(data['text/plain'].split('\n')[1], '1\tMilk\t1,5\t2026-10-21');
+
+});
+
+test('row clicks select as in a file list: Cmd toggles, Shift takes the range in place, Cmd+Shift adds it', () => {
+    const s = clipboardGrid();
+    const c = s.c;
+    c._isTabsLayout = () => false;
+    ['r_c', 'r_d'].forEach((k) => {
+        s.lines.setItem(k, new s.lines.constructor({item: k}));
+        c.tiles[k] = s.fieldTile('record.lines.' + k, k);
+    });
+    Object.keys(c.tiles).forEach((k) => {
+        c.tiles[k].domNode = () => ({classList: {add() {}, remove() {}, toggle() {}}, querySelector: () => null});
+    });
+    c.selectTile('r_a');
+    c._onRowClickSelect('r_c', {metaKey: true});
+    assert.deepEqual([...c._multiKeys], ['r_a', 'r_c'], 'Cmd adds to the row selected by a plain click');
+    c._onRowClickSelect('r_d', {shiftKey: true});
+    assert.deepEqual([...c._multiKeys], ['r_c', 'r_d'], 'Shift: the range from the anchor, in place');
+    c._onRowClickSelect('r_a', {shiftKey: true});
+    assert.deepEqual([...c._multiKeys], ['r_a', 'r_b', 'r_c'], 'the anchor stays where Cmd left it');
+    c._onRowClickSelect('r_d', {metaKey: true});
+    c._onRowClickSelect('r_b', {metaKey: true});
+    assert.deepEqual([...c._multiKeys], ['r_a', 'r_c', 'r_d']);
+    c._onRowClickSelect('r_a', {metaKey: true, shiftKey: true});
+    assert.deepEqual([...c._multiKeys].sort(), ['r_a', 'r_b', 'r_c', 'r_d'], 'Cmd+Shift adds the range');
+    c.rowCheckbox = true;
+    assert.equal(c._clickClearsSelection({}), true, 'a plain click clears the ticks too');
+});
+
+test('pasted or added rows become the selection: one is the current row, several are ticked', () => {
+    const s = clipboardGrid();
+    const c = s.c;
+    c._isTabsLayout = () => false;
+    c._multiKeys = ['r_a'];
+    c._pasteRows('Eggs\nFlour', c.phantomTile, null);
+    assert.deepEqual([...c._multiKeys], ['r_k1', 'r_k2']);
+    c._pasteRows('Milk\t2', c.phantomTile, null);
+    assert.ok(!c._multiKeys, 'no ticks left');
+    assert.equal(c.selectedPkey, 'r_k3');
+    c._setMulti(['r_a', 'r_b']);
+    c._doAddItem();
+    assert.ok(!c._multiKeys);
+    assert.equal(c.selectedPkey, 'r_k4');
+});
+test('Cmd/Ctrl+V with a row selected and no field focused adds the rows at the tail', () => {
+    const s = clipboardGrid();
+    const c = s.c;
+    c._rowFields = () => [
+        {path: 'item', labels: ['item'], node: {attr: {tag: 'textbox'}, widget: {domNode: null}}}];
+    s.context.document = {activeElement: {closest: () => null}};
+    const paste = (text) => {
+        const e = {defaultPrevented: false, clipboardData: {getData: () => text},
+                   preventDefault() { e.defaultPrevented = true; }};
+        c._onDocumentPaste(e);
+        return e.defaultPrevented;
+    };
+    assert.equal(paste('Eggs\nFlour'), false, 'no grid selected in yet');
+    s.context.gnr.GroupletGridController._lastSelected = c;
+    assert.equal(paste('Eggs\nFlour'), false, 'nothing selected');
+    c.selectedPkey = 'r_a';
+    assert.equal(paste('just a value'), false);
+    assert.equal(paste('Eggs\nFlour'), true);
+    assert.deepEqual([...s.lines.keys()], ['r_a', 'r_b', 'r_k1', 'r_k2']);
+    assert.equal(s.lines.getItem('r_a.item'), 'Milk', 'the selected row is untouched');
+    const field = {closest: () => field};
+    s.context.document.activeElement = field;
+    assert.equal(paste('Eggs\nFlour'), false, 'a focused field pastes into its row');
+});
+
+test('template mode: pasted in the entry row editing a row, the first row replaces it', () => {
+    const s = selectableGrid();
+    const c = s.controller;
+    c._rowFields = () => [
+        {path: 'item', labels: ['item'], node: {attr: {tag: 'textbox'}, widget: {domNode: null}}}];
+    c.dataStore.addRow = (key, values, position) => s.lines.setItem(key, new s.lines.constructor(values), null,
+                                                                     position ? {_position: position} : undefined);
+    c._onTemplateRowClick('r_b', {});
+    assert.equal(c._editingKey, 'r_b');
+    c._pasteRows('Eggs\nFlour', c.entryTile, null);
+    assert.equal(c._editingKey, null, 'the edit is closed');
+    assert.equal(s.lines.getItem('r_b.item'), 'Eggs');
+    assert.deepEqual([...s.lines.keys()], ['r_a', 'r_b', 'r_k1', 'r_c', 'r_d']);
+    assert.equal(s.lines.getItem('r_k1.item'), 'Flour');
 });

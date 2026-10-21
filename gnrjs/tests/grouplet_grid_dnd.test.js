@@ -13,7 +13,8 @@ class Surface {
         this.classList = {
             add: (...names) => names.forEach(n => classes.add(n)),
             remove: (...names) => names.forEach(n => classes.delete(n)),
-            contains: name => classes.has(name)
+            contains: name => classes.has(name),
+            toggle: (name, on) => (on ? classes.add(name) : classes.delete(name))
         };
     }
     setAttribute(name, value) { this.attributes.set(name, value); }
@@ -361,4 +362,52 @@ test('sourceNode.setDisabled uses the external widget contract and clears a pend
     assert.equal(dst.c._containerDom().disabled, false);
     dst.body.dispatch('drop', dt);
     assert.equal(dst.rows.len(), 1);
+});
+
+test('a selected row drags the whole selection, which lands in block and in order', () => {
+    const s = setup();
+    const g = s.grid('g');
+    ['r_a', 'r_b', 'r_c', 'r_d'].forEach(k => s.seed(g, k));
+    g.c._multiKeys = ['r_c', 'r_a'];
+    const onRow = (key) => {
+        const row = new Surface(g.body);
+        row.addEventListener('drop', e => g.c.dnd.tileDrop(e, row, key));
+        return row;
+    };
+    onRow('r_d').dispatch('drop', s.start(g, 'r_a'));
+    assert.deepEqual([...g.rows.keys()], ['r_b', 'r_d', 'r_a', 'r_c']);
+    onRow('r_c').dispatch('drop', s.start(g, 'r_a'));
+    assert.deepEqual([...g.rows.keys()], ['r_b', 'r_d', 'r_a', 'r_c'], 'a drop on a dragged row is none');
+    onRow('r_d').dispatch('drop', s.start(g, 'r_b'));
+    assert.deepEqual([...g.rows.keys()], ['r_d', 'r_b', 'r_a', 'r_c'], 'an unselected row drags alone');
+    g.c._multiKeys = ['r_d', 'r_b'];
+    g.body.dispatch('drop', s.start(g, 'r_b'));
+    assert.deepEqual([...g.rows.keys()], ['r_a', 'r_c', 'r_d', 'r_b'], 'the body takes them to the tail');
+    const published = s.published.length;
+    g.body.dispatch('drop', s.start(g, 'r_d'));
+    assert.equal(s.published.length, published, 'already at the tail');
+});
+
+test('a selection moves to another grid in block, within maxRows and minRows', () => {
+    const s = setup();
+    const src = s.grid('src');
+    const dst = s.grid('dst');
+    ['r_a', 'r_b', 'r_c'].forEach(k => s.seed(src, k));
+    s.seed(dst, 'x');
+    src.c._multiKeys = ['r_a', 'r_c'];
+    dst.c.maxRows = 2;
+    let dt = s.start(src, 'r_c');
+    assert.ok(!dst.body.dispatch('dragover', dt).defaultPrevented, 'two rows do not fit');
+    dst.body.dispatch('drop', dt);
+    assert.equal(dst.rows.len(), 1);
+    dst.c.maxRows = null;
+    src.c.minRows = 2;
+    dt = s.start(src, 'r_c');
+    assert.ok(!dst.body.dispatch('dragover', dt).defaultPrevented, 'the source would keep one row');
+    src.c.minRows = 0;
+    dt = s.start(src, 'r_c');
+    assert.equal(dst.body.dispatch('dragover', dt).defaultPrevented, true);
+    dst.body.dispatch('drop', dt);
+    assert.deepEqual([...dst.rows.keys()], ['x', 'r_a', 'r_c']);
+    assert.deepEqual([...src.rows.keys()], ['r_b']);
 });
