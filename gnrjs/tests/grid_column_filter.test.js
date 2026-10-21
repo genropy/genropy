@@ -268,3 +268,38 @@ test('the export of a filtered grid holds the visible rows, none when nothing ma
     assert.deepEqual(exported(), []);
     assert.equal(g.grid.currentData('all', true, false).len(), 5);
 });
+
+test('the header click position is measured from the cell, whatever element holds the pointer', () => {
+    const context = createContext();
+    const headerBuilder = function() {};
+    context.dojo_version = '1.1';
+    context.dojox = {grid: {Builder: function() {}, headerBuilder}};
+    new context.gnr.widgets.DojoGrid();
+    const getCellX = headerBuilder.prototype.getCellX;
+    const cellNode = {getBoundingClientRect: () => ({left: 690})};
+    const icon = {getBoundingClientRect: () => ({left: 694.5})};
+    assert.equal(getCellX({clientX: 696, target: icon, cellNode}), 6);
+    context.dojo.isMoz = 1;
+    assert.equal(getCellX({clientX: 696, target: icon, cellNode}), 6);
+    assert.equal(getCellX({clientX: 696, target: icon, cellNode: null}), 0);
+});
+
+test('a mousedown on the filter icon cannot start a column drag, elsewhere it goes on', () => {
+    const {gnr} = createContext();
+    const mousedown = gnr.widgets.DojoGrid.prototype.patch_onHeaderCellMouseDown;
+    const forwarded = [];
+    const grid = {onHeaderCellMouseDown_replaced: e => forwarded.push(e)};
+    const event = onIcon => ({
+        prevented: false,
+        preventDefault() { this.prevented = true; },
+        target: {closest: selector => (onIcon && selector === '.gridColumnFilter' ? {} : null)}
+    });
+    const onIcon = event(true);
+    mousedown.call(grid, onIcon);
+    assert.equal(onIcon.prevented, true);
+    assert.deepEqual(forwarded, []);
+    const onTitle = event(false);
+    mousedown.call(grid, onTitle);
+    assert.equal(onTitle.prevented, false);
+    assert.deepEqual(forwarded, [onTitle]);
+});
