@@ -591,15 +591,27 @@ test('no extraButtons key when nothing asks for one', () => {
     assert.equal('extraButtons' in create(loadHandler(), {}).options, false);
 });
 
+// Every value these tests load or type is one paragraph of plain text, so the markup and
+// the editor.text of a value are built together by paragraph(): the stand-in unwraps the
+// wrapper it put there itself rather than stripping tags out of arbitrary HTML, a
+// single-pass sanitizer shape a fake editor has no reason to carry.
+const PARAGRAPH = ['<p>', '</p>'];
+const paragraph = (text) => PARAGRAPH[0] + text + PARAGRAPH[1];
+function textOf(markup) {
+    const [open, close] = PARAGRAPH;
+    assert.ok(markup.startsWith(open) && markup.endsWith(close),
+              'the limited editor only ever holds a paragraph it built: ' + markup);
+    return markup.slice(open.length, -close.length);
+}
+
 // Reproduces the Jodit limit plugin: the key guard refusing a printing key once the
 // content has reached the limit, with COMMAND_KEYS exempt, and the change hook that
 // reverts the whole value when it is over the limit -- the one the widget unbinds.
-function makeLimitedEditor(handler, limit, markup) {
+function makeLimitedEditor(handler, limit, text) {
     const COMMAND_KEYS = ['Meta', 'Backspace', 'Delete', 'ArrowUp', 'ArrowDown',
                           'ArrowRight', 'ArrowLeft', 'Enter', 'Escape', 'F3', 'Tab'];
     const editor = makeEditor(handler, makeSourceNode(''), '');
-    const plain = (html) => html.replace(/<[^>]*>/g, '');
-    let current = markup;
+    let current = paragraph(text);
     let revertOnChange = true;
     editor.o.limitChars = limit;
     editor.e = {off(name) { if (name === 'change.limit') revertOnChange = false; }};
@@ -608,11 +620,11 @@ function makeLimitedEditor(handler, limit, markup) {
         set(wanted) {
             const previous = current;
             current = wanted;
-            editor.text = plain(wanted);
+            editor.text = textOf(wanted);
             if (revertOnChange && editor.o.limitChars
                 && handler.textLength(editor) > editor.o.limitChars) {
                 current = previous;
-                editor.text = plain(previous);
+                editor.text = textOf(previous);
             }
         }
     });
@@ -622,21 +634,21 @@ function makeLimitedEditor(handler, limit, markup) {
             && handler.textLength(editor) >= editor.o.limitChars) {
             return false;
         }
-        const text = plain(current);
-        editor.value = '<p>' + (key === 'Backspace' ? text.slice(0, -1) : text + key) + '</p>';
+        const typed = textOf(current);
+        editor.value = paragraph(key === 'Backspace' ? typed.slice(0, -1) : typed + key);
         return true;
     };
-    editor.text = plain(markup);
+    editor.text = text;
     return editor;
 }
 
 test('releasing the change hook is what lets a value over the limit be loaded', () => {
     const handler = loadHandler();
-    const editor = makeLimitedEditor(handler, 20, '<p>short</p>');
-    const long = '<p>' + 'a'.repeat(40) + '</p>';
+    const editor = makeLimitedEditor(handler, 20, 'short');
+    const long = paragraph('a'.repeat(40));
     editor.gnr_value(long);
     // still bound, the plugin reverts the load and the editor keeps the old content
-    assert.equal(editor.value, '<p>short</p>');
+    assert.equal(editor.value, paragraph('short'));
     handler.releaseChangeLimit(editor);
     editor.gnr_value(long);
     assert.equal(editor.value, long);
@@ -644,7 +656,7 @@ test('releasing the change hook is what lets a value over the limit be loaded', 
 
 test('the limit stays armed, so typing is still blocked at it', () => {
     const handler = loadHandler();
-    const editor = makeLimitedEditor(handler, 20, '<p>' + 'a'.repeat(19) + '</p>');
+    const editor = makeLimitedEditor(handler, 20, 'a'.repeat(19));
     handler.releaseChangeLimit(editor);
     assert.equal(editor.press('b'), true);
     assert.deepEqual([handler.textLength(editor), editor.o.limitChars], [20, 20]);
@@ -654,9 +666,9 @@ test('the limit stays armed, so typing is still blocked at it', () => {
 
 test('a record loaded over the limit is never frozen: it can be deleted back under', () => {
     const handler = loadHandler();
-    const editor = makeLimitedEditor(handler, 20, '<p>short</p>');
+    const editor = makeLimitedEditor(handler, 20, 'short');
     handler.releaseChangeLimit(editor);
-    editor.gnr_value('<p>' + 'a'.repeat(32) + '</p>');
+    editor.gnr_value(paragraph('a'.repeat(32)));
     assert.equal(handler.textLength(editor), 32);
     assert.equal(editor.press('x'), false);
     for (let i = 0; i < 12; i += 1) {
@@ -669,7 +681,7 @@ test('a record loaded over the limit is never frozen: it can be deleted back und
 
 test('an editor without a limit has no change hook to release', () => {
     const handler = loadHandler();
-    const editor = makeLimitedEditor(handler, 0, '<p>a</p>');
+    const editor = makeLimitedEditor(handler, 0, 'a');
     let released = false;
     editor.e = {off() { released = true; }};
     handler.releaseChangeLimit(editor);
