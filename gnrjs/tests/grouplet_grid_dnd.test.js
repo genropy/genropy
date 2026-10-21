@@ -7,6 +7,11 @@ const vm = require('node:vm');
 class Surface {
     constructor(parent = null) {
         this.parentNode = parent;
+        this.children = [];
+        this.style = {};
+        this.className = '';
+        this.clientWidth = 600;
+        this.offsetHeight = 40;
         this.listeners = new Map();
         this.attributes = new Map();
         const classes = new Set();
@@ -17,6 +22,25 @@ class Surface {
             toggle: (name, on) => (on ? classes.add(name) : classes.delete(name))
         };
     }
+    get nextSibling() { return this.nextElementSibling; }
+    get nextElementSibling() {
+        const siblings = this.parentNode ? this.parentNode.children : [];
+        const i = siblings.indexOf(this);
+        return i < 0 ? null : (siblings[i + 1] || null);
+    }
+    insertBefore(node, ref) {
+        if (node.parentNode) node.remove();
+        const i = ref ? this.children.indexOf(ref) : -1;
+        if (i < 0) this.children.push(node); else this.children.splice(i, 0, node);
+        node.parentNode = this;
+        return node;
+    }
+    remove() {
+        if (!this.parentNode) return;
+        this.parentNode.children = this.parentNode.children.filter(c => c !== this);
+        this.parentNode = null;
+    }
+    getBoundingClientRect() { return this.rect || {left: 0, top: 0, right: 0, bottom: 0, width: 0, height: 0}; }
     setAttribute(name, value) { this.attributes.set(name, value); }
     removeAttribute(name) { this.attributes.delete(name); }
     addEventListener(type, callback) {
@@ -45,6 +69,7 @@ function setup() {
     const document = new Surface();
     document.body = new Surface();
     document.getElementById = () => null;
+    document.createElement = () => new Surface();
     const context = {console, File: function() {}, gnr: {}, genro: {}, setTimeout, document};
     context.dojo = {
         Deferred: function() {}, eval, isIE: 0, toJson: JSON.stringify,
@@ -213,7 +238,9 @@ test('nested receivers accept details but bubble an item drag to its own level',
     const itemDt = s.start(items, 'item_a');
     inner.body.dispatch('dragover', itemDt);
     assert.equal(inner.body.classList.contains('canBeDropped'), false);
-    assert.equal(outerRow.classList.contains('canBeDropped'), true);
+    const slots = (body) => body.children.filter((d) => d.className === 'grouplet_grid_drop_slot').length;
+    assert.equal(slots(outer.body), 1, 'the slot opens at the item level');
+    assert.equal(slots(inner.body), 0);
     inner.body.dispatch('drop', itemDt);
     assert.deepEqual([...outer.rows.keys()], ['item_b', 'item_a']);
     assert.equal(inner.rows.len(), 1);
@@ -457,4 +484,102 @@ test('the drag image of a card sits in a copy of its grid, a struct row straight
     assert.ok(aux.children[0].className.includes('grouplet_grid_struct_drag_clone'));
     assert.equal(images[1], aux.children[0]);
     assert.equal(aux.children[0].style.position, 'fixed');
+});
+
+test('the slot opens before or after a row: rows by height, cards side by side by width', () => {
+    const DnD = setup().context.gnr.GroupletGridDnD;
+    const row = {left: 0, top: 100, width: 600, height: 40};
+    assert.equal(DnD.dropsBefore(row, 500, 110, 600), true, 'upper half of a full-width row');
+    assert.equal(DnD.dropsBefore(row, 10, 130, 600), false);
+    const card = {left: 200, top: 0, width: 180, height: 200};
+    assert.equal(DnD.dropsBefore(card, 250, 190, 600), true, 'left half of a card');
+    assert.equal(DnD.dropsBefore(card, 330, 10, 600), false);
+});
+
+test('the nearest row is the one under the pointer, else the closest across a gap', () => {
+    const DnD = setup().context.gnr.GroupletGridDnD;
+    const rect = (left, top) => ({left, top, right: left + 100, bottom: top + 50, width: 100, height: 50});
+    const rows = [{key: 'a', dom: {getBoundingClientRect: () => rect(0, 0)}},
+                  {key: 'b', dom: {getBoundingClientRect: () => rect(120, 0)}}];
+    assert.equal(DnD.nearestRow(rows, 50, 20).key, 'a');
+    assert.equal(DnD.nearestRow(rows, 114, 20).key, 'b', 'in the gap, the closer card');
+});
+
+function slotGrid() {
+    const s = setup();
+    const g = s.grid('cards');
+    ['r_a', 'r_b', 'r_c'].forEach((k, i) => {
+        s.seed(g, k);
+        const dom = g.body.insertBefore(new Surface(), null);
+        dom.rect = {left: 0, top: i * 50, right: 600, bottom: i * 50 + 40, width: 600, height: 40};
+        dom.addEventListener('dragover', (e) => g.c.dnd.tileDragOver(e, dom));
+        dom.addEventListener('drop', (e) => g.c.dnd.tileDrop(e, dom, k));
+        g.c.tiles[k] = {domNode: () => dom, flash() {}};
+    });
+    g.c._isTabsLayout = () => false;
+    const values = {};
+    const dt = {get types() { return Object.keys(values); },
+                setData: (key, value) => { values[key] = value; }, getData: key => values[key] || ''};
+    const tile = (k) => g.c.tiles[k].domNode();
+    const over = (k, x, y) => {
+        const e = tile(k).dispatch('dragover', dt);
+        return e;
+    };
+    return {s, g, dt, tile, over};
+}
+
+const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
+const slotDom = (g) => g.body.children.find((d) => d.className === 'grouplet_grid_drop_slot');
+const order = (g) => g.body.children.map((d) => d.className === 'grouplet_grid_drop_slot' ? 'slot'
+    : Object.keys(g.c.tiles).find((k) => g.c.tiles[k].domNode() === d));
+
+test('a dragged row lifts out, the slot follows the pointer and the row lands where it opened', async () => {
+    const {s, g, dt, tile} = slotGrid();
+    g.c.dnd.tileDragStart({dataTransfer: dt, preventDefault() {}, stopPropagation() {}}, tile('r_a'), 'r_a');
+    await tick();
+    assert.deepEqual(order(g), ['slot', 'r_a', 'r_b', 'r_c'], 'the slot holds the lifted row\'s place');
+    assert.ok(tile('r_a').classList.contains('grouplet_grid_row--lifted'));
+    const at = (k, y) => {
+        const e = {dataTransfer: dt, clientX: 300, clientY: y, preventDefault() { this.prevented = true; },
+                   stopPropagation() {}, target: tile(k), currentTarget: tile(k)};
+        g.c.dnd.tileDragOver(e, tile(k));
+        return e;
+    };
+    assert.equal(at('r_c', 135).prevented, true);
+    assert.deepEqual(order(g), ['r_a', 'r_b', 'r_c', 'slot'], 'lower half of the last row: after it');
+    at('r_c', 105);
+    assert.deepEqual(order(g), ['r_a', 'r_b', 'slot', 'r_c']);
+    slotDom(g).dispatch('drop', dt);
+    assert.equal(slotDom(g), undefined);
+    assert.ok(!tile('r_a').classList.contains('grouplet_grid_row--lifted'));
+    assert.equal(s.published.at(-1).position, '<r_c');
+    assert.deepEqual([...g.rows.keys()], ['r_b', 'r_a', 'r_c']);
+});
+
+test('dropped at home nothing moves; leaving the grid sends the slot home; a lost drag puts the rows back', async () => {
+    const {s, g, dt, tile} = slotGrid();
+    const start = () => g.c.dnd.tileDragStart({dataTransfer: dt, preventDefault() {}, stopPropagation() {}},
+                                              tile('r_b'), 'r_b');
+    start();
+    await tick();
+    const moves = s.published.length;
+    slotDom(g).dispatch('drop', dt);
+    assert.equal(s.published.length, moves, 'home: no move');
+    assert.deepEqual([...g.rows.keys()], ['r_a', 'r_b', 'r_c']);
+    start();
+    await tick();
+    g.c.dnd.tileDragOver({dataTransfer: dt, clientX: 300, clientY: 130, preventDefault() {}, stopPropagation() {}},
+                         tile('r_c'));
+    assert.deepEqual(order(g), ['r_a', 'r_b', 'r_c', 'slot']);
+    const DnD = s.context.gnr.GroupletGridDnD;
+    g.c.dnd.addBtnDragLeave({currentTarget: g.body, relatedTarget: null});
+    assert.deepEqual(order(g), ['r_a', 'r_b', 'r_c', 'slot'], 'a dragleave with no relatedTarget is no exit');
+    DnD.watchOutside({target: {closest: () => g.body}});
+    assert.deepEqual(order(g), ['r_a', 'r_b', 'r_c', 'slot'], 'still over a grid');
+    DnD.watchOutside({target: {closest: () => null}});
+    assert.deepEqual(order(g), ['r_a', 'slot', 'r_b', 'r_c'], 'over no grid: back where the row came from');
+    s.context.gnr.GroupletGridDnD.endDrag();
+    await tick();
+    assert.equal(slotDom(g), undefined);
+    assert.ok(!tile('r_b').classList.contains('grouplet_grid_row--lifted'));
 });

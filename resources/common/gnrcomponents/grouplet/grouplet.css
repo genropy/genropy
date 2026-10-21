@@ -890,6 +890,26 @@
     transform: scale(0.98);
     transition: transform 160ms ease, opacity 160ms ease;
 }
+/* While dragged, the rows leave their place to the slot that opens where
+   they would land. Lifted is a transient drag state: it must win over any
+   display an application gives its rows. */
+.grouplet_grid_row.grouplet_grid_row--lifted {
+    display: none !important;
+}
+/* the open slot shows where the rows land: the grid under the pointer is
+   not tinted nor outlined (the framework's .canBeDropped would) */
+.grouplet_grid_body.canBeDropped:has(> .grouplet_grid_drop_slot) {
+    outline: none !important;
+    background-color: transparent !important;
+}
+.grouplet_grid_drop_slot {
+    box-sizing: border-box;
+    min-height: 2.4em;
+    border: 2px dashed var(--gg-accent);
+    border-radius: var(--radius-md);
+    background: var(--gg-accent-soft);
+    overflow: hidden;
+}
 
 /* Container-level cursor while a drag is active. The framework toggles
    `body.drag_started` on dragstart/dragend (genro_dom.js:1304/1095); we

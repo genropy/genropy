@@ -272,7 +272,9 @@ gnr.GroupletGridDnD = class GroupletGridDnD {
     // External contract (kept intentionally framework-compatible):
     //   - payload via `genro.dom.setInDataTransfer` with key
     //     `gg_tile_<dragCode>` and value `{rowKey, sourceNodeId}`
-    //   - drop = "insert-after" (`>target`, aligned with the tree).
+    //   - drop = where the slot opened: before or after the row the
+    //     pointer is over (`<target` / `>target`); without a slot (tabs)
+    //     "insert-after" (`>target`, aligned with the tree).
     //
     // Internals (this commit): all listeners are `addEventListener`s
     // wired on the rendered DOM — no sourceNode `dropTarget`/`onDrag_*`
@@ -389,10 +391,13 @@ gnr.GroupletGridDnD = class GroupletGridDnD {
             .filter(Boolean);
         gnr.GroupletGridDnD.source = {controller: c, rowKey: pkey, rowKeys: rowKeys, dom: dom, doms: doms};
         doms.forEach((d) => d.classList.add('draggedItem'));
+        // lifted after dragstart: hiding the source now would cancel the drag
+        setTimeout(() => this._lift(doms), 0);
         document.body.classList.add('drag_started');
         document.addEventListener('dragend', gnr.GroupletGridDnD.endDrag, true);
         document.addEventListener('drop', gnr.GroupletGridDnD.endDrag, true);
         document.addEventListener('keydown', gnr.GroupletGridDnD.cancelDrag, true);
+        document.addEventListener('dragover', gnr.GroupletGridDnD.watchOutside, true);
         e.stopPropagation();
     }
 
@@ -411,6 +416,9 @@ gnr.GroupletGridDnD = class GroupletGridDnD {
         document.removeEventListener('dragend', DnD.endDrag, true);
         document.removeEventListener('drop', DnD.endDrag, true);
         document.removeEventListener('keydown', DnD.cancelDrag, true);
+        document.removeEventListener('dragover', DnD.watchOutside, true);
+        // the drop handlers run after this capture listener and still read the slot
+        setTimeout(DnD.settle, 0);
     }
 
     clearHighlight(dom) {
@@ -427,14 +435,22 @@ gnr.GroupletGridDnD = class GroupletGridDnD {
         gnr.GroupletGridDnD.receiver = {dnd: this, dom: dom};
     }
 
-    _dragOver(e, dom) {
+    _dragOver(e, dom, atEnd = false) {
         if (!this._dataTransferHasOurType(e.dataTransfer)) return;
         const source = gnr.GroupletGridDnD.source;
         const allowed = !!source && !dom.classList.contains('draggedItem')
             && this.controller._canMoveRowFrom(source.controller, source.rowKeys || source.rowKey);
         e.stopPropagation();
         e.dataTransfer.dropEffect = allowed ? 'move' : 'none';
-        this._highlight(dom, allowed);
+        const slotted = allowed && this._slotMode();
+        if (slotted && !atEnd && dom !== this._bodyDom()) {
+            // over a row the open slot is the feedback, the row stays as it is
+            const current = gnr.GroupletGridDnD.receiver;
+            if (current) current.dnd.clearHighlight();
+        } else {
+            this._highlight(dom, allowed);
+        }
+        if (slotted) this._trackSlot(e, atEnd);
         if (allowed) e.preventDefault();
     }
 
@@ -468,6 +484,7 @@ gnr.GroupletGridDnD = class GroupletGridDnD {
 
     tileDrop(e, tileDom, pkey) {
         this.clearHighlight(tileDom);
+        if (this._dropAtSlot(e)) return;
         const data = this._dropData(e);
         if (data) this.onDrop(data, pkey);
     }
@@ -493,7 +510,9 @@ gnr.GroupletGridDnD = class GroupletGridDnD {
     }
 
     addBtnDragOver(e) {
-        this._dragOver(e, e.currentTarget);
+        // over the body the slot follows the nearest row, elsewhere (add
+        // button, blank row) it opens at the tail
+        this._dragOver(e, e.currentTarget, e.currentTarget !== this._bodyDom());
     }
 
     addBtnDragLeave(e) {
@@ -502,6 +521,7 @@ gnr.GroupletGridDnD = class GroupletGridDnD {
 
     addBtnDrop(e) {
         this.clearHighlight(e.currentTarget);
+        if (this._dropAtSlot(e)) return;
         const data = this._dropData(e);
         if (!data) return;
         const c = this.controller;
@@ -545,6 +565,254 @@ gnr.GroupletGridDnD = class GroupletGridDnD {
         this.appendTargets.delete(dom);
     }
 
+    // ====================================================================
+    //  The slot: while a row is dragged a gap opens where it would land,
+    //  before or after the row under the pointer; the rows around it slide
+    //  aside (FLIP). The dragged rows are lifted out, their home is the
+    //  slot's starting place. One slot for the page, across grids.
+    // ====================================================================
+
+    _bodyDom() {
+        const node = this.controller.bodyNode;
+        return (node && node.getDomNode) ? node.getDomNode() : null;
+    }
+
+    _slotMode() {
+        return !this.controller._isTabsLayout() && !!this._bodyDom();
+    }
+
+    _slotRows(body) {
+        // the visible rows of this grid, in their order
+        const c = this.controller;
+        const keys = new Map();
+        Object.keys(c.tiles).forEach((k) => {
+            const dom = c.tiles[k].domNode();
+            if (dom) keys.set(dom, k);
+        });
+        return Array.from(body.children)
+            .filter((dom) => keys.has(dom) && !dom.classList.contains('grouplet_grid_row--lifted'))
+            .map((dom) => ({dom: dom, key: keys.get(dom)}));
+    }
+
+    _trackSlot(e, atEnd) {
+        const DnD = gnr.GroupletGridDnD;
+        // while the rows slide their rects are in flight: placing the slot
+        // on them would bounce it
+        if (DnD.steadyAt && Date.now() < DnD.steadyAt) return;
+        const body = this._bodyDom();
+        const rows = this._slotRows(body);
+        let ref;
+        let position;
+        if (rows.length && !atEnd) {
+            const row = DnD.nearestRow(rows, e.clientX, e.clientY);
+            const before = DnD.dropsBefore(row.rect, e.clientX, e.clientY, body.clientWidth);
+            ref = before ? row.dom : row.dom.nextElementSibling;
+            position = (before ? '<' : '>') + row.key;
+        } else if (rows.length) {
+            const last = rows[rows.length - 1];
+            ref = last.dom.nextElementSibling;
+            position = '>' + last.key;
+        } else {
+            const blank = this.controller.phantomTile && this.controller.phantomTile.domNode();
+            ref = (blank && blank.parentNode === body) ? blank : null;
+            position = '';
+        }
+        this._placeSlot(body, ref, position);
+    }
+
+    _placeSlot(body, ref, position) {
+        const DnD = gnr.GroupletGridDnD;
+        const slot = DnD.slot;
+        if (slot && slot.dom.parentNode === body && (ref === slot.dom || slot.dom.nextElementSibling === ref)) {
+            slot.position = position;
+            slot.dnd = this;
+            return;
+        }
+        const dom = this._slotDom();
+        DnD.flip([body, slot && slot.body], () => {
+            if (slot) slot.dom.remove();
+            body.insertBefore(dom, (ref === (slot && slot.dom)) ? null : ref);
+            DnD.slot = {dnd: this, body: body, dom: dom, position: position};
+        });
+        DnD.open(dom, body);
+        if (gnr.GroupletCard.animates(dom)) DnD.steadyAt = Date.now() + DnD.SLIDE_MS;
+    }
+
+    _slotDom() {
+        // as tall as the lifted row, and a drop target of its own
+        const DnD = gnr.GroupletGridDnD;
+        const dom = document.createElement('div');
+        dom.className = 'grouplet_grid_drop_slot';
+        if (DnD.lift && DnD.lift.height) dom.style.height = DnD.lift.height + 'px';
+        dom.addEventListener('dragover', (e) => {
+            if (!this._dataTransferHasOurType(e.dataTransfer)) return;
+            e.stopPropagation();
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+        });
+        dom.addEventListener('drop', (e) => {
+            const slot = DnD.slot;
+            if (slot && slot.dom === dom) slot.dnd._dropAtSlot(e);
+        });
+        return dom;
+    }
+
+    _lift(doms) {
+        const DnD = gnr.GroupletGridDnD;
+        const source = DnD.source;
+        if (!source || source.controller !== this.controller || !this._slotMode()) return;
+        const body = this._bodyDom();
+        const home = doms.find((d) => d.parentNode === body);
+        if (!home) return;
+        DnD.lift = {body: body, doms: doms, home: home, height: home.offsetHeight};
+        const dom = this._slotDom();
+        DnD.flip([body], () => {
+            body.insertBefore(dom, home);
+            doms.forEach((d) => d.classList.add('grouplet_grid_row--lifted'));
+            // at home a drop moves nothing
+            DnD.slot = {dnd: this, body: body, dom: dom, position: null};
+        });
+    }
+
+    _dropAtSlot(e) {
+        // false: no slot of ours, the caller drops the old way
+        const DnD = gnr.GroupletGridDnD;
+        const slot = DnD.slot;
+        if (!slot || slot.dnd !== this) return false;
+        const data = this._dropData(e);
+        const lift = DnD.lift;
+        const c = this.controller;
+        const rowKeys = data ? (data.rowKeys || [data.rowKey]) : [];
+        const own = !!data && data.sourceNodeId === c.nodeId;
+        const moves = !!data && slot.position !== null
+            && !(own && rowKeys.includes(slot.position.slice(1)));
+        const from = new Map();
+        if (lift) {
+            const rect = slot.dom.getBoundingClientRect();
+            lift.doms.forEach((d) => from.set(d, rect));
+        }
+        DnD.flip([slot.body, lift && lift.body], () => {
+            slot.dom.remove();
+            if (lift) lift.doms.forEach((d) => d.classList.remove('grouplet_grid_row--lifted'));
+            DnD.slot = null;
+            DnD.lift = null;
+            if (moves) {
+                genro.publish(c.actionTopic, {
+                    action: 'move',
+                    rowKey: data.rowKey,
+                    rowKeys: rowKeys,
+                    sourceNodeId: data.sourceNodeId,
+                    position: slot.position
+                });
+            }
+        }, from);
+        return true;
+    }
+
+    static nearestRow(rows, x, y) {
+        // the row under the pointer, else the closest one (the gaps of a grid)
+        let best = null;
+        let bestDistance = Infinity;
+        rows.forEach((row) => {
+            const r = row.dom.getBoundingClientRect();
+            const dx = Math.max(r.left - x, 0, x - r.right);
+            const dy = Math.max(r.top - y, 0, y - r.bottom);
+            const distance = dx * dx + dy * dy;
+            if (distance < bestDistance) {
+                bestDistance = distance;
+                best = {dom: row.dom, key: row.key, rect: r};
+            }
+        });
+        return best;
+    }
+
+    static dropsBefore(rect, x, y, flowWidth) {
+        // cards side by side read left to right, rows top to bottom
+        if (rect.width < flowWidth * 0.66) return x < rect.left + rect.width / 2;
+        return y < rect.top + rect.height / 2;
+    }
+
+    static flip(bodies, mutate, from) {
+        // the rows keep their place on screen across `mutate`, then slide
+        // to the new one; `from` gives the start of rows that were hidden
+        const items = [];
+        bodies.filter(Boolean).forEach((body) => {
+            Array.from(body.children).forEach((el) => {
+                if (!el.classList.contains('grouplet_grid_drop_slot')) items.push(el);
+            });
+        });
+        const before = new Map();
+        items.forEach((el) => {
+            before.set(el, (from && from.get(el)) || el.getBoundingClientRect());
+        });
+        mutate();
+        if (!items.length || !gnr.GroupletCard.animates(items[0])) return;
+        items.forEach((el) => {
+            const a = before.get(el);
+            const b = el.getBoundingClientRect();
+            if (!b.width && !b.height) return;
+            const dx = a.left - b.left;
+            const dy = a.top - b.top;
+            if (!dx && !dy) return;
+            el.animate([{transform: `translate(${dx}px, ${dy}px)`}, {transform: 'none'}],
+                       {duration: gnr.GroupletGridDnD.SLIDE_MS, easing: 'ease-out'});
+        });
+    }
+
+    static open(dom, body) {
+        // a full-width slot grows in height, one among cards fades in
+        if (!gnr.GroupletCard.animates(dom)) return;
+        const frames = (dom.offsetWidth >= body.clientWidth * 0.66)
+            ? [{height: '0px', opacity: 0}, {height: dom.offsetHeight + 'px', opacity: 1}]
+            : [{opacity: 0, transform: 'scale(0.92)'}, {opacity: 1, transform: 'none'}];
+        dom.animate(frames, {duration: gnr.GroupletGridDnD.SLIDE_MS, easing: 'ease-out'});
+    }
+
+    static watchOutside(e) {
+        // the pointer over no grid (dragleave cannot tell: its relatedTarget
+        // is often null): the slot goes back where the rows came from
+        const target = e.target;
+        const inGrid = target && target.closest && target.closest('.grouplet_grid_container');
+        if (!inGrid) gnr.GroupletGridDnD.slotHome();
+    }
+
+    static slotHome() {
+        const DnD = gnr.GroupletGridDnD;
+        const slot = DnD.slot;
+        const lift = DnD.lift;
+        if (!slot) return;
+        if (!lift) {
+            DnD.flip([slot.body], () => slot.dom.remove());
+            DnD.slot = null;
+            return;
+        }
+        if (slot.position === null) return;
+        DnD.flip([slot.body, lift.body], () => {
+            lift.body.insertBefore(slot.dom, lift.home);
+            slot.body = lift.body;
+            slot.position = null;
+        });
+    }
+
+    static settle() {
+        // after a drag that dropped nowhere: the slot closes, the rows come back
+        const DnD = gnr.GroupletGridDnD;
+        const slot = DnD.slot;
+        const lift = DnD.lift;
+        if (!slot && !lift) return;
+        const from = new Map();
+        if (slot && lift) {
+            const rect = slot.dom.getBoundingClientRect();
+            lift.doms.forEach((d) => from.set(d, rect));
+        }
+        DnD.flip([slot && slot.body, lift && lift.body], () => {
+            if (slot) slot.dom.remove();
+            if (lift) lift.doms.forEach((d) => d.classList.remove('grouplet_grid_row--lifted'));
+        }, from);
+        DnD.slot = null;
+        DnD.lift = null;
+    }
+
     destroy() {
         this.appendTargets.forEach((handlers, dom) => this.unwireAppendTarget(dom));
         this.clearHighlight();
@@ -553,6 +821,9 @@ gnr.GroupletGridDnD = class GroupletGridDnD {
     }
 
 };
+
+
+gnr.GroupletGridDnD.SLIDE_MS = 180;
 
 
 // ============================================================================
