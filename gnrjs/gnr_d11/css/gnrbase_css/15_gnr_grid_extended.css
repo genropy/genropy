@@ -178,6 +178,26 @@
     color: var(--text-secondary);
     font-size: .9em;
 }
+.gridColumnFilterPane .gcf_rangefield .dijitTextBox{
+    box-sizing: border-box;
+    height: 26px;
+    padding: 0 0 0 8px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--surface-bg);
+}
+.gridColumnFilterPane .gcf_rangefield .dijitTextBox:focus-within{
+    border-color: var(--accent-color);
+}
+.gridColumnFilterPane .gcf_rangefield .dijitTextBox > div:first-child{
+    height: 100%;
+}
+.gridColumnFilterPane .gcf_rangefield .dijitInputField input{
+    height: 24px;
+    line-height: 24px;
+    color: var(--text-color);
+    font: inherit;
+}
 .gridColumnFilterPane .gcf_searchbox{
     display: flex;
     align-items: center;

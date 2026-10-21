@@ -2089,10 +2089,19 @@ dojo.declare("gnr.GridColumnFilterPane", null, {
     setRange:function(from,to){
         var range = {from:from? gnr.columnFilterDay(from):null,to:to? gnr.columnFilterDay(to):null};
         var current = this.cell.filterRange || {};
+        if(current.from && !range.from && range.to){
+            // From drives the period as period_to does: emptying it removes the whole period
+            genro.setData(this.rangePath+'.to',null);
+            range.to = null;
+        }
         if(range.from==(current.from || null) && range.to==(current.to || null)){
             return;
         }
-        this.grid.setColumnFilter(this.cell,null,range);
+        var values = null;
+        if(!range.from && !range.to){
+            values = this.checkedValues(this.checkedKeys());
+        }
+        this.grid.setColumnFilter(this.cell,values,range);
         this.renderList();
     },
 
@@ -2112,16 +2121,28 @@ dojo.declare("gnr.GridColumnFilterPane", null, {
         return node;
     },
 
-    checkedKeys:function(){
+    rangeItems:function(){
         var range = this.cell.filterRange;
-        if(range){
-            return new Set(this.items.filter(function(item){
-                return gnr.columnFilterInRange(item.value,range);
-            }).map(function(item){
-                return item.key;
-            }));
+        return range? this.items.filter(function(item){
+            return gnr.columnFilterInRange(item.value,range);
+        }):[];
+    },
+
+    checkedKeys:function(){
+        if(this.cell.filterValues){
+            return new Set(this.cell.filterValues.map(gnr.columnFilterKey));
         }
-        return new Set((this.cell.filterValues || []).map(gnr.columnFilterKey));
+        return new Set(this.rangeItems().map(function(item){
+            return item.key;
+        }));
+    },
+
+    checkedValues:function(checked){
+        return this.items.filter(function(item){
+            return checked.has(item.key);
+        }).map(function(item){
+            return item.value;
+        });
     },
 
     captionText:function(item){
@@ -2176,6 +2197,7 @@ dojo.declare("gnr.GridColumnFilterPane", null, {
 
     renderList:function(){
         var query = this.search.trim().toLowerCase();
+        var range = this.cell.filterRange;
         var checked = this.checkedKeys();
         var fragment = document.createDocumentFragment();
         var shown = 0;
@@ -2183,6 +2205,9 @@ dojo.declare("gnr.GridColumnFilterPane", null, {
         var that = this;
         this.items.forEach(function(item,idx){
             var text = that.captionText(item);
+            if(range && !gnr.columnFilterInRange(item.value,range)){
+                return;
+            }
             if(query && text.toLowerCase().indexOf(query)<0){
                 return;
             }
@@ -2222,22 +2247,19 @@ dojo.declare("gnr.GridColumnFilterPane", null, {
 
     toggle:function(input){
         var item = this.items[parseInt(input.dataset.idx)];
-        var ranged = !!this.cell.filterRange;
         var checked = this.checkedKeys();
-        var current = ranged? this.items.filter(function(i){return checked.has(i.key);}).map(function(i){return i.value;})
-                            :(this.cell.filterValues || []);
-        var values = current.filter(function(value){
-            return gnr.columnFilterKey(value)!==item.key;
-        });
         if(input.checked){
-            values.push(item.value);
+            checked.add(item.key);
+        }else{
+            checked.delete(item.key);
         }
-        this.grid.setColumnFilter(this.cell,values);
-        if(ranged){
-            this.clearRange();
-            this.renderList();
-            return;
+        var range = this.cell.filterRange;
+        var values = this.checkedValues(checked);
+        var inRange = this.rangeItems();
+        if(range && inRange.length==values.length && inRange.every(function(i){return checked.has(i.key);})){
+            values = null;
         }
+        this.grid.setColumnFilter(this.cell,values,range);
         input.parentNode.classList.toggle('gcf_checked',input.checked);
         this.updateFoot();
     }

@@ -4678,24 +4678,23 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
     mixin_columnFilterSignature:function(){
         return this.columnFilterCells().map(function(cell){
             var range = cell.filterRange;
-            return cell.field+'='+(range? (range.from || '')+'..'+(range.to || ''):cell.filterValues.map(gnr.columnFilterKey).join('|'));
+            return cell.field+'='+(range? (range.from || '')+'..'+(range.to || ''):'')+
+                   (cell.filterValues? '|'+cell.filterValues.map(gnr.columnFilterKey).join('|'):'');
         }).join(';');
     },
 
     mixin_columnFilterCb:function(skipField){
         var filters = this.columnFilterCells(skipField).map(function(cell){
-            var range = cell.filterRange;
-            return {key:cell.filterField_key,range:range,keys:range? null:new Set(cell.filterValues.map(gnr.columnFilterKey))};
+            return {key:cell.filterField_key,range:cell.filterRange,
+                    keys:cell.filterValues? new Set(cell.filterValues.map(gnr.columnFilterKey)):null};
         });
         if(!filters.length){
             return null;
         }
         return function(rowdata){
             return filters.every(function(f){
-                if(f.range){
-                    return gnr.columnFilterInRange(rowdata[f.key],f.range);
-                }
-                return f.keys.has(gnr.columnFilterKey(rowdata[f.key]));
+                return (!f.range || gnr.columnFilterInRange(rowdata[f.key],f.range)) &&
+                       (!f.keys || f.keys.has(gnr.columnFilterKey(rowdata[f.key])));
             });
         };
     },
@@ -4713,8 +4712,9 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
     },
 
     mixin_setColumnFilter:function(cell,values,range){
-        cell.filterValues = values && values.length? values:null;
         cell.filterRange = range && (range.from || range.to)? range:null;
+        // inside a period no value checked is a filter that keeps no row, not the absence of a filter
+        cell.filterValues = values && (values.length || cell.filterRange)? values:null;
         var cellNode = this.structCellNode(cell);
         if(cellNode){
             cellNode.updAttributes({filterValues:cell.filterValues,filterRange:cell.filterRange},false);

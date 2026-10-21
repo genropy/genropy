@@ -287,17 +287,26 @@ test('a period on a date column keeps the rows whose day falls in it, bounds inc
     assert.equal(g.grid.columnFilterSignature(), 'issued=..2026-03-31');
 });
 
-test('a period and checked values exclude each other, and either marks the header active', () => {
+test('a period and checked values add up, and either marks the header active', () => {
     const g = createGrid();
-    const cell = g.grid.cellmap.status;
+    const date = (y, m, d) => vm.runInContext(`new Date(${y}, ${m}, ${d})`, g.context);
+    const cell = filterCell(g.context, {field: 'issued', field_getter: 'issued', filterField: true, dtype: 'D'});
+    g.grid.cellmap = {issued: cell};
     Object.assign(g.grid, {structCellNode: () => null, refreshColumnFilterHeaders() {}, applyColumnFilters() {}});
-    g.grid.setColumnFilter(cell, null, {from: '2026-01-01', to: null});
-    assert.deepEqual({...cell.filterRange}, {from: '2026-01-01', to: null});
+    const march = {from: '2026-03-01', to: '2026-03-31'};
+    g.grid.setColumnFilter(cell, null, march);
     assert.ok(g.gnr.widgets.NewIncludedView.prototype.cellHeaderContent({attr: {}}, cell).includes('gridColumnFilterActive'));
-    g.grid.setColumnFilter(cell, ['Paid']);
-    assert.equal(cell.filterRange, null);
-    assert.deepEqual(Array.from(cell.filterValues), ['Paid']);
-    g.grid.setColumnFilter(cell, null, {from: null, to: null});
+    const d5 = date(2026, 2, 5);
+    g.grid.setColumnFilter(cell, [d5], march);
+    const keep = g.grid.columnFilterCb();
+    assert.equal(keep({issued: d5}), true);
+    assert.equal(keep({issued: date(2026, 2, 14)}), false);
+    assert.equal(g.grid.columnFilterSignature(), `issued=2026-03-01..2026-03-31|${g.gnr.columnFilterKey(d5)}`);
+    g.grid.setColumnFilter(cell, [], march);
+    assert.deepEqual(Array.from(cell.filterValues), []);
+    assert.equal(g.grid.columnFilterCb()({issued: d5}), false);
+    g.grid.setColumnFilter(cell, [], null);
+    assert.equal(cell.filterValues, null);
     assert.equal(g.gnr.columnFilterActive(cell), false);
 });
 
@@ -318,30 +327,35 @@ test('the order of the filter values turns descending, empty still last', () => 
                      ['PO 10', 'PO 9', 'alfa', '(empty)']);
 });
 
-test('with a period the list checks the days inside it, and a click turns them into checked values', () => {
+test('a period narrows the list with its days checked, a click refines it, emptying it keeps the checks', () => {
     const context = createContext();
     const {gnr} = context;
     const date = (y, m, d) => vm.runInContext(`new Date(${y}, ${m}, ${d})`, context);
     const items = [date(2026, 1, 20), date(2026, 2, 5), date(2026, 2, 14), date(2026, 3, 1)]
         .map(value => ({value, key: gnr.columnFilterKey(value), count: 1}));
-    const cell = {field: 'issued', filterField: true, filterRange: {from: '2026-03-01', to: '2026-03-31'}};
-    const calls = [];
-    const cleared = [];
+    const march = {from: '2026-03-01', to: '2026-03-31'};
+    const cell = {field: 'issued', filterField: true, filterRange: march};
     const pane = Object.assign(Object.create(gnr.GridColumnFilterPane.prototype), {
-        cell, items,
+        cell, items, rangePath: null,
         grid: {setColumnFilter: (c, values, range) => {
-            calls.push({values, range});
-            c.filterValues = values && values.length ? values : null;
-            c.filterRange = range || null;
+            c.filterRange = range && (range.from || range.to) ? range : null;
+            c.filterValues = values && (values.length || c.filterRange) ? values : null;
         }},
-        clearRange: () => cleared.push(true),
-        renderList() {}
+        renderList() {}, updateFoot() {}
     });
-    assert.deepEqual(Array.from(pane.checkedKeys()), [items[1].key, items[2].key]);
-    pane.toggle({dataset: {idx: '0'}, checked: true, parentNode: {classList: {toggle() {}}}});
-    assert.deepEqual(calls.at(-1).values.map(v => gnr.columnFilterKey(v)), [items[1].key, items[2].key, items[0].key]);
+    const row = (idx, checked) => ({dataset: {idx: `${idx}`}, checked, parentNode: {classList: {toggle() {}}}});
+    const keys = () => Array.from(pane.checkedKeys());
+    assert.deepEqual(keys(), [items[1].key, items[2].key]);
+    pane.toggle(row(2, false));
+    assert.deepEqual(cell.filterValues.map(gnr.columnFilterKey), [items[1].key]);
+    assert.equal(cell.filterRange, march);
+    pane.toggle(row(2, true));
+    assert.equal(cell.filterValues, null);
+    pane.toggle(row(2, false));
+    pane.setRange(null, null);
     assert.equal(cell.filterRange, null);
-    assert.equal(cleared.length, 1);
+    assert.deepEqual(cell.filterValues.map(gnr.columnFilterKey), [items[1].key]);
+    assert.deepEqual(keys(), [items[1].key]);
 });
 
 test('the period fields set the filter only when the period changes', () => {
