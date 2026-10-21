@@ -450,7 +450,17 @@
 <en_collapse base="Collapse" it="Comprimi"></en_collapse>
 <en_expand base="Expand" it="Espandi"></en_expand>
 <en_correct_the_invalid_field base="Correct the invalid field" it="Correggi il campo non valido"></en_correct_the_invalid_field>
-<en_fill_in_the_fields_above_then_press_enter_or_click_to_add_the_row_ base="Fill in the fields above, then press Enter or click ↵ to add the row." it="Compila i campi qui sopra, poi premi Invio o fai clic su ↵ per aggiungere la riga."></en_fill_in_the_fields_above_then_press_enter_or_click_to_add_the_row_></grouplet_grid></grouplet>
+<en_fill_in_the_fields_above_then_press_enter_or_click_to_add_the_row_ base="Fill in the fields above, then press Enter or click ↵ to add the row." it="Compila i campi qui sopra, poi premi Invio o fai clic su ↵ per aggiungere la riga."></en_fill_in_the_fields_above_then_press_enter_or_click_to_add_the_row_>
+<en_this_row_cannot_be_deleted base="This row cannot be deleted" it="Questa riga non si può eliminare"></en_this_row_cannot_be_deleted>
+<en_some_of_these_rows_cannot_be_deleted base="Some of these rows cannot be deleted" it="Alcune di queste righe non si possono eliminare"></en_some_of_these_rows_cannot_be_deleted>
+</grouplet_grid><grouplet_card path="resources/common/gnrcomponents/grouplet/grouplet_card.js" ext="js"><en_information base="Information" it="Informazioni"></en_information>
+<en_select base="Select" it="Seleziona"></en_select>
+<en_actions base="Actions" it="Azioni"></en_actions>
+<en_clear base="Clear" it="Svuota"></en_clear>
+<en_clear_the_fields_of_title_ base="Clear the fields of $title?" it="Svuotare i campi di $title?"></en_clear_the_fields_of_title_>
+<en_cancel base="Cancel" it="Annulla"></en_cancel>
+<en_expand base="Expand" it="Espandi"></en_expand>
+<en_collapse base="Collapse" it="Comprimi"></en_collapse></grouplet_card></grouplet>
 <attachmanager><attachmanager path="resources/common/gnrcomponents/attachmanager/attachmanager.py" ext="py"><en_filepath fr="Chemin Du Fichier" de="Dateipfad" en="Filepath" it="Filepath" base="Filepath"></en_filepath>
 <en_copied_into_clipboard base="Copied into clipboard"></en_copied_into_clipboard>
 <en_imp_ base="Imp." de="Imp." en="Imp." fr="Imp." it="Imp."></en_imp_>

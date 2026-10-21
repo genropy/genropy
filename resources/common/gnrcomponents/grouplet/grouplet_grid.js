@@ -306,9 +306,14 @@ gnr.GroupletGridDnD = class GroupletGridDnD {
             const clone = sourceDom.cloneNode(true);
             clone.classList.remove('draggedItem', 'canBeDropped',
                 'cannotBeDropped', 'grouplet_grid_just_dropped');
+            // offsetWidth counts paddings and borders: so does the clone;
+            // the image is taken at once, not halfway through the row fade-in
+            clone.style.boxSizing = 'border-box';
+            clone.style.animation = 'none';
             clone.style.width = sourceDom.offsetWidth + 'px';
             // several rows dragged: the grabbed one shows how many
             if (opts && opts.count > 1) clone.setAttribute('data-gg-count', opts.count);
+            let holder = clone;
             if (opts && opts.struct) {
                 // Struct chrome is on the container, the clone is not.
                 // Tag it so the cell rules still apply outside the tree.
@@ -318,14 +323,29 @@ gnr.GroupletGridDnD = class GroupletGridDnD {
                 const cols = containerDom.style.getPropertyValue(
                     '--gg-struct-columns');
                 if (cols) clone.style.setProperty('--gg-struct-columns', cols);
+            } else {
+                // a card is styled by the grid it sits in (paddings, band,
+                // tokens): the clone gets a copy of that chain, outside the tree
+                const containerDom = this.controller._containerDom();
+                holder = document.createElement('div');
+                holder.className = containerDom.className;
+                holder.style.cssText = containerDom.style.cssText;
+                const body = document.createElement('div');
+                body.className = 'grouplet_grid_body';
+                holder.appendChild(body);
+                body.appendChild(clone);
             }
-            aux.appendChild(clone);
+            // the browser takes the image from the screen where it lies: above
+            // everything for that instant, or the page covering it comes along
+            Object.assign(holder.style, {position: 'fixed', top: '0px', left: '0px',
+                                         zIndex: '2147483647', pointerEvents: 'none'});
+            aux.appendChild(holder);
             const rect = sourceDom.getBoundingClientRect();
             e.dataTransfer.setDragImage(clone,
                 e.clientX - rect.left,
                 e.clientY - rect.top);
             setTimeout(function() {
-                if (clone.parentNode) clone.parentNode.removeChild(clone);
+                if (holder.parentNode) holder.parentNode.removeChild(holder);
             }, 0);
         } catch (err) {}
     }
@@ -802,7 +822,9 @@ gnr.GroupletGridController = class GroupletGridController {
         this.minWidth = kw.min_width || null;
         this.gap = kw.gap || '12px';
         this.additem = (kw.additem !== false);
-        this.delitem = (kw.delitem === true);
+        // True, False, or '^path' / '=path' / '==expr' (over the row's fields)
+        // read as the row's menu opens
+        this.delitem = kw.delitem || false;
         this.editmenu = (kw.editmenu === undefined) ? false : kw.editmenu;
         this.additemKw = kw.additem_kw || {};
         this.delitemKw = kw.delitem_kw || {};
@@ -884,7 +906,7 @@ gnr.GroupletGridController = class GroupletGridController {
         // Only meaningful for tab layouts; cards are all visible at once.
         this.lazyTabs = (kw.lazyTabs === true) && this._isTabsLayout();
         this.titleField = kw.titleField || null;
-        this.titleTemplate = gnr.GroupletGridController.compileTemplate(kw.titleTemplate);
+        this.titleTemplate = gnr.GroupletCard.compileTemplate(kw.titleTemplate);
         this.sortField = kw.sortField || null;
         if (this.sortField) {
             this.dataStore.setSort({field: this.sortField, store: !!kw.sortStore});
@@ -892,10 +914,16 @@ gnr.GroupletGridController = class GroupletGridController {
         this._dirtyRows = new Set();
         // collapsible cards: True starts them open, 'closed' collapsed; a
         // collapsed card shows one summary line (collapsedTemplate, else the
-        // tab title)
+        // tab title). With chromeSide that line is the band's title, always
+        // shown, and a collapsed card is its band.
         this.collapsible = kw.collapsible || false;
         this.chromeSide = kw.chromeSide || null;
-        this.collapsedTemplate = gnr.GroupletGridController.compileTemplate(kw.collapsedTemplate)
+        // the card profile (tools, doc, title): the resource's, then the
+        // caller's; with resourceField each row's resource adds its own
+        this.card = kw.card || {};
+        this.templateCards = {};
+        this._cardProfiles = {};
+        this.collapsedTemplate = gnr.GroupletCard.compileTemplate(kw.collapsedTemplate)
             || this.titleTemplate;
         this.emptyTitle = kw.emptyTitle || _T('!!Untitled');
         this.activePkey = null;
@@ -1606,9 +1634,16 @@ gnr.GroupletGridController = class GroupletGridController {
             if (this.sortField && change.path === this.sortField) {
                 this._scheduleRowRefresh(null);
             }
-        } else if (this.collapsible && this.isCollapsed(change.pkey)) {
+        } else if (this._showsRowTitle(change.pkey)) {
             this._scheduleRowRefresh(change.pkey);
         }
+    }
+
+    _showsRowTitle(pkey) {
+        // a band shows its title open or folded, a corner card only folded
+        const card = this.tiles[pkey] && this.tiles[pkey].card;
+        if (card) return !!card.titleDom;
+        return this.collapsible && this.isCollapsed(pkey);
     }
 
     _scheduleRowRefresh(pkey) {
@@ -1625,7 +1660,7 @@ gnr.GroupletGridController = class GroupletGridController {
             dirty.forEach((k) => {
                 if (k === null) return;
                 if (this._isTabsLayout()) this._refreshTabTitle(k);
-                else this._refreshCollapsedSummary(k);
+                else this._refreshRowTitle(k);
             });
             if (dirty.includes(null)) this._sortTabs();
         }, 0);
@@ -1642,13 +1677,8 @@ gnr.GroupletGridController = class GroupletGridController {
     }
 
     _renderTitle(dom, compiled, pkey) {
-        // a row whose own fields are blank shows its label: its sums alone are no title
-        const own = compiled && this.renderTemplate(compiled, pkey, false);
-        if (own && own.replace(/<[^>]*>|&nbsp;/g, '').trim()) {
-            dom.innerHTML = this.renderTemplate(compiled, pkey);
-            return;
-        }
-        dom.textContent = this._readTabLabel(pkey);
+        gnr.GroupletCard.renderTitle(dom, compiled, this.dataStore.rowValue(pkey),
+                                     () => this._readTabLabel(pkey));
     }
 
     _tabOrder() {
@@ -1657,7 +1687,8 @@ gnr.GroupletGridController = class GroupletGridController {
 
     // ====================================================================
     //  Collapsible cards — collapsible=True|'closed': a card folds to one
-    //  summary line; the state is kept by row path, across re-renders
+    //  summary line, or to its band; the state is kept by row path, across
+    //  re-renders
     // ====================================================================
 
     _collapseKey(pkey) {
@@ -1688,49 +1719,24 @@ gnr.GroupletGridController = class GroupletGridController {
         const tile = this.tiles[pkey];
         const dom = tile && tile.domNode();
         if (!dom) return;
-        if (tile._collapseAnim) tile._collapseAnim.cancel();
-        const cls = 'grouplet_grid_row--collapsed';
         const collapsed = this.isCollapsed(pkey);
-        const from = dom.offsetHeight;
-        dom.classList.toggle(cls, collapsed);
-        const toggle = dom.querySelector(':scope > .grouplet_grid_row_collapse,'
-            + ':scope > .grouplet_grid_row_band > .grouplet_grid_row_collapse');
-        if (toggle) {
-            toggle.setAttribute('aria-expanded', String(!collapsed));
-            toggle.setAttribute('title', collapsed ? _T('!!Expand') : _T('!!Collapse'));
+        if (tile.card) {
+            tile.card.applyCollapsed(collapsed, animate);
+            return;
         }
-        if (collapsed) this._refreshCollapsedSummary(pkey);
-        if (!animate || !gnr.GroupletGridController._animates(dom)) return;
-        const to = dom.offsetHeight;
-        if (from === to) return;
-        // the card eases to its new height like a tree node; a folding one
-        // keeps its content in view until it has closed
-        if (collapsed) dom.classList.remove(cls);
-        dom.style.overflow = 'hidden';
-        const anim = dom.animate([{height: from + 'px', boxSizing: 'border-box'},
-                                  {height: to + 'px', boxSizing: 'border-box'}],
-                                 {duration: 180, easing: 'ease-out'});
-        tile._collapseAnim = anim;
-        const done = () => {
-            dom.style.overflow = '';
-            if (tile._collapseAnim === anim) tile._collapseAnim = null;
-        };
-        anim.onfinish = () => {
-            if (collapsed) dom.classList.add(cls);
-            done();
-        };
-        anim.oncancel = done;
+        const toggle = dom.querySelector(':scope > .grouplet_grid_row_collapse');
+        if (toggle) gnr.GroupletCard.syncToggle(toggle, collapsed);
+        if (collapsed) this._refreshRowTitle(pkey);
+        gnr.GroupletCard.fold(dom, collapsed, ['grouplet_grid_row--collapsed'], tile, animate);
     }
 
-    static _animates(dom) {
-        if (typeof dom.animate !== 'function') return false;
-        return !(typeof window !== 'undefined' && window.matchMedia
-                 && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
-    }
-
-    _refreshCollapsedSummary(pkey) {
-        if (!this.collapsible || !this.isCollapsed(pkey)) return;
+    _refreshRowTitle(pkey) {
         const tile = this.tiles[pkey];
+        if (tile && tile.card) {
+            tile.card.refreshTitle();
+            return;
+        }
+        if (!this.collapsible || !this.isCollapsed(pkey)) return;
         const dom = tile && tile.domNode();
         const line = dom && dom.querySelector(':scope > .grouplet_grid_row_summaryline');
         if (!line) return;
@@ -1761,52 +1767,8 @@ gnr.GroupletGridController = class GroupletGridController {
         });
     }
 
-    static compileTemplate(spec) {
-        // A string, or {template, formats, sums}. `sums` = {name: 'path.field'}:
-        // $name shows the field summed at any depth under the row's `path`
-        // (the whole row when there is no path), kept live as rows change.
-        if (!spec) return null;
-        if (typeof spec === 'string') spec = {template: spec};
-        const bag = new gnr.GnrBag();
-        bag.setItem('main', spec.template || '', {formats: spec.formats || {}});
-        return {bag: bag, sums: spec.sums || {}};
-    }
-
     renderTemplate(compiled, pkey, withSums = true) {
-        const row = this.dataStore.rowValue(pkey);
-        if (!compiled || !(row instanceof gnr.GnrBag)) return '';
-        const names = Object.keys(compiled.sums);
-        let data = row;
-        if (names.length) {
-            // a flat copy: the row's own Bags are not reparented
-            data = new gnr.GnrBag();
-            row.getNodes().forEach((n) => {
-                const v = n.getValue();
-                if (!(v instanceof gnr.GnrBag)) data.setItem(n.label, v, objectUpdate({}, n.attr || {}));
-            });
-            names.forEach((name) => {
-                data.setItem(name, withSums ? gnr.GroupletGridController.deepSum(row, compiled.sums[name]) : '');
-            });
-        }
-        return dataTemplate(compiled.bag, data, null, true);
-    }
-
-    static deepSum(bag, spec) {
-        const parts = String(spec).split('.');
-        const field = parts.pop();
-        const root = parts.length ? bag.getItem(parts.join('.')) : bag;
-        let total = 0;
-        const walk = (b) => b.getNodes().forEach((n) => {
-            const v = n.getValue();
-            if (v instanceof gnr.GnrBag) {
-                walk(v);
-            } else if (n.label === field) {
-                const x = parseFloat(v);
-                if (!isNaN(x)) total += x;
-            }
-        });
-        if (root instanceof gnr.GnrBag) walk(root);
-        return Math.round10 ? Math.round10(total) : total;
+        return gnr.GroupletCard.renderTemplate(compiled, this.dataStore.rowValue(pkey), withSums);
     }
 
     static naturalCompare(a, b) {
@@ -2660,13 +2622,42 @@ gnr.GroupletGridController = class GroupletGridController {
     }
 
     _askAndDeleteItem(pkey) {
-        if (this._deleteLocked()) return;
+        if (this._deleteLocked(pkey)) {
+            if (!this._delitemAllows(pkey)) {
+                genro.dlg.floatingMessage(this.sourceNode, {
+                    message: _T('!!This row cannot be deleted'), messageType: 'warning'});
+            }
+            return;
+        }
         this.dataStore.deleteRowAsk(pkey);
     }
 
-    _deleteLocked() {
+    _deleteLocked(pkey) {
         const form = this.sourceNode.getFormHandler();
-        return !!(form && form.isDisabled()) || this._rowCount() <= this.minRows;
+        return !!(form && form.isDisabled()) || this._rowCount() <= this.minRows
+            || (pkey !== undefined && !this._delitemAllows(pkey));
+    }
+
+    _delitemAllows(pkey) {
+        // a dynamic delitem is read on the row's own node, when asked; a
+        // static one only decides whether the row shows a delete at all
+        const tile = this.tiles[pkey];
+        const delitem = tile ? tile.delitem : this.delitem;
+        if (typeof delitem !== 'string') return true;
+        return !!(tile && tile.tileNode
+                  && gnr.GroupletCard.evaluateOn(tile.tileNode, delitem, this.dataStore.rowValue(pkey)));
+    }
+
+    _cardProfile(templateKey) {
+        if (!this._cardProfiles[templateKey]) {
+            const profile = objectUpdate(objectUpdate({}, this.templateCards[templateKey] || {}), this.card);
+            const Card = gnr.GroupletCard;
+            profile.title = this.collapsedTemplate || Card.compileTemplate(profile.titleTemplate)
+                || Card.compileTemplate(profile.template);
+            profile.docTemplate = Card.compileTemplate(profile.doc);
+            this._cardProfiles[templateKey] = profile;
+        }
+        return this._cardProfiles[templateKey];
     }
 
     _refreshRowMenu(pkey) {
@@ -2678,7 +2669,7 @@ gnr.GroupletGridController = class GroupletGridController {
             ? _T('!!Copy $count rows').replace('$count', count) : _T('!!Copy'));
         genro.setData(path + 'delete_label', count > 1
             ? _T('!!Delete $count rows').replace('$count', count) : _T('!!Delete row'));
-        genro.setData(path + 'delete_locked', inSelection ? this._selectionDeleteLocked() : this._deleteLocked());
+        genro.setData(path + 'delete_locked', inSelection ? this._selectionDeleteLocked() : this._deleteLocked(pkey));
     }
 
     selectTile(pkey) {
@@ -3417,9 +3408,13 @@ gnr.GroupletGridController = class GroupletGridController {
         if (!this.rowCheckbox) return;
         const keys = this._multiKeys || [];
         Object.keys(this.tiles).forEach((k) => {
-            const dom = this.tiles[k].domNode();
-            const box = dom && dom.querySelector(':scope > .grouplet_grid_row_check,'
-                + ':scope > .grouplet_grid_row_band > .grouplet_grid_row_check');
+            const tile = this.tiles[k];
+            if (tile.card) {
+                tile.card.setChecked(keys.includes(k));
+                return;
+            }
+            const dom = tile.domNode();
+            const box = dom && dom.querySelector(':scope > .grouplet_grid_row_check');
             if (box) box.checked = keys.includes(k);
         });
         const total = this._rowCount();
@@ -3499,7 +3494,8 @@ gnr.GroupletGridController = class GroupletGridController {
     _selectionDeleteLocked() {
         return this.groupSelection().some(({grid, rowKeys}) => {
             const form = grid.sourceNode.getFormHandler();
-            return !!(form && form.isDisabled()) || grid._rowCount() - rowKeys.length < grid.minRows;
+            return !!(form && form.isDisabled()) || grid._rowCount() - rowKeys.length < grid.minRows
+                || rowKeys.some((k) => !grid._delitemAllows(k));
         });
     }
 
@@ -3646,6 +3642,11 @@ gnr.GroupletGridController = class GroupletGridController {
                     message: _T('!!At least $count rows are required').replace('$count', grid.minRows),
                     messageType: 'warning'
                 });
+                return;
+            }
+            if (rowKeys.some((k) => !grid._delitemAllows(k))) {
+                genro.dlg.floatingMessage(grid.sourceNode, {
+                    message: _T('!!Some of these rows cannot be deleted'), messageType: 'warning'});
                 return;
             }
         }
@@ -4304,6 +4305,10 @@ gnr.GroupletGridController = class GroupletGridController {
                     if (origResource) {
                         this.templateSources[origResource] = source;
                     }
+                    if (node.attr && node.attr.card) {
+                        this.templateCards[node.label] = node.attr.card;
+                        if (origResource) this.templateCards[origResource] = node.attr.card;
+                    }
                 });
                 flush();
             });
@@ -4376,7 +4381,8 @@ gnr.GroupletGridTile = class GroupletGridTile {
         this.position = null;
         this._tileDnDHandlers = null;
         this._handleDnDHandlers = null;
-        this.bandContent = null;
+        // the chrome band with chromeSide, a gnr.GroupletCard
+        this.card = null;
     }
 
     mount(position) {
@@ -4453,6 +4459,8 @@ gnr.GroupletGridTile = class GroupletGridTile {
         if (this.controller.dnd) this.controller.dnd.unwireAppendTarget(this.tileDom);
         this._unwireTileDnD();
         this._unwireHandleDnD();
+        if (this.card) this.card.destroy();
+        this.card = null;
         // popNode does not propagate form de-registration to the grafted
         // widgets, so unregister them explicitly (symmetric with the
         // _reproxyForm done at mount). Otherwise they linger in the form
@@ -4509,8 +4517,10 @@ gnr.GroupletGridTile = class GroupletGridTile {
 
     _resolveDecorations() {
         const c = this.controller;
+        this.profile = c._cardProfile(this.templateKey);
+        this.delitem = ('delitem' in this.profile) ? this.profile.delitem : c.delitem;
         // template rows are deleted from the entry row
-        this.hasDelete = !!c.delitem && !c.rowTemplate;
+        this.hasDelete = !!this.delitem && !c.rowTemplate;
         this.dragEnabled = !!c.dragCode;
         const editmenu = c.editmenu;
         this.editmenuSpec = (editmenu && typeof editmenu === 'object'
@@ -4537,6 +4547,7 @@ gnr.GroupletGridTile = class GroupletGridTile {
         const pkey = this.pkey;
         const tile = this;
         let tileClass = 'grouplet_grid_row';
+        if (this._usesBand()) tileClass += ' grouplet_card grouplet_card--chrome-' + c.chromeSide;
         if (c._isTabsLayout() && c.activePkey === pkey) {
             tileClass += ' grouplet_grid_tab_active';
             this.isActive = true;
@@ -4549,7 +4560,9 @@ gnr.GroupletGridTile = class GroupletGridTile {
                 const onChrome = evt && evt.target && evt.target.closest
                     && evt.target.closest('.grouplet_grid_row_delete,'
                         + '.grouplet_grid_row_kebab,.grouplet_grid_row_drag,'
-                        + '.grouplet_grid_row_check,.grouplet_grid_row_collapse');
+                        + '.grouplet_grid_row_check,.grouplet_grid_row_collapse,'
+                        + '.grouplet_card_chevron,.grouplet_card_doc,'
+                        + '.grouplet_card_kebab,.grouplet_card_check');
                 if (c.rowTemplate && !onChrome) {
                     c._onTemplateRowClick(pkey, evt);
                 } else if (!onChrome && c._clickSelects(evt)) {
@@ -4601,25 +4614,40 @@ gnr.GroupletGridTile = class GroupletGridTile {
 
     _mountBand() {
         const c = this.controller;
+        const pkey = this.pkey;
         const tile = this;
-        const label = '_grtile_band_' + this.pkey;
-        this.tileContent._('div', label, {
-            _class: 'grouplet_grid_row_band',
-            onCreated: function(domnode) {
-                const bandDom = domnode.sourceNode ? domnode.sourceNode.getDomNode() : domnode;
-                if (!bandDom) return;
-                if (tile.dragEnabled) tile._wireHandleDnD(bandDom);
-                if (c.rowCheckbox) tile._mountCheckbox(bandDom);
-                const tileDom = tile.domNode();
-                if (c.collapsible && tileDom) tile._mountCollapse(tileDom, bandDom);
-            }
+        const profile = this.profile;
+        this.card = new gnr.GroupletCard({
+            tools: profile.tools,
+            rootDom: () => tile.domNode(),
+            // the summary line's title, shown in the band open or folded
+            title: (profile.title || c.titleField)
+                ? (dom) => c._renderTitle(dom, profile.title, pkey) : null,
+            doc: profile.docTemplate ? {
+                html: (cb) => cb(gnr.GroupletCard.renderDoc(profile.docTemplate,
+                                                             c.dataStore.rowValue(pkey), profile.doc_kw))
+            } : null,
+            collapsedClasses: ['grouplet_grid_row--collapsed', 'grouplet_card--collapsed'],
+            collapse: c.collapsible ? {
+                isCollapsed: () => c.isCollapsed(pkey),
+                toggle: () => c.toggleCollapsed(pkey),
+                expand: () => c.setCollapsed(pkey, false)
+            } : null,
+            checkbox: c.rowCheckbox ? {
+                isChecked: () => !!(c._multiKeys && c._multiKeys.includes(pkey)),
+                onClick: (e) => c._onRowCheck(pkey, e),
+                onKeydown: (e) => { if (e.key === 'Escape') c._onMultiKeydown(e); }
+            } : null,
+            drag: this.dragEnabled ? {
+                start: (e) => c.dnd.tileDragStart(e, tile.tileDom, pkey),
+                end: () => c.dnd.tileDragEnd(tile.tileDom)
+            } : null
         });
-        this.bandContent = this.tileContent.getNode(label).getValue();
-        this.bandContent._('div', '_spacer', {_class: 'grouplet_grid_row_band_spacer'});
+        this.card.mount(this.tileContent, '_grtile_band_' + pkey);
     }
 
     _chromeContent() {
-        return this.bandContent || this.tileContent;
+        return this.card ? this.card.bandContent : this.tileContent;
     }
 
     _bandMenuSpec() {
@@ -4650,7 +4678,7 @@ gnr.GroupletGridTile = class GroupletGridTile {
         tileDom.insertBefore(box, tileDom.firstChild);
     }
 
-    _mountCollapse(tileDom, toggleHost = tileDom) {
+    _mountCollapse(tileDom) {
         // Plain DOM like the checkbox: the toggle and the summary line shown
         // while folded; the controller holds the state.
         const c = this.controller;
@@ -4672,7 +4700,7 @@ gnr.GroupletGridTile = class GroupletGridTile {
         line.className = 'grouplet_grid_row_summaryline';
         line.addEventListener('click', () => c.setCollapsed(pkey, false));
         tileDom.insertBefore(line, tileDom.firstChild);
-        toggleHost.insertBefore(toggle, toggleHost.firstChild);
+        tileDom.insertBefore(toggle, tileDom.firstChild);
         c._applyCollapsed(pkey);
     }
 
@@ -4762,7 +4790,7 @@ gnr.GroupletGridTile = class GroupletGridTile {
     }
 
     _mountChrome() {
-        if (!this.bandContent) this._mountDelete();
+        if (!this.card) this._mountDelete();
         this._mountKebab();
     }
 
@@ -4798,10 +4826,7 @@ gnr.GroupletGridTile = class GroupletGridTile {
     }
 
     _mountKebab() {
-        // editmenu = {entryKey: True | 'label' | {label,action,...}}.
-        // True = preset (addPrev/addNext/delete), string overrides the
-        // label, dict shallow-merges over the preset.
-        const editmenu = this.bandContent ? this._bandMenuSpec() : this.editmenuSpec;
+        const editmenu = this.card ? this._bandMenuSpec() : this.editmenuSpec;
         if (!editmenu) return;
         const c = this.controller;
         const pkey = this.pkey;
@@ -4833,47 +4858,18 @@ gnr.GroupletGridTile = class GroupletGridTile {
                       + "{action:'delete',rowKey:'" + pkey + "'});"
             }
         };
-        const kebabId = '__grpgridtilemenu__' + c.nodeId + '__' + pkey;
+        const kebabClass = this.card ? 'grouplet_card_kebab' : 'grouplet_grid_row_kebab';
         const kebabKw = objectUpdate({
-            _class: 'grouplet_grid_row_kebab',
+            _class: kebabClass,
             tip: _T('!!Row actions'),
-            nodeId: kebabId,
+            nodeId: '__grpgridtilemenu__' + c.nodeId + '__' + pkey,
             connect_onmousedown: function() { c._refreshRowMenu(pkey); }
         }, c.editmenuKw || {});
         if (c.editmenuKw && c.editmenuKw._class) {
-            kebabKw._class = 'grouplet_grid_row_kebab '
-                           + c.editmenuKw._class;
+            kebabKw._class = kebabClass + ' ' + c.editmenuKw._class;
         }
-        const host = this._chromeContent();
-        host._('div', '_grtile_kebab_' + pkey, kebabKw);
-        const kebabNode = host.getNode('_grtile_kebab_' + pkey);
-        const kebabContent = kebabNode.getValue();
-        kebabContent._('div', 'glyph', {
-            _class: 'grouplet_grid_kebab_icon',
-            innerHTML: '⋮'
-        });
-        const menu = kebabContent._('menu', {
-            modifiers: '*',
-            _class: 'smallmenu grouplet_grid_row_menu'
-        });
-        Object.keys(editmenu).forEach((entryKey) => {
-            const raw = editmenu[entryKey];
-            if (raw === false || raw === null || raw === undefined) return;
-            const preset = presets[entryKey] || null;
-            let spec;
-            if (raw === true) {
-                if (!preset) return;
-                spec = preset;
-            } else if (typeof raw === 'string') {
-                spec = objectUpdate({}, preset || {});
-                spec.label = raw;
-            } else if (typeof raw === 'object') {
-                spec = objectUpdate({}, preset || {});
-                objectUpdate(spec, raw);
-            }
-            if (!spec || !spec.label) return;
-            menu._('menuline', spec);
-        });
+        gnr.GroupletCard.buildKebab(this._chromeContent(), '_grtile_kebab_' + pkey, editmenu, presets, kebabKw,
+                                    this.card ? 'grouplet_card_kebab_icon' : 'grouplet_grid_kebab_icon');
     }
 
     _mountBody() {

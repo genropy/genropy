@@ -71,6 +71,8 @@ function setup() {
     }
     const gridJs = process.env.GNR_GROUPLET_SOURCE || path.join(__dirname,
         '../../resources/common/gnrcomponents/grouplet/grouplet_grid.js');
+    vm.runInContext(readFileSync(path.join(path.dirname(gridJs), 'grouplet_card.js'), 'utf8'), context,
+                    {filename: 'grouplet_card.js'});
     vm.runInContext(readFileSync(gridJs, 'utf8'), context, {filename: 'grouplet_grid.js'});
     const controllers = {};
     const published = [];
@@ -410,4 +412,49 @@ test('a selection moves to another grid in block, within maxRows and minRows', (
     dst.body.dispatch('drop', dt);
     assert.deepEqual([...dst.rows.keys()], ['x', 'r_a', 'r_c']);
     assert.deepEqual([...src.rows.keys()], ['r_b']);
+});
+
+test('the drag image of a card sits in a copy of its grid, a struct row straight in the aux box', () => {
+    const s = setup();
+    class Box {
+        constructor() {
+            this.children = [];
+            this.parentNode = null;
+            this.className = '';
+            this.style = {cssText: '', setProperty() {}};
+            this.attrs = {};
+            this.classList = {remove() {}, add: (...names) => { this.className += ' ' + names.join(' '); }};
+        }
+        appendChild(child) { child.parentNode = this; this.children.push(child); return child; }
+        removeChild(child) { this.children = this.children.filter((c) => c !== child); child.parentNode = null; }
+        setAttribute(k, v) { this.attrs[k] = v; }
+        cloneNode() { const b = new Box(); b.className = this.className; return b; }
+        getBoundingClientRect() { return {left: 0, top: 0}; }
+    }
+    const aux = new Box();
+    s.document.getElementById = (id) => (id === 'auxDragImage' ? aux : null);
+    s.document.createElement = () => new Box();
+    const {c} = s.grid('cards');
+    const container = new Box();
+    container.className = 'grouplet_grid_container grouplet_grid grouplet_grid--checkbox';
+    container.style.cssText = '--gg-cols: 3;';
+    container.style.getPropertyValue = () => '';
+    c._containerDom = () => container;
+    const images = [];
+    const event = {clientX: 5, clientY: 5, dataTransfer: {setDragImage: (img) => images.push(img)}};
+    const card = new Box();
+    card.className = 'grouplet_grid_row grouplet_card grouplet_card--chrome-top';
+    c.dnd._setDragImage(event, card, {count: 1});
+    const [frame] = aux.children;
+    assert.equal(frame.className, container.className);
+    assert.equal(frame.style.cssText, '--gg-cols: 3;', 'the grid tokens set inline come along');
+    assert.equal(frame.children[0].className, 'grouplet_grid_body');
+    assert.equal(images[0], frame.children[0].children[0], 'the image is the card clone itself');
+    assert.equal(frame.style.position, 'fixed', 'above the page while the browser takes it');
+    assert.equal(frame.style.zIndex, '2147483647');
+    aux.children = [];
+    c.dnd._setDragImage(event, card, {count: 1, struct: true});
+    assert.ok(aux.children[0].className.includes('grouplet_grid_struct_drag_clone'));
+    assert.equal(images[1], aux.children[0]);
+    assert.equal(aux.children[0].style.position, 'fixed');
 });

@@ -34,6 +34,8 @@ function createGrid({defaultRow = {qty: 1, bought: false}, disabled = false, max
         vm.runInContext(readFileSync(path.join(sourceDir, filename), 'utf8'), context, {filename});
     }
     const gridJs = path.join(__dirname, '../../resources/common/gnrcomponents/grouplet/grouplet_grid.js');
+    vm.runInContext(readFileSync(path.join(path.dirname(gridJs), 'grouplet_card.js'), 'utf8'), context,
+                    {filename: 'grouplet_card.js'});
     vm.runInContext(readFileSync(gridJs, 'utf8'), context, {filename: 'grouplet_grid.js'});
     context._T = str => str;
     const Bag = context.gnr.GnrBag;
@@ -701,6 +703,84 @@ test('the band\'s kebab: the editmenu entries, then Copy, then Delete only when 
     assert.deepEqual(spec({copy: false, 'delete': 'Remove'}, true), {copy: false, 'delete': 'Remove'});
 });
 
+test('the corner kebab keeps its label, classes and node id; the band one takes the card classes', () => {
+    const s = clipboardGrid();
+    const c = s.c;
+    Object.assign(c, {actionTopic: 'grid_action', controllerPath: 'ws.ctrl',
+                      editmenuKw: vm.runInContext('({_class: "custom"})', s.context)});
+    const kebab = (card) => {
+        const tile = Object.create(s.context.gnr.GroupletGridTile.prototype);
+        const content = new s.context.gnr.GnrDomSource();
+        Object.assign(tile, {controller: c, pkey: 'r_a', tileContent: content, hasDelete: true,
+                             editmenuSpec: vm.runInContext('({addNext: true})', s.context), card: null});
+        if (card) tile.card = {bandContent: content};
+        tile._mountKebab();
+        const node = content.getNode('_grtile_kebab_r_a');
+        return [node.attr._class, node.attr.nodeId, node.getValue().getNode('glyph').attr._class];
+    };
+    assert.deepEqual(kebab(false), ['grouplet_grid_row_kebab custom', '__grpgridtilemenu__grid__r_a',
+                                    'grouplet_grid_kebab_icon']);
+    assert.deepEqual(kebab(true), ['grouplet_card_kebab custom', '__grpgridtilemenu__grid__r_a',
+                                   'grouplet_card_kebab_icon']);
+});
+
+test('a dynamic delitem is read on the row as its menu opens, and refuses the delete', () => {
+    const s = clipboardGrid();
+    const c = s.c;
+    c.controllerPath = 'ws.ctrl';
+    c.minRows = 0;
+    c.dataStore.rowValue = (k) => s.lines.getItem(k);
+    s.lines.setItem('r_a.invoiced', true);
+    s.lines.setItem('r_b.invoiced', false);
+    Object.keys(c.tiles).forEach((k) => {
+        c.tiles[k].delitem = '==!invoiced';
+        c.tiles[k].tileNode = {currentFromDatasource: () => null};
+    });
+    const locked = (k) => {
+        c._refreshRowMenu(k);
+        return s.data.getItem('ws.ctrl.row_menu.delete_locked');
+    };
+    assert.equal(locked('r_a'), true);
+    assert.equal(locked('r_b'), false);
+    s.lines.setItem('r_a.invoiced', false);
+    assert.equal(locked('r_a'), false, 'read again at the next opening');
+    s.lines.setItem('r_a.invoiced', true);
+    const asked = [];
+    const warned = [];
+    c.dataStore.deleteRowAsk = (k) => asked.push(k);
+    s.genro.dlg = {floatingMessage: (node, kw) => warned.push(kw.message)};
+    c._handleAction({action: 'delete', rowKey: 'r_a'});
+    c._handleAction({action: 'delete', rowKey: 'r_b'});
+    assert.deepEqual(asked, ['r_b']);
+    assert.deepEqual(warned, ['!!This row cannot be deleted']);
+    c._setMulti(['r_a', 'r_b']);
+    assert.equal(c._selectionDeleteLocked(), true, 'a selection holding r_a cannot be deleted');
+    c.tiles.r_a.delitem = true;
+    assert.equal(c._selectionDeleteLocked(), false, 'a static delitem never refuses');
+});
+
+test('a row\'s card profile: its resource\'s card, then the caller\'s, the title of last resort the resource template', () => {
+    const s = clipboardGrid();
+    const c = s.c;
+    const inVm = (obj) => vm.runInContext('(' + JSON.stringify(obj) + ')', s.context);
+    s.genro.safeHtmlContent = (v) => v;
+    Object.assign(c, {_cardProfiles: {}, collapsedTemplate: null,
+                      card: inVm({tools: 'title,menu'}),
+                      templateCards: inVm({offer: {tools: 'title,doc', delitem: false, doc: 'About $item',
+                                                   template: '$item!'}})});
+    const offer = c._cardProfile('offer');
+    assert.equal(offer.tools, 'title,menu', 'the caller wins');
+    assert.equal(offer.delitem, false);
+    const row = new s.lines.constructor({item: 'Milk'});
+    assert.equal(s.context.gnr.GroupletCard.renderTemplate(offer.title, row), 'Milk!');
+    assert.equal(s.context.gnr.GroupletCard.renderDoc(offer.docTemplate, row), 'About Milk');
+    assert.equal(c._cardProfile('offer'), offer, 'computed once per resource');
+    const plain = c._cardProfile('__default__');
+    assert.equal(plain.title, null);
+    assert.equal(plain.docTemplate, null);
+    assert.ok(!('delitem' in plain), 'the grid\'s delitem then applies');
+});
+
 test('cards use the band unless chromeSide is off; line rows, tabs and blank rows never do', () => {
     const s = clipboardGrid();
     const c = s.c;
@@ -762,10 +842,8 @@ test('a selection ticks the checkboxes in the chrome band too', () => {
     const boxes = {};
     Object.keys(c.tiles).forEach((k) => {
         boxes[k] = {checked: false};
-        c.tiles[k].domNode = () => ({
-            classList: {toggle() {}},
-            querySelector: sel => (sel.includes('.grouplet_grid_row_band > .grouplet_grid_row_check') ? boxes[k] : null)
-        });
+        c.tiles[k].domNode = () => ({classList: {toggle() {}}, querySelector: () => null});
+        c.tiles[k].card = {setChecked: (v) => { boxes[k].checked = v; }};
     });
     c._rowCount = () => Object.keys(c.tiles).length;
     c._setMulti(['r_b']);
