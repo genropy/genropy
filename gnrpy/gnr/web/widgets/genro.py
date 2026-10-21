@@ -489,6 +489,17 @@ class GenroWidgets:
                 bodyStyle (CSS declarations of the content body, e.g. a
                 page box 'width:170mm;height:250mm', may be a ^path; iframe only),
                 enter ('p' (default) | 'div' | 'br'), placeholder,
+                textpath (path of the plain text of the content, written
+                after a user edit when the editor loses focus),
+                maxLength (int: input is blocked at the limit and the
+                remaining characters are shown in the statusbar; a paste
+                that would not fit is refused whole, never truncated),
+                placeholders (names, list or comma string: a '$' toolbar
+                button inserting '$name' at the caret; needs a toolbar),
+                codeBlock (bool: a '{ }' toolbar button inserting an empty
+                pre/code block with the caret in it; needs a toolbar),
+                imageData (bool: a pasted or dropped image is embedded in
+                the markup as a base64 data URI),
                 statusbar (bool), readOnly, disabled, height, width,
                 config_* (any other Jodit option).
         """

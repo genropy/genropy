@@ -293,6 +293,9 @@
 <en_font_weight base="Font weight"></en_font_weight>
 <en_font_variant base="Font variant"></en_font_variant>
 <en_font_family base="Font family"></en_font_family></genro_dom>
+<genro_editors path="gnrjs/gnr_d11/js/genro_editors.js" ext="js"><en_insert_field base="Insert field" it="Inserisci campo"></en_insert_field>
+<en_remaining base="Remaining" it="Rimanenti"></en_remaining>
+<en_code_block base="Code block" it="Blocco di codice"></en_code_block></genro_editors>
 <genro_frm path="gnrjs/gnr_d11/js/genro_frm.js" ext="js"><en_no_record_loaded base="No record loaded" it="Nessun record caricato"></en_no_record_loaded>
 <en_read_only base="Read Only" it="Sola lettura"></en_read_only>
 <en_no_changes_to_save base="No changes to save" it="Nessuna modifica da salvare"></en_no_changes_to_save>
