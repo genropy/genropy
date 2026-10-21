@@ -1182,6 +1182,7 @@ class GroupletGridHandler(BaseComponent):
                         titleTemplate=None,
                         sortField=None, sortStore=False,
                         collapsible=False, collapsedTemplate=None,
+                        chromeSide=False,
                         emptyTitle='!!Untitled',
                         dragCode=None,
                         onSelfDropRows=None,
@@ -1204,7 +1205,7 @@ class GroupletGridHandler(BaseComponent):
         # (or similar): the framework does NOT auto-rename them per row clone.
         nodeId = nodeId or kwargs.pop('gridId', None) or f'grpgrid_{id(pane)}'
         if editmenu is True:
-            editmenu = {'addPrev': True, 'addNext': True}
+            editmenu = {'addPrev': True, 'addNext': True, 'copy': True}
             if not delitem:
                 editmenu['delete'] = True
         elif not editmenu:
@@ -1251,19 +1252,28 @@ class GroupletGridHandler(BaseComponent):
                 flavours.append('grouplet_grid--templated')
         else:
             rowTemplate = None
-        # actions on several selected rows: rows are selectable in template
-        # mode, cards and editable rows by their checkboxes or, given a
-        # selectionmenu, by Cmd/Ctrl/Shift-click; delete is preset whenever
-        # rows can be deleted
-        selectable = bool(rowTemplate or rowCheckbox or selectionmenu) \
-            and layout not in ('tabs', 'vtabs')
+        # actions on several selected rows: outside tabs every row is
+        # selectable by Cmd/Ctrl/Shift-click, and by its checkbox given
+        # rowCheckbox; copy is preset, delete whenever rows can be deleted;
+        # selectionmenu=False turns the selection off
+        selectable = layout not in ('tabs', 'vtabs')
         if not selectable or selectionmenu is False:
             selectionmenu = {}
         elif selectionmenu is None:
-            selectionmenu = {'delete': True} if delitem else {}
+            selectionmenu = {'copy': True, 'delete': True} if delitem else {'copy': True}
         rowCheckbox = bool(rowCheckbox and selectionmenu)
         if rowCheckbox:
             flavours.append('grouplet_grid--checkbox')
+        # chromeSide='top'|'left'|'right': cards gather checkbox, chevron and
+        # kebab in a band along that side, the band being the drag source;
+        # False (default) keeps the corner chrome
+        if chromeSide not in (None, False, 'top', 'left', 'right'):
+            raise self.exception('generic',
+                                 msg="groupletGrid: chromeSide is 'top', 'left', 'right' or False")
+        if struct_mode or rowTemplate or layout in ('tabs', 'vtabs'):
+            chromeSide = None
+        if chromeSide:
+            flavours.append(f'grouplet_grid--chrome-{chromeSide}')
         totals_kwargs = dict(totals_kwargs or {})
         if totals_kwargs.pop('sticky', False):
             flavours.append('grouplet_grid--sticky-totals')
@@ -1355,6 +1365,7 @@ class GroupletGridHandler(BaseComponent):
             sortField=sortField, sortStore=sortStore,
             collapsible=collapsible,
             collapsedTemplate=self._gr_groupletGrid_template(collapsedTemplate),
+            chromeSide=chromeSide,
             defaultRow=defaultRow, minRows=minRows, maxRows=maxRows,
             counterField=counterField,
             formulas=formulas, totals=totals,
@@ -1414,7 +1425,7 @@ class GroupletGridHandler(BaseComponent):
             additem_kwargs, delitem_kwargs, editmenu_kwargs,
             layout, lazyTabs, titleField, emptyTitle,
             titleTemplate, sortField, sortStore,
-            collapsible, collapsedTemplate,
+            collapsible, collapsedTemplate, chromeSide,
             defaultRow, minRows, maxRows, counterField,
             formulas, totals, rowTemplate, selectionmenu, rowCheckbox,
             selectionGroup, resolved_drag_code,
@@ -1466,6 +1477,7 @@ class GroupletGridHandler(BaseComponent):
                 sortStore: sortStore,
                 collapsible: collapsible,
                 collapsedTemplate: collapsedTemplate,
+                chromeSide: chromeSide,
                 emptyTitle: emptyTitle,
                 defaultRow: defaultRow,
                 minRows: minRows,
@@ -1506,6 +1518,7 @@ class GroupletGridHandler(BaseComponent):
             sortStore=sortStore,
             collapsible=collapsible,
             collapsedTemplate=collapsedTemplate,
+            chromeSide=chromeSide or None,
             emptyTitle=emptyTitle,
             defaultRow=defaultRow,
             minRows=minRows,
