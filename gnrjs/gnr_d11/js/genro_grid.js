@@ -167,26 +167,7 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
                     }
                 };
                 dojox.grid.headerBuilder.prototype.getCellX = function(e){
-                    var x = e.clientX - e.target.getBoundingClientRect().left;
-                    if(dojo.isMoz){
-                        var n = dojox.grid.ascendDom(e.target, dojox.grid.makeNotTagName("th"));
-                        x -= (n && n.offsetLeft) || 0;
-                        var t = e.sourceView.getScrollbarWidth();
-                        if(!dojo._isBodyLtr() && e.sourceView.headerNode.scrollLeft < t)
-                            x -= t;
-                        //x -= getProp(ascendDom(e.target, mkNotTagName("td")), "offsetLeft") || 0;
-                    }
-                    var n = dojox.grid.ascendDom(e.target, function(){
-                        if(!n || n == e.cellNode){
-                            return false;
-                        }
-                        // Mozilla 1.8 (FF 1.5) has a bug that makes offsetLeft = -parent border width
-                        // when parent has border, overflow: hidden, and is positioned
-                        // handle this problem here ... not a general solution!
-                        x += (n.offsetLeft < 0 ? 0 : n.offsetLeft);
-                        return true;
-                    });
-                    return x;
+                    return e.cellNode? e.clientX - e.cellNode.getBoundingClientRect().left : 0;
                 };
             }
 
@@ -202,6 +183,14 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
             return;
         }
         return this.onHeaderCellClick_replaced(e);
+    },
+    patch_onHeaderCellMouseDown:function(e){
+        if(e.target.closest && e.target.closest('.gridColumnFilter')){
+            // a draggable header turns a click that moves a few pixels into a column drag, and the click never comes
+            e.preventDefault();
+            return;
+        }
+        return this.onHeaderCellMouseDown_replaced(e);
     },
     patch__textSizeChanged:function(){
         if(dojo.getComputedStyle(this.domNode)){
