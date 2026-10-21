@@ -2032,7 +2032,14 @@ dojo.declare("gnr.GridColumnFilterPane", null, {
         domNode.classList.add('gridColumnFilterPane');
         var label = document.createElement('div');
         label.innerHTML = cell.original_name || '';
-        var title = this.element('div','gcf_title',label.textContent);
+        var title = this.element('div','gcf_title');
+        this.orderNode = this.element('button','gcf_order');
+        this.orderNode.type = 'button';
+        title.append(this.element('span','gcf_titletext',label.textContent),this.orderNode);
+        this.rangeNode = this.element('div','gcf_range');
+        this.rangeNode.hidden = !(cell.dtype=='D' || cell.dtype=='DH');
+        this.fromNode = this.rangeField(_T('From'));
+        this.toNode = this.rangeField(_T('To'));
         this.searchBox = this.element('label','gcf_searchbox');
         this.searchBox.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></svg>';
         this.searchNode = this.element('input','gcf_search');
@@ -2048,8 +2055,17 @@ dojo.declare("gnr.GridColumnFilterPane", null, {
         this.countNode = this.element('span','gcf_rowcount');
         var foot = this.element('div','gcf_foot');
         foot.append(this.clearNode,this.countNode);
-        domNode.append(title,this.searchBox,this.listNode,this.moreNode,foot);
+        domNode.append(title,this.rangeNode,this.searchBox,this.listNode,this.moreNode,foot);
         var that = this;
+        this.orderNode.addEventListener('click',function(){
+            that.cell._filterDescending = !that.cell._filterDescending;
+            that.items.sort(that.compareItems.bind(that));
+            that.renderList();
+        });
+        this.rangeNode.addEventListener('change',function(){
+            that.grid.setColumnFilter(that.cell,null,{from:that.fromNode.value || null,to:that.toNode.value || null});
+            that.renderList();
+        });
         this.searchNode.addEventListener('input',function(){
             that.search = that.searchNode.value;
             that.renderList();
@@ -2070,6 +2086,15 @@ dojo.declare("gnr.GridColumnFilterPane", null, {
             }
         });
         this.setItems(grid.columnFilterValues(cell));
+    },
+
+    rangeField:function(caption){
+        var field = this.element('label','gcf_rangefield');
+        var input = document.createElement('input');
+        input.type = 'date';
+        field.append(this.element('span','gcf_rangecaption',caption),input);
+        this.rangeNode.appendChild(field);
+        return input;
     },
 
     element:function(tag,className,text){
@@ -2097,14 +2122,18 @@ dojo.declare("gnr.GridColumnFilterPane", null, {
             return a.key===''? 1:-1;
         }
         var cell = this.cell;
+        var result;
         if(cell.filterField===true && !cell.caption_field && !cell.values){
             var va = a.value instanceof Date? a.value.getTime():a.value;
             var vb = b.value instanceof Date? b.value.getTime():b.value;
             if(typeof(va)=='number' && typeof(vb)=='number'){
-                return va-vb;
+                result = va-vb;
             }
         }
-        return this.captionText(a).localeCompare(this.captionText(b),undefined,{numeric:true,sensitivity:'base'});
+        if(result===undefined){
+            result = this.captionText(a).localeCompare(this.captionText(b),undefined,{numeric:true,sensitivity:'base'});
+        }
+        return cell._filterDescending? -result:result;
     },
 
     setItems:function(items){
@@ -2162,6 +2191,12 @@ dojo.declare("gnr.GridColumnFilterPane", null, {
             fragment.appendChild(this.element('div','gcf_more',_T('No value')));
         }
         this.listNode.replaceChildren(fragment);
+        var descending = !!this.cell._filterDescending;
+        this.orderNode.textContent = descending? '\u2193':'\u2191';
+        this.orderNode.title = descending? _T('Descending order'):_T('Ascending order');
+        var range = this.cell.filterRange || {};
+        this.fromNode.value = range.from || '';
+        this.toNode.value = range.to || '';
         var rest = matches-shown;
         this.moreNode.hidden = rest<=0;
         this.moreNode.textContent = rest+' '+_T('more. Type to search.');
@@ -2170,7 +2205,7 @@ dojo.declare("gnr.GridColumnFilterPane", null, {
 
     updateFoot:function(){
         var store = this.grid.collectionStore();
-        this.clearNode.hidden = !(this.cell.filterValues && this.cell.filterValues.length);
+        this.clearNode.hidden = !gnr.columnFilterActive(this.cell);
         this.countNode.textContent = store.len(true)+' / '+store.len();
     },
 
@@ -2183,6 +2218,10 @@ dojo.declare("gnr.GridColumnFilterPane", null, {
             values.push(item.value);
         }
         this.grid.setColumnFilter(this.cell,values);
+        if(this.fromNode.value || this.toNode.value){
+            this.renderList();
+            return;
+        }
         input.parentNode.classList.toggle('gcf_checked',input.checked);
         this.updateFoot();
     }

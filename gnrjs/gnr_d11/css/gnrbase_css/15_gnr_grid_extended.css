@@ -134,12 +134,66 @@
     font-size: var(--font-size);
 }
 .gridColumnFilterPane .gcf_title{
+    display: flex;
+    align-items: center;
+    gap: 6px;
     padding: 2px 6px 6px;
     border-bottom: 1px solid var(--menu-separator-color);
     font-weight: 600;
+}
+.gridColumnFilterPane .gcf_titletext{
+    flex: 1;
+    min-width: 0;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+.gridColumnFilterPane .gcf_order{
+    width: 22px;
+    height: 22px;
+    flex: none;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: none;
+    color: var(--text-secondary);
+    font: inherit;
+    cursor: pointer;
+}
+.gridColumnFilterPane .gcf_order:hover{
+    background: var(--menu-item-hover-bg);
+    color: var(--text-color);
+}
+.gridColumnFilterPane .gcf_range{
+    display: flex;
+    gap: 6px;
+}
+.gridColumnFilterPane .gcf_range[hidden]{
+    display: none;
+}
+.gridColumnFilterPane .gcf_rangefield{
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.gridColumnFilterPane .gcf_rangecaption{
+    color: var(--text-secondary);
+    font-size: .9em;
+}
+.gridColumnFilterPane .gcf_rangefield input{
+    min-width: 0;
+    height: 26px;
+    padding: 0 4px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--surface-bg);
+    color: var(--text-color);
+    font: inherit;
+}
+.gridColumnFilterPane .gcf_rangefield input:focus{
+    outline: none;
+    border-color: var(--accent-color);
 }
 .gridColumnFilterPane .gcf_searchbox{
     display: flex;

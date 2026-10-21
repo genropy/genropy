@@ -128,6 +128,17 @@ gnr.columnFilterKey = function(value){
     return ''+value;
 };
 
+gnr.columnFilterDay = function(value){
+    if(value instanceof Date){
+        return new Date(value.getTime()-value.getTimezoneOffset()*60000).toISOString().slice(0,10);
+    }
+    return value? (''+value).slice(0,10):'';
+};
+
+gnr.columnFilterActive = function(cell){
+    return !!((cell.filterValues && cell.filterValues.length) || cell.filterRange);
+};
+
 // ********* Grid ************
 dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
     constructor: function(application) {
@@ -1913,7 +1924,7 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
         var classes = 'cellHeaderContent';
         if(cell.filterField && this.columnFilterSupport && this.columnFilterAllowed(sourceNode)){
             classes += ' withColumnFilter';
-            var active = cell.filterValues && cell.filterValues.length;
+            var active = gnr.columnFilterActive(cell);
             content += '<span class="gridColumnFilter'+(active?' gridColumnFilterActive':'')+'" title="'+_T('Filter')+'">'+
                        '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h18l-7 8.5V19l-4 2v-7.5z"/></svg></span>';
         }
@@ -4651,7 +4662,7 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
             return [];
         }
         return objectValues(this.cellmap).filter(function(cell){
-            return cell.filterField && cell.field!=skipField && cell.filterValues && cell.filterValues.length;
+            return cell.filterField && cell.field!=skipField && gnr.columnFilterActive(cell);
         });
     },
 
@@ -4661,19 +4672,25 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
 
     mixin_columnFilterSignature:function(){
         return this.columnFilterCells().map(function(cell){
-            return cell.field+'='+cell.filterValues.map(gnr.columnFilterKey).join('|');
+            var range = cell.filterRange;
+            return cell.field+'='+(range? (range.from || '')+'..'+(range.to || ''):cell.filterValues.map(gnr.columnFilterKey).join('|'));
         }).join(';');
     },
 
     mixin_columnFilterCb:function(skipField){
         var filters = this.columnFilterCells(skipField).map(function(cell){
-            return {key:cell.filterField_key,keys:new Set(cell.filterValues.map(gnr.columnFilterKey))};
+            var range = cell.filterRange;
+            return {key:cell.filterField_key,range:range,keys:range? null:new Set(cell.filterValues.map(gnr.columnFilterKey))};
         });
         if(!filters.length){
             return null;
         }
         return function(rowdata){
             return filters.every(function(f){
+                if(f.range){
+                    var day = gnr.columnFilterDay(rowdata[f.key]);
+                    return !!day && (!f.range.from || day>=f.range.from) && (!f.range.to || day<=f.range.to);
+                }
                 return f.keys.has(gnr.columnFilterKey(rowdata[f.key]));
             });
         };
@@ -4691,11 +4708,12 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
         return node instanceof gnr.GnrBagNode? node:null;
     },
 
-    mixin_setColumnFilter:function(cell,values){
+    mixin_setColumnFilter:function(cell,values,range){
         cell.filterValues = values && values.length? values:null;
+        cell.filterRange = range && (range.from || range.to)? range:null;
         var cellNode = this.structCellNode(cell);
         if(cellNode){
-            cellNode.updAttributes({filterValues:cell.filterValues},false);
+            cellNode.updAttributes({filterValues:cell.filterValues,filterRange:cell.filterRange},false);
         }
         this.refreshColumnFilterHeaders();
         this.applyColumnFilters();

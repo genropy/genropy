@@ -268,3 +268,52 @@ test('the export of a filtered grid holds the visible rows, none when nothing ma
     assert.deepEqual(exported(), []);
     assert.equal(g.grid.currentData('all', true, false).len(), 5);
 });
+
+test('a period on a date column keeps the rows whose day falls in it, bounds included', () => {
+    const g = createGrid();
+    const date = (y, m, d, h = 0) => vm.runInContext(`new Date(${y}, ${m}, ${d}, ${h})`, g.context);
+    const cell = filterCell(g.context, {field: 'issued', field_getter: 'issued', filterField: true, dtype: 'DH'});
+    g.grid.cellmap.issued = cell;
+    cell.filterRange = {from: '2026-03-01', to: '2026-03-31'};
+    const keep = g.grid.columnFilterCb();
+    assert.equal(keep({issued: date(2026, 2, 1)}), true);
+    assert.equal(keep({issued: date(2026, 2, 31, 23)}), true);
+    assert.equal(keep({issued: date(2026, 3, 1)}), false);
+    assert.equal(keep({issued: date(2026, 1, 28, 23)}), false);
+    assert.equal(keep({issued: null}), false);
+    assert.equal(keep({issued: '2026-03-15'}), true);
+    cell.filterRange = {from: null, to: '2026-03-31'};
+    assert.equal(g.grid.columnFilterCb()({issued: date(2020, 0, 1)}), true);
+    assert.equal(g.grid.columnFilterSignature(), 'issued=..2026-03-31');
+});
+
+test('a period and checked values exclude each other, and either marks the header active', () => {
+    const g = createGrid();
+    const cell = g.grid.cellmap.status;
+    Object.assign(g.grid, {structCellNode: () => null, refreshColumnFilterHeaders() {}, applyColumnFilters() {}});
+    g.grid.setColumnFilter(cell, null, {from: '2026-01-01', to: null});
+    assert.deepEqual({...cell.filterRange}, {from: '2026-01-01', to: null});
+    assert.ok(g.gnr.widgets.NewIncludedView.prototype.cellHeaderContent({attr: {}}, cell).includes('gridColumnFilterActive'));
+    g.grid.setColumnFilter(cell, ['Paid']);
+    assert.equal(cell.filterRange, null);
+    assert.deepEqual(Array.from(cell.filterValues), ['Paid']);
+    g.grid.setColumnFilter(cell, null, {from: null, to: null});
+    assert.equal(g.gnr.columnFilterActive(cell), false);
+});
+
+test('the order of the filter values turns descending, empty still last', () => {
+    const context = createContext();
+    const {gnr} = context;
+    const date = (y, m, d) => vm.runInContext(`new Date(${y}, ${m}, ${d})`, context);
+    const order = (cell, items) => {
+        const pane = Object.assign(Object.create(gnr.GridColumnFilterPane.prototype), {cell});
+        return items.map(([value, caption]) => ({value, caption: caption === undefined ? value : caption,
+                                                 key: gnr.columnFilterKey(value), count: 0}))
+                    .sort(pane.compareItems.bind(pane)).map(item => pane.captionText(item));
+    };
+    assert.deepEqual(order({filterField: true, _filterDescending: true},
+                           [[date(2025, 0, 15), '15/01/2025'], [null], [date(2026, 1, 1), '01/02/2026']]),
+                     ['01/02/2026', '15/01/2025', '(empty)']);
+    assert.deepEqual(order({filterField: true, _filterDescending: true}, [['alfa'], [''], ['PO 9'], ['PO 10']]),
+                     ['PO 10', 'PO 9', 'alfa', '(empty)']);
+});
