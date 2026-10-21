@@ -590,3 +590,100 @@ test('codeBlock and placeholders are two buttons, neither of them in the toolbar
 test('no extraButtons key when nothing asks for one', () => {
     assert.equal('extraButtons' in create(loadHandler(), {}).options, false);
 });
+
+// Reproduces the Jodit limit plugin: the key guard refusing a printing key once the
+// content has reached the limit, with COMMAND_KEYS exempt, and the change hook that
+// reverts the whole value when it is over the limit -- the one the widget unbinds.
+function makeLimitedEditor(handler, limit, markup) {
+    const COMMAND_KEYS = ['Meta', 'Backspace', 'Delete', 'ArrowUp', 'ArrowDown',
+                          'ArrowRight', 'ArrowLeft', 'Enter', 'Escape', 'F3', 'Tab'];
+    const editor = makeEditor(handler, makeSourceNode(''), '');
+    const plain = (html) => html.replace(/<[^>]*>/g, '');
+    let current = markup;
+    let revertOnChange = true;
+    editor.o.limitChars = limit;
+    editor.e = {off(name) { if (name === 'change.limit') revertOnChange = false; }};
+    Object.defineProperty(editor, 'value', {
+        get: () => current,
+        set(wanted) {
+            const previous = current;
+            current = wanted;
+            editor.text = plain(wanted);
+            if (revertOnChange && editor.o.limitChars
+                && handler.textLength(editor) > editor.o.limitChars) {
+                current = previous;
+                editor.text = plain(previous);
+            }
+        }
+    });
+    // the key guard denies on length >= limit, one short of what the change hook uses
+    editor.press = (key) => {
+        if (!COMMAND_KEYS.includes(key) && editor.o.limitChars
+            && handler.textLength(editor) >= editor.o.limitChars) {
+            return false;
+        }
+        const text = plain(current);
+        editor.value = '<p>' + (key === 'Backspace' ? text.slice(0, -1) : text + key) + '</p>';
+        return true;
+    };
+    editor.text = plain(markup);
+    return editor;
+}
+
+test('releasing the change hook is what lets a value over the limit be loaded', () => {
+    const handler = loadHandler();
+    const editor = makeLimitedEditor(handler, 20, '<p>short</p>');
+    const long = '<p>' + 'a'.repeat(40) + '</p>';
+    editor.gnr_value(long);
+    // still bound, the plugin reverts the load and the editor keeps the old content
+    assert.equal(editor.value, '<p>short</p>');
+    handler.releaseChangeLimit(editor);
+    editor.gnr_value(long);
+    assert.equal(editor.value, long);
+});
+
+test('the limit stays armed, so typing is still blocked at it', () => {
+    const handler = loadHandler();
+    const editor = makeLimitedEditor(handler, 20, '<p>' + 'a'.repeat(19) + '</p>');
+    handler.releaseChangeLimit(editor);
+    assert.equal(editor.press('b'), true);
+    assert.deepEqual([handler.textLength(editor), editor.o.limitChars], [20, 20]);
+    assert.deepEqual([editor.press('c'), editor.press('d')], [false, false]);
+    assert.equal(handler.textLength(editor), 20);
+});
+
+test('a record loaded over the limit is never frozen: it can be deleted back under', () => {
+    const handler = loadHandler();
+    const editor = makeLimitedEditor(handler, 20, '<p>short</p>');
+    handler.releaseChangeLimit(editor);
+    editor.gnr_value('<p>' + 'a'.repeat(32) + '</p>');
+    assert.equal(handler.textLength(editor), 32);
+    assert.equal(editor.press('x'), false);
+    for (let i = 0; i < 12; i += 1) {
+        assert.equal(editor.press('Backspace'), true);
+    }
+    assert.deepEqual([handler.textLength(editor), editor.press('x')], [20, false]);
+    assert.equal(editor.press('Backspace'), true);
+    assert.equal(editor.press('x'), true);
+});
+
+test('an editor without a limit has no change hook to release', () => {
+    const handler = loadHandler();
+    const editor = makeLimitedEditor(handler, 0, '<p>a</p>');
+    let released = false;
+    editor.e = {off() { released = true; }};
+    handler.releaseChangeLimit(editor);
+    assert.equal(released, false);
+});
+
+test('the counter goes negative and red on a value loaded over the limit', () => {
+    const editor = countCharacters(20, '');
+    editor.text = 'a'.repeat(32);
+    editor.fire('change');
+    assert.deepEqual([editor.counter.textContent, editor.counter.style.color, editor.o.limitChars],
+                     ['Remaining: -12', 'red', 20]);
+    editor.text = 'a'.repeat(5);
+    editor.fire('keyup');
+    assert.deepEqual([editor.counter.textContent, editor.counter.style.color, editor.o.limitChars],
+                     ['Remaining: 15', '', 20]);
+});

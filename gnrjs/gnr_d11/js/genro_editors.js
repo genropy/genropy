@@ -1840,6 +1840,7 @@ dojo.declare("gnr.widgets.joditEditor", gnr.widgets.baseExternalWidget, {
             editor.gnr_contentStyles(joditAttrs.contentStyles);
             editor.gnr_bodyStyle(joditAttrs.bodyStyle);
             that.setupFieldDrop(editor);
+            that.releaseChangeLimit(editor);
             that.setupCharCounter(editor);
         });
     },
@@ -2005,6 +2006,17 @@ dojo.declare("gnr.widgets.joditEditor", gnr.widgets.baseExternalWidget, {
     // which adds a newline between blocks that the plugin strips before comparing.
     textLength: function(editor) {
         return (editor.text || '').replace(/[\uFEFF\r\n]/g, '').length;
+    },
+    // The limit plugin reverts the whole value on its change hook, and that hook fires on
+    // a programmatic assignment too: a value loaded over the limit would be refused, and
+    // an over-limit record would be frozen, the revert undoing a deletion as well. Only
+    // that listener goes: the key guard still blocks typing at the limit (its COMMAND_KEYS
+    // exemption is what lets an over-limit record be deleted back under it) and
+    // afterPaste.limit still refuses a paste that does not fit.
+    releaseChangeLimit: function(editor) {
+        if(editor.o.limitChars){
+            editor.e.off('change.limit');
+        }
     },
     // limitChars blocks typing at the limit without saying how much is left:
     // the budget takes the place of the Jodit counters switched off with it.
