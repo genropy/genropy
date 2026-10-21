@@ -4,8 +4,23 @@ const path = require('node:path');
 const {test} = require('node:test');
 const vm = require('node:vm');
 
+// the browser's DOMParser as far as a title check reads it: the text outside the tags
+class TextParser {
+    parseFromString(html) {
+        let text = '';
+        let inTag = false;
+        for (const ch of String(html)) {
+            if (ch === '<') inTag = true;
+            else if (ch === '>') inTag = false;
+            else if (!inTag) text += ch;
+        }
+        return {body: {textContent: text.split('&nbsp;').join('\u00a0')}};
+    }
+}
+
+
 function loadGrid() {
-    const context = {console, File: function() {}, gnr: {}, genro: {}, setTimeout,
+    const context = {console, File: function() {}, gnr: {}, genro: {}, setTimeout, DOMParser: TextParser,
                      dijit: {getEnclosingWidget: () => null}};
     context.dojo = {
         Deferred: function() {

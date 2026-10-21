@@ -353,8 +353,10 @@ gnr.GroupletCard = class GroupletCard {
 
     static renderTitle(dom, compiled, row, label) {
         // a row whose own fields are blank shows its label: its sums alone are no title
+        // read as text by a parser that neither runs scripts nor loads images
         const own = compiled && gnr.GroupletCard.renderTemplate(compiled, row, false);
-        if (own && own.replace(/<[^>]*>|&nbsp;/g, '').trim()) {
+        const ownText = own && new DOMParser().parseFromString(own, 'text/html').body.textContent;
+        if (ownText && ownText.trim()) {
             dom.innerHTML = gnr.GroupletCard.renderTemplate(compiled, row);
             return;
         }

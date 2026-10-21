@@ -4,6 +4,21 @@ const path = require('node:path');
 const {test} = require('node:test');
 const vm = require('node:vm');
 
+// the browser's DOMParser as far as a title check reads it: the text outside the tags
+class TextParser {
+    parseFromString(html) {
+        let text = '';
+        let inTag = false;
+        for (const ch of String(html)) {
+            if (ch === '<') inTag = true;
+            else if (ch === '>') inTag = false;
+            else if (!inTag) text += ch;
+        }
+        return {body: {textContent: text.split('&nbsp;').join('\u00a0')}};
+    }
+}
+
+
 class FakeElement {
     constructor(tag) {
         this.tagName = tag.toUpperCase();
@@ -47,6 +62,7 @@ class FakeElement {
 
 function loadCard() {
     const context = {console, File: function() {}, gnr: {}, genro: {wdg: {getHandler: () => null}, safeHtmlContent: (v) => v}, setTimeout,
+                     DOMParser: TextParser,
                      dijit: {getEnclosingWidget: () => null},
                      document: {createElement: (tag) => new FakeElement(tag)}};
     context.dojo = {
