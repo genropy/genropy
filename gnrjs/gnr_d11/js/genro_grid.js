@@ -1182,7 +1182,7 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
             rows.forEach(function(attrs){
                 b.setItem('#id',null,attrs);
             })
-            navigator.clipboard.writeText(b.toXml());
+            genro.textToClipboard(b.toXml());
         }
         menu.setItem('#id',null,{caption:_T('Copy selected rows'),action:copyrows});
     },

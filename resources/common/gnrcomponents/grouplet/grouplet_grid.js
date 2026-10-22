@@ -1096,9 +1096,11 @@ gnr.GroupletGridController = class GroupletGridController {
         // True, False, or '^path' / '=path' / '==expr' (over the row's fields)
         // read as the row's menu opens
         this.delitem = kw.delitem || false;
+        this.copyitem = kw.copyitem || false;
         this.editmenu = (kw.editmenu === undefined) ? false : kw.editmenu;
         this.additemKw = kw.additem_kw || {};
         this.delitemKw = kw.delitem_kw || {};
+        this.copyitemKw = kw.copyitem_kw || {};
         this.editmenuKw = kw.editmenu_kw || {};
         this.defaultRow = kw.defaultRow;
         this.minRows = kw.minRows || 0;
@@ -4647,6 +4649,7 @@ gnr.GroupletGridTile = class GroupletGridTile {
         this.isActive = false;
         this.isDragging = false;
         this.hasDelete = false;
+        this.hasCopy = false;
         this.editmenuSpec = null;
         this.dragEnabled = false;
         this.position = null;
@@ -4792,6 +4795,7 @@ gnr.GroupletGridTile = class GroupletGridTile {
         this.delitem = ('delitem' in this.profile) ? this.profile.delitem : c.delitem;
         // template rows are deleted from the entry row
         this.hasDelete = !!this.delitem && !c.rowTemplate;
+        this.hasCopy = !!c.copyitem && !c.rowTemplate;
         this.dragEnabled = !!c.dragCode;
         const editmenu = c.editmenu;
         this.editmenuSpec = (editmenu && typeof editmenu === 'object'
@@ -4829,7 +4833,7 @@ gnr.GroupletGridTile = class GroupletGridTile {
             nodeId: this.tileNodeId,
             connect_onclick: function(evt) {
                 const onChrome = evt && evt.target && evt.target.closest
-                    && evt.target.closest('.grouplet_grid_row_delete,'
+                    && evt.target.closest('.grouplet_grid_row_delete,.grouplet_grid_row_copy,'
                         + '.grouplet_grid_row_kebab,.grouplet_grid_row_drag,'
                         + '.grouplet_grid_row_check,.grouplet_grid_row_collapse,'
                         + '.grouplet_card_chevron,.grouplet_card_doc,'
@@ -5061,17 +5065,35 @@ gnr.GroupletGridTile = class GroupletGridTile {
     }
 
     _mountChrome() {
-        if (!this.card) this._mountDelete();
+        if (!this.card) {
+            this._mountDelete();
+            this._mountCopy();
+        }
         this._mountKebab();
+    }
+
+    _toolClass(baseClass, tool) {
+        // the right-hand tools sit side by side, slot 0 at the edge; a
+        // card's kebab stays apart, halfway down the card
+        const tools = [];
+        if (this.controller.structAdapter && this.editmenuSpec) tools.push('kebab');
+        if (this.hasDelete) tools.push('delete');
+        if (this.hasCopy) tools.push('copy');
+        const slot = tools.indexOf(tool);
+        return slot > 0 ? baseClass + ' grouplet_grid_tool_slot_' + slot : baseClass;
     }
 
     _destroyChrome() {
         const content = this.tileContent && this._chromeContent();
         if (!content) return;
         const delLabel = '_grtile_del_' + this.pkey;
+        const copyLabel = '_grtile_copy_' + this.pkey;
         const kebabLabel = '_grtile_kebab_' + this.pkey;
         if (content.getNode(delLabel, 'static')) {
             content.popNode(delLabel);
+        }
+        if (content.getNode(copyLabel, 'static')) {
+            content.popNode(copyLabel);
         }
         if (content.getNode(kebabLabel, 'static')) {
             content.popNode(kebabLabel);
@@ -5083,17 +5105,35 @@ gnr.GroupletGridTile = class GroupletGridTile {
         const c = this.controller;
         const pkey = this.pkey;
         const topic = c.actionTopic;
+        const delClass = this._toolClass('grouplet_grid_row_delete', 'delete');
         const delKw = objectUpdate({
-            _class: 'grouplet_grid_row_delete',
+            _class: delClass,
             tip: _T('!!Delete row'),
             connect_onclick: "genro.publish('" + topic + "',"
                             + "{action:'delete',rowKey:'" + pkey + "'});"
         }, c.delitemKw || {});
         if (c.delitemKw && c.delitemKw._class) {
-            delKw._class = 'grouplet_grid_row_delete '
-                         + c.delitemKw._class;
+            delKw._class = delClass + ' ' + c.delitemKw._class;
         }
         this.tileContent._('div', '_grtile_del_' + pkey, delKw);
+    }
+
+    _mountCopy() {
+        if (!this.hasCopy) return;
+        const c = this.controller;
+        const pkey = this.pkey;
+        const topic = c.actionTopic;
+        const copyClass = this._toolClass('grouplet_grid_row_copy', 'copy');
+        const copyKw = objectUpdate({
+            _class: copyClass,
+            tip: _T('!!Copy row'),
+            connect_onclick: "genro.publish('" + topic + "',"
+                            + "{action:'copy',rowKey:'" + pkey + "'});"
+        }, c.copyitemKw || {});
+        if (c.copyitemKw && c.copyitemKw._class) {
+            copyKw._class = copyClass + ' ' + c.copyitemKw._class;
+        }
+        this.tileContent._('div', '_grtile_copy_' + pkey, copyKw);
     }
 
     _mountKebab() {
@@ -5129,7 +5169,8 @@ gnr.GroupletGridTile = class GroupletGridTile {
                       + "{action:'delete',rowKey:'" + pkey + "'});"
             }
         };
-        const kebabClass = this.card ? 'grouplet_card_kebab' : 'grouplet_grid_row_kebab';
+        const kebabClass = this.card ? 'grouplet_card_kebab'
+                                     : this._toolClass('grouplet_grid_row_kebab', 'kebab');
         const kebabKw = objectUpdate({
             _class: kebabClass,
             tip: _T('!!Row actions'),
@@ -5224,6 +5265,7 @@ gnr.GroupletGridPhantomTile = class GroupletGridPhantomTile extends gnr.Grouplet
 
     _resolveDecorations() {
         this.hasDelete = false;
+        this.hasCopy = false;
         this.dragEnabled = false;
         this.editmenuSpec = null;
     }

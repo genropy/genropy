@@ -1366,7 +1366,7 @@ dojo.declare("gnr.GnrFrmHandler", null, {
         local_clipboard = local_clipboard.deepCopy();
         let envelope = new gnr.GnrBag();
         envelope.addItem(genro.pageHash+'_'+this.formId,local_clipboard);
-        navigator.clipboard.writeText(envelope.toXml());
+        genro.textToClipboard(envelope.toXml());
     },
 
     updateFromClipboard:function(){

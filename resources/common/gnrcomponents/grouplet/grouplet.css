@@ -508,6 +508,7 @@
     --gg-entry-btn-bg: var(--entry-btn-bg, rgba(0, 0, 0, 0.07));
     --gg-entry-btn-hover-bg: var(--entry-btn-hover-bg, rgba(0, 0, 0, 0.13));
     --gg-trash-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M6 1h4l.5 1H14v1.5H2V2h3.5zM3 5h10l-.8 9.2a1 1 0 0 1-1 .8H4.8a1 1 0 0 1-1-.8zm3 2v6h1.2V7zm2.8 0v6H10V7z'/%3E%3C/svg%3E");
+    --gg-copy-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill-rule='evenodd' d='M5 4h8a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1zm.5 1.5v8h7v-8zM3 1h8v1.5H3.5V11H2V2a1 1 0 0 1 1-1z'/%3E%3C/svg%3E");
     --gg-pin-icon: var(--icon-pin);
     --gg-text-muted: var(--text-secondary, #6b7280);
     /* struct= chrome (Item 12): dark header strip + spreadsheet-style
@@ -797,8 +798,10 @@
 /* Per-row delete button — opt-in via `delitem=True`: a light trash at
    the top-right corner of the card, red on hover. Always visible (no
    hover gate). Click publishes {action:'delete', rowKey} on the action
-   topic. The icon is a mask over `--x-color`, centred on the box. */
-.grouplet_grid_row_delete {
+   topic. The icon is a mask over `--x-color`, centred on the box.
+   `copyitem=True` adds its twin, publishing {action:'copy', rowKey}. */
+.grouplet_grid_row_delete,
+.grouplet_grid_row_copy {
     position: absolute;
     top: 6px;
     right: 6px;
@@ -815,7 +818,8 @@
     --x-color: var(--gg-text-muted, #9ca3af);
 }
 
-.grouplet_grid_row_delete::before {
+.grouplet_grid_row_delete::before,
+.grouplet_grid_row_copy::before {
     content: '';
     position: absolute;
     top: 50%;
@@ -828,20 +832,52 @@
     mask: var(--gg-trash-icon) center / contain no-repeat;
 }
 
+.grouplet_grid_row_copy::before {
+    -webkit-mask-image: var(--gg-copy-icon);
+    mask-image: var(--gg-copy-icon);
+}
+
 .grouplet_grid_row_delete:hover {
     background: var(--gg-danger-soft);
     --x-color: var(--gg-danger, #dc2626);
 }
 
-.gg-flat-rows .grouplet_grid_row_delete {
+.grouplet_grid_row_copy:hover {
+    background: var(--gg-accent-soft);
+    --x-color: var(--gg-accent);
+}
+
+.gg-flat-rows .grouplet_grid_row_delete,
+.gg-flat-rows .grouplet_grid_row_copy {
     display: none;
 }
 
-/* Struct-mode rows are flat / one-line tall — the default top:6px
-   anchor reads too high. Vertically centre the delete on the row instead. */
-.grouplet_grid--struct .grouplet_grid_row_delete {
+/* A card's top-right corner holds the trash, then the copy on its left */
+.grouplet_grid_row_copy.grouplet_grid_tool_slot_1 {
+    right: 30px;
+}
+
+/* Struct-mode rows are flat / one-line tall: the kebab, the trash and
+   the copy line up vertically centred, side by side from the right edge
+   (slot classes set by the tile); the row, header and footer reserve
+   the room of every tool so their columns keep aligned. Offsets in px:
+   the trash and the copy have font-size 0. */
+.grouplet_grid--struct .grouplet_grid_row_delete,
+.grouplet_grid--struct .grouplet_grid_row_copy,
+.grouplet_grid--struct .grouplet_grid_row_kebab {
     top: 50%;
+    right: 4px;
+    width: 20px;
+    height: 20px;
     transform: translateY(-50%);
+}
+
+.grouplet_grid--struct .grouplet_grid_tool_slot_1 {
+    right: 26px;
+}
+
+.grouplet_grid--struct .grouplet_grid_tool_slot_2 {
+    right: 48px;
 }
 
 /* Subtle delete — opt-in via `delitem_class='grouplet_grid_row_delete--subtle'`.
@@ -1784,6 +1820,18 @@ body.drag_started .grouplet_grid_container {
 }
 .grouplet_grid--struct .grouplet_grid__struct_row {
     padding: 0 2em 0 1.8em;
+}
+
+.grouplet_grid--struct.grouplet_grid--tools-2 .grouplet_grid__struct_row,
+.grouplet_grid--struct.grouplet_grid--tools-2 > .grouplet_grid_slot_top > .grouplet_grid__struct_header,
+.grouplet_grid--struct.grouplet_grid--tools-2 > .grouplet_grid_slot_bottom > .grouplet_grid__struct_footer {
+    padding-right: 52px;
+}
+
+.grouplet_grid--struct.grouplet_grid--tools-3 .grouplet_grid__struct_row,
+.grouplet_grid--struct.grouplet_grid--tools-3 > .grouplet_grid_slot_top > .grouplet_grid__struct_header,
+.grouplet_grid--struct.grouplet_grid--tools-3 > .grouplet_grid_slot_bottom > .grouplet_grid__struct_footer {
+    padding-right: 74px;
 }
 
 /* Totalize footer: emitted by the adapter only when at least one cell

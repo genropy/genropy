@@ -16,10 +16,13 @@
   also from a field with no text selected.
 
   test_01_struct  — a grid with a checkbox column among the others; turn
-                    the row checkboxes on and off above it.
+                    the row checkboxes, the trash (delitem) and the copy
+                    button (copyitem) on and off above it: the trash, the
+                    copy and the kebab line up at the end of the row.
   test_02_cards   — cards: their chrome band holds the checkbox and the
                     kebab (Copy, Delete in red); drag a card by its band. Pick the band's side and the card
-                    width above the grid.
+                    width above the grid; with the corner chrome the copy
+                    button sits left of the trash.
   test_03_entry   — one-line rows edited in the entry row.
 """
 from gnr.core.gnrbag import Bag
@@ -40,10 +43,16 @@ class GnrCustomWebPage(object):
                                               unit_price=price)))
         pane.data('.shopping', rows)
         pane.data('.rowCheckbox', True)
-        pane.checkbox(value='^.rowCheckbox', label='Checkboxes', margin_bottom='8px')
-        pane.div(min_height='1px').remote('structCase', rowCheckbox='^.rowCheckbox')
+        pane.data('.delitem', True)
+        pane.data('.copyitem', True)
+        bar = pane.div(display='flex', gap='1em', margin_bottom='8px')
+        bar.checkbox(value='^.rowCheckbox', label='Checkboxes')
+        bar.checkbox(value='^.delitem', label='Delete button')
+        bar.checkbox(value='^.copyitem', label='Copy button')
+        pane.div(min_height='1px').remote('structCase', rowCheckbox='^.rowCheckbox',
+                                          delitem='^.delitem', copyitem='^.copyitem')
 
-    def remote_structCase(self, pane, rowCheckbox=None, **kwargs):
+    def remote_structCase(self, pane, rowCheckbox=None, delitem=None, copyitem=None, **kwargs):
         def struct(struct):
             r = struct.view().rows()
             r.cell('item', name='Item', width='100%', edit=True)
@@ -56,7 +65,8 @@ class GnrCustomWebPage(object):
 
         pane.groupletGrid(storepath='.shopping', struct=struct,
                           nodeId='cp_struct', additem='phantom',
-                          delitem=False, editmenu=True, rowCheckbox=rowCheckbox,
+                          delitem=bool(delitem), copyitem=bool(copyitem), editmenu=True,
+                          rowCheckbox=rowCheckbox,
                           selectionmenu=dict(copy=True, delete=True),
                           defaultRow=dict(bought=False, qty=1, unit_price=0))
 
@@ -70,19 +80,21 @@ class GnrCustomWebPage(object):
         pane.data('.contacts', contacts)
         pane.data('.chromeSide', 'top')
         pane.data('.min_width', '18em')
+        pane.data('.copyitem', True)
         bar = pane.div(display='flex', gap='1em', margin_bottom='8px')
         bar.filteringSelect(value='^.chromeSide', lbl='Band',
                             values='top:Top,left:Left,right:Right,none:None (corner chrome)')
         bar.filteringSelect(value='^.min_width', lbl='Card width',
                             values='12em:Narrow,18em:Medium,36em:Wide')
+        bar.checkbox(value='^.copyitem', label='Copy button')
         pane.div(min_height='1px').remote('cardsCase', chromeSide='^.chromeSide',
-                                          min_width='^.min_width')
+                                          min_width='^.min_width', copyitem='^.copyitem')
 
-    def remote_cardsCase(self, pane, chromeSide=None, min_width=None, **kwargs):
+    def remote_cardsCase(self, pane, chromeSide=None, min_width=None, copyitem=None, **kwargs):
         pane.groupletGrid(storepath='.contacts', handler=self.contact_card,
                           nodeId='cp_cards', cols=4, min_width=min_width,
                           chromeSide=False if chromeSide == 'none' else chromeSide,
-                          rowCheckbox=True, collapsible=True,
+                          rowCheckbox=True, collapsible=True, copyitem=bool(copyitem),
                           collapsedTemplate='$name ($role)',
                           defaultRow=dict(name='', role='', phone=''))
 

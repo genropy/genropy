@@ -2,6 +2,7 @@ from pathlib import Path
 
 import pytest
 
+from gnr.core.gnrbag import Bag
 from gnr.core.gnrlang import gnrImport
 from gnr.web.gnrwebstruct import GnrDomSrc, GnrDomSrc_dojo_11
 
@@ -44,6 +45,9 @@ def card_page():
 
         def resolveResourceUri(self, fpath, add_mtime=False, pkg=None):
             return '/_rsrc/' + Path(fpath).name
+
+        def newGridStruct(self, maintable=None):
+            return Bag()
 
     yield Page()
     GnrDomSrc._external_methods.clear()
@@ -157,3 +161,37 @@ def test_use_form_takes_a_handler_by_name_and_needs_one(card_page):
     assert nodes_by_tag(root, 'groupletform')[0].attr['store_autoSave'] == 1
     with pytest.raises(StructError):
         card_page.gr_groupletCard(root.div(), useForm=True)
+
+
+def grid_controller(root):
+    return [n for n in nodes_by_tag(root, 'datacontroller')
+            if 'GroupletGridController' in n.attr.get('script', '')][0]
+
+
+def test_copyitem_takes_the_copy_out_of_the_kebab(card_page):
+    root = GnrDomSrc_dojo_11.makeRoot(card_page)
+    card_page.gr_groupletGrid(root, storepath='.rows', resource='row', nodeId='g1', editmenu=True)
+    controller = grid_controller(root)
+    assert controller.attr['copyitem'] is False
+    assert controller.attr['editmenu'] == {'addPrev': True, 'addNext': True, 'copy': True}
+    root = GnrDomSrc_dojo_11.makeRoot(card_page)
+    card_page.gr_groupletGrid(root, storepath='.rows', resource='row', nodeId='g2', editmenu=True,
+                              copyitem=True, copyitem__class='grouplet_grid_row_delete--subtle')
+    controller = grid_controller(root)
+    assert controller.attr['copyitem'] is True
+    assert controller.attr['copyitem_kw'] == {'_class': 'grouplet_grid_row_delete--subtle'}
+    assert controller.attr['editmenu'] == {'addPrev': True, 'addNext': True}
+
+
+@pytest.mark.parametrize('tools, flavour', [
+    (dict(), None),
+    (dict(editmenu=True), 'grouplet_grid--tools-2'),
+    (dict(editmenu=True, copyitem=True), 'grouplet_grid--tools-3'),
+    (dict(delitem=False, copyitem=True), None),
+])
+def test_struct_rows_reserve_the_room_of_their_tools(card_page, tools, flavour):
+    root = GnrDomSrc_dojo_11.makeRoot(card_page)
+    card_page.gr_groupletGrid(root, storepath='.rows', struct=lambda struct: None, nodeId='g1', **tools)
+    classes = nodes_by_tag(root, 'div')[0].attr['_class'].split()
+    assert 'grouplet_grid--struct' in classes
+    assert [c for c in classes if c.startswith('grouplet_grid--tools-')] == ([flavour] if flavour else [])

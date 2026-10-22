@@ -2058,7 +2058,17 @@ dojo.declare('gnr.GenroClient', null, {
     },
 
     textToClipboard:function(txt,cb){
-        let promise = navigator.clipboard.writeText(txt); 
+        // resolves true once copied, false (after telling the user) when refused
+        let promise = (navigator.clipboard && window.isSecureContext)
+            ? navigator.clipboard.writeText(txt).then(() => true, () => false)
+            : Promise.resolve(genro._textToClipboardFallback(txt));
+        promise = promise.then(function(copied){
+            if(!copied){
+                genro.dlg.floatingMessage(genro.nodeById('_gnrRoot'),
+                                          {message:_T('!!Copy to clipboard failed'),messageType:'error'});
+            }
+            return copied;
+        });
         if(cb){
             if(typeof(cb)=='string'){
                 let message = cb;
@@ -2066,9 +2076,30 @@ dojo.declare('gnr.GenroClient', null, {
                     genro.dlg.floatingMessage(genro.nodeById('_gnrRoot'),{message:message});
                 }
             }
-            promise.then(cb);
+            promise.then(function(copied){
+                if(copied){
+                    cb();
+                }
+            });
         }
         return promise;
+    },
+
+    _textToClipboardFallback:function(txt){
+        // navigator.clipboard exists only in secure contexts (https, localhost)
+        let ta = document.createElement('textarea');
+        ta.value = txt;
+        ta.style.cssText = 'position:fixed;left:-9999px';
+        document.body.appendChild(ta);
+        ta.select();
+        let copied = false;
+        try{
+            copied = document.execCommand('copy');
+        }catch(e){
+            copied = false;
+        }
+        document.body.removeChild(ta);
+        return copied;
     },
 
     getFormChanges: function(formId) {

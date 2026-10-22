@@ -1637,7 +1637,7 @@ dojo.declare("gnr.GnrDomHandler", null, {
         var whatDomNode = this.getDomNode(what);
         let str = whatDomNode.textContent;
         genro.dom.addClass(whatDomNode,'copyingContent');
-        navigator.clipboard.writeText(str).then(function(){
+        genro.textToClipboard(str).then(function(){
             setTimeout(function(){
                 genro.dom.removeClass(whatDomNode,'copyingContent');
             },500);
