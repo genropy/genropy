@@ -404,3 +404,44 @@ table.formbuilder {
     padding-top: 2em;
     border-radius: var(--radius-sm);
 }
+
+/* --- Doc popup (genro.dlg.docPopup): one for the page --- */
+.doc_popup_box {
+    padding: 10px 12px;
+}
+.doc_popup_title {
+    font-weight: 600;
+    margin-bottom: 0.4em;
+}
+.doc_popup_body {
+    max-width: 32em;
+    max-height: 60vh;
+    overflow: auto;
+    line-height: 1.45;
+    font-size: 0.92em;
+}
+.doc_popup_body img {
+    max-width: 100%;
+    height: auto;
+}
+.doc_popup_body :is(p, ul, ol) {
+    margin: 0.4em 0;
+}
+.doc_popup_body code {
+    padding: 0 0.25em;
+    border-radius: 3px;
+    background: var(--surface-alt, #f3f4f6);
+    font-size: 0.95em;
+}
+.doc_popup_frame {
+    display: block;
+    width: 32em;
+    max-width: 80vw;
+    height: 60vh;
+    border: 0;
+}
+.doc_popup_open {
+    display: inline-block;
+    margin-top: 0.5em;
+    font-size: 0.85em;
+}

@@ -770,7 +770,8 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
                     that.saveHelper(value);
                 },dflt:dflt,onEnter:null});
         }else{
-            let helperValue = this.getHelperValue()
+            genro.dlg.docPopup(helperButtonNode.domNode, {text: this.getHelperValue(),
+                title: this._labelNode && this._labelNode.domNode ? this._labelNode.domNode.innerHTML : null});
         }
     },
     saveHelper:function(value,custom){

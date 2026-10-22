@@ -772,6 +772,7 @@ class GnrWebPage(GnrBaseWebPage):
             path = self.getResource(relpath,pkg=customizationPackage or self.package)
         data = Bag(path) if os.path.exists(path) else Bag()
         data.setAttr(helpcode,{self.language:value})
+        os.makedirs(os.path.dirname(path), exist_ok=True)
         data.toXml(path)
     
     @public_method

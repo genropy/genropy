@@ -8,7 +8,7 @@ gnr.GroupletCard = class GroupletCard {
 
     // kw: {tools, rootDom: () => dom,
     //      collapse: {isCollapsed, toggle, expand}, collapsedClasses,
-    //      title: (dom) => void, doc: {html: (cb) => void},
+    //      title: (dom) => void, doc: {html: (cb) => void, address},
     //      checkbox: {isChecked, onClick(e), onKeydown(e)},
     //      drag: {start(e), end()}}
     constructor(kw) {
@@ -184,7 +184,7 @@ gnr.GroupletCard = class GroupletCard {
 
     openDoc(domNode) {
         const title = this.titleDom ? this.titleDom.innerHTML : '';
-        this.doc.html((html) => gnr.GroupletCard.showDoc(domNode, title, html));
+        this.doc.html((html) => genro.dlg.docPopup(domNode, {title: title, html: html, address: this.doc.address}));
     }
 
     applyCollapsed(collapsed, animate = false) {
@@ -241,24 +241,16 @@ gnr.GroupletCard = class GroupletCard {
                  && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
     }
 
-    static showDoc(domNode, title, html) {
-        // one popup for the whole page, moved to the icon clicked
-        genro.dlg.quickTooltipPane({nodeId: 'grouplet_card_doc', domNode: domNode,
-                                    _class: 'grouplet_card_doc_pane'}, (pane) => {
-            const box = pane._('div', {_class: 'grouplet_card_doc_box'});
-            if (title) box._('div', {_class: 'grouplet_card_doc_title', innerHTML: title});
-            box._('div', {_class: 'grouplet_card_doc_body', innerHTML: html || ''});
-        });
-        // the focus is in the popup: Esc is heard on the document while it is open
+    static docHtml(address, compiled, row, docKw, cb) {
+        // a doc served at an address is fetched as the popup first opens
         const Card = gnr.GroupletCard;
-        if (Card._docEscape) return;
-        Card._docEscape = (e) => {
-            if (e.key !== 'Escape') return;
-            document.removeEventListener('keydown', Card._docEscape, true);
-            Card._docEscape = null;
-            genro.publish('grouplet_card_doc_opener_close', {evt: e});
-        };
-        document.addEventListener('keydown', Card._docEscape, true);
+        if (compiled || !address) {
+            cb(Card.renderDoc(compiled, row(), docKw));
+            return;
+        }
+        genro.dlg.docSource(address, (source) => {
+            cb(source ? Card.renderDoc(Card.compileTemplate(source.html), row(), docKw) : '');
+        });
     }
 
     static buildKebab(host, label, editmenu, presets, kebabKw, iconClass) {
@@ -414,8 +406,9 @@ gnr.GroupletCardHost = class GroupletCardHost {
                 expand: () => host.setCollapsed(false)
             } : null,
             title: (dom) => host.renderTitle(dom),
-            doc: this.docTemplate ? {
-                html: (cb) => cb(Card.renderDoc(host.docTemplate, host.data(), kw.doc_kw))
+            doc: (this.docTemplate || kw.doc_address) ? {
+                address: kw.doc_address,
+                html: (cb) => Card.docHtml(kw.doc_address, host.docTemplate, () => host.data(), kw.doc_kw, cb)
             } : null,
             checkbox: this.checkboxPath ? {
                 isChecked: () => !!genro.getData(host.checkboxPath),

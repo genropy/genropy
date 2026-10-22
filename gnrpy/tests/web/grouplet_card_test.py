@@ -1,4 +1,5 @@
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -27,6 +28,7 @@ def card_page():
         filepath = __file__
         application = Application()
         maintable = None
+        package = SimpleNamespace(name='test')
         pageOptions = {}
         resource_info = ({}, None)
 
@@ -94,11 +96,21 @@ def test_the_profile_is_the_resource_card_then_the_caller(card_page, tmp_path):
     assert kw['collapsible'] is True
     assert kw['delitem'] is True
     assert kw['template'] == '$city', 'the resource template is the title of last resort'
-    assert kw['doc']['template'] == '<p>$city</p><img src="/_rsrc/zones.svg"><img src="https://x/y.png">'
+    assert (kw['doc'], kw['doc_address']) == (None, 'grouplet:test:address'), 'read at sys/ep_doc as it opens'
     assert root.getNode('#0').value.getNode('#0').attr['path'] == '#WORKSPACE.collapsed'
     grouplet = nodes_by_tag(root, 'grouplet')[0]
     assert grouplet.attr['resource'] == 'address'
     assert grouplet.attr['value'] == '^.'
+
+
+def test_a_doc_out_of_the_grouplets_root_stays_in_the_page(card_page, tmp_path):
+    (tmp_path / 'address_doc.html').write_text('<p>$city</p><img src="zones.svg"><img src="https://x/y.png">')
+    card_page.resource_info = (dict(card=dict(doc='file:address_doc.html')), str(tmp_path / 'address.py'))
+    root = GnrDomSrc_dojo_11.makeRoot(card_page)
+    card_page.gr_groupletCard(root, resource='address', grouplets_root='custom', datapath='.address')
+    kw = host_kw(root)
+    assert kw['doc_address'] is None
+    assert kw['doc']['template'] == '<p>$city</p><img src="/_rsrc/zones.svg"><img src="https://x/y.png">'
 
 
 def test_a_bound_state_is_watched_where_the_caller_placed_the_card(card_page):

@@ -47,6 +47,23 @@ Marshaller.dispatch[Decimal] = dump_decimal
 Marshaller.dispatch[datetime.date] = dump_date
 
 
+class EndpointPermission(BaseComponent):
+    """An endpoint answers only a registered calling page of a logged user"""
+
+    def checkEndpointPermission(self, tags=None, _current_page_id=None, _calling_page_id=None, **kwargs):
+        page_item = self.site.register.page(_current_page_id or _calling_page_id, include_data='lazy')
+        if not page_item:
+            raise GnrUserNotAllowed
+        user = page_item['user'] or 'guest_'
+        if user.startswith('guest_'):
+            raise GnrUserNotAllowed
+        if tags:
+            user_tags = self.db.application.getAvatar(user, authenticate=False).user_tags
+            if not self.db.application.checkResourcePermission(tags, user_tags):
+                raise GnrUserNotAllowed
+        return page_item
+
+
 class BaseRpc(BaseComponent):
     convert_result = True
     skip_connection = True

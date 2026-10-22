@@ -4894,9 +4894,10 @@ gnr.GroupletGridTile = class GroupletGridTile {
             // the summary line's title, shown in the band open or folded
             title: (profile.title || c.titleField)
                 ? (dom) => c._renderTitle(dom, profile.title, pkey) : null,
-            doc: profile.docTemplate ? {
-                html: (cb) => cb(gnr.GroupletCard.renderDoc(profile.docTemplate,
-                                                             c.dataStore.rowValue(pkey), profile.doc_kw))
+            doc: (profile.docTemplate || profile.doc_address) ? {
+                address: profile.doc_address,
+                html: (cb) => gnr.GroupletCard.docHtml(profile.doc_address, profile.docTemplate,
+                                                       () => c.dataStore.rowValue(pkey), profile.doc_kw, cb)
             } : null,
             collapsedClasses: ['grouplet_grid_row--collapsed', 'grouplet_card--collapsed'],
             collapse: c.collapsible ? {

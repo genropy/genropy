@@ -6,7 +6,6 @@ Copyright (c) 2008 Softwell. All rights reserved.
 """
 
 from gnr.core.gnrdecorator import public_method
-from gnr.core.gnrbag import Bag
 
 class GnrCustomWebPage(object):
     py_requires='gnrcomponents/externalcall:BaseRpc'
@@ -14,17 +13,9 @@ class GnrCustomWebPage(object):
     @public_method
     def rst(self,*args,**kwargs):
         language = kwargs.get('selected_language') or self.language
-        doctable = self.db.table('docu.documentation')
-        pkey,docbag = doctable.readColumns(columns='$id,$docbag',
-                                                    where='$hierarchical_name=:hname',
-                                                    hname='/'.join(args))
-        
-        docbag = Bag(docbag)
-        rst = docbag['%s.rst' %language] or docbag['en.rst'] or docbag['it.rst'] or 'To do...'
-        rsttable = doctable.dfAsRstTable(pkey)
-        if rsttable:
-
-            rst = '%s\n\n**Parameters:**\n\n%s' %(rst,rsttable) 
+        doc = self.db.table('docu.documentation').documentRst('/'.join(args), language=language,
+                                                              placeholder='To do...')
+        rst = doc['rst'] if doc else 'To do...'
         js_script_url= self.site.getStaticUrl('rsrc:common','localiframe.js',nocache=True)
 
         return self.site.getService('rst2html')(rst,scripts=[js_script_url])

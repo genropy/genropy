@@ -135,9 +135,10 @@ class GroupletHandler(BaseComponent):
             result['virtual_columns'] = info['template_virtual_columns']
         return result
 
-    def _gr_resourceInfo(self, resource=None, table=None, grouplets_root=None):
+    def _gr_resourceInfo(self, resource=None, table=None, grouplets_root=None, pkg=None):
         """The `__info__` of a grouplet resource (of its topic for a folder)
-        and the path of the file declaring it"""
+        and the path of the file declaring it; without a table it is looked
+        up in `pkg`, if given, and among the page's resources"""
         grouplets_root = grouplets_root or 'grouplets'
         clean_resource = resource.split(':')[0] if ':' in resource else resource
         if '/' in clean_resource:
@@ -154,6 +155,9 @@ class GroupletHandler(BaseComponent):
             resources.update(self.site.resource_loader.resourcesAtPath(
                 page=self, path=f'tables/_packages/{pkg}/{tblname}/{search_path}'))
         else:
+            if pkg:
+                resources.update(self.site.resource_loader.resourcesAtPath(
+                    page=self, pkg=pkg, path=search_path))
             resources.update(self.site.resource_loader.resourcesAtPath(
                 page=self, path=search_path))
         node = resources.getNode(name)
@@ -170,7 +174,8 @@ class GroupletHandler(BaseComponent):
 
     def _gr_cardInfo(self, resource=None, table=None, grouplets_root=None):
         """The card profile a grouplet resource declares: `card=dict(...)` in
-        its `__info__`, its `template` as the title of last resort"""
+        its `__info__`, its `template` as the title of last resort. Its doc
+        becomes the address sys/ep_doc serves it at, read as the doc opens"""
         if not resource:
             return {}
         info, abs_path = self._gr_resourceInfo(resource=resource, table=table,
@@ -178,11 +183,14 @@ class GroupletHandler(BaseComponent):
         card = dict(info.get('card') or {})
         if info.get('template'):
             card.setdefault('template', info['template'])
-        if card.get('doc'):
+        if card.get('doc') and grouplets_root:
             card['doc'] = self._gr_cardDoc(card['doc'], abs_path=abs_path, table=table)
+        elif card.get('doc'):
+            card.pop('doc')
+            card['doc_address'] = f'grouplet:{table or self.package.name}:{resource}'
         return card
 
-    def _gr_cardDoc(self, doc, abs_path=None, table=None):
+    def _gr_cardDoc(self, doc, abs_path=None, table=None, pkg=None):
         """A doc given as `file:name.html` is read next to the resource (among
         the resources without one), its relative image paths made urls; any
         other doc is the template itself"""
@@ -196,7 +204,7 @@ class GroupletHandler(BaseComponent):
         with open(path, encoding='utf-8') as f:
             html = f.read()
         folder = os.path.dirname(path)
-        pkg = table.split('.')[0] if table else None
+        pkg = table.split('.')[0] if table else pkg
 
         def url(match):
             src = os.path.normpath(os.path.join(folder, match.group(2)))
@@ -1187,6 +1195,7 @@ class GroupletCardHandler(BaseComponent):
         card.update({k: v for k, v in caller.items() if v is not None})
         if doc is not None:
             card['doc'] = self._gr_cardDoc(doc, table=table)
+            card.pop('doc_address', None)
         side = card.get('chromeSide') or 'top'
         if side not in ('top', 'left', 'right'):
             raise self.exception('generic', msg="groupletCard: chromeSide is 'top', 'left' or 'right'")
@@ -1238,7 +1247,8 @@ class GroupletCardHandler(BaseComponent):
                     emptyTitle=self._(card.get('emptyTitle') or '!!Untitled'),
                     titleTemplate=self._gr_template(card.get('titleTemplate')),
                     template=card.get('template'),
-                    doc=self._gr_template(card.get('doc')), doc_kw=card.get('doc_kw') or {},
+                    doc=self._gr_template(card.get('doc')), doc_address=card.get('doc_address'),
+                    doc_kw=card.get('doc_kw') or {},
                     delitem=card.get('delitem', False),
                     editmenu=editmenu if isinstance(editmenu, dict) else {},
                     editmenu_kw=editmenu_kwargs or {}, formId=form_id))
@@ -1388,6 +1398,8 @@ class GroupletGridHandler(BaseComponent):
         caller = dict(card_kwargs or {}, delitem=delitem, editmenu=editmenu, collapsible=collapsible,
                       chromeSide=chromeSide, emptyTitle=emptyTitle, titleTemplate=titleTemplate)
         card.update({k: v for k, v in caller.items() if v is not None})
+        if caller.get('doc') is not None:
+            card.pop('doc_address', None)
         delitem = card.get('delitem', True)
         editmenu = card.get('editmenu', False)
         collapsible = card.get('collapsible', False)

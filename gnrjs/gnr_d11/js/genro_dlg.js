@@ -894,6 +894,69 @@ dojo.declare("gnr.GnrDlgHandler", null, {
         return tp;
     },
 
+    docUrl: function(address, kw) {
+        // the page of a doc address (sys/ep_doc), asked by this page
+        return genro.addParamsToUrl('/sys/ep_doc', objectUpdate({address: address,
+            language: genro.getData('gnr.language'), _calling_page_id: genro.page_id}, kw || {}));
+    },
+
+    docSource: function(address, cb) {
+        // {title, html} or {title, page} of a doc address, fetched once per page;
+        // null when there is none or it is not for this user
+        const sources = this._docSources = this._docSources || {};
+        if (!(address in sources)) {
+            sources[address] = fetch(this.docUrl(address, {_fragment: 1}), {credentials: 'same-origin'})
+                .then((response) => response.ok ? response.json() : null)
+                .catch(() => null);
+        }
+        sources[address].then(cb);
+    },
+
+    docPopup: function(domNode, kw) {
+        // one popup for the page, moved to the icon clicked. kw: title and
+        // html, text (escaped) or address (a page of its own in an iframe,
+        // any doc with a link to open it alone)
+        let html = kw.html;
+        if (kw.text) {
+            const escaped = String(kw.text).trim().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            html = escaped.split(/\n\s*\n/).map((p) => '<p>' + p.replace(/\n/g, '<br>') + '</p>').join('');
+        }
+        genro.dlg.quickTooltipPane({nodeId: 'doc_popup', domNode: domNode, _class: 'doc_popup_pane'}, (pane) => {
+            const box = pane._('div', {_class: 'doc_popup_box'});
+            if (kw.title) box._('div', {_class: 'doc_popup_title', innerHTML: kw.title});
+            if (kw.page) {
+                // the iframe widget adds _calling_page_id itself
+                box._('iframe', {_class: 'doc_popup_frame', src: '/sys/ep_doc', src_address: kw.address,
+                                 src_language: genro.getData('gnr.language')});
+            } else {
+                box._('div', {_class: 'doc_popup_body', innerHTML: html || _T('!!No documentation available')});
+            }
+            if (kw.address && (html || kw.page)) {
+                box._('a', {_class: 'doc_popup_open', href: this.docUrl(kw.address), target: '_blank',
+                            innerHTML: _T('!!Open in a new tab')});
+            }
+        });
+        // the focus is in the popup: Esc is heard on the document while it is open
+        if (this._docEscape) return;
+        this._docEscape = (e) => {
+            if (e.key !== 'Escape') return;
+            document.removeEventListener('keydown', this._docEscape, true);
+            this._docEscape = null;
+            genro.publish('doc_popup_opener_close', {evt: e});
+        };
+        document.addEventListener('keydown', this._docEscape, true);
+    },
+
+    openDoc: function(domNode, address, kw) {
+        // the popup of a doc address; kw.fill turns a template into html
+        kw = kw || {};
+        this.docSource(address, (source) => {
+            source = source || {};
+            this.docPopup(domNode, {title: kw.title || source.title, address: address, page: source.page,
+                                    html: kw.fill ? kw.fill(source.html) : source.html});
+        });
+    },
+
     quickDialog: function(title,kw,rootNode) {
         kw = objectUpdate({_class:'dlg_prompt'},kw);
         var quickRoot = '_dlg_quick_'+genro.getCounter();

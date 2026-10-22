@@ -206,36 +206,40 @@ test('the checkbox mirrors the host and reports its clicks', () => {
     assert.equal(state.clicks, 1);
 });
 
-test('the doc icon opens the shared popup with the title and the doc, by click or keyboard', () => {
+test('the doc icon opens the shared popup with the title, the doc and its address, by click or keyboard', () => {
     const context = loadCard();
     const shown = [];
-    const docListeners = {};
-    context.document.addEventListener = (evt, h) => { docListeners[evt] = h; };
-    context.document.removeEventListener = (evt, h) => {
-        if (docListeners[evt] === h) delete docListeners[evt];
-    };
-    context.genro.dlg = {quickTooltipPane: (kw, cb) => {
-        const built = [];
-        const node = {_: (tag, attrs) => { built.push(attrs); return node; }};
-        cb(node);
-        shown.push([kw, built]);
-    }};
-    const {band} = bandCard(context);
+    context.genro.dlg = {docPopup: (domNode, kw) => shown.push([domNode, kw])};
+    const {band} = bandCard(context, {doc: {address: 'grouplet:test:card_profile', html: (cb) => cb('<p>About</p>')}});
     const icon = band.children[2];
     assert.equal(icon.fire('click').stopped, true);
     icon.fire('keydown', {key: ' '});
+    icon.fire('keydown', {key: 'a'});
     assert.equal(shown.length, 2);
-    const closed = [];
-    context.genro.publish = (topic) => closed.push(topic);
-    const escape = docListeners.keydown;
-    escape({key: 'a'});
-    escape({key: 'Escape'});
-    assert.deepEqual(closed, ['grouplet_card_doc_opener_close'], 'Esc closes it');
-    assert.equal(docListeners.keydown, undefined, 'and stops listening');
-    const [kw, built] = shown[0];
-    assert.equal(kw.nodeId, 'grouplet_card_doc', 'one popup for the page');
-    assert.equal(kw.domNode, icon);
-    assert.deepEqual(built.map((a) => a.innerHTML), [undefined, 'Alice', '<p>About</p>']);
+    const [domNode, kw] = shown[0];
+    assert.equal(domNode, icon);
+    assert.deepEqual({...kw}, {title: 'Alice', html: '<p>About</p>', address: 'grouplet:test:card_profile'});
+});
+
+test('a doc at an address is fetched as it opens and filled on the card data; an inline one is not fetched', () => {
+    const context = loadCard();
+    const Card = context.gnr.GroupletCard;
+    const asked = [];
+    context.genro.dlg = {docSource: (address, cb) => {
+        asked.push(address);
+        cb(address === 'grouplet:test:card_profile' ? {title: 'Shipping', html: '<p>$city via $courier</p>'} : null);
+    }};
+    const row = new context.gnr.GnrBag();
+    row.setItem('city', 'Turin');
+    const html = [];
+    Card.docHtml('grouplet:test:card_profile', null, () => row, inVm(context, {courier: 'Fast Parcel'}),
+                 (h) => html.push(h));
+    Card.docHtml('grouplet:test:missing', null, () => row, {}, (h) => html.push(h));
+    Card.docHtml('grouplet:test:card_profile', Card.compileTemplate('<p>$city</p>'), () => row, {},
+                 (h) => html.push(h));
+    assert.deepEqual(html, ['<p>Turin via Fast Parcel</p>', '', '<p>Turin</p>']);
+    assert.deepEqual(asked, ['grouplet:test:card_profile', 'grouplet:test:missing'],
+                     'a doc the card already holds is not fetched');
 });
 
 test('the band is the drag source, and destroy unwires it', () => {

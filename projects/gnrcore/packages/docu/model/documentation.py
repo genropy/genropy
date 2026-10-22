@@ -291,6 +291,23 @@ class Table(object):
             return None
         return node.public_url()
 
+    def documentRst(self, hierarchical_name, language=None, placeholder=''):
+        """The title and rst of a page in `language` (then en, it), followed by
+        its parameters table; None for a missing page"""
+        rows = self.query(columns='$id,$docbag', where='$hierarchical_name=:hname',
+                          hname=hierarchical_name, limit=1).fetch()
+        if not rows:
+            return None
+        docbag = Bag(rows[0]['docbag'])
+        languages = [language, 'en', 'it']
+        rst = next((docbag[f'{lang}.rst'] for lang in languages if docbag[f'{lang}.rst']), placeholder)
+        title = next((docbag[f'{lang}.title'] for lang in languages if docbag[f'{lang}.title']),
+                     hierarchical_name)
+        rsttable = self.dfAsRstTable(rows[0]['id'])
+        if rsttable:
+            rst = '%s\n\n**Parameters:**\n\n%s' % (rst, rsttable)
+        return dict(title=title, rst=rst)
+
     def dfAsRstTable(self,pkey,language=None):
         rows = self.df_getFieldsRows(pkey=pkey)
         if not rows:
