@@ -183,11 +183,32 @@ dojo.declare("gnr.widgets.TooltipPane", gnr.widgets.gnrwdg, {
     followAnchor:function(openKw,ddbId){
         //dijit.popup places the wrapper once, at page coordinates: ancestor scrolls
         //would leave it behind its anchor
+        var popup = openKw.popup;
+        if(popup._stopFollowingAnchor){
+            popup._stopFollowingAnchor();
+        }
         var anchor = openKw.around;
-        var wrapper = openKw.popup.domNode.parentNode;
+        var wrapper = popup.domNode.parentNode;
         if(!anchor || !wrapper || !anchor.getClientRects().length){
             return;
         }
+        var clippers = [];
+        for(var node=anchor.parentNode; node && node.nodeType===1; node=node.parentNode){
+            var style = window.getComputedStyle(node);
+            if(style.overflowX!='visible' || style.overflowY!='visible'){
+                clippers.push(node);
+            }
+        }
+        var outOfView = function(){
+            var rect = anchor.getBoundingClientRect();
+            var clip = {top:0,left:0,bottom:window.innerHeight,right:window.innerWidth};
+            clippers.forEach(function(clipper){
+                var crect = clipper.getBoundingClientRect();
+                clip = {top:Math.max(clip.top,crect.top),left:Math.max(clip.left,crect.left),
+                        bottom:Math.min(clip.bottom,crect.bottom),right:Math.min(clip.right,crect.right)};
+            });
+            return rect.bottom<=clip.top || rect.top>=clip.bottom || rect.right<=clip.left || rect.left>=clip.right;
+        };
         var pageOrigin = function(){
             var rect = anchor.getBoundingClientRect();
             return {x:rect.left+window.pageXOffset,y:rect.top+window.pageYOffset};
@@ -196,32 +217,34 @@ dojo.declare("gnr.widgets.TooltipPane", gnr.widgets.gnrwdg, {
         var left = parseFloat(wrapper.style.left) || 0;
         var top = parseFloat(wrapper.style.top) || 0;
         var onScroll = function(e){
-            var scroller = e.target;
-            var isDocument = !scroller.getBoundingClientRect;
-            if(!isDocument && !scroller.contains(anchor)){
-                return;
-            }
-            var clip = {top:0,left:0,bottom:window.innerHeight,right:window.innerWidth};
-            if(!isDocument){
-                var srect = scroller.getBoundingClientRect();
-                clip = {top:Math.max(clip.top,srect.top),left:Math.max(clip.left,srect.left),
-                        bottom:Math.min(clip.bottom,srect.bottom),right:Math.min(clip.right,srect.right)};
-            }
-            var rect = anchor.getBoundingClientRect();
-            if(!anchor.isConnected || rect.bottom<=clip.top || rect.top>=clip.bottom
-                                   || rect.right<=clip.left || rect.left>=clip.right){
+            if(!anchor.isConnected){
                 genro.publish({topic:'close',nodeId:ddbId},{evt:e});
                 return;
+            }
+            var scroller = e.target;
+            if(scroller.getBoundingClientRect && !scroller.contains(anchor)){
+                return;
+            }
+            if(outOfView()){
+                //onClosing may veto the close: the pane keeps following
+                genro.publish({topic:'close',nodeId:ddbId},{evt:e});
             }
             var current = pageOrigin();
             wrapper.style.left = (left+current.x-origin.x)+'px';
             wrapper.style.top = (top+current.y-origin.y)+'px';
         };
-        document.addEventListener('scroll',onScroll,true);
-        var closing = dojo.connect(openKw.popup,'onClose',function(){
+        var handles = [];
+        var stop = function(){
             document.removeEventListener('scroll',onScroll,true);
-            dojo.disconnect(closing);
-        });
+            dojo.forEach(handles,dojo.disconnect);
+            handles = [];
+            if(popup._stopFollowingAnchor===stop){
+                delete popup._stopFollowingAnchor;
+            }
+        };
+        document.addEventListener('scroll',onScroll,true);
+        handles = [dojo.connect(popup,'onClose',stop),dojo.connect(popup,'destroy',stop)];
+        popup._stopFollowingAnchor = stop;
     }
 });
 

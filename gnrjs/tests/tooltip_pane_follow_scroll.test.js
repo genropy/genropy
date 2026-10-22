@@ -5,9 +5,11 @@ const {test} = require('node:test');
 const vm = require('node:vm');
 
 class FakeElement {
-    constructor(rect, parent = null) {
+    constructor(rect, parentNode = null, overflow = 'visible') {
         this.rect = Object.assign({left: 0, top: 0, width: 0, height: 0}, rect);
-        this.parent = parent;
+        this.parentNode = parentNode;
+        this.overflow = overflow;
+        this.nodeType = 1;
         this.isConnected = true;
         this.style = {};
     }
@@ -17,7 +19,7 @@ class FakeElement {
         return {left, top, width, height, right: left + width, bottom: top + height};
     }
     contains(node) {
-        for (let n = node; n; n = n.parent) if (n === this) return true;
+        for (let n = node; n; n = n.parentNode) if (n === this) return true;
         return false;
     }
 }
@@ -32,7 +34,8 @@ function createContext() {
             if (i >= 0) listeners.splice(i, 1);
         }
     };
-    const window = {pageXOffset: 0, pageYOffset: 0, innerWidth: 1000, innerHeight: 800};
+    const window = {pageXOffset: 0, pageYOffset: 0, innerWidth: 1000, innerHeight: 800,
+                    getComputedStyle: (node) => ({overflowX: node.overflow, overflowY: node.overflow})};
     const context = {console, File: function() {}, gnr: {}, setTimeout, navigator: {}, window, document,
                      genro: {publish: (topic, kw) => published.push({topic, kw}), wdg: {filterEvent: () => true}}};
     context.dojo = {
@@ -81,7 +84,7 @@ function createContext() {
 }
 
 // a tooltipPane opened on an anchor inside a scrolling container, the wrapper placed below it
-function openTooltip() {
+function openTooltip({outer = null} = {}) {
     const env = createContext();
     let ddkw;
     const sourceNode = {
@@ -93,16 +96,17 @@ function openTooltip() {
         }
     };
     env.context.gnr.widgets.TooltipPane.prototype.createContent(sourceNode, {}, null);
-    const scroller = new FakeElement({left: 0, top: 100, width: 500, height: 300});
+    const scroller = new FakeElement({left: 0, top: 100, width: 500, height: 300}, outer, 'auto');
     const other = new FakeElement({left: 600, top: 100, width: 200, height: 300});
     const anchor = new FakeElement({left: 50, top: 200, width: 40, height: 20}, new FakeElement({}, scroller));
     const wrapper = new FakeElement({});
     wrapper.style = {left: '50px', top: '220px'};
-    const popup = {domNode: {parentNode: wrapper}, onClose() {}};
-    ddkw.onOpenedPopup.call(sourceNode, {around: anchor, popup});
+    const popup = {domNode: {parentNode: wrapper}, onClose() {}, destroy() {}};
+    const open = (around) => ddkw.onOpenedPopup.call(sourceNode, {around, popup});
+    open(anchor);
     const scroll = (target) => env.listeners.filter(l => l.type === 'scroll' && l.capture)
                                              .forEach(l => l.handler({target}));
-    return Object.assign(env, {anchor, wrapper, popup, scroller, other, scroll});
+    return Object.assign(env, {anchor, wrapper, popup, scroller, other, scroll, open});
 }
 
 test('the popup follows its anchor while an ancestor scrolls', () => {
@@ -153,4 +157,41 @@ test('an anchor without layout is not followed', () => {
     env.context.gnr.widgets.TooltipPane.prototype.followAnchor(
         {around: anchor, popup: {domNode: {parentNode: new FakeElement({})}}}, 'tp_1');
     assert.equal(env.listeners.length, 0);
+});
+
+test('a detached anchor closes the popup on the next scroll, wherever it happens', () => {
+    const {anchor, other, scroll, published} = openTooltip();
+    anchor.isConnected = false;
+    scroll(other);
+    assert.equal(published.length, 1);
+});
+
+test('an outer container clipping the scrolling one closes the popup', () => {
+    const outer = new FakeElement({left: 0, top: 100, width: 500, height: 150}, null, 'hidden');
+    const {anchor, scroller, scroll, published} = openTooltip({outer});
+    anchor.rect.top = 260;
+    scroll(scroller);
+    assert.equal(published.length, 1);
+});
+
+test('a close vetoed by onClosing keeps the popup following its anchor', () => {
+    const {anchor, wrapper, scroller, scroll, published} = openTooltip();
+    anchor.rect.top = 75;
+    scroll(scroller);
+    assert.equal(published.length, 1);
+    assert.equal(wrapper.style.top, '95px');
+});
+
+test('reopening on another anchor replaces the tracker instead of adding one', () => {
+    const {popup, listeners, open, scroller} = openTooltip();
+    open(new FakeElement({left: 50, top: 300, width: 40, height: 20}, scroller));
+    assert.equal(listeners.length, 1);
+    popup.onClose();
+    assert.equal(listeners.length, 0);
+});
+
+test('destroying an open popup removes the scroll listener', () => {
+    const {popup, listeners} = openTooltip();
+    popup.destroy();
+    assert.equal(listeners.length, 0);
 });
