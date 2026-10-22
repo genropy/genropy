@@ -192,7 +192,7 @@ class LoginComponent(BaseComponent):
                                 }
                                 
                             }else if(!doLogin && !LoginComponent.hasVisibleFields(fb)){
-                                FIRE do_login;
+                                PUBLISH confirmNewWindow;
                             }else{
                                 PUBLISH openLogin;
                             }
@@ -216,6 +216,7 @@ class LoginComponent(BaseComponent):
             LoginComponent.confirmAvatar(fb,rpcmethod,dlg,doLogin,error_msg,standAlonePage)
         """,fb=fb,
             _fired='^do_login',
+            subscribe_confirmNewWindow=True,
             rpcmethod=rpcmethod,
             standAlonePage=self.pageOptions.get('standAlonePage'),
             error_msg='!!Invalid login',
