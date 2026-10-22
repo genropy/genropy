@@ -29,6 +29,10 @@
                     card width above the grid; with the corner chrome the
                     copy button sits left of the trash.
   test_03_entry   — one-line rows edited in the entry row.
+  test_04_nested  — cards holding a grid of details, each with fields on
+                    its line and more in a popup (rates, tags): a copied
+                    card pastes back with every detail, whatever their keys
+                    and however many the target card holds.
 """
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdecorator import public_method
@@ -120,6 +124,52 @@ class GnrCustomWebPage(object):
                                       '<span style="flex:1">$description</span>'
                                       '<span>$amount</span></div>',
                           defaultRow=dict(amount=0))
+
+    def test_04_nested(self, pane):
+        """Copy cards whose details keep fields in a popup, paste them back whole"""
+        items = Bag()
+        for i, (name, details) in enumerate((('Crew', (('Camera', 2, 0.32, 'PRE', ('crew',)),
+                                                       ('Sound', 1, 0.32, 'PRO', ()),
+                                                       ('Grip', 3, 0.32, 'PRO', ('crew', 'night')))),
+                                             ('Rentals', (('Lenses', 1, None, 'PRO', ()),)))):
+            rows = Bag()
+            for j, (description, qty, rate, phase, tags) in enumerate(details):
+                tag_rows = Bag()
+                for k, tag in enumerate(tags):
+                    tag_rows.setItem('t_%s' % k, Bag(dict(tag=tag)))
+                rows.setItem('d_%s_%s' % (i, j), Bag(dict(description=description, qty=qty,
+                                                          rate=rate, phase=phase, tags=tag_rows)))
+            items.setItem('r_%s' % i, Bag(dict(name=name, details=rows)))
+        pane.data('.items', items)
+        pane.groupletGrid(storepath='.items', handler=self.item_card,
+                          nodeId='cp_nested', cols=1, rowCheckbox=True,
+                          selectionmenu=dict(copy=True, delete=True),
+                          defaultRow=dict(name=''))
+
+    @public_method
+    def item_card(self, pane, **kwargs):
+        pane.formlet(cols=1).textbox(value='^.name', lbl='Item')
+        pane.groupletGrid(storepath='.details', handler=self.detail_line,
+                          additem=True, delitem=True,
+                          defaultRow=dict(qty=1, phase='PRO'))
+
+    @public_method
+    def detail_line(self, pane, **kwargs):
+        line = pane.div(display='flex', gap='6px', align_items='center')
+        line.textbox(value='^.description', placeholder='Description', width='12em')
+        line.numberTextBox(value='^.qty', placeholder='Qty', width='5em')
+        options = line.lightButton('Options…')
+        popup = options.tooltipPane(evt='onclick')
+        fb = popup.formlet(cols=1, padding='8px')
+        fb.filteringSelect(value='^.phase', lbl='Phase', values='PRE:Pre-production,PRO:Production')
+        fb.numberTextBox(value='^.rate', lbl='Social charges rate', format='#,##0.00')
+
+        def struct(struct):
+            r = struct.view().rows()
+            r.cell('tag', name='Tag', width='100%', edit=True)
+
+        popup.div(min_width='14em', padding='0 8px 8px').groupletGrid(
+            storepath='.tags', struct=struct, additem=True, delitem=True)
 
     @public_method
     def contact_card(self, pane, **kwargs):
