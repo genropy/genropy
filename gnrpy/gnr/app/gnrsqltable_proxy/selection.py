@@ -26,16 +26,24 @@
 ``gnr.app.gnrdbo.TableBase.selectionProxy``.  It holds the part of the
 ``getSelection`` flow that only needs the table and the database: column
 processing, WHERE bag decoding, join condition decoding, external store
-queries, saved queries and views, and the default query construction.
+queries, saved queries and views, the default query construction, the record
+count and the serialization of a query for the client.
 
 It never references a web page.  Everything the page provides — the
 ``customSqlOp_*`` callbacks, the resolved expression dictionary, the locale, the
 pkeys of a frozen selection, the join conditions of a SQL context — is passed in
 as a parameter or as a callable.
+
+The custom operator callbacks arrive in two shapes, and the difference is not
+cosmetic: a method that always decodes a WHERE bag takes the dictionary
+(``customOpCbDict``), a method that decodes one only for some inputs takes a
+zero argument callable that returns it (``customOpCb``), so the caller does not
+scan the page for ``customSqlOp_*`` methods on every call that has no bag.
 """
 
 from __future__ import annotations
 
+import re
 from typing import Any, Callable, Optional, Union
 
 from gnr.core.gnrbag import Bag
@@ -57,9 +65,9 @@ class SelectionProxy:
     #  Columns
     # ------------------------------------------------------------------
 
-    def columnsFromStruct(self, viewbag: Bag,
-                          columns: Optional[list] = None) -> Optional[str]:
-        """Extract column names from a view structure :class:`Bag`.
+    def composeStructColumns(self, viewbag: Bag,
+                             columns: Optional[list] = None) -> Optional[str]:
+        """Return the comma separated column string a view structure :class:`Bag` names.
 
         Args:
             viewbag: The view structure :class:`Bag`.
@@ -83,16 +91,22 @@ class SelectionProxy:
                     fld = '$' + fld
                 columns.append(fld)
             if isinstance(node.value, Bag):
-                self.columnsFromStruct(node.value, columns)
+                self.composeStructColumns(node.value, columns)
         return ','.join(columns)
 
-    def selectionColumns(self, columns: Union[str, Bag],
-                         expressions: Optional[dict] = None) -> tuple[str, dict]:
-        """Process and normalize a column specification.
+    def composeSelectionColumns(self, columns: Union[str, Bag],
+                                expressions: Optional[dict] = None) -> tuple[str, dict]:
+        """Return the column string of the grid and the external store queries the columns name.
 
         Handles Bag based column specs, bracket notation for multi table
         columns, expression substitution and the automatic protection and
         invalid columns.
+
+        A bracket group ``tbl[a,b]`` prefixes every column up to the closing
+        bracket and stops there.  The handler version of this code tests the
+        closing bracket after stripping it, so the group never ends and every
+        following column keeps the prefix; here the group end is remembered
+        before the bracket is removed.
 
         Args:
             columns: Raw column specification.
@@ -105,7 +119,7 @@ class SelectionProxy:
         tblobj = self.tblobj
         external_queries = {}
         if isinstance(columns, Bag):
-            columns = self.columnsFromStruct(columns)
+            columns = self.composeStructColumns(columns)
         if not columns:
             columns = tblobj.attributes.get('baseview') or '*'
         if '[' in columns or ':' in columns:
@@ -147,7 +161,7 @@ class SelectionProxy:
 
     def decodeWhereBag(self, where: Any, kwargs: dict[str, Any],
                        customOpCbDict: Optional[dict] = None) -> tuple[str, dict[str, Any]]:
-        """Decode a :class:`Bag` encoded WHERE clause into SQL.
+        """Return the SQL text of a :class:`Bag` encoded WHERE and the query parameters it needs.
 
         Args:
             where: A :class:`Bag` encoding the WHERE conditions.
@@ -169,7 +183,7 @@ class SelectionProxy:
 
     def decodeJoinConditions(self, joinConditions: Any,
                              kwargs: dict) -> Union[dict, Any]:
-        """Decode join conditions from a :class:`Bag` to a dict.
+        """Return the join conditions of a :class:`Bag` as a dict of relation name to condition.
 
         Args:
             joinConditions: A :class:`Bag` of join conditions, or an already
@@ -187,13 +201,123 @@ class SelectionProxy:
             result[jc['relation']] = dict(condition=sqlcondition, one_one=jc['one_one'])
         return result
 
+    def countRecords(self, where: Any = '', condition: Optional[str] = None,
+                     distinct: bool = False, columns: str = '',
+                     relationDict: Optional[dict] = None,
+                     sqlparams: Optional[dict] = None,
+                     customOpCb: Callable = dict, **kwargs: Any) -> int:
+        """Return how many records match *where* and *condition*.
+
+        Args:
+            where: SQL WHERE clause or a :class:`Bag` to decode.
+            condition: Extra condition ANDed to *where*.
+            distinct: Use ``SELECT DISTINCT``.
+            columns: Column expression for the query.
+            relationDict: Symbolic relation names.
+            sqlparams: Additional SQL parameters.
+            customOpCb: Called, only when *where* is a :class:`Bag`, to get the
+                custom operator callbacks of the where bag.  The default
+                answers with no callback.
+
+        Returns:
+            The record count.
+        """
+        if isinstance(where, Bag):
+            where, kwargs = self.decodeWhereBag(where, kwargs,
+                                                customOpCbDict=customOpCb())
+        if condition:
+            where = '( %s ) AND ( %s )' % (where, condition) if where else condition
+        return self.tblobj.query(columns=columns, distinct=distinct, where=where,
+                                 relationDict=relationDict, sqlparams=sqlparams,
+                                 **kwargs).count()
+
+    # ------------------------------------------------------------------
+    #  Query serialization
+    # ------------------------------------------------------------------
+
+    def serializeQuery(self, distinct: Optional[bool] = None,
+                       columns: Optional[str] = None,
+                       where: Optional[Bag] = None,
+                       condition: Optional[str] = None,
+                       order_by: Optional[str] = None,
+                       limit: Optional[int] = None,
+                       group_by: Optional[str] = None,
+                       having: Optional[str] = None,
+                       excludeLogicalDeleted: bool = True,
+                       excludeDraft: bool = True,
+                       customOpCbDict: Optional[dict] = None, **kwargs: Any) -> Bag:
+        """Return the :class:`Bag` that carries the whole query to the client.
+
+        The parameters are split into the ones the WHERE bag names, the ones
+        the condition names, the ones read from the database environment and
+        the rest, and the generated SQL text is added.
+
+        Args:
+            where: The WHERE conditions, a :class:`Bag`.
+            customOpCbDict: Custom operator callbacks for the where bag.
+
+        Returns:
+            A :class:`Bag` with every query parameter and the SQL text.
+        """
+        query_pars = dict(distinct=distinct, condition=condition,
+                          columns=columns,
+                          order_by=order_by, limit=limit,
+                          group_by=group_by,
+                          having=having,
+                          excludeLogicalDeleted=excludeLogicalDeleted,
+                          excludeDraft=excludeDraft, **kwargs)
+        decoded_query_pars = dict(query_pars)
+        where_pars = {}
+        condition_pars = {}
+
+        def findPars(n: Any) -> None:
+            if n.attr.get('parname'):
+                where_pars[n.attr.get('parname')] = n.getValue()
+
+        textwhere, decoded_query_pars = self.decodeWhereBag(
+            where, decoded_query_pars, customOpCbDict=customOpCbDict)
+        where.walk(findPars)
+        if condition:
+            textwhere = '({}) AND ({})'.format(textwhere, condition)
+
+        q = self.tblobj.query(where=textwhere, **decoded_query_pars)
+        currenv = dict(self.db.currentEnv)
+        sqltext = q.sqltext
+        allpars = re.findall(r':(\S\w*)(\W|$)', q.sqltext)
+        env_pars = {k[4:]: currenv[k[4:]] for k, chunk in allpars if k[4:] in currenv}
+        if condition:
+            for par, chunk in re.findall(r':(\S\w*)(\W|$)', condition):
+                condition_pars[par] = query_pars[par]
+        if not where_pars:
+            for par, chunk in allpars:
+                if par in decoded_query_pars and par not in env_pars and par not in condition_pars:
+                    where_pars[par] = decoded_query_pars[par]
+        other_pars = {}
+        for k, v in query_pars.items():
+            if k not in where_pars and \
+                    k not in condition_pars and \
+                    k not in env_pars:
+                other_pars[k] = v
+        rpcquery = Bag()
+        rpcquery['columns'] = columns
+        rpcquery['query_where'] = where
+        rpcquery['query_condition'] = condition
+        rpcquery['query_pars'] = Bag(query_pars)
+        rpcquery['where_pars'] = Bag(where_pars)
+        rpcquery['condition_pars'] = Bag(condition_pars)
+        rpcquery['env_pars'] = Bag(env_pars)
+        rpcquery['other_pars'] = Bag(other_pars)
+        rpcquery['where_as_html'] = self.db.whereTranslator.toHtml(self.tblobj, where)
+        rpcquery['sqlquery'] = sqltext
+        return rpcquery
+
     # ------------------------------------------------------------------
     #  External stores
     # ------------------------------------------------------------------
 
-    def externalQueries(self, selection: Any = None,
-                        external_queries: Optional[dict] = None) -> None:
-        """Query the external stores named in the columns and merge the results.
+    def mergeExternalStoreColumns(self, selection: Any = None,
+                                  external_queries: Optional[dict] = None) -> None:
+        """Merge the columns fetched from the external stores into the selection rows; returns nothing.
 
         Args:
             selection: The main selection, updated in place.
@@ -221,8 +345,8 @@ class SelectionProxy:
     #  Saved queries and views
     # ------------------------------------------------------------------
 
-    def loadSavedQuery(self, savedQuery: str) -> Any:
-        """Load a saved query of this table from ``adm.userobject``.
+    def loadSavedQueryRecord(self, savedQuery: str) -> Any:
+        """Return the ``adm.userobject`` record of a saved query of this table.
 
         The user is not a parameter: ``adm.userobject`` resolves it from the
         database environment, as it does for every other caller.
@@ -238,8 +362,8 @@ class SelectionProxy:
         return userobject_tbl.loadUserObject(userObjectIdOrCode=savedQuery, objtype='query',
                                              tbl=self.tblobj.fullname)[0]
 
-    def loadSavedView(self, savedView: str) -> Any:
-        """Load a saved view of this table from ``adm.userobject``.
+    def loadSavedViewColumns(self, savedView: str) -> Any:
+        """Return the column string of a saved view of this table.
 
         Args:
             savedView: Identifier or code of the saved view.
@@ -255,23 +379,28 @@ class SelectionProxy:
     #  Default query construction
     # ------------------------------------------------------------------
 
-    def selectionWhere(self, where: Any = None, condition: Optional[str] = None,
-                       pkeys: Optional[Any] = None,
-                       linkedSelectionKw: Optional[dict] = None,
-                       customOpCbDict: Optional[dict] = None,
-                       kwargs: Optional[dict] = None) -> tuple[Any, dict]:
-        """Build the WHERE clause of a default selection.
+    def composeWhere(self, where: Any = None, condition: Optional[str] = None,
+                     pkeys: Optional[Any] = None,
+                     masterWhere: Optional[str] = None,
+                     masterPkeys: Optional[Any] = None,
+                     customOpCb: Callable = dict,
+                     kwargs: Optional[dict] = None) -> tuple[Any, dict]:
+        """Return the WHERE of a default selection and the query parameters it needs.
 
-        Applies, in this order, the linked selection, the explicit pkeys and the
+        Applies, in this order, the master WHERE, the explicit pkeys and the
         :class:`Bag` encoded where, then ANDs *condition* unless *pkeys* is set.
 
         Args:
             where: SQL WHERE clause or a :class:`Bag`.
             condition: Extra condition.
             pkeys: Explicit pkey list, or a comma separated string.
-            linkedSelectionKw: The ``where``/``linkedPkeys`` pair of a linked
-                selection, as the page resolves it.
-            customOpCbDict: Custom operator callbacks for the where bag.
+            masterWhere: A WHERE that replaces *where*, already composed by the
+                caller; it binds ``:_masterPkeys``.
+            masterPkeys: The pkeys *masterWhere* binds.
+            customOpCb: Called, only when *where* is a :class:`Bag` and neither
+                *masterWhere* nor *pkeys* replaces it, to get the custom
+                operator callbacks of the where bag.  The default answers with
+                no callback.
             kwargs: Query parameters, updated and returned.
 
         Returns:
@@ -279,15 +408,16 @@ class SelectionProxy:
         """
         tblobj = self.tblobj
         kwargs = kwargs if kwargs is not None else {}
-        if linkedSelectionKw:
-            where = linkedSelectionKw['where']
-            kwargs['_masterPkeys'] = linkedSelectionKw['linkedPkeys']
+        if masterWhere:
+            where = masterWhere
+            kwargs['_masterPkeys'] = masterPkeys
         elif pkeys:
             if isinstance(pkeys, str):
                 pkeys = pkeys.strip(',').split(',')
-            if len(pkeys) == 0:
-                kwargs['limit'] = 0
-            elif len(pkeys) == 1:
+            # an empty pkeys list cannot reach this point: a falsy pkeys never
+            # enters the branch and a truthy string always yields at least one
+            # element (bugs.md D4)
+            if len(pkeys) == 1:
                 where = 't0.%s =:_pkey' % tblobj.pkey
                 kwargs['_pkey'] = pkeys[0]
             else:
@@ -295,14 +425,14 @@ class SelectionProxy:
                 kwargs['pkeys'] = pkeys
         elif isinstance(where, Bag):
             kwargs.pop('where_attr', None)
-            where, kwargs = self.decodeWhereBag(where, kwargs, customOpCbDict=customOpCbDict)
+            where, kwargs = self.decodeWhereBag(where, kwargs, customOpCbDict=customOpCb())
         if condition and not pkeys:
             where = ' ( %s ) AND ( %s ) ' % (where, condition) if where else condition
         return where, kwargs
 
-    def filteringWhere(self, where: Any, filteringPkeys: list,
-                       kwargs: dict) -> tuple[Any, dict]:
-        """AND the filtering pkeys into the WHERE clause.
+    def composeFilteringWhere(self, where: Any, filteringPkeys: list,
+                              kwargs: dict) -> tuple[Any, dict]:
+        """Return the WHERE with the filtering pkeys ANDed in, and the query parameters it needs.
 
         Args:
             where: The WHERE clause built so far.
@@ -324,15 +454,18 @@ class SelectionProxy:
         where = filteringWhere if not where else ' ( %s ) AND ( %s ) ' % (filteringWhere, where)
         return where, kwargs
 
-    def countSelection(self, where: Any = None, order_by: Optional[str] = None,
-                       limit: Optional[int] = None, offset: Optional[int] = None,
-                       having: Optional[str] = None,
-                       relationDict: Optional[dict] = None,
-                       sqlparams: Optional[dict] = None,
-                       locale: Optional[str] = None,
-                       excludeLogicalDeleted: Any = True,
-                       excludeDraft: bool = True, **kwargs: Any) -> int:
-        """Count the distinct pkeys matching the query.
+    def countDistinctRecords(self, where: Any = None, order_by: Optional[str] = None,
+                             limit: Optional[int] = None, offset: Optional[int] = None,
+                             having: Optional[str] = None,
+                             relationDict: Optional[dict] = None,
+                             sqlparams: Optional[dict] = None,
+                             locale: Optional[str] = None,
+                             excludeLogicalDeleted: Any = True,
+                             excludeDraft: bool = True, **kwargs: Any) -> int:
+        """Return how many distinct pkeys the query matches.
+
+        *limit*, *offset*, *order_by* and *having* are applied to the count
+        query, so a limited query counts at most *limit* rows.
 
         Returns:
             The number of rows.
@@ -348,20 +481,20 @@ class SelectionProxy:
                                   excludeDraft=excludeDraft, **kwargs)
         return len(query.fetch())
 
-    def buildSelection(self, columns: Optional[str] = None,
-                       distinct: Optional[bool] = None,
-                       where: Any = None, order_by: Optional[str] = None,
-                       limit: Optional[int] = None, offset: Optional[int] = None,
-                       group_by: Optional[str] = None, having: Optional[str] = None,
-                       relationDict: Optional[dict] = None,
-                       sqlparams: Optional[dict] = None,
-                       locale: Optional[str] = None,
-                       excludeLogicalDeleted: Any = True,
-                       excludeDraft: bool = True,
-                       sortedBy: Optional[str] = None,
-                       _aggregateRows: bool = True,
-                       queryCb: Optional[Callable] = None, **kwargs: Any) -> Any:
-        """Build the query and return its selection.
+    def selectRecords(self, columns: Optional[str] = None,
+                      distinct: Optional[bool] = None,
+                      where: Any = None, order_by: Optional[str] = None,
+                      limit: Optional[int] = None, offset: Optional[int] = None,
+                      group_by: Optional[str] = None, having: Optional[str] = None,
+                      relationDict: Optional[dict] = None,
+                      sqlparams: Optional[dict] = None,
+                      locale: Optional[str] = None,
+                      excludeLogicalDeleted: Any = True,
+                      excludeDraft: bool = True,
+                      sortedBy: Optional[str] = None,
+                      _aggregateRows: bool = True,
+                      queryCb: Optional[Callable] = None, **kwargs: Any) -> Any:
+        """Return the selection of the records the query matches.
 
         Args:
             queryCb: Called with the query before it is executed, so the caller
@@ -381,21 +514,21 @@ class SelectionProxy:
             queryCb(query)
         return query.selection(sortedBy=sortedBy, _aggregateRows=_aggregateRows)
 
-    def queryModeSelection(self, selection: Any = None, queryMode: Optional[str] = None,
-                           frozenPkeys: Optional[Any] = None,
-                           columns: Optional[str] = None,
-                           distinct: Optional[bool] = None,
-                           order_by: Optional[str] = None,
-                           limit: Optional[int] = None, offset: Optional[int] = None,
-                           group_by: Optional[str] = None, having: Optional[str] = None,
-                           relationDict: Optional[dict] = None,
-                           sqlparams: Optional[dict] = None,
-                           locale: Optional[str] = None,
-                           excludeLogicalDeleted: Any = True,
-                           excludeDraft: bool = True,
-                           sortedBy: Optional[str] = None,
-                           _aggregateRows: bool = True, **kwargs: Any) -> Any:
-        """Combine *selection* with the pkeys of a frozen selection.
+    def selectCombinedRecords(self, selection: Any = None, queryMode: Optional[str] = None,
+                              frozenPkeys: Optional[Any] = None,
+                              columns: Optional[str] = None,
+                              distinct: Optional[bool] = None,
+                              order_by: Optional[str] = None,
+                              limit: Optional[int] = None, offset: Optional[int] = None,
+                              group_by: Optional[str] = None, having: Optional[str] = None,
+                              relationDict: Optional[dict] = None,
+                              sqlparams: Optional[dict] = None,
+                              locale: Optional[str] = None,
+                              excludeLogicalDeleted: Any = True,
+                              excludeDraft: bool = True,
+                              sortedBy: Optional[str] = None,
+                              _aggregateRows: bool = True, **kwargs: Any) -> Any:
+        """Return the selection of the pkeys a set operation with a frozen selection leaves.
 
         Args:
             selection: The selection just built.
@@ -413,7 +546,7 @@ class SelectionProxy:
             rpkeys = _qmpkeys.intersection(currentpkeys)
         else:
             rpkeys = _qmpkeys.difference(currentpkeys)
-        query = self.tblobj.query(columns=columns, distinct=distinct,
+        return self.selectRecords(columns=columns, distinct=distinct,
                                   where='${} IN :_rpkeys'.format(self.tblobj.pkey),
                                   _rpkeys=rpkeys,
                                   order_by=order_by, limit=limit, offset=offset,
@@ -421,5 +554,5 @@ class SelectionProxy:
                                   relationDict=relationDict, sqlparams=sqlparams,
                                   locale=locale,
                                   excludeLogicalDeleted=excludeLogicalDeleted,
-                                  excludeDraft=excludeDraft, **kwargs)
-        return query.selection(sortedBy=sortedBy, _aggregateRows=_aggregateRows)
+                                  excludeDraft=excludeDraft, sortedBy=sortedBy,
+                                  _aggregateRows=_aggregateRows, **kwargs)
