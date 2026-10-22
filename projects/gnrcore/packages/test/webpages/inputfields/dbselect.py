@@ -29,10 +29,10 @@ class GnrCustomWebPage(object):
 
     def test_5_selected(self,pane):
         "Use of selected:"
-        fb = pane.formbuilder(cols=2, border_spacing='4px')
+        fb = pane.formlet(cols=2)
         fb.dbSelect(table='glbl.provincia',value='^.sigla',
-                        lbl='Sigla',width='25em', selected_regione='.regione')
-        fb.dbSelect(table='glbl.regione',value='^.regione',lbl='Regione',width='25em',selected_nome='.nome_regione')
+                        lbl='Sigla', selected_regione='.regione')
+        fb.dbSelect(table='glbl.regione',value='^.regione',lbl='Regione',selected_nome='.nome_regione')
         fb.textbox(value='^.nome_regione',lbl='Nome regione')
 
 
