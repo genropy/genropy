@@ -166,6 +166,83 @@ function chapters(s, rows) {
     });
 }
 
+test('defaultRow: a ==expression is worked out at each add, over the rows and the grid', () => {
+    const s = createGrid({controller: {defaultRow: {
+        code: "==String(rows.len() + 1).padStart(3, '0')",
+        name: '',
+        owner: '==this.attr.owner + "/" + grid.nodeId'}}});
+    s.controller.sourceNode.attr.owner = 'budget';
+    s.controller._doAddItem();
+    s.controller._doAddItem(null, {name: 'Crew'});
+    assert.deepEqual(plain(s.lines.getItem('r_k1')), {code: '001', name: '', owner: 'budget/grid'});
+    assert.deepEqual(plain(s.lines.getItem('r_k2')), {code: '002', name: 'Crew', owner: 'budget/grid'});
+    s.controller.entry = true;
+    s.controller.entryTile = {domNode: () => null, tileContent: {walk: () => undefined}};
+    s.controller._resetEntry();
+    assert.equal(s.data.getItem('ws.entry.code'), '003', 'the entry row shows the next one too');
+    s.controller._announcer = {textContent: ''};
+    const tile = {domNode: () => null, flash() {}};
+    s.controller.tiles = {r_k1: tile, r_k2: tile};
+    s.controller._insertPastedRows([{name: 'Grip'}, {name: 'Sound'}], null);
+    assert.deepEqual([...s.lines.getNodes().map((n) => n.getValue().getItem('code'))], ['001', '002', '003', '004'], 'each pasted row the next code');
+});
+
+test('defaultRow: a fresh row left empty is measured on the defaults it was given', () => {
+    const s = createGrid({controller: {phantom: true, defaultRow: {code: "==String(rows.len() + 1)"}}});
+    s.controller._doAddItem();
+    s.controller.tiles = {r_k1: {}};
+    assert.equal(s.controller.defaultRowValues().code, '2', 'worked out again it is the next code');
+    s.controller._dropIfEmpty('r_k1');
+    assert.equal(s.lines.len(), 0, 'still a row with no entry');
+});
+
+function focusTile(s, {bodyMounted = true} = {}) {
+    // a tile with a code badge, a name and a read-only note, as editors
+    // and as source nodes bound to their fields
+    const focused = [];
+    const editor = (name) => ({name, focus: () => focused.push(name), select() {}});
+    const editors = {code: editor('code'), name: editor('name'), note: editor('note')};
+    const nodes = ['code', 'name', 'note'].map((f) => ({attr: {value: '^.' + f}, widget: {focusNode: editors[f]}}));
+    const tile = Object.create(s.context.gnr.GroupletGridTile.prototype);
+    Object.assign(tile, {
+        controller: s.controller,
+        bodyMounted,
+        tileContent: {walk: (cb) => nodes.reduce((found, n) => found || cb(n), undefined)},
+        domNode: () => ({isConnected: true, querySelectorAll: () => [editors.code, editors.name]}),
+        tileNode: {freeze() {}, unfreeze() {}},
+        _cancelPendingBody() {},
+        _mountChrome() {},
+        _mountBody() {}
+    });
+    return {tile, focused};
+}
+
+test('additem_focus: a row added with + puts the caret on that field, else on the first editor', async () => {
+    const s = createGrid({controller: {additemKw: {focus: 'name'}}});
+    s.controller._reproxyForm = () => {};
+    s.controller._doAddItem();
+    assert.equal(s.controller._pendingFocusField, 'name');
+    let t = focusTile(s);
+    s.controller._focusFirstEditor(t.tile, null, 'name');
+    await tick();
+    assert.deepEqual(t.focused, ['name']);
+    t = focusTile(s);
+    s.controller._focusFirstEditor(t.tile, null, null);
+    await tick();
+    assert.deepEqual(t.focused, ['code'], 'without additem_focus the first editor');
+    t = focusTile(s);
+    s.controller._focusFirstEditor(t.tile, null, 'note');
+    await tick();
+    assert.deepEqual(t.focused, ['code'], 'a field that takes no typing falls back to the first');
+    t = focusTile(s, {bodyMounted: false});
+    s.controller._focusFirstEditor(t.tile, null, 'name');
+    await tick();
+    assert.deepEqual(t.focused, [], 'a lazy tab has no body yet');
+    t.tile.mountBody();
+    await tick();
+    assert.deepEqual(t.focused, ['name'], 'the caret goes there once the body is mounted');
+});
+
 test('naturalCompare orders codes as read, blanks last', () => {
     const {context} = createGrid();
     const cmp = context.gnr.GroupletGridController.naturalCompare;
