@@ -3842,7 +3842,9 @@ gnr.GroupletGridController = class GroupletGridController {
         const kebab = bar._('div', {
             _class: 'grouplet_grid_selection_kebab',
             tabindex: 0,
-            tip: _T('!!Actions on the selected rows')
+            tip: _T('!!Actions on the selected rows'),
+            // the form may have been locked or unlocked since the selection
+            connect_onmousedown: function() { c._updateSelectionBar(); }
         });
         kebab._('span', {_class: 'grouplet_grid_kebab_icon', innerHTML: '⋮'});
         const menu = kebab._('menu', {
@@ -4150,7 +4152,7 @@ gnr.GroupletGridController = class GroupletGridController {
         let last = null;
         const pastedKeys = [];
         if (replaced && rows.length && this.dataStore.rowNode(replaced)) {
-            this.dataStore.updateRow(replaced, rows[0]);
+            this.dataStore.updateRow(replaced, this._nestedKeys(rows[0], this.dataStore.rowValue(replaced)));
             rows = rows.slice(1);
             last = replaced;
             pastedKeys.push(replaced);
@@ -4159,7 +4161,7 @@ gnr.GroupletGridController = class GroupletGridController {
             if (this.maxRows && this._rowCount() >= this.maxRows) return;
             const key = 'r_' + genro.time36Id();
             if (this.phantom) this._freshRows[key] = true;
-            this.dataStore.addRow(key, objectUpdate(this.defaultRowValues(), values),
+            this.dataStore.addRow(key, objectUpdate(this.defaultRowValues(), this._nestedKeys(values, null)),
                                   last ? '>' + last : undefined);
             last = key;
             pastedKeys.push(key);
@@ -4175,9 +4177,51 @@ gnr.GroupletGridController = class GroupletGridController {
         if (pasted) this._announce(_T('!!Rows pasted') + ': ' + pasted);
     }
 
+    _nestedKeys(values, row) {
+        // `#n` in a path is the n-th row of a nested grid: the row `row`
+        // has there, else a new one, made in order of position and only
+        // for a value: a nested row of empty cells is not added. A new one
+        // goes in `row` at once, so that its grid draws it: updateRow
+        // makes a missing path silently
+        const resolved = {};
+        const made = {};
+        const resolve = (p, create) => {
+            let prefix = '';
+            for (const part of p.split('.')) {
+                let seg = part;
+                if (/^#\d+$/.test(seg)) {
+                    const at = prefix + seg;
+                    if (!(at in made)) {
+                        const node = (row instanceof gnr.GnrBag) ? row.getNode(at) : null;
+                        if (!node && !create) return null;
+                        made[at] = node ? node.label : 'r_' + genro.time36Id();
+                        if (!node && row instanceof gnr.GnrBag) row.setItem(prefix + made[at], new gnr.GnrBag());
+                    }
+                    seg = made[at];
+                }
+                prefix += seg + '.';
+            }
+            return prefix.slice(0, -1);
+        };
+        const positional = Object.keys(values).filter((p) => gnr.GroupletGridController._anyPosition(p))
+            .sort((a, b) => a.localeCompare(b, undefined, {numeric: true}));
+        Object.keys(values).forEach((p) => {
+            if (positional.indexOf(p) < 0) resolved[p] = values[p];
+        });
+        [true, false].forEach((filled) => positional.forEach((p) => {
+            if ((values[p] !== null) !== filled) return;
+            const path = resolve(p, filled);
+            if (path) resolved[path] = values[p];
+        }));
+        return resolved;
+    }
+
     _rowFields(tile) {
         // The editable fields of a row, in template order, as paths
         // relative to the row (a template may write into `.extra_data.*`).
+        // A field in a row of a nested grid goes by position, `Details.#2.qty`,
+        // and by that path alone: its label repeats on every nested row and
+        // its row key differs from one row to another.
         let base = this.storepath + '.' + tile.pkey;
         if (tile === this.entryTile) base = this.entryPath;
         else if (tile === this.phantomTile) base = this.phantomPath;
@@ -4186,25 +4230,49 @@ gnr.GroupletGridController = class GroupletGridController {
         if (this.structAdapter) {
             this.structAdapter.cells.forEach((c) => { names[c.field] = c.name; });
         }
-        const fields = [];
-        if (!tile.tileContent) return fields;
+        const found = [];
+        const stores = [];
+        if (!tile.tileContent) return [];
         tile.tileContent.walk((n) => {
+            if (n.gridController && n.gridController !== this) stores.push(n.gridController.storepath + '.');
             const attr = n.attr || {};
             if (!n.widget || typeof attr.value !== 'string' || attr.value[0] !== '^') return;
             const abs = n.absDatapath(attr.value.slice(1));
             if (abs.indexOf(base) !== 0) return;
-            const path = abs.slice(base.length);
             // a formlet moves `lbl` onto the field's label wrapper
             const wrapper = n.getLabelWrapper && n.getLabelWrapper();
-            const lbl = attr.lbl || (wrapper && wrapper.attr.label) || attr.label;
-            fields.push({
-                path: path,
-                node: n,
-                label: lbl,
-                labels: gnr.GroupletGridController._labelKeys([path, names[path], lbl])
-            });
+            found.push({abs: abs, node: n, lbl: attr.lbl || (wrapper && wrapper.attr.label) || attr.label});
         }, 'static');
-        return fields;
+        // the innermost grid first, while the outer row keys are still there
+        stores.sort((a, b) => b.length - a.length);
+        return found.map(({abs, node, lbl}) => {
+            let full = abs;
+            stores.forEach((store) => {
+                if (full.indexOf(store) !== 0) return;
+                const rest = full.slice(store.length).split('.');
+                const rows = genro.getData(store.slice(0, -1));
+                const idx = (rows instanceof gnr.GnrBag) ? rows.index(rest[0]) : -1;
+                if (idx >= 0) full = store + ['#' + idx].concat(rest.slice(1)).join('.');
+            });
+            const path = full.slice(base.length);
+            const nested = full !== abs;
+            return {
+                path: path,
+                node: node,
+                label: nested ? path : lbl,
+                labels: gnr.GroupletGridController._labelKeys(nested ? [path] : [path, names[path], lbl])
+            };
+        });
+    }
+
+    static _anyPosition(path) {
+        // the path with every nested row position as `#*`; null without one
+        return /(^|\.)#\d+(\.|$)/.test(path) ? path.replace(/#\d+(?=\.|$)/g, '#*') : null;
+    }
+
+    static _uniqueFields(lists) {
+        const seen = {};
+        return [].concat(...lists).filter((f) => !seen[f.path] && (seen[f.path] = true));
     }
 
     static _labelKeys(labels) {
@@ -4221,8 +4289,20 @@ gnr.GroupletGridController = class GroupletGridController {
         // name, wherever it was pasted; a column no field takes is skipped
         const first = rows.length ? rows[0].map((v) => v.trim().toLowerCase()) : [];
         const known = [].concat(...this._copyColumns(fields).map((c) => c.labels));
-        if (first.some((v) => v) && first.every((v) => !v || known.indexOf(v) >= 0)) {
-            cols = first.map((v) => v && fields.find((f) => f.labels.indexOf(v) >= 0));
+        if (first.some((v) => v) && first.every((v) => !v || known.indexOf(v) >= 0 || Ctrl._anyPosition(v))) {
+            let pool = null;
+            cols = first.map((v) => {
+                const field = v && fields.find((f) => f.labels.indexOf(v) >= 0);
+                if (field || !v || !Ctrl._anyPosition(v)) return field;
+                // a nested row the target lacks: the same field of another
+                // row reads the value, written at the copied position
+                pool = pool || this._gridFields();
+                const like = pool.find((f) => Ctrl._anyPosition(f.path.toLowerCase()) === Ctrl._anyPosition(v));
+                if (!like) return null;
+                const positions = v.match(/#\d+/g);
+                let i = 0;
+                return {path: like.path.replace(/#\d+/g, () => positions[i++]), node: like.node};
+            });
             rows = rows.slice(1);
         }
         return rows.filter((r) => r.some((v) => v.trim() !== '')).map((r) => {
@@ -4407,7 +4487,7 @@ gnr.GroupletGridController = class GroupletGridController {
         // the copied columns, each with its dtype, and the raw values of
         // the selected rows in store order
         const Ctrl = gnr.GroupletGridController;
-        const cols = this._copyColumns(this._copyFields());
+        const cols = this._copyColumns(this._copyFields(selection));
         const rows = [];
         selection.forEach(({grid, rowKeys}) => {
             grid.dataStore.getData().keys().filter((k) => rowKeys.includes(k)).forEach((k) => {
@@ -4503,8 +4583,18 @@ gnr.GroupletGridController = class GroupletGridController {
         return String(value);
     }
 
-    _copyFields() {
-        return this.structAdapter ? [] : this._firstRowFields();
+    _copyFields(selection) {
+        // the fields of every copied row: their nested rows differ
+        if (this.structAdapter) return [];
+        const Ctrl = gnr.GroupletGridController;
+        const fields = Ctrl._uniqueFields([].concat(...selection.map(({grid, rowKeys}) => rowKeys.map(
+            (k) => (grid.tiles && grid.tiles[k]) ? grid._rowFields(grid.tiles[k]) : []))));
+        return fields.length ? fields : this._firstRowFields();
+    }
+
+    _gridFields() {
+        const tiles = [this.phantomTile, this.entryTile].concat(Object.values(this.tiles || {}));
+        return gnr.GroupletGridController._uniqueFields(tiles.map((t) => t ? this._rowFields(t) : []));
     }
 
     _firstRowFields() {

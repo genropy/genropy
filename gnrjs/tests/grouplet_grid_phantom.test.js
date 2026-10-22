@@ -1111,3 +1111,109 @@ test('template mode: pasted in the entry row editing a row, the first row replac
     assert.deepEqual([...s.lines.keys()], ['r_a', 'r_b', 'r_k1', 'r_c', 'r_d']);
     assert.equal(s.lines.getItem('r_k1.item'), 'Flour');
 });
+
+function nestedGrid() {
+    // cards holding a nested grid of details: a quantity on the line, a
+    // labelled rate in a popup, and a grid of tags in the popup too
+    const s = clipboardGrid();
+    const {context, lines} = s;
+    const Bag = lines.constructor;
+    const detail = (qty, rate, tags) => {
+        const d = new Bag({qty, rate});
+        if (tags) d.setItem('tags', new Bag(Object.fromEntries(tags.map((t, i) => ['t_' + i, new Bag({tag: t})]))));
+        return d;
+    };
+    lines.setItem('r_a.details', new Bag({d_0: detail(1, 0.32, ['red', 'blue']), d_1: detail(2, 0.32),
+                                          d_2: detail(3, 0.32)}));
+    lines.setItem('r_b.details', new Bag({x_9: detail(5, 0.1)}));
+    const field = (parent, name, value, attr = {}) => {
+        parent._('textbox', name, Object.assign({tag: 'textbox', value: '^.' + value}, attr));
+        parent.getNode(name).widget = {declaredClass: 'dijit.form.NumberTextBox', constraints: {}, domNode: null};
+    };
+    const grid = (parent, name, storepath) => {
+        parent._('div', name, {});
+        parent.getNode(name).gridController = {storepath};
+        return parent.getItem(name);
+    };
+    const tile = (datapath, pkey) => {
+        const root = new context.gnr.GnrDomSource();
+        root._('div', 'row', {datapath});
+        root.setBackRef();
+        const row = root.getItem('row');
+        row._('textbox', 'item', {tag: 'textbox', value: '^.item', lbl: 'Item'});
+        row.getNode('item').widget = {domNode: null};
+        const details = grid(row, 'details', datapath + '.details');
+        const store = pkey && lines.getItem(pkey + '.details');
+        (store ? store.keys() : []).forEach((dk) => {
+            details._('div', dk, {datapath: '.details.' + dk});
+            const line = details.getItem(dk);
+            field(line, 'qty', 'qty');
+            line._('tooltipPane', 'popup', {});
+            line.getItem('popup')._('formlet', 'fb', {});
+            const fb = line.getItem('popup.fb');
+            field(fb, 'rate', 'rate', {lbl: 'Rate'});
+            const tags = grid(fb, 'tags', datapath + '.details.' + dk + '.tags');
+            const tagStore = lines.getItem(pkey + '.details.' + dk + '.tags');
+            (tagStore ? tagStore.keys() : []).forEach((tk) => {
+                tags._('div', tk, {datapath: '.tags.' + tk});
+                tags.getItem(tk)._('textbox', 'tag', {tag: 'textbox', value: '^.tag'});
+                tags.getNode(tk + '.tag').widget = {domNode: null};
+            });
+        });
+        return {pkey, tileContent: row, domNode: () => null, flash() {}};
+    };
+    s.c.tiles = {r_a: tile('record.lines.r_a', 'r_a'), r_b: tile('record.lines.r_b', 'r_b')};
+    s.c.phantomTile = tile('ws.phantom');
+    s.c.dataStore.updateRow = (key, dict) => Object.keys(dict).forEach(k => lines.setItem(key + '.' + k, dict[k]));
+    const details = (key) => JSON.parse(JSON.stringify(lines.getItem(key + '.details').getNodes().map((n) => {
+        const tags = n.getValue().getItem('tags');
+        return [n.getValue().getItem('qty'), n.getValue().getItem('rate'),
+                tags ? tags.getNodes().map((t) => t.getValue().getItem('tag')) : []];
+    })));
+    return {...s, details};
+}
+
+test('a field of a nested row is named by its position, each popup field of each row apart', () => {
+    const s = nestedGrid();
+    const header = s.c._rowsAsText([{grid: s.c, rowKeys: ['r_a']}]).split('\n')[0].split('\t');
+    assert.deepEqual(header, ['Item', 'details.#0.qty', 'details.#0.rate', 'details.#0.tags.#0.tag',
+                              'details.#0.tags.#1.tag', 'details.#1.qty', 'details.#1.rate',
+                              'details.#2.qty', 'details.#2.rate']);
+    const both = s.c._rowsAsText([{grid: s.c, rowKeys: ['r_b', 'r_a']}]).split('\n');
+    assert.equal(both[0].split('\t').length, header.length, 'the columns of every copied row, each once');
+    assert.equal(both[2].split('\t')[header.indexOf('details.#0.qty')], '5', 'by position, whatever the key');
+});
+
+test('copied nested rows paste back whole: as new rows, or over a row with fewer of them', () => {
+    const s = nestedGrid();
+    const text = s.c._rowsAsText([{grid: s.c, rowKeys: ['r_a', 'r_b']}]);
+    s.c._pasteRows(text, s.c.phantomTile, null);
+    const added = [...s.lines.keys()].filter((k) => !['r_a', 'r_b'].includes(k));
+    assert.equal(added.length, 2);
+    assert.deepEqual(s.details(added[0]), [[1, 0.32, ['red', 'blue']], [2, 0.32, []], [3, 0.32, []]]);
+    assert.deepEqual(s.details(added[1]), [[5, 0.1, []]]);
+    s.c._pasteRows(s.c._rowsAsText([{grid: s.c, rowKeys: ['r_a']}]), s.c.tiles.r_b, null);
+    assert.equal(s.lines.getItem('r_b.details').keys()[0], 'x_9', 'an existing nested row keeps its key');
+    assert.deepEqual(s.details('r_b'), [[1, 0.32, ['red', 'blue']], [2, 0.32, []], [3, 0.32, []]]);
+});
+
+test('the selection bar reads whether the selection can be deleted as its menu opens', () => {
+    const s = clipboardGrid();
+    const c = s.c;
+    let locked = true;
+    c.controllerPath = 'ws.ctrl';
+    c.sourceNode.getFormHandler = () => ({isDisabled: () => locked});
+    const root = new s.context.gnr.GnrDomSource();
+    root._('div', 'selection');
+    root.setBackRef();
+    c.selectionNode = root.getNode('selection');
+    c.selectionNode.getDomNode = () => ({querySelector: () => null});
+    c._mountSelectionBar();
+    c._setMulti(['r_a', 'r_b']);
+    const deleteLocked = () => s.data.getItem('ws.ctrl.selection_menu.delete_locked');
+    assert.equal(deleteLocked(), true, 'selected in a locked form');
+    locked = false;
+    const kebab = root.walk((n) => (n.attr._class === 'grouplet_grid_selection_kebab' ? n : undefined), 'static');
+    kebab.attr.connect_onmousedown();
+    assert.equal(deleteLocked(), false, 'unlocked since: the menu opens with Delete enabled');
+});
