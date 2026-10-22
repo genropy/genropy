@@ -15,7 +15,7 @@
   test_6_profile      the same resource three times: its own card profile,
                       the profile given by the caller, the resource's
                       profile overridden by the caller
-  test_7_doc          the ⓘ doc, read from the documentation storage: the
+  test_7_doc          the ⓘ doc, read from the inlinedoc storage: the
                       resource's own address, and a card in place pointing to
                       one with doc= (doc_kw fills its variables); empty docs
                       show their ⓘ only in documentation mode
@@ -130,7 +130,7 @@ class GnrCustomWebPage(object):
                          titleTemplate='!!Ship to $street')
 
     def test_7_doc(self, pane):
-        """The ⓘ doc of the resource and of a card in place, from the documentation storage"""
+        """The ⓘ doc of the resource and of a card in place, from the inlinedoc storage"""
         pane.data('.shipping', Bag(dict(street='Via Roma 1', city='Milano', province='MI')))
         pane.checkbox(value='^gnr.docModeVisible', label='!!Documentation mode')
         row = pane.div(display='flex', gap='12px', align_items='start')

@@ -1,10 +1,11 @@
-"""Docs as Markdown in the documentation storage, written in place.
+"""Docs as Markdown in the inlinedoc storage, written in place.
 
 Log in to the instance: sys/ep_doc never answers a guest. A user with the tag
 _DOC_ (or doc_<package>) is a documenter: in documentation mode the ⓘ of an
 empty doc shows red, a click opens the editor, Save writes
-documentation:<pkg>/<table>/... and from then on everybody sees the ⓘ. Without
-a configured documentation service the docs are files of the site folder.
+<pkg>/<table>/... in the inlinedoc storage and from then on everybody sees the
+ⓘ. Without an inlinedoc storage service the docs go in home:inlinedoc, as
+attachments go in home.
 
   test_1_fields  fields of adm.user: each documents its column
                  (field:adm.user:<column>), the same doc in every form

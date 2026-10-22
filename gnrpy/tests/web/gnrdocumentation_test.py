@@ -1,7 +1,8 @@
-"""Docs as MyST Markdown in the `documentation` storage, served by sys/ep_doc.
+"""Docs as MyST Markdown in the `inlinedoc` storage, served by sys/ep_doc.
 
 Runs on a real GnrDummySite over the isolated ``gnrtest`` instance (sys, adm):
-the unconfigured `documentation` service is a real local folder of the site,
+with no `inlinedoc` service configured the docs are a real `home:inlinedoc`
+folder of the site,
 users and tags are adm records. Replaced: the page register (the daemon's), the
 HTTP method of the dummy page's request, and boto's paginator for aws_s3.
 """
@@ -21,6 +22,7 @@ from werkzeug.wrappers import Response
 from core.common import BaseGnrTest
 
 from gnr.app.gnrapp import GnrApp
+from gnr.core.gnrbag import Bag
 from gnr.core.gnrlang import gnrImport, instanceMixin
 from gnr.lib.services.storage import StorageService
 from gnr.web import gnrdocumentation
@@ -136,7 +138,7 @@ class TestDocumentation(BaseGnrTest):
         page_items = dict(P_WRITER=dict(user='writer'), P_READER=dict(user='reader'),
                           P_GUEST=dict(user='guest_123'))
         cls.site.register.page = lambda page_id, include_data=None: page_items.get(page_id)
-        cls.folder = os.path.join(cls.site.site_static_dir, 'documentation')
+        cls.folder = os.path.join(cls.site.site_static_dir, 'inlinedoc')
 
     def setup_method(self):
         shutil.rmtree(self.folder, ignore_errors=True)
@@ -169,7 +171,8 @@ class TestDocumentation(BaseGnrTest):
         assert gnrdocumentation.__file__.startswith(str(ROOT))
         assert ep_doc.__file__.startswith(str(ROOT))
 
-    def test_the_documentation_service_is_a_local_folder_when_not_configured(self):
+    def test_without_an_inlinedoc_service_the_docs_go_in_home(self):
+        assert self.store.root == 'home:inlinedoc/'
         self.store.save('field:adm.user:username', 'it', 'Il *nome* di login', title='Username',
                         author='writer')
         with open(os.path.join(self.folder, 'adm/user/fields/username/it.md'), encoding='utf-8') as f:
@@ -179,14 +182,32 @@ class TestDocumentation(BaseGnrTest):
             ('field:adm.user:username', 'Username', 'reference', 'writer')
         assert meta['updated']
 
+    def test_a_configured_inlinedoc_service_takes_the_docs(self, tmp_path):
+        service = self.site.db.table('sys.service')
+        record = service.newrecord(service_type='storage', service_name='inlinedoc', implementation='local',
+                                   parameters=Bag(dict(base_path=str(tmp_path))))
+        service.insert(record)
+        self.site.db.commit()
+        self.site.storage_handler.updateStorageParams('inlinedoc')
+        try:
+            assert self.store.root == 'inlinedoc:'
+            self.store.save('field:adm.user:username', 'it', 'Login')
+            assert (tmp_path / 'adm/user/fields/username/it.md').exists()
+            assert not os.path.exists(self.folder), 'home is not used'
+        finally:
+            service.delete(record)
+            self.site.db.commit()
+            self.site.storage_handler.removeStorageFromCache('inlinedoc')
+        assert self.store.root == 'home:inlinedoc/'
+
     def test_local_listing_is_recursive_and_the_generic_one_agrees(self):
         self.write('adm/user/fields/username/it.md', 'a')
         self.write('adm/user/fields/username/assets/x.png', 'b')
         self.write('adm/user/_table/en.md', 'c')
-        node = self.site.storageNode('documentation:adm/user')
+        node = self.store.node('adm/user')
         listing = node.file_mtimes()
         assert set(listing) == {'fields/username/it.md', 'fields/username/assets/x.png', '_table/en.md'}
-        assert StorageService.file_mtimes(node.service, 'adm/user') == listing
+        assert StorageService.file_mtimes(node.service, node.path) == listing
 
     def test_the_index_picks_the_language_and_lists_each_table_once(self, monkeypatch):
         self.write('adm/user/fields/username/en.md', 'en')
@@ -204,7 +225,7 @@ class TestDocumentation(BaseGnrTest):
                                   'table:adm.user:', 'not an address'], ['it', 'en'])
         assert {a: v['language'] for a, v in index.items()} == {'field:adm.user:username': 'it',
                                                                  'field:adm.user:email': 'en'}
-        assert listed == ['adm/user'], 'one listing for the whole table'
+        assert listed == ['inlinedoc/adm/user'], 'one listing for the whole table, in home'
 
     def test_a_save_refuses_a_doc_changed_since_it_was_read(self):
         mtime = self.store.save('field:adm.user:email', 'it', 'v1')

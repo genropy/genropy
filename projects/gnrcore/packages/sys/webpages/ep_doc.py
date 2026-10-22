@@ -14,7 +14,7 @@ from gnr.web.gnrwebpage import GnrUserNotAllowed
 
 
 class GnrCustomWebPage(object):
-    """The docs of the `documentation` storage (gnr.web.gnrdocumentation), for a
+    """The docs of the `inlinedoc` storage (gnr.web.gnrdocumentation), for a
     registered calling page of a logged user (`_calling_page_id`); writing needs
     the documenter tags `_DOC_,doc_<pkg>` of the doc's package.
 

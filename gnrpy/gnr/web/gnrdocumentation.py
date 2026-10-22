@@ -1,4 +1,4 @@
-"""Documentation kept as MyST Markdown files in a storage service.
+"""Documentation kept as MyST Markdown files in the `inlinedoc` storage.
 
 A doc is addressed `<kind>:<target>:<name>`, the context-sensitive help ID of a
 package, table, field, grouplet or page, and lives in one folder per address,
@@ -14,6 +14,8 @@ one file per language, its images beside it:
 
 Each file opens with a YAML front matter (`id`, `title`, `type`, `updated`,
 `author`), so the same files build the Sphinx reference through myst-parser.
+As attachments do, the docs go in `home:inlinedoc/` unless a storage service
+named `inlinedoc` is configured (siteconfig or sys.service), e.g. an S3 bucket.
 """
 
 import base64
@@ -26,7 +28,7 @@ from datetime import datetime, timezone
 import yaml
 from markdown_it import MarkdownIt
 
-DOC_SERVICE = 'documentation'
+DOC_SERVICE = 'inlinedoc'
 LISTING_TTL = 30
 SEGMENT = re.compile(r'^[A-Za-z0-9_][A-Za-z0-9_.-]*$')
 LANGUAGE = re.compile(r'^[a-z]{2}(-[A-Za-z]{2})?$')
@@ -102,15 +104,21 @@ def _same_mtime(current, base):
 
 
 class DocumentationStore(object):
-    """The docs of a site in its `documentation` storage service: an unconfigured
-    service is a local folder of the site, an aws_s3 one a bucket"""
+    """The docs of a site: the `inlinedoc` storage service when configured,
+    else the `inlinedoc` folder of `home`"""
 
     def __init__(self, site, service=DOC_SERVICE):
         self.site = site
         self.service = service
 
+    @property
+    def root(self):
+        if self.site.storage_handler.getStorageParameters(self.service):
+            return f'{self.service}:'
+        return f'home:{self.service}/'
+
     def node(self, path, **kwargs):
-        return self.site.storageNode(f'{self.service}:{path}', **kwargs)
+        return self.site.storageNode(f'{self.root}{path}', **kwargs)
 
     def _prefix(self, folder):
         return '/'.join(folder.split('/')[:2])
