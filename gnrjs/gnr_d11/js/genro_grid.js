@@ -169,6 +169,13 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
                 dojox.grid.headerBuilder.prototype.getCellX = function(e){
                     return e.cellNode? e.clientX - e.cellNode.getBoundingClientRect().left : 0;
                 };
+                ['overLeftResizeArea','overRightResizeArea'].forEach(function(name){
+                    var overResizeArea = dojox.grid.headerBuilder.prototype[name];
+                    // the resize is armed before the grid sees the mousedown, and its end swallows the click
+                    dojox.grid.headerBuilder.prototype[name] = function(e){
+                        return !(e.target.closest && e.target.closest('.gridColumnFilter')) && overResizeArea.call(this,e);
+                    };
+                });
             }
 
         }
@@ -185,7 +192,8 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
         return this.onHeaderCellClick_replaced(e);
     },
     patch_onHeaderCellMouseDown:function(e){
-        if(e.target.closest && e.target.closest('.gridColumnFilter')){
+        this._columnFilterPressed = Boolean(e.target.closest && e.target.closest('.gridColumnFilter'));
+        if(this._columnFilterPressed){
             // a draggable header turns a click that moves a few pixels into a column drag, and the click never comes
             e.preventDefault();
             return;
@@ -2392,6 +2400,10 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
         var widget = dragInfo.widget;
         var value = {};
         if (widget.gridEditor && widget.gnrediting){
+            return false;
+        }
+        if (dragmode == 'column' && widget._columnFilterPressed){
+            // a mousedown left undone does not stop the drag of a draggable header everywhere
             return false;
         }
 
