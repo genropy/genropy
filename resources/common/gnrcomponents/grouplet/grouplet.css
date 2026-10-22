@@ -1961,6 +1961,8 @@ body.drag_started .grouplet_grid_container {
 }
 /* body > row: outranks the formlet field rule (.gnrgridbox.formlet .dijitTextBox) */
 .grouplet_grid_body > .grouplet_grid_row--phantom .dijitTextBox,
+.grouplet_grid_body > .grouplet_grid_row--phantom .dijitComboBox,
+.grouplet_grid_body > .grouplet_grid_row--phantom .dijitSpinner,
 .grouplet_grid_body > .grouplet_grid_row--phantom .dijitTextArea,
 .grouplet_grid_body > .grouplet_grid_row--phantom textarea {
     border-style: dashed;
@@ -2029,6 +2031,7 @@ body.drag_started .grouplet_grid_container {
    sits under the header as a data row and keeps the normal look. */
 .grouplet_grid:not(.grouplet_grid--struct):not(.grouplet_grid--editing) > .grouplet_grid_slot_top > .grouplet_grid_entry > .grouplet_grid_row--entry:not(:focus-within) .dijitTextBox,
 .grouplet_grid:not(.grouplet_grid--struct):not(.grouplet_grid--editing) > .grouplet_grid_slot_top > .grouplet_grid_entry > .grouplet_grid_row--entry:not(:focus-within) .dijitComboBox,
+.grouplet_grid:not(.grouplet_grid--struct):not(.grouplet_grid--editing) > .grouplet_grid_slot_top > .grouplet_grid_entry > .grouplet_grid_row--entry:not(:focus-within) .dijitSpinner,
 .grouplet_grid:not(.grouplet_grid--struct):not(.grouplet_grid--editing) > .grouplet_grid_slot_top > .grouplet_grid_entry > .grouplet_grid_row--entry:not(:focus-within) .dijitTextArea,
 .grouplet_grid:not(.grouplet_grid--struct):not(.grouplet_grid--editing) > .grouplet_grid_slot_top > .grouplet_grid_entry > .grouplet_grid_row--entry:not(:focus-within) textarea {
     border-style: dashed;
