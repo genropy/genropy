@@ -71,6 +71,11 @@ class FrameIndex(BaseComponent):
                     genro.pageReload()}})""",msg='!!Invalid Access',_onStart=True)
             return 
         root.attributes['overflow'] = 'hidden'
+        root.dataController("""if(window.location.search){
+                                var urlParsed = parseURL(window.location.href);
+                                objectExtract(urlParsed.params,'page_id,_no_cache_');
+                                window.history.replaceState({},document.title,serializeURL(urlParsed));
+                            }""",_onStart=True)
         if menucode:
             menucode_kwargs = dictExtract(kwargs,f'{menucode}_')
             menucode_kwargs['menucode'] = menucode

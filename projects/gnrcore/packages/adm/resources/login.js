@@ -55,6 +55,16 @@ const LoginComponent = {
         }
     },
 
+    hasVisibleFields:(sourceNode)=>{
+        let visible = false;
+        sourceNode.getValue().walk(n=>{
+            if(n.attr.value && !n.getAttributeFromDatasource('hidden')){
+                visible = true;
+            }
+        });
+        return visible;
+    },
+
     confirmAvatar:(sourceNode,rpcmethod,dlg,doLogin,error_msg,standAlonePage)=>{
         var avatar = sourceNode.getRelativeData('gnr.avatar');
         var rootenv = sourceNode.getRelativeData('gnr.rootenv');
@@ -109,7 +119,7 @@ const LoginComponent = {
                     genro.gotoURL(startPage);
                     return
                 }
-                let kwreload = {...genro.startArgs};
+                let kwreload = Object.fromEntries(new URL(window.location.href).searchParams);
                 objectPop(kwreload,'gnrtoken');
                 if(doLogin){
                     let singlepage = avatar.getItem('avatar_rootpage') || rootenv.getItem('singlepage');
