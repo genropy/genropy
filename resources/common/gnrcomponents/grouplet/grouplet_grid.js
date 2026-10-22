@@ -7,6 +7,12 @@
 // `_namespaceFrameworkNodeIds`.
 const NAMESPACED_ATTRS = ['nodeId', 'dragCode'];
 
+// The printed rows live in a frame of their own, out of the page's CSS.
+const PRINT_CSS = 'body{font:10pt sans-serif;margin:0}'
+    + 'table{border-collapse:collapse;width:100%}'
+    + 'th,td{padding:2pt 4pt;border-bottom:0.5pt solid #999;text-align:left;vertical-align:top}'
+    + 'th{border-bottom-width:1pt}.num{text-align:right}tr{break-inside:avoid}';
+
 gnr.GroupletGridStructAdapter = class GroupletGridStructAdapter {
     constructor(struct, controllerPath) {
         this.struct = struct;
@@ -3865,7 +3871,9 @@ gnr.GroupletGridController = class GroupletGridController {
     _selectionSpecs() {
         // selectionmenu = {key: true | 'label' | {label, action}}, as editmenu
         const presets = {'delete': {label: '!!Delete'},
-                         copy: {label: '!!Copy', iconClass: 'iconbox copy duplicate_record'}};
+                         copy: {label: '!!Copy', iconClass: 'iconbox copy duplicate_record'},
+                         exportXls: {label: '!!Export Excel', iconClass: 'iconbox export'},
+                         print: {label: '!!Print', iconClass: 'iconbox print'}};
         return Object.keys(this.selectionmenu).map((key) => {
             const raw = this.selectionmenu[key];
             let spec = null;
@@ -3883,8 +3891,9 @@ gnr.GroupletGridController = class GroupletGridController {
             this._deleteSelected();
             return;
         }
-        if (spec.key === 'copy' && !spec.action) {
-            this.copyRows(null, selection);
+        const preset = {copy: 'copyRows', exportXls: 'exportRows', print: 'printRows'}[spec.key];
+        if (preset && !spec.action) {
+            this[preset](null, selection);
             return;
         }
         if (spec.action) {
@@ -4388,17 +4397,110 @@ gnr.GroupletGridController = class GroupletGridController {
 
     _rowsAsText(selection) {
         const Ctrl = gnr.GroupletGridController;
+        const {cols, rows} = this._selectionTable(selection);
+        if (!cols.length || !rows.length) return null;
+        return [cols.map((c) => c.label)].concat(rows)
+            .map((l) => l.map((v) => Ctrl.copyCell(v)).join('\t')).join('\n') + '\n';
+    }
+
+    _selectionTable(selection) {
+        // the copied columns, each with its dtype, and the raw values of
+        // the selected rows in store order
+        const Ctrl = gnr.GroupletGridController;
         const cols = this._copyColumns(this._copyFields());
-        if (!cols.length || !selection.some((e) => e.rowKeys.length)) return null;
-        const lines = [cols.map((c) => Ctrl.copyCell(c.label))];
+        const rows = [];
         selection.forEach(({grid, rowKeys}) => {
             grid.dataStore.getData().keys().filter((k) => rowKeys.includes(k)).forEach((k) => {
                 const row = grid.dataStore.rowValue(k);
-                lines.push(cols.map((c) => Ctrl.copyCell(
-                    (row instanceof gnr.GnrBag) ? row.getItem(c.path) : null)));
+                rows.push(cols.map((c) => (row instanceof gnr.GnrBag) ? row.getItem(c.path) : null));
             });
         });
-        return lines.map((l) => l.join('\t')).join('\n') + '\n';
+        cols.forEach((c, i) => {
+            if (!c.dtype || c.dtype === 'T') c.dtype = Ctrl._dtypeOf(rows.map((r) => r[i]), c.format);
+        });
+        return {cols, rows};
+    }
+
+    static _dtypeOf(values, format) {
+        // a column with no declared type takes it from its values, so that
+        // numbers and dates stay numbers and dates in the export; a format
+        // keeps whole amounts decimal
+        const known = values.filter((v) => v !== null && v !== undefined && v !== '');
+        if (!known.length) return null;
+        if (known.every((v) => v instanceof Date)) return 'D';
+        if (known.every((v) => typeof v === 'boolean')) return 'B';
+        if (known.every((v) => typeof v === 'number')) {
+            return (known.every(Number.isInteger) && !format) ? 'L' : 'N';
+        }
+        return null;
+    }
+
+    _selectionOrAll(rowKeys, selection) {
+        selection = selection || [{grid: this, rowKeys: rowKeys || this._selectedKeys()}];
+        return selection.some((e) => e.rowKeys.length)
+            ? selection : [{grid: this, rowKeys: this.dataStore.getData().keys()}];
+    }
+
+    // ====================================================================
+    //  Export and print — the selected rows, or all of them, with the
+    //  copied columns: an Excel file through the framework's grid export,
+    //  a table printed from a hidden frame
+    // ====================================================================
+
+    exportRows(rowKeys, selection) {
+        const {cols, rows} = this._selectionTable(this._selectionOrAll(rowKeys, selection));
+        if (!cols.length || !rows.length) return;
+        const struct = new gnr.GnrBag();
+        cols.forEach((c, i) => {
+            const attr = {field: 'c_' + i, name: c.label};
+            if (c.dtype) attr.dtype = c.dtype;
+            struct.setItem('view_0.rows_0.cell_' + i, null, attr);
+        });
+        const data = new gnr.GnrBag();
+        rows.forEach((r, n) => {
+            const attr = {};
+            r.forEach((v, i) => { attr['c_' + i] = v; });
+            data.setItem('r_' + n, null, attr);
+        });
+        genro.serverCall('app.includedViewAction',
+                         {action: 'export', export_mode: 'xls', struct: struct, data: data, datamode: 'attr',
+                          localized_data: true, downloadAs: this.nodeId + '_export'},
+                         (url) => genro.download(url));
+    }
+
+    printRows(rowKeys, selection) {
+        const Ctrl = gnr.GroupletGridController;
+        const {cols, rows} = this._selectionTable(this._selectionOrAll(rowKeys, selection));
+        if (!cols.length || !rows.length) return;
+        const frame = document.createElement('iframe');
+        frame.style.display = 'none';
+        document.body.appendChild(frame);
+        const doc = frame.contentDocument;
+        doc.title = document.title;
+        doc.head.appendChild(doc.createElement('style')).textContent = PRINT_CSS;
+        const table = doc.body.appendChild(doc.createElement('table'));
+        const line = (section, tag, values) => {
+            const tr = section.appendChild(doc.createElement('tr'));
+            values.forEach((v, i) => {
+                const cell = tr.appendChild(doc.createElement(tag));
+                cell.textContent = v;
+                if (['N', 'L', 'I', 'R', 'F'].includes(cols[i].dtype)) cell.className = 'num';
+            });
+        };
+        line(table.appendChild(doc.createElement('thead')), 'th', cols.map((c) => c.label));
+        const body = table.appendChild(doc.createElement('tbody'));
+        rows.forEach((r) => line(body, 'td', r.map((v, i) => Ctrl.printCell(v, cols[i]))));
+        frame.contentWindow.addEventListener('afterprint', () => frame.remove());
+        genro.dom.iFramePrint(frame);
+    }
+
+    static printCell(value, col) {
+        if (value === null || value === undefined) return '';
+        if (typeof value === 'boolean') return value ? '✓' : '';
+        if (value instanceof Date || typeof value === 'number') {
+            return String(genro.format(value, {dtype: col.dtype, format: col.format}));
+        }
+        return String(value);
     }
 
     _copyFields() {
@@ -4421,13 +4523,17 @@ gnr.GroupletGridController = class GroupletGridController {
             return this.structAdapter.cells.map((c) => ({
                 path: c.field,
                 label: String(_T((c.name || '').trim() || c.field)),
-                labels: Ctrl._labelKeys([c.field, c.name])
+                labels: Ctrl._labelKeys([c.field, c.name]),
+                dtype: c.dtype,
+                format: c.format
             }));
         }
         return fields.map((f) => ({
             path: f.path,
             label: f.label ? String(_T(f.label)) : f.path,
-            labels: f.labels
+            labels: f.labels,
+            dtype: f.node && f.node.attr.dtype,
+            format: f.node && f.node.attr.format
         }));
     }
 

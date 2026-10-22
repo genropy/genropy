@@ -1451,6 +1451,7 @@ class GroupletGridHandler(BaseComponent):
         # actions on several selected rows: outside tabs every row is
         # selectable by Cmd/Ctrl/Shift-click, and by its checkbox given
         # rowCheckbox; copy is preset, delete whenever rows can be deleted;
+        # exportXls and print are presets to ask for;
         # selectionmenu=False turns the selection off
         selectable = layout not in ('tabs', 'vtabs')
         if not selectable or selectionmenu is False:

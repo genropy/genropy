@@ -437,6 +437,8 @@
 <en_rows_pasted base="Rows pasted" it="Righe incollate"></en_rows_pasted>
 <en_1_row_copied base="1 row copied" it="1 riga copiata"></en_1_row_copied>
 <en__count_rows_copied base="$count rows copied" it="$count righe copiate"></en__count_rows_copied>
+<en_export_excel base="Export Excel" it="Esporta Excel"></en_export_excel>
+<en_print base="Print" de="Druck" en="Print" fr="Imprimer" it="Stampa"></en_print>
 <en_delete_row base="Delete row" it="Elimina riga"></en_delete_row>
 <en_delete_1_row base="Delete 1 row" it="Elimina 1 riga"></en_delete_1_row>
 <en_delete_count_rows base="Delete $count rows" it="Elimina $count righe"></en_delete_count_rows>
