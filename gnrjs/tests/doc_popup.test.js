@@ -115,6 +115,11 @@ const shown = (icon) => icon.classList.contains('doc_icon--shown');
 const empty = (icon) => icon.classList.contains('doc_icon--empty');
 const classes = (built) => built.map(([tag, attrs]) => [tag, attrs._class]);
 const byClass = (built, cls) => (built.find(([, attrs]) => attrs._class === cls) || [])[1];
+const escape = (target) => {
+    const evt = {key: 'Escape', target, stopPropagation() { evt.stopped = true; },
+                 preventDefault() { evt.prevented = true; }};
+    return evt;
+};
 
 test('the icons of a page ask sys/ep_doc in one request which docs exist and which may be edited', async () => {
     const page = createPage();
@@ -186,10 +191,29 @@ test('the help panel shows the manual section, a link to the manual and the cust
     assert.equal(byClass(built, 'doc_help_edit').innerHTML, '!!Edit the note');
     byClass(built, 'doc_help_edit').connect_onclick({preventDefault() {}});
     assert.equal(edited, 1);
-    page.docListeners.keydown({key: 'Escape'});
+    const inDialog = escape({closest: (selector) => (selector === '.dijitDialog' ? {} : null)});
+    page.docListeners.keydown(inDialog);
+    assert.equal(page.panels.length, 1, 'Esc in a dialog above the page is the dialog\'s');
+    assert.ok(!inDialog.stopped);
+    const onPage = escape({closest: () => null});
+    page.docListeners.keydown(onPage);
     assert.equal(page.panels.length, 2, 'Esc clears the panel');
     assert.equal(page.panels[1].length, 0);
+    assert.ok(onPage.stopped && onPage.prevented, 'and nothing below closes with it');
     assert.equal(page.docListeners.keydown, undefined, 'and stops listening');
+});
+
+test('the help panel follows only an http(s) or site link to the manual', () => {
+    const page = createPage();
+    for (const url of ['javascript:alert(1)', 'data:text/html,x', '//evil.example.org/', 'file:///etc/passwd']) {
+        page.genro.dlg.helpPanel('field:adm.user:email', {}, {exists: false, editable: false,
+                                                               manual: {title: 'T', html: '<p>M</p>', url}});
+        assert.equal(byClass(page.panels.at(-1), 'doc_help_link'), undefined, url);
+        assert.equal(byClass(page.panels.at(-1), 'doc_help_manual').innerHTML, '<p>M</p>');
+    }
+    page.genro.dlg.helpPanel('field:adm.user:email', {}, {exists: false, editable: false,
+                                                           manual: {title: 'T', html: '', url: '/_storage/site/m/a.html#x'}});
+    assert.equal(byClass(page.panels.at(-1), 'doc_help_link').href, '/_storage/site/m/a.html#x');
 });
 
 test('the help panel without manual: the note alone, or a way to add one, or nothing to show', () => {
@@ -241,6 +265,11 @@ test("the doc's own title is text: its markup is escaped, the caller's title is 
     await page.genro.dlg.openDoc({}, 'field:adm.user:username', {title: '<b>User</b>'});
     assert.equal(byClass(page.panels[1], 'doc_help_panel_title').innerHTML, '<b>User</b>',
                  'a label keeps its markup');
+    page.genro.dlg.helpPanel('field:adm.user:phone', {}, {exists: false, editable: false, title: 'phone',
+                                                          manual: {title: 'T <img src=x onerror=alert(1)>',
+                                                                   html: '', url: 'https://docs.example.org/a.html'}});
+    assert.equal(byClass(page.panels[2], 'doc_help_panel_title').innerHTML, 'T &lt;img src=x onerror=alert(1)&gt;',
+                 "the manual's title is text too");
 });
 
 test('the editor saves the Markdown with relative images, then the doc shows for everybody', async () => {

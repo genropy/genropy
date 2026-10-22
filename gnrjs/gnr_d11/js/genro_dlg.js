@@ -979,6 +979,9 @@ dojo.declare("gnr.GnrDlgHandler", null, {
         source = source || {};
         const manual = source.manual;
         const title = this._docTitleHtml(kw, {title: (manual && manual.title) || source.title});
+        // the server sends only http(s) urls under the manual's site: a url of any
+        // other shape is not followed
+        const manualUrl = manual && /^(https?:\/\/|\/(?!\/))/i.test(manual.url || '') ? manual.url : null;
         genro.src.getNode()._('div', '_doc_help_panel_');
         const node = genro.src.getNode('_doc_help_panel_').clearValue();
         node.freeze();
@@ -990,12 +993,14 @@ dojo.declare("gnr.GnrDlgHandler", null, {
         const body = panel._('div', {_class: 'doc_help_panel_body'});
         if (manual) {
             body._('div', {_class: 'doc_help_manual', innerHTML: manual.html});
+        }
+        if (manualUrl) {
             // a window of its own, reused by the next link: the page stays where it is
-            body._('a', {_class: 'doc_help_link', href: manual.url, target: 'gnr_manual',
+            body._('a', {_class: 'doc_help_link', href: manualUrl, target: 'gnr_manual',
                          innerHTML: _T('!!Open in the manual') + ' &#8599;',
                          connect_onclick: (e) => {
                              e.preventDefault();
-                             genro.openWindow(manual.url, 'gnr_manual', {width: '1000', height: '800'});
+                             genro.openWindow(manualUrl, 'gnr_manual', {width: '1000', height: '800'});
                          }});
         }
         if (source.exists) {
@@ -1017,8 +1022,13 @@ dojo.declare("gnr.GnrDlgHandler", null, {
         node.unfreeze();
         this._helpPanelAddress = address;
         if (this._helpEscape) return;
+        // Esc closes the panel and nothing else: a dialog above the page (the
+        // note's editor among them) keeps its own Esc
         this._helpEscape = (e) => {
-            if (e.key === 'Escape') this.closeHelpPanel();
+            if (e.key !== 'Escape' || (e.target && e.target.closest && e.target.closest('.dijitDialog'))) return;
+            e.stopPropagation();
+            e.preventDefault();
+            this.closeHelpPanel();
         };
         document.addEventListener('keydown', this._helpEscape, true);
     },
