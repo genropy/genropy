@@ -114,6 +114,7 @@ dojo.declare("gnr.widgets.TooltipPane", gnr.widgets.gnrwdg, {
             onClosing = funcCreate(onClosing,'e,sourceNode,dialogNode,kwargs',sourceNode);
         }
         var evt = objectPop(kw,'evt') || 'onclick';
+        var that = this;
         var parentDomNode;
         var sn = sourceNode;
         var placingId = objectPop(kw,'placingId'); 
@@ -133,6 +134,9 @@ dojo.declare("gnr.widgets.TooltipPane", gnr.widgets.gnrwdg, {
                                     if(!onClosing || onClosing(kw.evt,kw.evt.target.sourceNode,this._value.getNode('ttd'),kw)!==false){
                                         this.widget._closeDropDown();
                                     }
+                                },
+                                onOpenedPopup:function(openKw){
+                                    that.followAnchor(openKw,ddbId);
                                 }};
         if(placingId || placingNode){
             //placingId (a dom id) or placingNode (a dom node) anchor the popup to another
@@ -171,9 +175,53 @@ dojo.declare("gnr.widgets.TooltipPane", gnr.widgets.gnrwdg, {
         dojo.connect(parentDomNode,evt,function(e){
             if(genro.wdg.filterEvent(e,modifiers)){
                 genro.publish(ddbId+'_open',{'evt':e,'domNode':e.target});
-            } 
+            }
         });
         return tdialog;
+    },
+
+    followAnchor:function(openKw,ddbId){
+        //dijit.popup places the wrapper once, at page coordinates: ancestor scrolls
+        //would leave it behind its anchor
+        var anchor = openKw.around;
+        var wrapper = openKw.popup.domNode.parentNode;
+        if(!anchor || !wrapper || !anchor.getClientRects().length){
+            return;
+        }
+        var pageOrigin = function(){
+            var rect = anchor.getBoundingClientRect();
+            return {x:rect.left+window.pageXOffset,y:rect.top+window.pageYOffset};
+        };
+        var origin = pageOrigin();
+        var left = parseFloat(wrapper.style.left) || 0;
+        var top = parseFloat(wrapper.style.top) || 0;
+        var onScroll = function(e){
+            var scroller = e.target;
+            var isDocument = !scroller.getBoundingClientRect;
+            if(!isDocument && !scroller.contains(anchor)){
+                return;
+            }
+            var clip = {top:0,left:0,bottom:window.innerHeight,right:window.innerWidth};
+            if(!isDocument){
+                var srect = scroller.getBoundingClientRect();
+                clip = {top:Math.max(clip.top,srect.top),left:Math.max(clip.left,srect.left),
+                        bottom:Math.min(clip.bottom,srect.bottom),right:Math.min(clip.right,srect.right)};
+            }
+            var rect = anchor.getBoundingClientRect();
+            if(!anchor.isConnected || rect.bottom<=clip.top || rect.top>=clip.bottom
+                                   || rect.right<=clip.left || rect.left>=clip.right){
+                genro.publish({topic:'close',nodeId:ddbId},{evt:e});
+                return;
+            }
+            var current = pageOrigin();
+            wrapper.style.left = (left+current.x-origin.x)+'px';
+            wrapper.style.top = (top+current.y-origin.y)+'px';
+        };
+        document.addEventListener('scroll',onScroll,true);
+        var closing = dojo.connect(openKw.popup,'onClose',function(){
+            document.removeEventListener('scroll',onScroll,true);
+            dojo.disconnect(closing);
+        });
     }
 });
 

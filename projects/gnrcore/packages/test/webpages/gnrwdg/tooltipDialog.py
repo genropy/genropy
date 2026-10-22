@@ -126,3 +126,11 @@ class GnrCustomWebPage(object):
         fb = pane.formbuilder(cols=1,border_spacing='3px')
         fb.textbox(value='^.pippo',nodeId='piero',width='15em').comboArrow().tooltipPane(placingId='piero').div(height='400px',width='15em').div('ciao')
 
+
+    def test_9_scrolling_container(self,pane):
+        """Inside a scrolling div the open pane follows its opener, and closes when the opener scrolls out of view"""
+        box = pane.div(height='200px',width='400px',overflow='auto',border='1px solid silver')
+        box.div(height='300px')
+        box.div('Click me',height='30px',width='120px',background='orange',
+                cursor='pointer').tooltipPane().div('Scroll the box: I stay attached',padding='10px',width='200px')
+        box.div(height='600px')
