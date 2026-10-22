@@ -129,6 +129,7 @@ class GnrSqlDb(
         """
         self.implementation = self.dbpar(implementation)
         self._currentEnv: dict[int, dict[str, Any]] = {}
+        self._runtime_models: dict[int, Any] = {}
         self._connections: dict[int, dict[tuple[str, str], Any]] = {}
         self.adapters: dict[str, Any] = {}
         self.dbname = self.dbpar(dbname)
