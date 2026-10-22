@@ -209,7 +209,7 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         if(value instanceof gnr.GnrBag){
             value = value.toXml();
         }
-        navigator.clipboard.writeText(value);
+        genro.textToClipboard(value);
     },
     setDataNodeValue:function(nodeOrRunKwargs, kw, trigger_reason, subscription_args) {
         if(nodeOrRunKwargs===null){

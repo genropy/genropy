@@ -1340,7 +1340,7 @@ class GroupletGridHandler(BaseComponent):
     @extract_kwargs(
         grouplet=dict(slice_prefix=False, pop=True),
         store= dict(slice_prefix=False,pop=True),
-        additem=True, delitem=True, editmenu=True, totals=True, card=True,
+        additem=True, delitem=True, copyitem=True, editmenu=True, totals=True, card=True,
     )
     @struct_method
     def gr_groupletGrid(self, pane, datapath=None, storepath=None,
@@ -1351,7 +1351,7 @@ class GroupletGridHandler(BaseComponent):
                         table=None, grouplets_root=None,
                         cols=1, min_width=None, gap='12px',
                         height=None, max_height=None, fillParent=False,
-                        additem=True, delitem=None, editmenu=None,
+                        additem=True, delitem=None, copyitem=False, editmenu=None,
                         layout='cards',
                         lazyTabs=False,
                         titleField=None,
@@ -1373,6 +1373,7 @@ class GroupletGridHandler(BaseComponent):
                         grouplet_kwargs=None,
                         additem_kwargs=None,
                         delitem_kwargs=None,
+                        copyitem_kwargs=None,
                         editmenu_kwargs=None,
                         totals_kwargs=None,
                         store_kwargs=None,
@@ -1395,7 +1396,9 @@ class GroupletGridHandler(BaseComponent):
         emptyTitle = card.get('emptyTitle', '!!Untitled')
         titleTemplate = card.get('titleTemplate')
         if editmenu is True:
-            editmenu = {'addPrev': True, 'addNext': True, 'copy': True}
+            editmenu = {'addPrev': True, 'addNext': True}
+            if not copyitem:
+                editmenu['copy'] = True
             if not delitem:
                 editmenu['delete'] = True
         elif not editmenu:
@@ -1425,6 +1428,9 @@ class GroupletGridHandler(BaseComponent):
         flavours = ['grouplet_grid_container', 'grouplet_grid']
         if struct_mode:
             flavours.append('grouplet_grid--struct')
+            row_tools = sum(1 for tool in (delitem, copyitem, editmenu) if tool)
+            if row_tools > 1:
+                flavours.append(f'grouplet_grid--tools-{row_tools}')
         if framed:
             flavours.append('grouplet_grid--framed')
         if fillParent:
@@ -1544,9 +1550,10 @@ class GroupletGridHandler(BaseComponent):
             grouplet_kwargs=grouplet_kwargs,
             store_kwargs=store_kwargs,
             cols=cols, min_width=min_width, gap=gap,
-            additem=additem, delitem=delitem, editmenu=editmenu,
+            additem=additem, delitem=delitem, copyitem=copyitem, editmenu=editmenu,
             additem_kwargs=additem_kwargs,
             delitem_kwargs=delitem_kwargs,
+            copyitem_kwargs=copyitem_kwargs,
             editmenu_kwargs=editmenu_kwargs,
             layout=layout, lazyTabs=lazyTabs,
             titleField=titleField, emptyTitle=emptyTitle,
@@ -1600,8 +1607,8 @@ class GroupletGridHandler(BaseComponent):
             resource, handler_name, resourceField, structpath, table,
             grouplets_root, grouplet_kwargs, store_kwargs,
             cols, min_width, gap,
-            additem, delitem, editmenu,
-            additem_kwargs, delitem_kwargs, editmenu_kwargs,
+            additem, delitem, copyitem, editmenu,
+            additem_kwargs, delitem_kwargs, copyitem_kwargs, editmenu_kwargs,
             layout, lazyTabs, titleField, emptyTitle,
             titleTemplate, sortField, sortStore,
             collapsible, collapsedTemplate, chromeSide, card,
@@ -1644,9 +1651,11 @@ class GroupletGridHandler(BaseComponent):
                 gap: gap,
                 additem: additem,
                 delitem: delitem,
+                copyitem: copyitem,
                 editmenu: editmenu,
                 additem_kw: additem_kw,
                 delitem_kw: delitem_kw,
+                copyitem_kw: copyitem_kw,
                 editmenu_kw: editmenu_kw,
                 layout: layout,
                 lazyTabs: lazyTabs,
@@ -1686,9 +1695,11 @@ class GroupletGridHandler(BaseComponent):
             gap=gap,
             additem=additem,
             delitem=delitem,
+            copyitem=copyitem,
             editmenu=editmenu,
             additem_kw=additem_kwargs or {},
             delitem_kw=delitem_kwargs or {},
+            copyitem_kw=copyitem_kwargs or {},
             editmenu_kw=editmenu_kwargs or {},
             layout=layout,
             lazyTabs=lazyTabs,

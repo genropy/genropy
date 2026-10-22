@@ -838,6 +838,52 @@ test('the corner kebab keeps its label, classes and node id; the band one takes 
                                    'grouplet_card_kebab_icon']);
 });
 
+function chromeClasses(s, {struct, hasDelete, hasCopy, editmenu}) {
+    const c = s.c;
+    Object.assign(c, {actionTopic: 'grid_action', controllerPath: 'ws.ctrl', structAdapter: struct ? {} : null,
+                      delitemKw: {}, copyitemKw: {}, editmenuKw: {}});
+    const tile = Object.create(s.context.gnr.GroupletGridTile.prototype);
+    const content = new s.context.gnr.GnrDomSource();
+    Object.assign(tile, {controller: c, pkey: 'r_a', tileContent: content, card: null, hasDelete, hasCopy,
+                         editmenuSpec: editmenu ? vm.runInContext('({addNext: true})', s.context) : null});
+    tile._mountChrome();
+    const classes = {};
+    content.getNodes().forEach((n) => { classes[n.label.replace(/^_grtile_|_r_a$/g, '')] = n.attr._class; });
+    return {classes, content};
+}
+
+test('struct rows set the kebab, the trash and the copy side by side from the right edge', () => {
+    const s = clipboardGrid();
+    assert.deepEqual(chromeClasses(s, {struct: true, hasDelete: true, hasCopy: true, editmenu: true}).classes, {
+        del: 'grouplet_grid_row_delete grouplet_grid_tool_slot_1',
+        copy: 'grouplet_grid_row_copy grouplet_grid_tool_slot_2',
+        kebab: 'grouplet_grid_row_kebab'
+    });
+    assert.deepEqual(chromeClasses(s, {struct: true, hasDelete: true, hasCopy: false, editmenu: true}).classes, {
+        del: 'grouplet_grid_row_delete grouplet_grid_tool_slot_1',
+        kebab: 'grouplet_grid_row_kebab'
+    }, 'the trash no longer sits over the kebab');
+    assert.deepEqual(chromeClasses(s, {struct: true, hasDelete: false, hasCopy: true, editmenu: false}).classes, {
+        copy: 'grouplet_grid_row_copy'
+    });
+});
+
+test('a card keeps its kebab apart: the copy sits left of the trash in the corner', () => {
+    const s = clipboardGrid();
+    assert.deepEqual(chromeClasses(s, {struct: false, hasDelete: true, hasCopy: true, editmenu: true}).classes, {
+        del: 'grouplet_grid_row_delete',
+        copy: 'grouplet_grid_row_copy grouplet_grid_tool_slot_1',
+        kebab: 'grouplet_grid_row_kebab'
+    });
+});
+
+test('the copy button publishes the row copy, as the kebab entry does', () => {
+    const s = clipboardGrid();
+    const {content} = chromeClasses(s, {struct: true, hasDelete: false, hasCopy: true, editmenu: false});
+    const copy = content.getNode('_grtile_copy_r_a').attr;
+    assert.equal(copy.connect_onclick, "genro.publish('grid_action',{action:'copy',rowKey:'r_a'});");
+});
+
 test('a dynamic delitem is read on the row as its menu opens, and refuses the delete', () => {
     const s = clipboardGrid();
     const c = s.c;
