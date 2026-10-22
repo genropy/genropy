@@ -154,7 +154,8 @@ class LoginComponent(BaseComponent):
         else:
             fb.dataController("""FIRE do_login;""",_fired='^do_login_check')
         
-        fb.dateTextBox(value='^.workdate',lbl='!!Workdate')
+        fb.dateTextBox(value='^.workdate',lbl='!!Workdate',
+                       hidden=not (doLogin or self.login_canSetWorkdate(self.avatar)))
         valid_token = False
         if gnrtoken:
             valid_token = self.db.table('sys.external_token').check_token(gnrtoken)
@@ -190,12 +191,14 @@ class LoginComponent(BaseComponent):
                                         },1000);
                                 }
                                 
+                            }else if(!doLogin && !LoginComponent.hasVisibleFields(fb)){
+                                FIRE do_login;
                             }else{
                                 PUBLISH openLogin;
                             }
                             
                             """,_onBuilt=True,
-                            new_password=gnrtoken or False,loginDialog = dlg.js_widget,
+                            new_password=gnrtoken or False,loginDialog = dlg.js_widget,doLogin=doLogin,
                             valid_token = valid_token,invalid_token_message='!!Change password link expired',
                             newPasswordDialog = self.login_newPassword(pane,gnrtoken=gnrtoken,dlg_login=dlg).js_widget,
                             fb=fb)
