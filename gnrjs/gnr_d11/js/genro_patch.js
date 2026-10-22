@@ -177,22 +177,6 @@ genropatches.dojoXhr = function(transport){
     genropatches.dojoXhr.installed = true;
 };
 
-genropatches.xhrStatusText = function(){
-    var proto = window.XMLHttpRequest && window.XMLHttpRequest.prototype;
-    var descriptor = proto && Object.getOwnPropertyDescriptor(proto, 'statusText');
-    if(genropatches.xhrStatusText.installed || !descriptor || !descriptor.get || !descriptor.configurable){
-        return;
-    }
-    Object.defineProperty(proto, 'statusText', {
-        configurable: true,
-        enumerable: descriptor.enumerable,
-        get: function(){
-            return httpStatusText(this.status, descriptor.get.call(this));
-        }
-    });
-    genropatches.xhrStatusText.installed = true;
-};
-
 genropatches.places = function(){
     var placeOnScreenAroundElement = dijit.placeOnScreenAroundElement;
     dijit.placeOnScreenAroundElement = function(
