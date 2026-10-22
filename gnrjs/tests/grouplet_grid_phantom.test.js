@@ -625,6 +625,120 @@ test('the selection bar copies the selection from its menu', () => {
     assert.equal(s.copied[0][1], '!!2 rows copied');
 });
 
+test('selectionmenu: Export Excel and Print are presets, in the menu between Copy and Delete', () => {
+    const s = clipboardGrid();
+    s.c.selectionmenu = {copy: true, exportXls: true, print: 'Print list', 'delete': true};
+    assert.deepEqual([...s.c._selectionSpecs()].map(spec => [spec.key, spec.label, spec.iconClass]),
+                     [['copy', '!!Copy', 'iconbox copy duplicate_record'],
+                      ['exportXls', '!!Export Excel', 'iconbox export'],
+                      ['print', 'Print list', 'iconbox print'],
+                      ['delete', '!!Delete', undefined]]);
+});
+
+function exportCalls(s) {
+    const calls = [];
+    const downloads = [];
+    s.genro.serverCall = (method, params, cb) => {
+        calls.push([method, params]);
+        cb('/_storage/page/xls/grid_export.xlsx');
+    };
+    s.genro.download = url => downloads.push(url);
+    return {calls, downloads};
+}
+
+test('Export Excel sends the selected rows with the copied columns to the grid export', () => {
+    const s = clipboardGrid();
+    const {calls, downloads} = exportCalls(s);
+    s.c._setMulti(['r_b']);
+    s.c._runSelectionAction({key: 'exportXls'});
+    assert.equal(calls.length, 1);
+    const [method, params] = calls[0];
+    assert.equal(method, 'app.includedViewAction');
+    assert.equal(params.action, 'export');
+    assert.equal(params.export_mode, 'xls');
+    assert.equal(params.datamode, 'attr');
+    assert.equal(params.downloadAs, 'grid_export');
+    assert.deepEqual([...params.struct.getItem('view_0.rows_0').getNodes()].map(n => ({...n.attr})),
+                     [{field: 'c_0', name: 'Bought', dtype: 'B'}, {field: 'c_1', name: 'Item'},
+                      {field: 'c_2', name: 'Qty', dtype: 'L'}, {field: 'c_3', name: 'when'}],
+                     'a column with no declared type takes it from the exported values');
+    assert.deepEqual([...params.data.getNodes()].map(n => ({...n.attr})),
+                     [{c_0: false, c_1: 'say "hi"', c_2: 2, c_3: null}]);
+    assert.deepEqual(downloads, ['/_storage/page/xls/grid_export.xlsx']);
+});
+
+test('Export Excel with no row selected exports them all, in store order', () => {
+    const s = clipboardGrid();
+    const {calls} = exportCalls(s);
+    s.c.exportRows();
+    assert.deepEqual([...calls[0][1].data.getNodes()].map(n => n.attr.c_1), ['Milk', 'say "hi"']);
+    assert.equal(s.context.gnr.GroupletGridController._dtypeOf([900, 120], '#,##0.00'), 'N',
+                 'whole amounts with a format stay decimal');
+    assert.deepEqual([...calls[0][1].struct.getItem('view_0.rows_0').getNodes()].map(n => n.attr.dtype),
+                     ['B', undefined, 'N', 'D']);
+});
+
+test('a struct grid exports every column, a computed one too, with its declared type', () => {
+    const s = clipboardGrid();
+    const {calls} = exportCalls(s);
+    s.c.structAdapter = {cells: [{field: 'item', name: 'Item', dtype: 'T'}, {field: 'qty', name: 'Qty', dtype: 'R'},
+                                 {field: 'total', name: 'Total', dtype: 'N', format: '#,###.00'}]};
+    s.lines.setItem('r_a.total', 3);
+    s.c.exportRows(['r_a']);
+    assert.deepEqual([...calls[0][1].struct.getItem('view_0.rows_0').getNodes()].map(n => [n.attr.name, n.attr.dtype]),
+                     [['Item', undefined], ['Qty', 'R'], ['Total', 'N']]);
+    assert.deepEqual({...calls[0][1].data.getNode('r_0').attr}, {c_0: 'Milk', c_1: 1.5, c_2: 3});
+});
+
+function printFrame(s) {
+    // a document small enough to build the printed table in
+    const element = tag => ({tag, children: [], style: {}, className: '', textContent: '',
+                             appendChild(child) { this.children.push(child); return child; },
+                             remove() { this.removed = true; }});
+    const listeners = {};
+    const frameDoc = {title: '', head: element('head'), body: element('body'), createElement: element};
+    const frame = element('iframe');
+    frame.contentDocument = frameDoc;
+    frame.contentWindow = {addEventListener: (name, cb) => { listeners[name] = cb; }};
+    s.context.document = {title: 'Shopping', body: element('body'),
+                          createElement: tag => (tag === 'iframe' ? frame : element(tag))};
+    const printed = [];
+    s.genro.dom = {iFramePrint: f => printed.push(f)};
+    s.genro.format = (v, f) => (typeof v === 'number' ? v.toFixed(2) : 'date') + (f.format ? ' ' + f.format : '');
+    const table = () => {
+        const tbl = frameDoc.body.children[0];
+        return tbl.children.map(section => section.children.map(
+            tr => tr.children.map(cell => [cell.tag, cell.textContent, cell.className].join(':'))));
+    };
+    return {frame, frameDoc, printed, listeners, table};
+}
+
+test('Print puts the selected rows in a table of the copied columns and prints its frame', () => {
+    const s = clipboardGrid();
+    const p = printFrame(s);
+    s.c._setMulti(['r_a']);
+    s.c._runSelectionAction({key: 'print'});
+    assert.deepEqual(p.printed, [p.frame]);
+    assert.equal(p.frame.style.display, 'none');
+    assert.equal(p.frameDoc.title, 'Shopping');
+    assert.match(p.frameDoc.head.children[0].textContent, /\.num\{text-align:right\}/);
+    assert.deepEqual(p.table(), [
+        [['th:Bought:', 'th:Item:', 'th:Qty:num', 'th:when:']],
+        [['td:✓:', 'td:Milk:', 'td:1.50:num', 'td:date:']]
+    ]);
+    p.listeners.afterprint();
+    assert.ok(p.frame.removed, 'the frame goes once printed');
+});
+
+test('Print with no row selected prints them all, with the formats of the struct', () => {
+    const s = clipboardGrid();
+    const p = printFrame(s);
+    s.c.structAdapter = {cells: [{field: 'item', name: 'Item', dtype: 'T'},
+                                 {field: 'qty', name: 'Qty', dtype: 'N', format: '#,###.00'}]};
+    s.c.printRows();
+    assert.deepEqual(p.table()[1], [['td:Milk:', 'td:1.50 #,###.00:num'], ['td:say "hi":', 'td:2.00 #,###.00:num']]);
+});
+
 test('Cmd/Ctrl+C copies the selected rows of the grid last selected in, never over selected text', () => {
     const s = clipboardGrid();
     const c = s.c;

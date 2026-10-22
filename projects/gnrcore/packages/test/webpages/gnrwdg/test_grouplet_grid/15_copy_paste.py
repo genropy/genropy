@@ -1,4 +1,4 @@
-"""groupletGrid copy and paste of rows.
+"""groupletGrid copy and paste of rows, export and print.
 
   Copy, in a row's kebab, in the bar of the selected rows, or Cmd/Ctrl+C
   with rows selected and no text field focused, puts the rows in the
@@ -11,6 +11,10 @@
   no field takes (a formula) is skipped. The text pastes into a spreadsheet
   split in columns, and back from one.
 
+  The bar of the selected rows also exports them to Excel and prints them
+  as a table, with the columns the copy takes; from code, exportRows() and
+  printRows() with no row selected take every row.
+
   A plain click selects one row, Cmd/Ctrl/Shift-click several (ticked when
   the rows have checkboxes); Cmd/Ctrl+C copies the selected row or rows,
   also from a field with no text selected.
@@ -18,12 +22,15 @@
   test_01_struct  — a grid with a checkbox column among the others; turn
                     the row checkboxes on and off above it.
   test_02_cards   — cards: their chrome band holds the checkbox and the
-                    kebab (Copy, Delete in red); drag a card by its band. Pick the band's side and the card
-                    width above the grid.
+                    kebab (Copy, Export Excel, Print, Delete in red);
+                    drag a card by its band. Pick the band's side and the
+                    card width above the grid.
   test_03_entry   — one-line rows edited in the entry row.
 """
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdecorator import public_method
+
+SELECTION_MENU = dict(copy=True, exportXls=True, print=True, delete=True)
 
 
 class GnrCustomWebPage(object):
@@ -57,7 +64,7 @@ class GnrCustomWebPage(object):
         pane.groupletGrid(storepath='.shopping', struct=struct,
                           nodeId='cp_struct', additem='phantom',
                           delitem=False, editmenu=True, rowCheckbox=rowCheckbox,
-                          selectionmenu=dict(copy=True, delete=True),
+                          selectionmenu=SELECTION_MENU,
                           defaultRow=dict(bought=False, qty=1, unit_price=0))
 
     def test_02_cards(self, pane):
@@ -83,6 +90,7 @@ class GnrCustomWebPage(object):
                           nodeId='cp_cards', cols=4, min_width=min_width,
                           chromeSide=False if chromeSide == 'none' else chromeSide,
                           rowCheckbox=True, collapsible=True,
+                          selectionmenu=SELECTION_MENU,
                           collapsedTemplate='$name ($role)',
                           defaultRow=dict(name='', role='', phone=''))
 
@@ -95,6 +103,7 @@ class GnrCustomWebPage(object):
         pane.data('.details', rows)
         pane.groupletGrid(storepath='.details', handler=self.detail_entry,
                           nodeId='cp_entry', additem='entry', delitem=True,
+                          selectionmenu=SELECTION_MENU,
                           rowTemplate='<div style="display:flex;gap:1em">'
                                       '<span style="flex:1">$description</span>'
                                       '<span>$amount</span></div>',
