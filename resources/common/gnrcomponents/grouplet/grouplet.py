@@ -1,10 +1,13 @@
 import math
+import os
+import re
 from gnr.core.gnrdecorator import extract_kwargs, public_method
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdict import dictExtract
 from gnr.core.gnrlang import gnrImport
 from gnr.core.gnrstring import templateReplace
 from gnr.web.gnrbaseclasses import BaseComponent
+from gnr.web.gnrdocumentation import doc_folder
 from gnr.web.gnrwebstruct import struct_method
 
 class GroupletHandler(BaseComponent):
@@ -168,18 +171,54 @@ class GroupletHandler(BaseComponent):
 
     def _gr_cardInfo(self, resource=None, table=None, grouplets_root=None):
         """The card profile a grouplet resource declares: `card=dict(...)` in
-        its `__info__`, its `template` as the title of last resort. Its `doc`
-        is a documentation address (sys/ep_doc), by default the resource's
-        own `grouplet:<table or package>:<resource>`; False opts out"""
+        its `__info__`, its `template` as the title of last resort"""
         if not resource:
             return {}
-        info = self._gr_resourceInfo(resource=resource, table=table,
-                                     grouplets_root=grouplets_root)[0]
+        info, abs_path = self._gr_resourceInfo(resource=resource, table=table,
+                                               grouplets_root=grouplets_root)
         card = dict(info.get('card') or {})
         if info.get('template'):
             card.setdefault('template', info['template'])
-        card.setdefault('doc', f"grouplet:{table or self.package.name}:{resource.split(':')[0]}")
+        if self.inlineDoc:
+            card['doc'] = self._gr_cardDocAddress(card.get('doc'), resource=resource, table=table)
+        elif card.get('doc'):
+            card['doc'] = self._gr_cardDoc(card['doc'], abs_path=abs_path, table=table)
         return card
+
+    def _gr_cardDocAddress(self, doc, resource=None, table=None):
+        """With the inlinedoc experimental flag a card's doc is a documentation
+        address (sys/ep_doc): the one given, else the resource's own
+        `grouplet:<table or package>:<resource>`; False opts out"""
+        if doc is False:
+            return False
+        try:
+            doc_folder(doc)
+            return doc
+        except ValueError:
+            if not resource:
+                return None
+            return f"grouplet:{table or self.package.name}:{resource.split(':')[0]}"
+
+    def _gr_cardDoc(self, doc, abs_path=None, table=None):
+        """A doc given as `file:name.html` is read next to the resource (among
+        the resources without one), its relative image paths made urls; any
+        other doc is the template itself"""
+        if not (isinstance(doc, str) and doc.startswith('file:')):
+            return doc
+        filename = doc[len('file:'):]
+        path = os.path.join(os.path.dirname(abs_path), filename) if abs_path \
+            else self.getResource(filename)
+        if not (path and os.path.isfile(path)):
+            raise self.exception('generic', msg=f'grouplet card: doc file {filename} not found')
+        with open(path, encoding='utf-8') as f:
+            html = f.read()
+        folder = os.path.dirname(path)
+        pkg = table.split('.')[0] if table else None
+
+        def url(match):
+            src = os.path.normpath(os.path.join(folder, match.group(2)))
+            return match.group(1) + (self.resolveResourceUri(src, pkg=pkg) or match.group(2))
+        return re.sub(r'''(src=["'])(?![a-z]+:|/)([^"']+)''', url, html)
 
     def _gr_template(self, spec):
         """A row template (title, collapsed card, doc) in the shape the JS
@@ -195,8 +234,9 @@ class GroupletHandler(BaseComponent):
         """The profile as the JS reads it: its templates translated, the
         resource `template` as groupletChunk and the entry rows take it"""
         card = dict(card)
-        if card.get('titleTemplate'):
-            card['titleTemplate'] = self._gr_template(card['titleTemplate'])
+        for key in ('titleTemplate',) if self.inlineDoc else ('titleTemplate', 'doc'):
+            if card.get(key):
+                card[key] = self._gr_template(card[key])
         return card
 
     @extract_kwargs(grouplet=dict(slice_prefix=False, pop=True), template=True, btn=True)
@@ -1148,9 +1188,10 @@ class GroupletCardHandler(BaseComponent):
         `card` (in its `__info__`), then what is given here. `collapsed` and
         `checkbox` take a path ('^.path') holding the state; delitem is True,
         False or a '^path' / '=path' / '==expr' read as the menu opens, and
-        its entry clears the fields of the card. `doc` is the documentation
-        address of the ⓘ (sys/ep_doc), by default the resource's; `doc_kw`
-        fills the doc's variables the card's data has not.
+        its entry clears the fields of the card. With the inlinedoc
+        experimental flag `doc` is the documentation address of the ⓘ
+        (sys/ep_doc), by default the resource's; `doc_kw` fills the doc's
+        variables the card's data has not.
 
         useForm=True edits the grouplet in a GroupletForm of its own: a copy
         of the card's data, written back as it is saved (form_autoSave, 1 by
@@ -1164,6 +1205,9 @@ class GroupletCardHandler(BaseComponent):
                       titleField=titleField, titleTemplate=titleTemplate, emptyTitle=emptyTitle,
                       tools=tools, doc=doc, doc_kw=doc_kw, delitem=delitem, editmenu=editmenu)
         card.update({k: v for k, v in caller.items() if v is not None})
+        if doc is not None:
+            card['doc'] = self._gr_cardDocAddress(doc, resource=resource, table=table) \
+                if self.inlineDoc else self._gr_cardDoc(doc, table=table)
         side = card.get('chromeSide') or 'top'
         if side not in ('top', 'left', 'right'):
             raise self.exception('generic', msg="groupletCard: chromeSide is 'top', 'left' or 'right'")
@@ -1215,7 +1259,8 @@ class GroupletCardHandler(BaseComponent):
                     emptyTitle=self._(card.get('emptyTitle') or '!!Untitled'),
                     titleTemplate=self._gr_template(card.get('titleTemplate')),
                     template=card.get('template'),
-                    doc=card.get('doc') or None, doc_kw=card.get('doc_kw') or {},
+                    doc=(card.get('doc') or None) if self.inlineDoc else self._gr_template(card.get('doc')),
+                    doc_kw=card.get('doc_kw') or {},
                     delitem=card.get('delitem', False),
                     editmenu=editmenu if isinstance(editmenu, dict) else {},
                     editmenu_kw=editmenu_kwargs or {}, formId=form_id))

@@ -978,7 +978,7 @@ dojo.declare("gnr.GnrDlgHandler", null, {
         kw = kw || {};
         source = source || {};
         const manual = source.manual;
-        const title = kw.title || (manual && manual.title) || source.title || '';
+        const title = this._docTitleHtml(kw, {title: (manual && manual.title) || source.title});
         genro.src.getNode()._('div', '_doc_help_panel_');
         const node = genro.src.getNode('_doc_help_panel_').clearValue();
         node.freeze();
@@ -1033,6 +1033,14 @@ dojo.declare("gnr.GnrDlgHandler", null, {
         }
     },
 
+    _docTitleHtml: function(kw, source) {
+        // kw.title is the caller's markup (a label, a card title); the doc's
+        // own title is text a documenter wrote, never markup
+        if (kw.title) return kw.title;
+        return String((source && source.title) || '').replace(/&/g, '&amp;').replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    },
+
     openDoc: function(domNode, address, kw) {
         // the "?" of an address. kw: title, fill (a note's html filled with the
         // caller's data), placeholders (the variables the editor offers). An
@@ -1054,7 +1062,7 @@ dojo.declare("gnr.GnrDlgHandler", null, {
         const assets = this.docAssetUrl(address);
         const title = kw.title || source.title;
         genro.setData('gnr.docEditor.markdown', (source.markdown || '').split('](assets/').join('](' + assets));
-        const dlg = this.quickDialog(_T('!!Documentation') + ' · ' + title + ' (' + language + ')',
+        const dlg = this.quickDialog(_T('!!Documentation') + ' · ' + this._docTitleHtml(kw, source) + ' (' + language + ')',
                                      {width: '760px', closable: true});
         const placeholders = kw.placeholders ? kw.placeholders() : [];
         dlg.center._('MDEditor', {nodeId: 'doc_editor_md', value: '^gnr.docEditor.markdown',

@@ -302,11 +302,16 @@ class FrameIndex(BaseComponent):
         logomenu.menuline("!![en]Theme Editor",_tags='_DEV_').dataController('genro.dev.openThemeEditor();')
         logomenu.menuline("!![en]Application info").dataController("genro.publish('application_info')")
         
-        logomenu.menuline('!![en]Toggle documentation mode in root',_tags='_DOC_').dataController(
-                                                        "genro.setData('gnr.docModeVisible',!genro.getData('gnr.docModeVisible'));")
-        logomenu.menuline('!![en]Toggle documentation mode in current',_tags='_DOC_').dataController(
-                                                        """let cg = genro._lastFocusedWindow.genro;
-                                                           cg.setData('gnr.docModeVisible',!cg.getData('gnr.docModeVisible'));""")
+        if self.inlineDoc:
+            logomenu.menuline('!![en]Toggle documentation mode in root',_tags='_DOC_').dataController(
+                                                            "genro.setData('gnr.docModeVisible',!genro.getData('gnr.docModeVisible'));")
+            logomenu.menuline('!![en]Toggle documentation mode in current',_tags='_DOC_').dataController(
+                                                            """let cg = genro._lastFocusedWindow.genro;
+                                                               cg.setData('gnr.docModeVisible',!cg.getData('gnr.docModeVisible'));""")
+        else:
+            logomenu.menuline('!![en]Open helper editor in root',_tags='_DEV_').dataController('genro.dev.openHelperEditor();')
+            logomenu.menuline('!![en]Open helper editor in current',_tags='_DEV_').dataController(
+                                                            'genro._lastFocusedWindow.genro.dev.openHelperEditor();')
         
         logomenu.menuline('!![en]Toggle dev items in root',_tags='_DEV_').dataController("""let current = genro.getData('gnr.developerToolsVisible');
                                                                                          genro.setData('gnr.developerToolsVisible',!current);""") 

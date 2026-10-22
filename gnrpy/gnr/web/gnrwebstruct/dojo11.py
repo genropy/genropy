@@ -957,8 +957,13 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
             excludeCols = formNode.attr.get('excludeCols') if formNode else None
             if excludeCols and fld in excludeCols.split(','):
                 wdgattr.setdefault('hidden', True)
-        doc_table, doc_column = fieldobj.fullname.rsplit('.', 1)
-        wdgattr['docAddress'] = f'field:{doc_table}:{doc_column}'
+        if self.page.inlineDoc:
+            doc_table, doc_column = fieldobj.fullname.rsplit('.', 1)
+            wdgattr['docAddress'] = f'field:{doc_table}:{doc_column}'
+        else:
+            wdgattr['helpcode'] =  fieldobj.fullname.replace('.','_')
+            if fieldobj.attributes.get('_owner_package'):
+                wdgattr['helpcode_package'] = fieldobj.attributes.get('_owner_package')
         if fieldobj.getTag() == 'virtual_column' or (('@' in fld ) and fld != tblobj.fullRelationPath(fld)):
             wdgattr.setdefault('readOnly', True)
             wdgattr['_virtual_column'] = fld

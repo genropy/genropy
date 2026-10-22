@@ -762,6 +762,48 @@ class GnrWebPage(GnrBaseWebPage):
             return None
         return handler or defaultCb or emptyCb
     
+    @public_method
+    def saveHelperValue(self,table=None,name=None,helpcode=None,value=None,customizationPackage=None):
+        relpath = f'helper/{name}.xml'
+        if table:
+            path = self.packageResourcePath(table,relpath,
+                                    forcedPackage=customizationPackage)
+        else:
+            path = self.getResource(relpath,pkg=customizationPackage or self.package)
+        data = Bag(path) if os.path.exists(path) else Bag()
+        data.setAttr(helpcode,{self.language:value})
+        data.toXml(path)
+    
+    @public_method
+    def getHelperData(self,table=None,name=None,**kwargs):
+        path = []
+        if table:
+            path.append(table)
+            name = name or 'default'
+        if name:
+            path.append(name)
+        if not hasattr(self,'_helpers'):
+            self._helpers = {}
+        path = '.'.join(path)
+        if path in self._helpers:
+            return self._helpers[path],{'path':path,'in_cache':True}
+        relpath = f'helper/{name}.xml'
+        def bagFromFile(filepath):
+            return Bag(filepath) if os.path.exists(filepath) else Bag()
+        if table:
+            data = bagFromFile(self.packageResourcePath(table,relpath))
+            customData = bagFromFile(self.packageResourcePath(table,relpath,
+                                    forcedPackage=self.package.name))
+            for n in customData:
+                d = dict(n.attr)
+                d['_custom_package'] = self.package.name
+                data.setAttr(n.label,d,_updattr=False)
+        else:
+            data = bagFromFile(self.getResource(relpath,pkg=self.package))
+        self._helpers[path] = data
+        return self._helpers[path],{'path':path,'in_cache':False}
+
+
     def mixinTableResource(self, table, path,safeMode=False,**kwargs):
         """TODO
 
@@ -1352,6 +1394,7 @@ class GnrWebPage(GnrBaseWebPage):
         kwargs['dojoXhrPatch'] = self.application.experimentalValue(
             'page', 'dojo_xhr_patch') or ''
         kwargs['useFormletsInJsFb'] = self.application.experimentalFlag('gui', 'use_formlets_in_js_fb')
+        kwargs['inlineDoc'] = self.application.experimentalFlag('gui', 'inlinedoc')
         self.getPwaIntegration(arg_dict)
         self.getSquareLogoUrl(arg_dict)
         self.getCoverLogoUrl(arg_dict)
@@ -2422,14 +2465,11 @@ class GnrWebPage(GnrBaseWebPage):
         page.dataController("""
                             genro.dom.setClass(document.body,'developerToolElementsVisible',developerToolsVisible)""",
                             developerToolsVisible='^gnr.developerToolsVisible')
-        page.data('gnr.docModeVisible',False)
-        if getattr(self, 'doc_editor_tags', None):
-            # read by sys/ep_doc from this page's store, never from the client
-            with self.pageStore() as store:
-                store.setItem('doc_editor_tags', self.doc_editor_tags)
-        page.dataController("""genro.dom.setClass(document.body,'docModeVisible',docModeVisible);
-                               genro.dlg.docApplyStates();""",
-                            docModeVisible='^gnr.docModeVisible')
+        if self.inlineDoc:
+            page.data('gnr.docModeVisible',False)
+            page.dataController("""genro.dom.setClass(document.body,'docModeVisible',docModeVisible);
+                                   genro.dlg.docApplyStates();""",
+                                docModeVisible='^gnr.docModeVisible')
         page.dataController("""genro.src.updatePageSource('_pageRoot')""",
                         subscribe_gnrIde_rebuildPage=True,_delay=100)
         page.dataController("PUBLISH setWindowTitle=windowTitle;",windowTitle="^gnr.windowTitle",_onStart=True)
@@ -3058,6 +3098,12 @@ class GnrWebPage(GnrBaseWebPage):
     def isDeveloper(self):
         """TODO"""
         return self.hasTag('_DEV_')
+
+    @property
+    def inlineDoc(self):
+        """The docs of the inlinedoc storage (sys/ep_doc) instead of helper.xml:
+        ``<experimental><gui inlinedoc="true"/></experimental>``"""
+        return self.application.experimentalFlag('gui', 'inlinedoc')
 
         
 

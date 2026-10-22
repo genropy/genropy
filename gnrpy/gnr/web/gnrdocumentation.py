@@ -14,8 +14,9 @@ one file per language, its images beside it:
 
 Each file opens with a YAML front matter (`id`, `title`, `type`, `updated`,
 `author`), so the same files build the Sphinx reference through myst-parser.
-As attachments do, the docs go in `home:inlinedoc/` unless a storage service
-named `inlinedoc` is configured (siteconfig or sys.service), e.g. an S3 bucket.
+The docs go in the `inlinedoc` storage, a folder of the instance unless a
+storage service named `inlinedoc` is configured (siteconfig or sys.service),
+e.g. an S3 bucket. It is a private storage: no url serves it, only sys/ep_doc.
 """
 
 import base64
@@ -35,9 +36,9 @@ LANGUAGE = re.compile(r'^[a-z]{2}(-[A-Za-z]{2})?$')
 FRONT_MATTER = re.compile(r'\A---\n(.*?)\n---\n?', re.S)
 ASSET_LINK = re.compile(r'(src|href)="assets/([^"]+)"')
 ASSET_TYPES = {'image/png': 'png', 'image/jpeg': 'jpg', 'image/gif': 'gif', 'image/webp': 'webp'}
+ASSET_MAX_SIZE = 5 * 1024 * 1024
 
 _markdown = MarkdownIt('commonmark', {'html': False}).enable(['table', 'strikethrough'])
-_listings = {}
 
 
 class DocumentationConflict(Exception):
@@ -97,6 +98,19 @@ def render_markdown(body, asset_url=None):
     return result
 
 
+def _image_type(content):
+    """The mimetype the bytes of an image say, None for anything else"""
+    if content.startswith(b'\x89PNG\r\n\x1a\n'):
+        return 'image/png'
+    if content.startswith(b'\xff\xd8\xff'):
+        return 'image/jpeg'
+    if content[:6] in (b'GIF87a', b'GIF89a'):
+        return 'image/gif'
+    if content[:4] == b'RIFF' and content[8:12] == b'WEBP':
+        return 'image/webp'
+    return None
+
+
 def _same_mtime(current, base):
     if current is None or base is None:
         return current is None and base is None
@@ -104,8 +118,8 @@ def _same_mtime(current, base):
 
 
 class DocumentationStore(object):
-    """The docs of a site: the `inlinedoc` storage service when configured,
-    else the `inlinedoc` folder of `home`"""
+    """The docs of a site, in its private `inlinedoc` storage. The listings
+    of the index are kept by the site for LISTING_TTL seconds"""
 
     def __init__(self, site, service=DOC_SERVICE):
         self.site = site
@@ -113,9 +127,7 @@ class DocumentationStore(object):
 
     @property
     def root(self):
-        if self.site.storage_handler.getStorageParameters(self.service):
-            return f'{self.service}:'
-        return f'home:{self.service}/'
+        return f'{self.service}:'
 
     def node(self, path, **kwargs):
         return self.site.storageNode(f'{self.root}{path}', **kwargs)
@@ -124,25 +136,32 @@ class DocumentationStore(object):
         return '/'.join(folder.split('/')[:2])
 
     def _cache_key(self, prefix):
-        return (self.site.site_path, self.service, prefix)
+        return (self.site.currentDomain, self.service, prefix)
 
     def _listing(self, prefix):
         """{relative path: mtime} under a package or table, listed once for all
         its docs and kept for LISTING_TTL seconds"""
         key = self._cache_key(prefix)
-        cached = _listings.get(key)
+        cached = self.site.doc_listings.get(key)
         if cached and time.time() - cached[0] < LISTING_TTL:
             return cached[1]
         node = self.node(prefix)
         listing = node.file_mtimes() if node.exists else {}
-        _listings[key] = (time.time(), listing)
+        self.site.doc_listings[key] = (time.time(), listing)
         return listing
 
     def forget(self, folder):
-        _listings.pop(self._cache_key(self._prefix(folder)), None)
+        self.site.doc_listings.pop(self._cache_key(self._prefix(folder)), None)
 
-    def languages(self, folder):
-        """{language: mtime} of the files of a doc"""
+    def languages(self, folder, cached=True):
+        """{language: mtime} of the files of a doc: from the listing of its
+        package or table, or (cached=False) from its own folder, as another
+        process may have written it a moment ago"""
+        if not cached:
+            node = self.node(folder)
+            files = node.file_mtimes() if node.exists else {}
+            return {name[:-3]: mtime for name, mtime in files.items()
+                    if '/' not in name and name.endswith('.md')}
         prefix = self._prefix(folder)
         start = folder[len(prefix):].strip('/')
         start = f'{start}/' if start else ''
@@ -177,7 +196,7 @@ class DocumentationStore(object):
     def read(self, address, languages):
         """{language, mtime, meta, markdown} of a doc, None when it has none"""
         folder = doc_folder(address)
-        language = self.pick_language(self.languages(folder), languages)
+        language = self.pick_language(self.languages(folder, cached=False), languages)
         node = self.node(f'{folder}/{language}.md') if language else None
         if not (node and node.exists):
             return None
@@ -219,14 +238,20 @@ class DocumentationStore(object):
         return self.node(_path(doc_folder(address), 'assets', name))
 
     def save_asset(self, address, data_url):
-        """Stores an image given as a data url next to the doc; returns the
-        relative link the Markdown keeps"""
+        """Stores an image given as a data url next to the doc, up to
+        ASSET_MAX_SIZE and only when its bytes are the image it declares;
+        returns the relative link the Markdown keeps"""
         header, _, payload = (data_url or '').partition(',')
         mimetype = header[len('data:'):].split(';')[0] if header.startswith('data:') else None
         if mimetype not in ASSET_TYPES or ';base64' not in header:
             raise ValueError(f'not an image data url: {header}')
+        if len(payload) * 3 // 4 > ASSET_MAX_SIZE:
+            raise ValueError('image too large')
+        content = base64.b64decode(payload, validate=True)
+        if len(content) > ASSET_MAX_SIZE or _image_type(content) != mimetype:
+            raise ValueError(f'not a {mimetype} image')
         name = f'{uuid.uuid4().hex}.{ASSET_TYPES[mimetype]}'
         node = self.node(_path(doc_folder(address), 'assets', name), autocreate=-1)
         with node.open('wb') as f:
-            f.write(base64.b64decode(payload))
+            f.write(content)
         return f'assets/{name}'

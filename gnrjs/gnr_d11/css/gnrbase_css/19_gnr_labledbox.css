@@ -171,6 +171,16 @@
     mask: url('/_rsrc/common/css_icons/google_icons/info_light.svg') center / contain no-repeat;
 }
 
+/* helper.xml, without the inlinedoc experimental flag */
+.labledBox.emptyhelper>.labledBox_label> .helperbutton{
+    display: none;
+}
+
+.developerToolElementsVisible .labledBox.emptyhelper>.labledBox_label> .helperbutton{
+    display: block;
+    color: #EA3323;
+}
+
 /* --- Zoom label --- */
 .labledBox.labledBox_top>.labledBox_label .gnrzoomlabel,
 .labledBox.labledBox_bottom>.labledBox_label .gnrzoomlabel{

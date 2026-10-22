@@ -8,6 +8,7 @@ class Grouplet(BaseComponent):
     def __info__(self):
         return dict(caption='Shipping address', template=TEMPLATE,
                     card=dict(collapsible=True, delitem=True, tools='collapse,title,doc,menu',
+                              doc='file:card_profile_doc.html',
                               doc_kw=dict(courier='Fast Parcel')))
 
     def grouplet_main(self, pane, **kwargs):

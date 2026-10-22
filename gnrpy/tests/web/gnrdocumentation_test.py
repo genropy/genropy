@@ -1,9 +1,9 @@
 """Docs as MyST Markdown in the `inlinedoc` storage, served by sys/ep_doc.
 
-Runs on a real GnrDummySite over the isolated ``gnrtest`` instance (sys, adm):
-with no `inlinedoc` service configured the docs are a real `home:inlinedoc`
-folder of the site,
-users and tags are adm records. Replaced: the page register (the daemon's), the
+Runs on a real GnrDummySite over the isolated ``gnrtest`` instance (sys, adm),
+with the inlinedoc experimental flag on: with no `inlinedoc` service configured
+the docs are a real `inlinedoc` folder of the instance, users and tags are adm
+records. Replaced: the page register (the daemon's), the connection id and the
 HTTP method of the dummy page's request, and boto's paginator for aws_s3.
 """
 
@@ -29,7 +29,7 @@ from gnr.lib.services.storage import StorageService
 from gnr.web import gnrdocumentation, gnrmanual
 from gnr.web.gnrdocumentation import (DocumentationConflict, DocumentationStore, doc_folder,
                                       join_front_matter, render_markdown, split_front_matter)
-from gnr.web.gnrdummysite import FakeStore, GnrDummySite
+from gnr.web.gnrdummysite import GnrDummySite
 
 ROOT = Path(__file__).resolve().parents[3]
 ep_doc = gnrImport(str(ROOT / 'projects' / 'gnrcore' / 'packages' / 'sys' / 'webpages' / 'ep_doc.py'),
@@ -37,6 +37,7 @@ ep_doc = gnrImport(str(ROOT / 'projects' / 'gnrcore' / 'packages' / 'sys' / 'web
 aws_s3 = gnrImport(str(ROOT / 'projects' / 'gnrcore' / 'packages' / 'sys' / 'resources' / 'services'
                        / 'storage' / 'aws_s3.py'), avoidDup=True)
 PNG = 'data:image/png;base64,iVBORw0KGgo='
+CONNECTION = 'C_PROBE'
 
 
 def write_manual(folder, sections):
@@ -53,19 +54,6 @@ def write_manual(folder, sections):
                                           f'<h2>{title}</h2><p>{text}</p></section>')
     for page, body in pages.items():
         (folder / page).write_text('<html><body>%s</body></html>' % ''.join(body))
-
-
-class PageStoreProbe(FakeStore):
-    """The page store of the daemon's register, holding what a page wrote"""
-
-    def __init__(self, data):
-        self.data = data
-
-    def getItem(self, path, default=None, **kwargs):
-        return self.data.get(path, default)
-
-    def setItem(self, path, value=None, **kwargs):
-        self.data[path] = value
 
 
 class WithMethod(object):
@@ -166,16 +154,17 @@ class TestDocumentation(BaseGnrTest):
                                                                            tag_id=tag['id']))
         db.commit()
         page_items = cls.page_items = dict(P_WRITER=dict(user='writer'), P_READER=dict(user='reader'),
-                                           P_GUEST=dict(user='guest_123'), P_DEMO=dict(user='reader'))
-        page_stores = dict(P_DEMO=dict(doc_editor_tags='user'))
+                                           P_GUEST=dict(user='guest_123'))
+        for page_item in page_items.values():
+            page_item['connection_id'] = CONNECTION
+        page_items['P_ELSEWHERE'] = dict(user='writer', connection_id='C_OTHER')
         cls.site.register.page = lambda page_id, include_data=None: page_items.get(page_id)
-        cls.site.register.pageStore = lambda page_id=None, triggered=True: \
-            PageStoreProbe(page_stores.setdefault(page_id, {}))
-        cls.folder = os.path.join(cls.site.site_static_dir, 'inlinedoc')
+        cls.site.gnrapp.config.setItem('experimental.gui', None, inlinedoc='true')
+        cls.folder = os.path.join(cls.site.gnrapp.instanceFolder, 'inlinedoc')
 
     def setup_method(self):
         shutil.rmtree(self.folder, ignore_errors=True)
-        gnrdocumentation._listings.clear()
+        self.site.doc_listings.clear()
         self.store = DocumentationStore(self.site)
 
     @classmethod
@@ -188,6 +177,7 @@ class TestDocumentation(BaseGnrTest):
         page.mixinComponent('gnrcomponents/externalcall:EndpointPermission')
         instanceMixin(page, ep_doc.GnrCustomWebPage)
         page.request = WithMethod(page.request, method)
+        page.connection.connection_id = CONNECTION
         return page
 
     def call(self, page_id='P_READER', method='GET', **kwargs):
@@ -204,8 +194,9 @@ class TestDocumentation(BaseGnrTest):
         assert gnrdocumentation.__file__.startswith(str(ROOT))
         assert ep_doc.__file__.startswith(str(ROOT))
 
-    def test_without_an_inlinedoc_service_the_docs_go_in_home(self):
-        assert self.store.root == 'home:inlinedoc/'
+    def test_without_an_inlinedoc_service_the_docs_go_in_the_instance(self):
+        assert self.store.root == 'inlinedoc:'
+        assert not self.folder.startswith(self.site.site_static_dir + os.sep), 'not under the served folder'
         self.store.save('field:adm.user:username', 'it', 'Il *nome* di login', title='Username',
                         author='writer')
         with open(os.path.join(self.folder, 'adm/user/fields/username/it.md'), encoding='utf-8') as f:
@@ -226,12 +217,33 @@ class TestDocumentation(BaseGnrTest):
             assert self.store.root == 'inlinedoc:'
             self.store.save('field:adm.user:username', 'it', 'Login')
             assert (tmp_path / 'adm/user/fields/username/it.md').exists()
-            assert not os.path.exists(self.folder), 'home is not used'
+            assert not os.path.exists(self.folder), 'the instance folder is not used'
         finally:
             service.delete(record)
             self.site.db.commit()
             self.site.storage_handler.removeStorageFromCache('inlinedoc')
-        assert self.store.root == 'home:inlinedoc/'
+        self.store.save('field:adm.user:username', 'it', 'Login', force=True)
+        assert os.path.exists(os.path.join(self.folder, 'adm/user/fields/username/it.md')), \
+            'back in the instance folder'
+
+    def test_no_url_serves_the_docs(self):
+        self.store.save('field:adm.user:username', 'en', 'Login')
+        handler = self.site.storage_handler
+        assert handler.isPrivateStorage('inlinedoc') and not handler.isPrivateStorage('home')
+        def status(path_list):
+            answers = []
+            self.site.storageDispatcher(path_list, {'REQUEST_METHOD': 'GET'},
+                                        lambda status, headers, *args: answers.append(status))
+            return answers[0]
+        assert status(['_storage', 'inlinedoc', 'adm', 'user', 'fields', 'username', 'en.md']).startswith('404')
+        assert status(['inlinedoc:adm', 'user', 'fields', 'username', 'en.md']).startswith('404')
+        probe = self.site.storageNode('home:inlinedoc_probe.txt')
+        with probe.open('wb') as f:
+            f.write(b'public')
+        try:
+            assert status(['_storage', 'home', 'inlinedoc_probe.txt']).startswith('200'), 'home stays served'
+        finally:
+            probe.delete()
 
     def test_local_listing_is_recursive_and_the_generic_one_agrees(self):
         self.write('adm/user/fields/username/it.md', 'a')
@@ -258,7 +270,7 @@ class TestDocumentation(BaseGnrTest):
                                   'table:adm.user:', 'not an address'], ['it', 'en'])
         assert {a: v['language'] for a, v in index.items()} == {'field:adm.user:username': 'it',
                                                                  'field:adm.user:email': 'en'}
-        assert listed == ['inlinedoc/adm/user'], 'one listing for the whole table, in home'
+        assert listed == ['adm/user'], 'one listing for the whole table'
 
     def test_a_save_refuses_a_doc_changed_since_it_was_read(self):
         mtime = self.store.save('field:adm.user:email', 'it', 'v1')
@@ -277,6 +289,13 @@ class TestDocumentation(BaseGnrTest):
         assert self.store.read('field:adm.user:email', ['it']) is None
         assert self.store.index(['field:adm.user:email'], ['it']) == {}
 
+    def test_a_doc_another_process_wrote_is_read_at_once(self):
+        assert self.store.index(['field:adm.user:email'], ['it']) == {}, 'the listing is kept'
+        self.write('adm/user/fields/email/it.md', 'Written elsewhere')
+        doc = self.store.read('field:adm.user:email', ['it'])
+        assert doc and doc['markdown'] == 'Written elsewhere', 'a read does not wait for the listing'
+        self.store.save('field:adm.user:email', 'it', 'v2', base_mtime=doc['mtime'])
+
     def test_a_save_refreshes_the_index_at_once(self):
         assert self.store.index(['field:adm.user:email'], ['it']) == {}
         self.store.save('field:adm.user:email', 'it', 'v1')
@@ -286,13 +305,19 @@ class TestDocumentation(BaseGnrTest):
         link = self.store.save_asset('field:adm.user:email', PNG)
         assert link.startswith('assets/') and link.endswith('.png')
         assert self.store.asset_node('field:adm.user:email', link[len('assets/'):]).exists
-        for data_url in ('data:image/svg+xml;base64,PHN2Zz4=', 'data:text/html;base64,PGI+', 'nothing'):
+        for data_url in ('data:image/svg+xml;base64,PHN2Zz4=', 'data:text/html;base64,PGI+', 'nothing',
+                         'data:image/png;base64,PGI+', 'data:image/png;base64,not base64!'):
             with pytest.raises(ValueError):
                 self.store.save_asset('field:adm.user:email', data_url)
 
-    def test_only_a_registered_page_of_a_logged_user(self):
+    def test_an_image_larger_than_the_limit_is_refused(self, monkeypatch):
+        monkeypatch.setattr(gnrdocumentation, 'ASSET_MAX_SIZE', 4)
+        with pytest.raises(ValueError):
+            self.store.save_asset('field:adm.user:email', PNG)
+
+    def test_only_a_registered_page_of_a_logged_user_from_its_connection(self):
         self.store.save('field:adm.user:username', 'en', 'Login')
-        for page_id in (None, 'P_UNKNOWN', 'P_GUEST'):
+        for page_id in (None, 'P_UNKNOWN', 'P_GUEST', 'P_ELSEWHERE'):
             assert isinstance(self.call(page_id, address='field:adm.user:username', _fragment=1), Forbidden)
         assert self.call(address='field:adm.user:username', _fragment=1)['exists'] is True
 
@@ -351,13 +376,14 @@ class TestDocumentation(BaseGnrTest):
         assert isinstance(self.call(address='grouplet:adm.user:missing'), NotFound)
         assert isinstance(self.call(address='nokind:a:b', _fragment=1), NotFound)
 
-    def test_a_page_may_redefine_the_documenter_tags(self):
-        kwargs = dict(_save=1, address='field:sys.service:name', markdown='Name', language='en')
-        assert isinstance(self.call('P_READER', method='POST', **kwargs), Forbidden)
-        assert self.call('P_DEMO', method='POST', **kwargs)['mtime'], \
-            'its doc_editor_tags (user) replace _DOC_,doc_<pkg>'
-        assert self.call('P_DEMO', _index=1, addresses='field:sys.service:name')['editable'] == \
-            ['field:sys.service:name']
+    def test_off_without_the_experimental_flag(self):
+        self.store.save('field:adm.user:username', 'en', 'Login')
+        config = self.site.gnrapp.config
+        config.setAttr('experimental.gui', inlinedoc='false')
+        try:
+            assert isinstance(self.call(address='field:adm.user:username', _fragment=1), NotFound)
+        finally:
+            config.setAttr('experimental.gui', inlinedoc='true')
 
     def test_the_manual_of_the_users_group_documents_the_address(self, tmp_path):
         write_manual(tmp_path, {
@@ -371,7 +397,7 @@ class TestDocumentation(BaseGnrTest):
         operator = db.table('adm.user').newrecord(username='operator', firstname='Op', lastname='Probe',
                                                   email='operator@example.org', group_code='DOCOPS')
         db.table('adm.user').insert(operator)
-        self.page_items['P_OPERATOR'] = dict(user='operator')
+        self.page_items['P_OPERATOR'] = dict(user='operator', connection_id=CONNECTION)
         helpdocs = []
         for title, page in (('Operator manual', 'operatore.html'), ('Backoffice manual', 'backoffice.html')):
             helpdoc = db.table('adm.helpdoc').newrecord(title=title, url=str(tmp_path / page))
