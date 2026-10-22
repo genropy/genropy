@@ -352,6 +352,7 @@ class TableHandlerView(BaseComponent):
         if statsEnabled is None:
             statsEnabled = True if extendedQuery else False
         statsSlot = 'stats' if statsEnabled else False
+        vhelp = 'vhelp' if self.inlineDoc else False
         if extendedQuery:
             if 'adm' in self.db.packages and not self.isMobile:
                 templateManager = 'templateManager'
@@ -375,7 +376,7 @@ class TableHandlerView(BaseComponent):
                 if searchOn is False:
                     base_slots.remove('searchOn')
             else:
-                base_slots = ['5','vtitle','vhelp','count','10',statsSlot,pageHooksSelector,'*'] if count is not False else ['5','vtitle','vhelp','10',statsSlot,pageHooksSelector,'*','5']
+                base_slots = ['5','vtitle',vhelp,'count','10',statsSlot,pageHooksSelector,'*'] if count is not False else ['5','vtitle',vhelp,'10',statsSlot,pageHooksSelector,'*','5']
                 if searchOn:
                     base_slots.append('searchOn')
 

@@ -82,7 +82,9 @@ class PublicBase(BaseComponent):
     @customizable
     def public_frameTopBar(self,pane,slots=None,title=None,**kwargs):
         pane.attributes.update(dict(_class='pbl_root_top'))
-        baseslots = 'left_placeholder,15,captionslot,pageHelp,*,dock,avatar,countErrors,right_placeholder'
+        baseslots = 'left_placeholder,15,captionslot,*,dock,avatar,countErrors,right_placeholder'
+        if self.inlineDoc:
+            baseslots = baseslots.replace('captionslot','captionslot,pageHelp')
 
         if self._call_kwargs.get('branchIdentifier'):
             baseslots = baseslots.replace('captionslot','captionslot,pageBranchSelector')
@@ -102,6 +104,7 @@ class PublicBase(BaseComponent):
     @struct_method
     def public_roundedGroup(self, container, title=None,frame=False,top=None,bottom=None,left=None,right=None,overflow='hidden',
                             helpcode=None,**kwargs):
+        helpcode = helpcode if self.inlineDoc else None
         pane = container.contentPane(overflow=overflow,**kwargs)
         rb = pane.div(_class='pbl_roundedBlock',top=top,bottom=bottom,left=left,right=right)
         if title and helpcode:
@@ -115,6 +118,7 @@ class PublicBase(BaseComponent):
     @struct_method
     def public_roundedGroupFrame(self, container, title=None,frameCode=None,helpcode=None,**kwargs):
         kwargs['overflow'] = 'hidden'
+        helpcode = helpcode if self.inlineDoc else None
         if container.attributes['tag'].lower() in ('tabcontainer','stackcontainer'):
             kwargs['title'] = title
         pane = container.contentPane(**kwargs)

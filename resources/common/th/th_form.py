@@ -269,7 +269,7 @@ class TableHandlerForm(BaseComponent):
             default_slots = 'left_placeholder,*,right_placeholder,semaphore,5' if readOnly else 'left_placeholder,*,right_placeholder,form_archive,form_delete,form_add,form_revert,form_save,semaphore,locker'
             if annotations and not readOnly:
                 default_slots = default_slots.replace('right_placeholder','right_placeholder,annotationTool')
-            if table != getattr(self, 'maintable', None):
+            if self.inlineDoc and table != getattr(self, 'maintable', None):
                 # the page's own table has its "?" on the page top bar
                 default_slots = default_slots.replace('left_placeholder','left_placeholder,form_help')
             if form_add is False:
