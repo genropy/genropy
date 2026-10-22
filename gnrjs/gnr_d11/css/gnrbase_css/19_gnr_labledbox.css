@@ -159,7 +159,7 @@
 
 /* --- Helper button --- */
 .helperbutton{
-    background: url('/_rsrc/common/css_icons/google_icons/info.svg') center center no-repeat;
+    background: url('/_rsrc/common/css_icons/google_icons/info_light.svg') center center no-repeat;
     background-size:contain;
     position: relative;
 }
