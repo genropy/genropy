@@ -2724,8 +2724,10 @@ gnr.GroupletGridController = class GroupletGridController {
         if (this._pendingFocus === pkey) {
             this._pendingFocus = null;
             const editorIndex = this._pendingFocusEditor;
+            const field = this._pendingFocusField;
             this._pendingFocusEditor = null;
-            this._focusFirstEditor(tile, editorIndex);
+            this._pendingFocusField = null;
+            this._focusFirstEditor(tile, editorIndex, field);
         }
         if (this._pendingReveal === pkey) {
             this._pendingReveal = null;
@@ -2738,22 +2740,35 @@ gnr.GroupletGridController = class GroupletGridController {
         if (this.structAdapter) this._scheduleStructSync();
     }
 
-    _focusFirstEditor(tile, editorIndex) {
-        const dom = tile && tile.domNode();
-        if (!dom) return;
-        // One tick: the widgets of a just-grafted tile are instantiated when
-        // the framework drains its afterBuildCalls, after this mount returns.
-        setTimeout(function() {
-            if (!dom.isConnected) return;
+    _focusFirstEditor(tile, editorIndex, field) {
+        // The editor at editorIndex, else the one bound to `^.<field>`
+        // (additem_focus), else the first one.
+        if (!tile || !tile.domNode()) return;
+        const focus = function() {
+            // read at focus time: mounting a lazy body renders the wrapper anew
+            const dom = tile.domNode();
+            if (!dom || !dom.isConnected) return;
             const editors = gnr.GroupletGridController._editors(dom);
-            const target = (editorIndex === null || editorIndex === undefined)
-                ? null : editors[editorIndex];
+            const node = field && tile.tileContent && tile.tileContent.walk((n) => (
+                (n.widget && n.attr.value === '^.' + field) ? n : undefined
+            ), 'static');
+            const named = node && node.widget.focusNode;
+            const target = ((editorIndex === null || editorIndex === undefined)
+                ? null : editors[editorIndex]) || (editors.indexOf(named) >= 0 ? named : null);
             const el = target || editors[0];
             if (!el) return;
             gnr.GroupletGridController.focusNode(el);
             // As a native Tab would: typing replaces the default in the field.
             if (target && el.select) el.select();
-        }, 0);
+        };
+        // a lazy tab mounts its body in the next frame: the focus waits for it
+        if (!tile.bodyMounted) {
+            tile._afterBodyMount = focus;
+            return;
+        }
+        // One tick: the widgets of a just-grafted tile are instantiated when
+        // the framework drains its afterBuildCalls, after this mount returns.
+        setTimeout(focus, 0);
     }
 
     static _editors(tileDom) {
@@ -2877,21 +2892,27 @@ gnr.GroupletGridController = class GroupletGridController {
         // trigger below; _afterTileMounted clears _pendingActivate.
         if (this._isTabsLayout()) this._pendingActivate = newKey;
         this._pendingFocus = newKey;
-        if (this.phantom) this._freshRows[newKey] = true;
+        this._pendingFocusField = (this.additemKw || {}).focus || null;
         const merged = this.defaultRowValues();
         objectUpdate(merged, defaults || {});
+        if (this.phantom) this._freshRows[newKey] = objectUpdate({}, merged);
         this.dataStore.addRow(newKey, merged, position);
         this._selectRows([newKey]);
     }
 
     defaultRowValues() {
         // A `=path` value is read when the row is made, from the grid's
-        // datapath (`=#FORM.common_values.mainProducer`), not frozen at build.
+        // datapath (`=#FORM.common_values.mainProducer`), not frozen at build;
+        // a `==expression` is worked out then, with `this` the grid's node,
+        // over `rows` (the grid's Bag) and `grid`: `==nextCode(rows)`.
         const raw = this.defaultRow || {};
         const out = {};
         Object.keys(raw).forEach((k) => {
             let v = raw[k];
-            if (typeof v === 'string' && v.charAt(0) === '=' && v.charAt(1) !== '=') {
+            if (typeof v === 'string' && v.indexOf('==') === 0) {
+                v = funcCreate('return ' + v.slice(2), 'rows,grid').apply(this.sourceNode,
+                                                                          [this.dataStore.getData(), this]);
+            } else if (typeof v === 'string' && v.charAt(0) === '=') {
                 v = this.sourceNode.getRelativeData(v.slice(1));
                 if (v instanceof gnr.GnrBag) v = v.deepCopy();
             }
@@ -3129,7 +3150,7 @@ gnr.GroupletGridController = class GroupletGridController {
             this._pendingFocus = newKey;
             this._pendingFocusEditor = editorIndex;
         }
-        this._freshRows[newKey] = true;
+        this._freshRows[newKey] = objectUpdate({}, (this._blankDefaults || {})[this.phantomPath] || {});
         this._pendingFlash = this._pendingFlash || {};
         this._pendingFlash[newKey] = true;
         this._resetPhantom();
@@ -3139,12 +3160,15 @@ gnr.GroupletGridController = class GroupletGridController {
     _dropIfEmpty(pkey) {
         // The reverse of the promotion, for rows added since the rows were
         // loaded: one left with no entry goes away, without the dialog. A
-        // loaded row emptied stays, it is deleted with its `×`.
-        if (this._destroyed || !this.tiles[pkey] || !this._freshRows[pkey]) return;
+        // loaded row emptied stays, it is deleted with its `×`. No entry is
+        // measured on the defaults the row was given: a `==` default worked
+        // out again may differ (the next code).
+        const given = this._freshRows[pkey];
+        if (this._destroyed || !this.tiles[pkey] || !given) return;
         if (this._rowCount() <= this.minRows) return;
         const form = this.sourceNode.getFormHandler();
         if (form && form.isDisabled()) return;
-        if (this._hasEnteredValues(this.dataStore.rowValue(pkey))) return;
+        if (this._hasEnteredValues(this.dataStore.rowValue(pkey), (typeof given === 'object') ? given : null)) return;
         delete this._freshRows[pkey];
         this.dataStore.removeRow(pkey);
     }
@@ -4894,6 +4918,9 @@ gnr.GroupletGridTile = class GroupletGridTile {
         // cache this.form and get cleanly unregistered on teardown.
         this.controller._reproxyForm(this.tileContent);
         this.bodyMounted = true;
+        const focus = this._afterBodyMount;
+        this._afterBodyMount = null;
+        if (focus) setTimeout(focus, 0);
     }
 
     rebuild() {
