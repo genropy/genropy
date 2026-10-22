@@ -187,7 +187,8 @@ class DocumentationStore(object):
 
     def save(self, address, language, markdown, title=None, author=None, base_mtime=None, force=False):
         """Writes a doc, refusing it when it changed since base_mtime; returns
-        its new mtime. The front matter keeps what it held and updates the rest"""
+        its new mtime, None for an empty doc, which is removed. The front
+        matter keeps what it held and updates the rest"""
         folder = doc_folder(address)
         if not LANGUAGE.match(language or ''):
             raise ValueError(f'not a language: {language}')
@@ -195,6 +196,11 @@ class DocumentationStore(object):
         current = node.mtime if node.exists else None
         if not force and not _same_mtime(current, base_mtime):
             raise DocumentationConflict(current)
+        if not (markdown or '').strip():
+            if current is not None:
+                node.delete()
+            self.forget(folder)
+            return None
         meta = {}
         if current is not None:
             with node.open('rb') as f:

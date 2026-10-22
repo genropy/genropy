@@ -5,7 +5,8 @@ _DOC_ (or doc_<package>) is a documenter: in documentation mode the ⓘ of an
 empty doc shows red, a click opens the editor, Save writes
 <pkg>/<table>/... in the inlinedoc storage and from then on everybody sees the
 ⓘ. Without an inlinedoc storage service the docs go in home:inlinedoc, as
-attachments go in home.
+attachments go in home. This page sets doc_editor_tags='user', so here any
+logged user is a documenter.
 
   test_1_fields  fields of adm.user: each documents its column
                  (field:adm.user:<column>), the same doc in every form
@@ -19,6 +20,7 @@ from gnr.core.gnrbag import Bag
 
 
 class GnrCustomWebPage(object):
+    doc_editor_tags = 'user'
     py_requires = """gnrcomponents/testhandler:TestHandlerFull,
                      gnrcomponents/grouplet/grouplet:GroupletCardHandler,
                      gnrcomponents/grouplet/grouplet:GroupletGridHandler"""

@@ -64,8 +64,10 @@ function createPage() {
         return Promise.resolve({ok: status === 200, status, json: () => Promise.resolve(body)});
     };
     const published = [];
+    const editors = {};
     const genro = context.genro = {
         page_id: 'PAGE1',
+        nodeById: (id) => editors[id] || null,
         getData: (p) => data[p],
         setData: (p, v) => { data[p] = v; },
         publish: (topic, kw) => published.push([topic, kw]),
@@ -98,7 +100,7 @@ function createPage() {
         icons.push(icon);
         return icon;
     };
-    return {context, genro, data, requests, responses, popups, dialogs, published, docListeners, newIcon};
+    return {context, genro, data, requests, responses, popups, dialogs, published, docListeners, newIcon, editors};
 }
 
 const flush = () => new Promise((resolve) => setImmediate(resolve));
@@ -250,4 +252,18 @@ test('an image pasted in the editor is stored next to the doc', async () => {
     assert.deepEqual({...page.requests[0].params}, {_asset: '1', address: 'field:adm.user:email',
                                                      dataUrl: 'data:image/png;base64,AAAA',
                                                      language: 'it', _calling_page_id: 'PAGE1'});
+});
+
+test('Save reads the editor itself: its datapath is written only on blur', async () => {
+    const page = createPage();
+    const source = {exists: false, editable: true, title: 'Email', language: 'it', mtime: null, markdown: ''};
+    page.genro.dlg._docStates = {};
+    page.genro.dlg._docSources = {};
+    const dlg = page.genro.dlg.docEdit('field:adm.user:email', {}, source);
+    assert.equal(dlg.built.find(([, tag]) => tag === 'MDEditor')[2].nodeId, 'doc_editor_md');
+    page.editors.doc_editor_md = {externalWidget: {getMarkdown: () => 'Typed, not blurred'}};
+    page.responses.push([200, {mtime: 1}]);
+    dlg.built.find(([, , attrs]) => attrs && attrs.label === '!!Save')[2].action();
+    await flush();
+    assert.equal(page.requests.at(-1).params.markdown, 'Typed, not blurred');
 });

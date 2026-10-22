@@ -1027,7 +1027,8 @@ dojo.declare("gnr.GnrDlgHandler", null, {
         const dlg = this.quickDialog(_T('!!Documentation') + ' · ' + title + ' (' + language + ')',
                                      {width: '760px', closable: true});
         const placeholders = kw.placeholders ? kw.placeholders() : [];
-        dlg.center._('MDEditor', {value: '^gnr.docEditor.markdown', height: '440px', width: '740px',
+        dlg.center._('MDEditor', {nodeId: 'doc_editor_md', value: '^gnr.docEditor.markdown',
+            height: '440px', width: '740px',
             initialEditType: 'wysiwyg', usageStatistics: false,
             hooks: {addImageBlobHook: (blob, callback) => {
                 this.docUploadImage(address, blob).then((link) => {
@@ -1039,7 +1040,11 @@ dojo.declare("gnr.GnrDlgHandler", null, {
                                  innerHTML: _T('!!Variables') + ': ' + placeholders.map((p) => '$' + p).join(' ')});
         }
         const save = (force) => {
-            const markdown = (genro.getData('gnr.docEditor.markdown') || '').split(assets).join('assets/');
+            // the editor writes its datapath on blur, which a click on Save may precede
+            const editorNode = genro.nodeById('doc_editor_md');
+            const current = editorNode && editorNode.externalWidget
+                ? editorNode.externalWidget.getMarkdown() : genro.getData('gnr.docEditor.markdown');
+            const markdown = (current || '').split(assets).join('assets/');
             const params = {_save: 1, address: address, markdown: markdown, title: title};
             if (source.exists && source.language === language) params.base_mtime = source.mtime;
             if (force) params.force = 1;
@@ -1055,7 +1060,7 @@ dojo.declare("gnr.GnrDlgHandler", null, {
                     return;
                 }
                 delete this._docSources[address];
-                this._docStates[address] = {exists: true, editable: true};
+                this._docStates[address] = {exists: !!markdown.trim(), editable: true};
                 this.docApplyStates();
                 dlg.close_action();
             });

@@ -2423,6 +2423,10 @@ class GnrWebPage(GnrBaseWebPage):
                             genro.dom.setClass(document.body,'developerToolElementsVisible',developerToolsVisible)""",
                             developerToolsVisible='^gnr.developerToolsVisible')
         page.data('gnr.docModeVisible',False)
+        if getattr(self, 'doc_editor_tags', None):
+            # read by sys/ep_doc from this page's store, never from the client
+            with self.pageStore() as store:
+                store.setItem('doc_editor_tags', self.doc_editor_tags)
         page.dataController("""genro.dom.setClass(document.body,'docModeVisible',docModeVisible);
                                genro.dlg.docApplyStates();""",
                             docModeVisible='^gnr.docModeVisible')

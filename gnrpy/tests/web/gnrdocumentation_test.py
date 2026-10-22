@@ -28,7 +28,7 @@ from gnr.lib.services.storage import StorageService
 from gnr.web import gnrdocumentation
 from gnr.web.gnrdocumentation import (DocumentationConflict, DocumentationStore, doc_folder,
                                       join_front_matter, render_markdown, split_front_matter)
-from gnr.web.gnrdummysite import GnrDummySite
+from gnr.web.gnrdummysite import FakeStore, GnrDummySite
 
 ROOT = Path(__file__).resolve().parents[3]
 ep_doc = gnrImport(str(ROOT / 'projects' / 'gnrcore' / 'packages' / 'sys' / 'webpages' / 'ep_doc.py'),
@@ -36,6 +36,19 @@ ep_doc = gnrImport(str(ROOT / 'projects' / 'gnrcore' / 'packages' / 'sys' / 'web
 aws_s3 = gnrImport(str(ROOT / 'projects' / 'gnrcore' / 'packages' / 'sys' / 'resources' / 'services'
                        / 'storage' / 'aws_s3.py'), avoidDup=True)
 PNG = 'data:image/png;base64,iVBORw0KGgo='
+
+
+class PageStoreProbe(FakeStore):
+    """The page store of the daemon's register, holding what a page wrote"""
+
+    def __init__(self, data):
+        self.data = data
+
+    def getItem(self, path, default=None, **kwargs):
+        return self.data.get(path, default)
+
+    def setItem(self, path, value=None, **kwargs):
+        self.data[path] = value
 
 
 class WithMethod(object):
@@ -136,8 +149,11 @@ class TestDocumentation(BaseGnrTest):
                                                                            tag_id=tag['id']))
         db.commit()
         page_items = dict(P_WRITER=dict(user='writer'), P_READER=dict(user='reader'),
-                          P_GUEST=dict(user='guest_123'))
+                          P_GUEST=dict(user='guest_123'), P_DEMO=dict(user='reader'))
+        page_stores = dict(P_DEMO=dict(doc_editor_tags='user'))
         cls.site.register.page = lambda page_id, include_data=None: page_items.get(page_id)
+        cls.site.register.pageStore = lambda page_id=None, triggered=True: \
+            PageStoreProbe(page_stores.setdefault(page_id, {}))
         cls.folder = os.path.join(cls.site.site_static_dir, 'inlinedoc')
 
     def setup_method(self):
@@ -238,6 +254,12 @@ class TestDocumentation(BaseGnrTest):
         with pytest.raises(ValueError):
             self.store.save('field:adm.user:email', '../x', 'v4', force=True)
 
+    def test_an_empty_doc_is_removed(self):
+        mtime = self.store.save('field:adm.user:email', 'it', 'v1')
+        assert self.store.save('field:adm.user:email', 'it', '  \n', base_mtime=mtime) is None
+        assert self.store.read('field:adm.user:email', ['it']) is None
+        assert self.store.index(['field:adm.user:email'], ['it']) == {}
+
     def test_a_save_refreshes_the_index_at_once(self):
         assert self.store.index(['field:adm.user:email'], ['it']) == {}
         self.store.save('field:adm.user:email', 'it', 'v1')
@@ -311,3 +333,11 @@ class TestDocumentation(BaseGnrTest):
         assert '<p>Goods for <strong></strong></p>' in page
         assert isinstance(self.call(address='grouplet:adm.user:missing'), NotFound)
         assert isinstance(self.call(address='nokind:a:b', _fragment=1), NotFound)
+
+    def test_a_page_may_redefine_the_documenter_tags(self):
+        kwargs = dict(_save=1, address='field:sys.service:name', markdown='Name', language='en')
+        assert isinstance(self.call('P_READER', method='POST', **kwargs), Forbidden)
+        assert self.call('P_DEMO', method='POST', **kwargs)['mtime'], \
+            'its doc_editor_tags (user) replace _DOC_,doc_<pkg>'
+        assert self.call('P_DEMO', _index=1, addresses='field:sys.service:name')['editable'] == \
+            ['field:sys.service:name']
