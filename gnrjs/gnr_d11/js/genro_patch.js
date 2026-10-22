@@ -123,7 +123,7 @@ genropatches.dojoXhr = function(transport){
             }).then(function(response){
                 if(finished){ return; }
                 xhr.status = response.status;
-                xhr.statusText = response.statusText;
+                xhr.statusText = httpStatusText(response.status, response.statusText);
                 xhr.readyState = 2;
                 responseHeaders = response.headers;
                 return response.text().then(function(text){
@@ -175,6 +175,22 @@ genropatches.dojoXhr = function(transport){
         return original.cancelAll.apply(dojo, arguments);
     };
     genropatches.dojoXhr.installed = true;
+};
+
+genropatches.xhrStatusText = function(){
+    var proto = window.XMLHttpRequest && window.XMLHttpRequest.prototype;
+    var descriptor = proto && Object.getOwnPropertyDescriptor(proto, 'statusText');
+    if(genropatches.xhrStatusText.installed || !descriptor || !descriptor.get || !descriptor.configurable){
+        return;
+    }
+    Object.defineProperty(proto, 'statusText', {
+        configurable: true,
+        enumerable: descriptor.enumerable,
+        get: function(){
+            return httpStatusText(this.status, descriptor.get.call(this));
+        }
+    });
+    genropatches.xhrStatusText.installed = true;
 };
 
 genropatches.places = function(){
