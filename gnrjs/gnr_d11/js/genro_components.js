@@ -7742,21 +7742,56 @@ dojo.declare("gnr.stores.Selection",gnr.stores.AttributesBagRows,{
             });
             return;
         }
-        this.loadingDataDo(runKwargs);
+        return this.loadingDataDo(runKwargs);
     },
 
     loadingDataDo:function(runKwargs){
         var that = this;
+        if(this.loadingData){
+            // a query of this store is already in flight: one more run when it lands, with the latest kwargs
+            var queuedLoad = this._queuedLoad || {deferred:new dojo.Deferred()};
+            queuedLoad.runKwargs = runKwargs;
+            this._queuedLoad = queuedLoad;
+            return queuedLoad.deferred;
+        }
         this.loadingData = true;
         this.gridBroadcast(function(grid){
             grid.sourceNode.publish('loadingData',{loading:true});
         });
+        var hasLanded = false;
+        var landed = function(){
+            if(hasLanded){
+                return;
+            }
+            hasLanded = true;
+            that.loadingData = false;
+            that._inflightLoad = null;
+            that.gridBroadcast(function(grid){
+                grid.sourceNode.publish('loadingData',{loading:false});
+            });
+            var queued = that._queuedLoad;
+            that._queuedLoad = null;
+            if(queued){
+                var queuedResult = that.loadData(queued.runKwargs);
+                if(queuedResult instanceof dojo.Deferred){
+                    queuedResult.addCallback(function(r){
+                        queued.deferred.callback(r);
+                        return r;
+                    });
+                    queuedResult.addErrback(function(err){
+                        queued.deferred.errback(err);
+                        return err;
+                    });
+                }else{
+                    queued.deferred.callback(queuedResult);
+                }
+            }
+        };
         var cb = function(result){
             that.resetFilter();
             that.onLoaded(result);
-            that.loadingData = false;
+            landed();
             that.gridBroadcast(function(grid){
-                grid.sourceNode.publish('loadingData',{loading:false});
                 if(result && result.attr){
                     //result as bagNode;
                     grid.updateShowCount(result.attr.totalrows)
@@ -7764,7 +7799,15 @@ dojo.declare("gnr.stores.Selection",gnr.stores.AttributesBagRows,{
             });
         };
         this.onLoading();
-        return this.runQuery(cb,runKwargs);
+        var result = this.runQuery(cb,runKwargs);
+        if(result instanceof dojo.Deferred){
+            this._inflightLoad = result;
+            result.addErrback(function(err){
+                landed();
+                return err;
+            });
+        }
+        return result;
     },
 
     cleanColumns:function(cols){
