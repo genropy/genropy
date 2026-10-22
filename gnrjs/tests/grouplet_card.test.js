@@ -63,6 +63,7 @@ class FakeElement {
 function loadCard() {
     const context = {console, File: function() {}, gnr: {}, setTimeout,
                      genro: {wdg: {getHandler: () => null}, safeHtmlContent: (v) => v,
+                             startArgs: {inlineDoc: true},
                              dlg: {docTrack: () => {}, openDoc: () => {}}},
                      DOMParser: TextParser,
                      dijit: {getEnclosingWidget: () => null},
@@ -240,6 +241,20 @@ test('docSpec fills the doc on the card data and offers its fields as variables'
     assert.equal(spec.fill('<p>$city via $courier$none</p>'), '<p>Turin via Fast Parcel</p>');
     assert.deepEqual([...spec.placeholders()], ['city', 'courier'], 'a nested Bag is no variable');
     assert.equal(Card.docSpec(null, () => row), null, 'no address, no doc');
+});
+
+test('without the inlinedoc flag docSpec renders the inline template of the resource', () => {
+    const context = loadCard();
+    context.genro.startArgs.inlineDoc = false;
+    const Card = context.gnr.GroupletCard;
+    const row = new context.gnr.GnrBag();
+    row.setItem('city', 'Turin');
+    const spec = Card.docSpec(inVm(context, {template: '<p>$city via $courier</p>'}), () => row,
+                              inVm(context, {courier: 'Fast Parcel'}));
+    assert.equal(spec.address, undefined, 'no sys/ep_doc');
+    let html = null;
+    spec.html((value) => { html = value; });
+    assert.equal(html, '<p>Turin via Fast Parcel</p>');
 });
 
 test('the band is the drag source, and destroy unwires it', () => {

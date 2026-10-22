@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="240" height="64" viewBox="0 0 240 64">
+  <rect x="1" y="1" width="74" height="62" rx="6" fill="#e6f2ff" stroke="#7aa7d8"/>
+  <rect x="83" y="1" width="74" height="62" rx="6" fill="#fff4e0" stroke="#d8a85a"/>
+  <rect x="165" y="1" width="74" height="62" rx="6" fill="#eaf7ea" stroke="#6fb36f"/>
+  <text x="38" y="37" font-family="sans-serif" font-size="12" text-anchor="middle">North</text>
+  <text x="120" y="37" font-family="sans-serif" font-size="12" text-anchor="middle">Centre</text>
+  <text x="202" y="37" font-family="sans-serif" font-size="12" text-anchor="middle">South</text>
+</svg>

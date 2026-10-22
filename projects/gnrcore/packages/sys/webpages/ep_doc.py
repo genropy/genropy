@@ -15,9 +15,10 @@ from gnr.web.gnrwebpage import GnrUserNotAllowed
 
 class GnrCustomWebPage(object):
     """The docs of the `inlinedoc` storage (gnr.web.gnrdocumentation), for a
-    registered calling page of a logged user (`_calling_page_id`); writing needs
-    the documenter tags `_DOC_,doc_<pkg>` of the doc's package, or the
-    `doc_editor_tags` the calling page declares.
+    registered calling page of a logged user (`_calling_page_id`), asked from
+    that page's own connection; writing needs the documenter tags
+    `_DOC_,doc_<pkg>` of the doc's package. Off without the inlinedoc
+    experimental flag.
 
     address                      the doc as a page of its own
     address, _fragment           {exists, editable, title, html, markdown, language, mtime}
@@ -33,17 +34,19 @@ class GnrCustomWebPage(object):
     skip_connection = False
 
     def rootPage(self, *args, address=None, language=None, **kwargs):
+        if not self.inlineDoc:
+            return NotFound()
         store = DocumentationStore(self.site)
         languages = [language or self.language, self.db.default_language, 'en']
         try:
-            page_item = self.checkEndpointPermission(**kwargs)
+            page_item = self.checkEndpointPermission(same_connection=True, **kwargs)
             if kwargs.get('_index'):
                 return self.doc_index(store, (kwargs.pop('addresses', None) or '').split(','), languages, **kwargs)
             doc_folder(address)
             if kwargs.get('_save') or kwargs.get('_asset'):
                 if self.request.method != 'POST':
                     return NotFound()
-                self.checkEndpointPermission(tags=self.documenterTags(address, **kwargs), **kwargs)
+                self.checkEndpointPermission(tags=self.documenterTags(address), same_connection=True, **kwargs)
                 if kwargs.get('_asset'):
                     return self._json(dict(link=store.save_asset(address, kwargs.get('dataUrl'))))
                 return self.doc_save(store, address, languages[0], page_item['user'], **kwargs)
@@ -55,13 +58,12 @@ class GnrCustomWebPage(object):
         except ValueError:
             return NotFound()
 
-    def documenterTags(self, address, _calling_page_id=None, _current_page_id=None, **kwargs):
-        page_tags = self.pageStore(page_id=_current_page_id or _calling_page_id).getItem('doc_editor_tags')
-        return page_tags or '_DOC_,doc_%s' % doc_folder(address).split('/')[0]
+    def documenterTags(self, address):
+        return '_DOC_,doc_%s' % doc_folder(address).split('/')[0]
 
     def isDocumenter(self, address, **kwargs):
         try:
-            self.checkEndpointPermission(tags=self.documenterTags(address, **kwargs), **kwargs)
+            self.checkEndpointPermission(tags=self.documenterTags(address), same_connection=True, **kwargs)
         except GnrUserNotAllowed:
             return False
         return True

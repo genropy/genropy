@@ -30,6 +30,7 @@ def card_page():
         application = Application()
         maintable = None
         package = SimpleNamespace(name='test')
+        inlineDoc = True
         pageOptions = {}
         resource_info = ({}, None)
 
@@ -105,10 +106,22 @@ def test_the_profile_is_the_resource_card_then_the_caller(card_page):
     assert grouplet.attr['value'] == '^.'
 
 
+def test_without_the_inlinedoc_flag_the_doc_is_the_resource_html(card_page, tmp_path):
+    card_page.inlineDoc = False
+    (tmp_path / 'address_doc.html').write_text('<p>$city</p><img src="zones.svg"><img src="https://x/y.png">')
+    card_page.resource_info = (dict(template='$city', card=dict(tools='title,doc', doc='file:address_doc.html')),
+                               str(tmp_path / 'address.py'))
+    root = GnrDomSrc_dojo_11.makeRoot(card_page)
+    card_page.gr_groupletCard(root, resource='address', datapath='.address')
+    assert host_kw(root)['doc']['template'] == \
+        '<p>$city</p><img src="/_rsrc/zones.svg"><img src="https://x/y.png">'
+
+
 @pytest.mark.parametrize('resource_doc, caller_doc, table, expected', [
     (None, None, 'invc.invoice', 'grouplet:invc.invoice:address'),
     ('grouplet:test:shared', None, None, 'grouplet:test:shared'),
     (False, None, None, None),
+    ('file:address_doc.html', None, None, 'grouplet:test:address'),
     (None, 'grouplet:test:other', None, 'grouplet:test:other'),
 ])
 def test_the_doc_is_an_address_the_resource_or_the_caller_may_change(card_page, resource_doc, caller_doc,

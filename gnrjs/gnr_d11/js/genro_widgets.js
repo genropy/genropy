@@ -881,8 +881,8 @@ dojo.declare("gnr.widgets.labledbox", gnr.widgets.baseHtml, {
         
         // a field documents its column, a widget with helpcode its page
         let helpcode = sourceNode.attr.helpcode;
-        let docAddress = sourceNode.attr.docAddress || (helpcode
-            && `page:${genro.getData('gnr.package')}/${genro.getData('gnr.pagename')}:${helpcode}`);
+        let docAddress = genro.startArgs.inlineDoc && (sourceNode.attr.docAddress || (helpcode
+            && `page:${genro.getData('gnr.package')}/${genro.getData('gnr.pagename')}:${helpcode}`));
         let labelBoxAttr = {_class:'labledBox_label',...box_l_kw};
         if (sourceNode.attr.moveable){
             labelBoxAttr.id='handle_'+sourceNode.getStringId()
@@ -900,6 +900,14 @@ dojo.declare("gnr.widgets.labledbox", gnr.widgets.baseHtml, {
                 action:function(){
                     genro.dlg.openDoc(this.domNode, docAddress,
                                       {title: sourceNode._labelNode.domNode.innerHTML});
+                },
+            },{'doTrigger':false});
+        }else if(helpcode){
+            let helperEditor = genro.isDeveloper? ' helperEditor':'';
+            labelBox._('div','spacer',{innerHTML:'&nbsp;',width:'100%','flex':'1'},{'doTrigger':false});
+            labelBox._('lightbutton','helper',{_class:'helperbutton iconbox innericonbox '+helperEditor,
+                action:function(){
+                    sourceNode.onHelperClick(this);
                 },
             },{'doTrigger':false});
         }
@@ -922,6 +930,12 @@ dojo.declare("gnr.widgets.labledbox", gnr.widgets.baseHtml, {
         }
     },
     creating:function(attributes, sourceNode) {
+    },
+
+    created:function(newobj, savedAttrs, sourceNode){
+        if(!genro.startArgs.inlineDoc){
+            sourceNode.updateHelperClasses();
+        }
     },
 
     setSide:function(domNode,value,kw){

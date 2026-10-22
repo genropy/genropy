@@ -430,6 +430,7 @@ class GnrWsgiSite(object):
         GNRSITE = self
         self.storageTypes = STORAGE_TYPES + STATIC_HANDLER_TYPES
         self.pathfile_cache = {}
+        self.doc_listings = {}
         self._currentAuxInstanceNames = ThreadedDict()
         self._currentPages = ThreadedDict()
         self._currentRequests = ThreadedDict()
@@ -844,6 +845,8 @@ class GnrWsgiSite(object):
     
     def storageDispatcher(self,path_list,environ,start_response,storageType=None,**kwargs):
         storageNode = self.storageNodeFromPathList(path_list, storageType)
+        if storageNode and self.storage_handler.isPrivateStorage(storageNode.service.service_name):
+            return self.not_found_exception(environ, start_response)
         exists = storageNode and storageNode.exists
         if not exists and '_lazydoc' in kwargs:
             #fullpath = None ### QUI NON DOBBIAMO USARE I FULLPATH

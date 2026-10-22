@@ -175,6 +175,23 @@ test('openDoc: a doc fills its template; an empty one opens the editor to a docu
     assert.equal(page.popups[1].built[2][1].innerHTML, '!!No documentation available');
 });
 
+test("the doc's own title is text: its markup is escaped, the caller's title is the caller's", async () => {
+    const page = createPage();
+    const title = '<img src=x onerror="alert(1)">';
+    page.responses.push([200, {exists: true, editable: true, title, html: '<p>Body</p>',
+                               markdown: 'Body', language: 'it', mtime: 5}]);
+    await page.genro.dlg.openDoc({}, 'field:adm.user:email');
+    const shownTitle = page.popups[0].built[1][1].innerHTML;
+    assert.equal(shownTitle, '&lt;img src=x onerror=&quot;alert(1)&quot;&gt;');
+    page.popups[0].built.find(([tag, attrs]) => attrs._class === 'doc_popup_edit')[1]
+        .connect_onclick({preventDefault() {}});
+    assert.equal(page.dialogs[0].title, '!!Documentation · ' + shownTitle + ' (it)', 'the editor too');
+    page.responses.push([200, {exists: true, editable: false, title, html: '<p>Body</p>',
+                               markdown: 'Body', language: 'it', mtime: 5}]);
+    await page.genro.dlg.openDoc({}, 'field:adm.user:username', {title: '<b>User</b>'});
+    assert.equal(page.popups[1].built[1][1].innerHTML, '<b>User</b>', 'a label keeps its markup');
+});
+
 test('the editor saves the Markdown with relative images, then the doc shows for everybody', async () => {
     const page = createPage();
     const source = {exists: true, editable: true, title: 'Shipping', language: 'it', mtime: 7,

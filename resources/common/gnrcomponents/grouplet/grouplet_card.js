@@ -8,7 +8,7 @@ gnr.GroupletCard = class GroupletCard {
 
     // kw: {tools, rootDom: () => dom,
     //      collapse: {isCollapsed, toggle, expand}, collapsedClasses,
-    //      title: (dom) => void, doc: {address, fill, placeholders} (docSpec),
+    //      title: (dom) => void, doc: docSpec(),
     //      checkbox: {isChecked, onClick(e), onKeydown(e)},
     //      drag: {start(e), end()}}
     constructor(kw) {
@@ -157,7 +157,7 @@ gnr.GroupletCard = class GroupletCard {
             e.preventDefault();
             open(e);
         });
-        genro.dlg.docTrack(icon, this.doc.address);
+        if (this.doc.address) genro.dlg.docTrack(icon, this.doc.address);
         return icon;
     }
 
@@ -185,8 +185,12 @@ gnr.GroupletCard = class GroupletCard {
 
     openDoc(domNode) {
         const title = this.titleDom ? this.titleDom.innerHTML : '';
-        genro.dlg.openDoc(domNode, this.doc.address, {title: title, fill: this.doc.fill,
-                                                      placeholders: this.doc.placeholders});
+        if (this.doc.address) {
+            genro.dlg.openDoc(domNode, this.doc.address, {title: title, fill: this.doc.fill,
+                                                          placeholders: this.doc.placeholders});
+            return;
+        }
+        this.doc.html((html) => gnr.GroupletCard.showDoc(domNode, title, html));
     }
 
     applyCollapsed(collapsed, animate = false) {
@@ -243,13 +247,39 @@ gnr.GroupletCard = class GroupletCard {
                  && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
     }
 
-    static docSpec(address, row, docKw) {
-        // the doc of a card: its html filled with the card's data, and docKw
-        // for what is not there; the same names are the editor's variables
-        if (!address) return null;
+    static showDoc(domNode, title, html) {
+        // one popup for the whole page, moved to the icon clicked
+        genro.dlg.quickTooltipPane({nodeId: 'grouplet_card_doc', domNode: domNode,
+                                    _class: 'grouplet_card_doc_pane'}, (pane) => {
+            const box = pane._('div', {_class: 'grouplet_card_doc_box'});
+            if (title) box._('div', {_class: 'grouplet_card_doc_title', innerHTML: title});
+            box._('div', {_class: 'grouplet_card_doc_body', innerHTML: html || ''});
+        });
+        // the focus is in the popup: Esc is heard on the document while it is open
         const Card = gnr.GroupletCard;
+        if (Card._docEscape) return;
+        Card._docEscape = (e) => {
+            if (e.key !== 'Escape') return;
+            document.removeEventListener('keydown', Card._docEscape, true);
+            Card._docEscape = null;
+            genro.publish('grouplet_card_doc_opener_close', {evt: e});
+        };
+        document.addEventListener('keydown', Card._docEscape, true);
+    }
+
+    static docSpec(doc, row, docKw) {
+        // the doc of a card. With the inlinedoc experimental flag it is an
+        // address of sys/ep_doc: its html filled with the card's data, and
+        // docKw for what is not there, the same names the editor's variables;
+        // else the inline template, rendered as it is opened
+        if (!doc) return null;
+        const Card = gnr.GroupletCard;
+        if (!genro.startArgs.inlineDoc) {
+            const template = Card.compileTemplate(doc);
+            return template ? {html: (cb) => cb(Card.renderDoc(template, row(), docKw))} : null;
+        }
         return {
-            address: address,
+            address: doc,
             fill: (html) => Card.renderDoc(Card.compileTemplate(html), row(), docKw),
             placeholders: () => {
                 const data = row();

@@ -1000,6 +1000,14 @@ dojo.declare("gnr.GnrDlgHandler", null, {
         document.addEventListener('keydown', this._docEscape, true);
     },
 
+    _docTitleHtml: function(kw, source) {
+        // kw.title is the caller's markup (a label, a card title); the doc's
+        // own title is text a documenter wrote, never markup
+        if (kw.title) return kw.title;
+        return String((source && source.title) || '').replace(/&/g, '&amp;').replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    },
+
     openDoc: function(domNode, address, kw) {
         // the ⓘ of a doc address. kw: title, fill (the doc's html filled with
         // the caller's data), placeholders (the variables the editor offers)
@@ -1011,7 +1019,7 @@ dojo.declare("gnr.GnrDlgHandler", null, {
                 return;
             }
             const exists = source && source.exists;
-            this.docPopup(domNode, {title: kw.title || (source && source.title), address: exists ? address : null,
+            this.docPopup(domNode, {title: this._docTitleHtml(kw, source), address: exists ? address : null,
                                     html: exists ? (kw.fill ? kw.fill(source.html) : source.html) : null,
                                     onEdit: edit});
         });
@@ -1024,7 +1032,7 @@ dojo.declare("gnr.GnrDlgHandler", null, {
         const assets = this.docAssetUrl(address);
         const title = kw.title || source.title;
         genro.setData('gnr.docEditor.markdown', (source.markdown || '').split('](assets/').join('](' + assets));
-        const dlg = this.quickDialog(_T('!!Documentation') + ' · ' + title + ' (' + language + ')',
+        const dlg = this.quickDialog(_T('!!Documentation') + ' · ' + this._docTitleHtml(kw, source) + ' (' + language + ')',
                                      {width: '760px', closable: true});
         const placeholders = kw.placeholders ? kw.placeholders() : [];
         dlg.center._('MDEditor', {nodeId: 'doc_editor_md', value: '^gnr.docEditor.markdown',

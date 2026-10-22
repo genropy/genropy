@@ -760,6 +760,67 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
     },
 
 
+    onHelperClick:function(helperButtonNode){
+        if(genro.isDeveloper && genro.getData('gnr.developerToolsVisible')){
+            var dflt = this.getHelperValue()
+            var that = this;
+            genro.dlg.prompt(_T('Edit help'),{
+                widget:'simpleTextArea',wdg_height:'200px',wdg_margin_right:'10px',
+                action:function(value){
+                    that.saveHelper(value);
+                },dflt:dflt,onEnter:null});
+        }else{
+            let helperValue = this.getHelperValue()
+        }
+    },
+    saveHelper:function(value,custom){
+        let inAttr = this.getInheritedAttributes();
+        custom = custom===false?false:inAttr.resourceClass!==null;
+        let table = inAttr.table;
+        let kw = {table:table || genro.getData('gnr.pagename'),value:value,helpcode:this.attr.helpcode,customizationPackage:this.attr.helpcode_package};
+        if (table && custom){
+            kw.name = `th_${table.split('.')[1]}_${inAttr.resourceClass}`;
+        }
+        genro.setData(this.getHelperPath(custom),value)
+        this.updateHelperClasses(custom);
+        genro.serverCall('saveHelperValue',kw,function(){
+        });
+    },
+
+    updateHelperClasses:function(){
+        let helperValue = this.getHelperValue();
+        genro.dom.setClass(this,'emptyhelper',!helperValue);
+    },
+
+    getHelperValue:function(){
+        let inAttr = this.getInheritedAttributes();
+        let table = inAttr.table;
+        let defaultValue = this.getRelativeData(this.getHelperPath())
+        if(table && inAttr.resourceClass){
+            return this.getRelativeData(this.getHelperPath(true)) || defaultValue;
+        }
+        return defaultValue;
+    },
+
+    getHelperPath:function(custom){
+        let helpcode = this.attr.helpcode;
+        return `gnr.helpers.${this.getHelperFolder(custom)}.${helpcode}?${genro.getData('gnr.language')}`;
+    },
+
+    getHelperFolder:function(custom){
+        let inAttr = this.getInheritedAttributes();
+        let table = inAttr['table'];
+        let resourceClass = inAttr.resourceClass;
+        if(table){
+            let tablename = table.split('.')[1];
+            if(custom){
+                return `${table}.th_${tablename}_${resourceClass}`;
+            }
+            return `${table}.tbl_${tablename}`;
+        }
+        return genro.getData('gnr.pagename');
+    },
+
     connect: function(target, eventname, handler) {
         var eventname = ((!eventname) || eventname == 'action') ? target.gnr._defaultEvent : eventname;
         var handler = dojo.hitch(this, funcCreate(handler));
@@ -1958,6 +2019,7 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         let children = this.getValue();
         this._value = null;
         wrp_attr.helpcode = objectPop(attr,'helpcode');
+        wrp_attr.helpcode_package = objectPop(attr,'helpcode_package')
         wrp_attr.docAddress = objectPop(attr,'docAddress');
         wrp_attr.tag = 'labledbox'
         let gridbox_itemattr = objectExtract(attr,'grid_column,grid_row,colspan,rowspan');
