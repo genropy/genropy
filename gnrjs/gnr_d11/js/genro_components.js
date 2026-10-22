@@ -7742,21 +7742,37 @@ dojo.declare("gnr.stores.Selection",gnr.stores.AttributesBagRows,{
             });
             return;
         }
-        this.loadingDataDo(runKwargs);
+        return this.loadingDataDo(runKwargs);
     },
 
     loadingDataDo:function(runKwargs){
         var that = this;
+        if(this.loadingData){
+            // a query of this store is already in flight: one more run when it lands, with the latest kwargs
+            this._queuedLoad = {runKwargs:runKwargs};
+            return this._inflightLoad;
+        }
         this.loadingData = true;
         this.gridBroadcast(function(grid){
             grid.sourceNode.publish('loadingData',{loading:true});
         });
+        var landed = function(){
+            that.loadingData = false;
+            that._inflightLoad = null;
+            that.gridBroadcast(function(grid){
+                grid.sourceNode.publish('loadingData',{loading:false});
+            });
+            var queued = that._queuedLoad;
+            that._queuedLoad = null;
+            if(queued){
+                that.loadData(queued.runKwargs);
+            }
+        };
         var cb = function(result){
             that.resetFilter();
             that.onLoaded(result);
-            that.loadingData = false;
+            landed();
             that.gridBroadcast(function(grid){
-                grid.sourceNode.publish('loadingData',{loading:false});
                 if(result && result.attr){
                     //result as bagNode;
                     grid.updateShowCount(result.attr.totalrows)
@@ -7764,7 +7780,15 @@ dojo.declare("gnr.stores.Selection",gnr.stores.AttributesBagRows,{
             });
         };
         this.onLoading();
-        return this.runQuery(cb,runKwargs);
+        var result = this.runQuery(cb,runKwargs);
+        if(result instanceof dojo.Deferred){
+            this._inflightLoad = result;
+            result.addErrback(function(err){
+                landed();
+                return err;
+            });
+        }
+        return result;
     },
 
     cleanColumns:function(cols){
