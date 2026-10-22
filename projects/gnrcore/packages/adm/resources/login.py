@@ -57,7 +57,8 @@ class LoginComponent(BaseComponent):
         footer = self.login_commonFooter(box)
         self.loginDialog_bottom_left(footer.leftbox,dlg)
         self.loginDialog_bottom_right(footer.rightbox,dlg)
-        self.callPackageHooks('loginExtra',box)
+        if doLogin:
+            self.callPackageHooks('loginExtra',box)
         return box
 
     def login_commonFooter(self,pane):
