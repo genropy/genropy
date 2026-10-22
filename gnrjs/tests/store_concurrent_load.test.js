@@ -41,17 +41,30 @@ function createContext() {
     return context;
 }
 
-//the dojo.Deferred the store sees: callbacks and errbacks chained, settled by the test
+//a dojo 1.x style Deferred: one chain, a thrown callback turns into the error path, late callbacks run at once
 class Deferred {
-    constructor() { this.callbacks = []; this.errbacks = []; }
-    addCallback(cb) { this.callbacks.push(cb); return this; }
-    addErrback(eb) { this.errbacks.push(eb); return this; }
-    resolve(result) { for (const cb of this.callbacks) cb(result); }
-    reject(err) { for (const eb of this.errbacks) eb(err); }
+    constructor() { this.chain = []; this.fired = false; this.value = undefined; }
+    addCallback(cb) { return this.addCallbacks(cb, null); }
+    addErrback(eb) { return this.addCallbacks(null, eb); }
+    addCallbacks(cb, eb) {
+        this.chain.push({cb, eb});
+        if (this.fired) this.run();
+        return this;
+    }
+    callback(value) { this.fired = true; this.value = value; this.run(); }
+    errback(err) { this.fired = true; this.value = err instanceof Error ? err : new Error(err); this.run(); }
+    run() {
+        while (this.chain.length) {
+            const {cb, eb} = this.chain.shift();
+            const handler = this.value instanceof Error ? eb : cb;
+            if (!handler) continue;
+            try { this.value = handler(this.value); } catch (error) { this.value = error; }
+        }
+    }
 }
 
 //a Selection store whose query is a Deferred the test settles by hand
-function createStore() {
+function createStore({onLoaded = () => {}} = {}) {
     const context = createContext();
     context.dojo.Deferred = Deferred;
     const queries = [];
@@ -62,7 +75,7 @@ function createStore() {
         gridBroadcast() {},
         resetFilter() {},
         onLoading() {},
-        onLoaded() {}
+        onLoaded
     });
     return {store, queries};
 }
@@ -74,42 +87,66 @@ test('a load asked while a query is in flight waits for it, one more run with th
     store.loadData({query_reason: 'third'});
     assert.equal(queries.length, 1);
     assert.equal(store.loadingData, true);
-    queries[0].deferred.resolve({attr: {totalrows: 3}});
+    queries[0].deferred.callback({attr: {totalrows: 3}});
     assert.equal(queries.length, 2);
     assert.equal(queries[1].runKwargs.query_reason, 'third');
     assert.equal(store.loadingData, true);
-    queries[1].deferred.resolve({attr: {totalrows: 3}});
+    queries[1].deferred.callback({attr: {totalrows: 3}});
     assert.equal(queries.length, 2);
     assert.equal(store.loadingData, false);
 });
 
-test('a load asked while a query is in flight gets the deferred of that query', () => {
-    const {store, queries} = createStore();
+test('a queued caller is called back only when the queued reload has landed', () => {
+    const seen = [];
+    const {store, queries} = createStore({onLoaded(r) { seen.push('loaded:' + r.tag); }});
     const first = store.loadData();
+    first.addCallback(() => { seen.push('first callback'); });
     const queued = store.loadData();
-    assert.equal(queued, first);
-    assert.equal(first, queries[0].deferred);
+    assert.equal(store.loadData(), queued);
+    assert.notEqual(queued, first);
+    queued.addCallback(() => { seen.push('queued callback'); });
+    queries[0].deferred.callback({tag: 'old'});
+    assert.deepEqual(seen, ['loaded:old', 'first callback']);
+    queries[1].deferred.callback({tag: 'fresh'});
+    assert.deepEqual(seen, ['loaded:old', 'first callback', 'loaded:fresh', 'queued callback']);
 });
 
-test('a failed query still runs the queued load, then the store is free again', () => {
+test('a failed query unlocks the store, still runs the queued load and fails its deferred too', () => {
     const {store, queries} = createStore();
     store.loadData();
-    store.loadData();
-    queries[0].deferred.reject(new Error('boom'));
+    const queued = store.loadData();
+    const outcome = [];
+    queued.addErrback(err => { outcome.push(err.message); return err; });
+    queries[0].deferred.errback(new Error('boom'));
     assert.equal(queries.length, 2);
     assert.equal(store.loadingData, true);
-    queries[1].deferred.reject(new Error('boom'));
+    queries[1].deferred.errback(new Error('boom again'));
     assert.equal(store.loadingData, false);
+    assert.deepEqual(outcome, ['boom again']);
     store.loadData();
+    assert.equal(queries.length, 3);
+});
+
+test('a callback that throws after the query landed does not unlock the queued reload', () => {
+    let fail = true;
+    const {store, queries} = createStore({onLoaded() { if (fail) { fail = false; throw new Error('render failed'); } }});
+    store.loadData();
+    store.loadData();
+    queries[0].deferred.callback({});
+    assert.equal(queries.length, 2);
+    assert.equal(store.loadingData, true);
+    store.loadData();
+    assert.equal(queries.length, 2);
+    queries[1].deferred.callback({});
     assert.equal(queries.length, 3);
 });
 
 test('sequential loads each run their own query', () => {
     const {store, queries} = createStore();
     store.loadData();
-    queries[0].deferred.resolve({});
+    queries[0].deferred.callback({});
     store.loadData();
-    queries[1].deferred.resolve({});
+    queries[1].deferred.callback({});
     assert.equal(queries.length, 2);
     assert.equal(store.loadingData, false);
 });

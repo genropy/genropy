@@ -7749,14 +7749,21 @@ dojo.declare("gnr.stores.Selection",gnr.stores.AttributesBagRows,{
         var that = this;
         if(this.loadingData){
             // a query of this store is already in flight: one more run when it lands, with the latest kwargs
-            this._queuedLoad = {runKwargs:runKwargs};
-            return this._inflightLoad;
+            var queuedLoad = this._queuedLoad || {deferred:new dojo.Deferred()};
+            queuedLoad.runKwargs = runKwargs;
+            this._queuedLoad = queuedLoad;
+            return queuedLoad.deferred;
         }
         this.loadingData = true;
         this.gridBroadcast(function(grid){
             grid.sourceNode.publish('loadingData',{loading:true});
         });
+        var hasLanded = false;
         var landed = function(){
+            if(hasLanded){
+                return;
+            }
+            hasLanded = true;
             that.loadingData = false;
             that._inflightLoad = null;
             that.gridBroadcast(function(grid){
@@ -7765,7 +7772,19 @@ dojo.declare("gnr.stores.Selection",gnr.stores.AttributesBagRows,{
             var queued = that._queuedLoad;
             that._queuedLoad = null;
             if(queued){
-                that.loadData(queued.runKwargs);
+                var queuedResult = that.loadData(queued.runKwargs);
+                if(queuedResult instanceof dojo.Deferred){
+                    queuedResult.addCallback(function(r){
+                        queued.deferred.callback(r);
+                        return r;
+                    });
+                    queuedResult.addErrback(function(err){
+                        queued.deferred.errback(err);
+                        return err;
+                    });
+                }else{
+                    queued.deferred.callback(queuedResult);
+                }
             }
         };
         var cb = function(result){
