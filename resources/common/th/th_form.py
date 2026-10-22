@@ -73,17 +73,8 @@ class TableHandlerForm(BaseComponent):
         self._th_mixinResource(frameCode,table=table,resourceName=formResource,defaultClass='Form') 
         return self.th_finalizeForm(form,table=table,options=kwargs,frameCode=frameCode)
     
-    def _th_prepareFormDataHelper(self,form):
-        attr = form.attributes
-        tbl = attr['table']
-        resourceClass = attr['resourceClass']
-        form.setHelperData(table=tbl)
-        form.setHelperData(table=tbl,name=f"th_{tbl.split('.')[1]}_{resourceClass}")
-
-
     def th_finalizeForm(self,form,table=None,options=None,frameCode=None,formCb=None):
         self._th_applyOnForm(form,options=options,mangler=frameCode)  
-        self._th_prepareFormDataHelper(form)
         if formCb:
             formCb(form)
         elif table == self.maintable and hasattr(self,'th_form'):

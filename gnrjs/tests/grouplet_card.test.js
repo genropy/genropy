@@ -61,7 +61,9 @@ class FakeElement {
 }
 
 function loadCard() {
-    const context = {console, File: function() {}, gnr: {}, genro: {wdg: {getHandler: () => null}, safeHtmlContent: (v) => v}, setTimeout,
+    const context = {console, File: function() {}, gnr: {}, setTimeout,
+                     genro: {wdg: {getHandler: () => null}, safeHtmlContent: (v) => v,
+                             dlg: {docTrack: () => {}, openDoc: () => {}}},
                      DOMParser: TextParser,
                      dijit: {getEnclosingWidget: () => null},
                      document: {createElement: (tag) => new FakeElement(tag)}};
@@ -106,7 +108,7 @@ function bandCard(context, kw = {}) {
         collapse: {isCollapsed: () => state.collapsed, toggle: () => { state.toggled++; },
                    expand: () => { state.expanded++; }},
         title: (dom) => { dom.innerHTML = 'Alice'; },
-        doc: {html: (cb) => cb('<p>About</p>')},
+        doc: {address: 'grouplet:test:about', fill: (html) => html, placeholders: () => []},
         checkbox: {isChecked: () => state.checked, onClick: () => { state.clicks++; }}
     }, kw));
     const band = new FakeElement('div');
@@ -206,36 +208,38 @@ test('the checkbox mirrors the host and reports its clicks', () => {
     assert.equal(state.clicks, 1);
 });
 
-test('the doc icon opens the shared popup with the title and the doc, by click or keyboard', () => {
+test('the doc icon is tracked by its address and opens it with the title, by click or keyboard', () => {
     const context = loadCard();
-    const shown = [];
-    const docListeners = {};
-    context.document.addEventListener = (evt, h) => { docListeners[evt] = h; };
-    context.document.removeEventListener = (evt, h) => {
-        if (docListeners[evt] === h) delete docListeners[evt];
-    };
-    context.genro.dlg = {quickTooltipPane: (kw, cb) => {
-        const built = [];
-        const node = {_: (tag, attrs) => { built.push(attrs); return node; }};
-        cb(node);
-        shown.push([kw, built]);
-    }};
-    const {band} = bandCard(context);
+    const tracked = [];
+    const opened = [];
+    context.genro.dlg = {docTrack: (dom, address) => tracked.push([dom, address]),
+                         openDoc: (dom, address, kw) => opened.push([dom, address, kw])};
+    const {band, card} = bandCard(context);
     const icon = band.children[2];
+    assert.deepEqual(tracked, [[icon, 'grouplet:test:about']], 'shown when the page learns its doc exists');
     assert.equal(icon.fire('click').stopped, true);
     icon.fire('keydown', {key: ' '});
-    assert.equal(shown.length, 2);
-    const closed = [];
-    context.genro.publish = (topic) => closed.push(topic);
-    const escape = docListeners.keydown;
-    escape({key: 'a'});
-    escape({key: 'Escape'});
-    assert.deepEqual(closed, ['grouplet_card_doc_opener_close'], 'Esc closes it');
-    assert.equal(docListeners.keydown, undefined, 'and stops listening');
-    const [kw, built] = shown[0];
-    assert.equal(kw.nodeId, 'grouplet_card_doc', 'one popup for the page');
-    assert.equal(kw.domNode, icon);
-    assert.deepEqual(built.map((a) => a.innerHTML), [undefined, 'Alice', '<p>About</p>']);
+    icon.fire('keydown', {key: 'a'});
+    assert.equal(opened.length, 2);
+    const [dom, address, kw] = opened[0];
+    assert.equal(dom, icon);
+    assert.equal(address, 'grouplet:test:about');
+    assert.equal(kw.title, 'Alice');
+    assert.equal(kw.fill, card.doc.fill);
+    assert.equal(kw.placeholders, card.doc.placeholders);
+});
+
+test('docSpec fills the doc on the card data and offers its fields as variables', () => {
+    const context = loadCard();
+    const Card = context.gnr.GroupletCard;
+    const row = new context.gnr.GnrBag();
+    row.setItem('city', 'Turin');
+    row.setItem('lines', new context.gnr.GnrBag());
+    const spec = Card.docSpec('grouplet:test:card_profile', () => row, inVm(context, {courier: 'Fast Parcel'}));
+    assert.equal(spec.address, 'grouplet:test:card_profile');
+    assert.equal(spec.fill('<p>$city via $courier$none</p>'), '<p>Turin via Fast Parcel</p>');
+    assert.deepEqual([...spec.placeholders()], ['city', 'courier'], 'a nested Bag is no variable');
+    assert.equal(Card.docSpec(null, () => row), null, 'no address, no doc');
 });
 
 test('the band is the drag source, and destroy unwires it', () => {

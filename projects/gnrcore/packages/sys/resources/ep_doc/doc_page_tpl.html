@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>$title</title>
+    <style>
+        :root { color-scheme: light dark; --doc-fg: #1f2933; --doc-bg: #ffffff; --doc-code-bg: #f3f4f6; }
+        @media (prefers-color-scheme: dark) {
+            :root { --doc-fg: #e5e7eb; --doc-bg: #1b1e24; --doc-code-bg: #2a2e36; }
+        }
+        body { margin: 0; padding: 16px 20px; font-family: system-ui, sans-serif; line-height: 1.5;
+               color: var(--doc-fg); background: var(--doc-bg); }
+        main { max-width: 46em; margin: 0 auto; }
+        h1 { font-size: 1.3em; margin: 0 0 0.6em; }
+        img { max-width: 100%; height: auto; }
+        code { padding: 0 0.25em; border-radius: 3px; background: var(--doc-code-bg); }
+    </style>
+</head>
+<body>
+    <main>
+        <h1>$title</h1>
+        $body
+    </main>
+</body>
+</html>

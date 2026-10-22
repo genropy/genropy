@@ -992,17 +992,6 @@ class GnrDomSrc(GnrStructData):
                         formlet=False)
         pars.update(kwargs)
         return box.formbuilder(**pars)
-    
-
-    def setHelperData(self,table=None,name=None,**kwargs):
-        data,kw = self.page.getHelperData(table=table,name=name)
-        if kw.get('in_cache'):
-            return
-        return self.page.pageSource().data(f"gnr.helpers.{kw['path']}",data)
-       #return self.page.pageSource().child('dataRemote', path=f"gnr.helpers.{kw['path']}", 
-       #                                    method='getHelperData',
-       #                                    childcontent=childcontent,_resolved=True, 
-       #                                    table=table,name=name)
 
 
     def formbuilder(self,*args,**kwargs):

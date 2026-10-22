@@ -423,6 +423,17 @@ class Service(StorageService):
         if url:
             return self.parent.redirect(environ, start_response, location=url,temporary=True)
 
+    def file_mtimes(self, *args):
+        """One paginated listing instead of a HEAD per file"""
+        if not self.bucket:
+            return {}
+        prefix = self.internal_path(*args)
+        prefix = prefix.strip('/') + '/' if prefix else ''
+        pages = self._client.get_paginator('list_objects_v2').paginate(Bucket=self.bucket, Prefix=prefix)
+        return {item['Key'][len(prefix):]: item['LastModified'].timestamp()
+                for item in pages.search('Contents')
+                if item and not item['Key'].endswith('.gnrdir')}
+
     def children(self, *args, **kwargs):
         if not self.bucket:
             return []

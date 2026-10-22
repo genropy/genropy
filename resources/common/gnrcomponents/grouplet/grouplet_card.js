@@ -8,7 +8,7 @@ gnr.GroupletCard = class GroupletCard {
 
     // kw: {tools, rootDom: () => dom,
     //      collapse: {isCollapsed, toggle, expand}, collapsedClasses,
-    //      title: (dom) => void, doc: {html: (cb) => void},
+    //      title: (dom) => void, doc: {address, fill, placeholders} (docSpec),
     //      checkbox: {isChecked, onClick(e), onKeydown(e)},
     //      drag: {start(e), end()}}
     constructor(kw) {
@@ -157,6 +157,7 @@ gnr.GroupletCard = class GroupletCard {
             e.preventDefault();
             open(e);
         });
+        genro.dlg.docTrack(icon, this.doc.address);
         return icon;
     }
 
@@ -184,7 +185,8 @@ gnr.GroupletCard = class GroupletCard {
 
     openDoc(domNode) {
         const title = this.titleDom ? this.titleDom.innerHTML : '';
-        this.doc.html((html) => gnr.GroupletCard.showDoc(domNode, title, html));
+        genro.dlg.openDoc(domNode, this.doc.address, {title: title, fill: this.doc.fill,
+                                                      placeholders: this.doc.placeholders});
     }
 
     applyCollapsed(collapsed, animate = false) {
@@ -241,24 +243,21 @@ gnr.GroupletCard = class GroupletCard {
                  && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
     }
 
-    static showDoc(domNode, title, html) {
-        // one popup for the whole page, moved to the icon clicked
-        genro.dlg.quickTooltipPane({nodeId: 'grouplet_card_doc', domNode: domNode,
-                                    _class: 'grouplet_card_doc_pane'}, (pane) => {
-            const box = pane._('div', {_class: 'grouplet_card_doc_box'});
-            if (title) box._('div', {_class: 'grouplet_card_doc_title', innerHTML: title});
-            box._('div', {_class: 'grouplet_card_doc_body', innerHTML: html || ''});
-        });
-        // the focus is in the popup: Esc is heard on the document while it is open
+    static docSpec(address, row, docKw) {
+        // the doc of a card: its html filled with the card's data, and docKw
+        // for what is not there; the same names are the editor's variables
+        if (!address) return null;
         const Card = gnr.GroupletCard;
-        if (Card._docEscape) return;
-        Card._docEscape = (e) => {
-            if (e.key !== 'Escape') return;
-            document.removeEventListener('keydown', Card._docEscape, true);
-            Card._docEscape = null;
-            genro.publish('grouplet_card_doc_opener_close', {evt: e});
+        return {
+            address: address,
+            fill: (html) => Card.renderDoc(Card.compileTemplate(html), row(), docKw),
+            placeholders: () => {
+                const data = row();
+                const names = data instanceof gnr.GnrBag
+                    ? data.getNodes().filter((n) => !(n.getValue() instanceof gnr.GnrBag)).map((n) => n.label) : [];
+                return names.concat(Object.keys(docKw || {}));
+            }
         };
-        document.addEventListener('keydown', Card._docEscape, true);
     }
 
     static buildKebab(host, label, editmenu, presets, kebabKw, iconClass) {
@@ -403,7 +402,6 @@ gnr.GroupletCardHost = class GroupletCardHost {
         this.checkboxPath = kw.checkboxPath ? callerNode.absDatapath(kw.checkboxPath) : null;
         const Card = gnr.GroupletCard;
         this.titleTemplate = Card.compileTemplate(kw.titleTemplate) || Card.compileTemplate(kw.template);
-        this.docTemplate = Card.compileTemplate(kw.doc);
         const host = this;
         this.card = new gnr.GroupletCard({
             tools: kw.tools,
@@ -414,9 +412,7 @@ gnr.GroupletCardHost = class GroupletCardHost {
                 expand: () => host.setCollapsed(false)
             } : null,
             title: (dom) => host.renderTitle(dom),
-            doc: this.docTemplate ? {
-                html: (cb) => cb(Card.renderDoc(host.docTemplate, host.data(), kw.doc_kw))
-            } : null,
+            doc: Card.docSpec(kw.doc, () => host.data(), kw.doc_kw),
             checkbox: this.checkboxPath ? {
                 isChecked: () => !!genro.getData(host.checkboxPath),
                 onClick: (e) => genro.setData(host.checkboxPath, !!e.target.checked)

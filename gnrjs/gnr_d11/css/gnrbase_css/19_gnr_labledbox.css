@@ -159,19 +159,16 @@
 
 /* --- Helper button --- */
 .helperbutton{
-    background: url('/_rsrc/common/css_icons/google_icons/info.svg') center center no-repeat;
-    background-size:contain;
     position: relative;
+    color: var(--root-dark, #515151);
 }
-
-.developerToolElementsVisible .labledBox.emptyhelper>.labledBox_label> .helperbutton{
-    background: url('/_rsrc/common/css_icons/google_icons/empty_info.svg') center center no-repeat;
-    display: block;
-    background-size:contain;
-}
-
-.labledBox.emptyhelper>.labledBox_label> .helperbutton{
-    display: none;
+.helperbutton::before{
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: currentColor;
+    -webkit-mask: url('/_rsrc/common/css_icons/google_icons/info_light.svg') center / contain no-repeat;
+    mask: url('/_rsrc/common/css_icons/google_icons/info_light.svg') center / contain no-repeat;
 }
 
 /* --- Zoom label --- */

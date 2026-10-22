@@ -37,6 +37,7 @@ dependencies = [
 	     "jsmin",
 	     "lxml",
 	     "mako",
+	     "markdown-it-py", # gnr.web.gnrdocumentation
 	     "openpyxl",
 	     "packaging",
 	     "paramiko", # gnr.core.gnrssh

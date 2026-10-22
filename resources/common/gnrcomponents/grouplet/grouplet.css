@@ -2554,22 +2554,23 @@ body.drag_started .grouplet_grid_container {
 }
 .grouplet_card_doc {
     flex: none;
-    width: 15px;
-    height: 15px;
-    box-sizing: border-box;
-    border: 1.5px solid currentColor;
+    width: 18px;
+    height: 18px;
+    margin-left: 4px;
     border-radius: 50%;
     display: flex;
-    align-items: center;
-    justify-content: center;
     cursor: pointer;
     user-select: none;
     color: var(--gc-text-muted);
     transition: color 160ms ease;
 }
+/* the mask on the pseudo element: on the icon itself it would clip the focus ring */
 .grouplet_card_doc::before {
-    content: 'i';
-    font: italic 700 10px/1 Georgia, 'Times New Roman', serif;
+    content: '';
+    flex: 1;
+    background: currentColor;
+    -webkit-mask: url('/_rsrc/common/css_icons/google_icons/info_light.svg') center / contain no-repeat;
+    mask: url('/_rsrc/common/css_icons/google_icons/info_light.svg') center / contain no-repeat;
 }
 .grouplet_card_doc:hover {
     color: var(--gc-accent);
@@ -2657,33 +2658,4 @@ body.drag_started .grouplet_grid_container {
 }
 .grouplet_card_body {
     padding: 0.6em 0.8em;
-}
-
-/* the doc popup, one for the page */
-.grouplet_card_doc_box {
-    padding: 10px 12px;
-}
-.grouplet_card_doc_title {
-    font-weight: 600;
-    margin-bottom: 0.4em;
-}
-.grouplet_card_doc_body {
-    max-width: 32em;
-    max-height: 60vh;
-    overflow: auto;
-    line-height: 1.45;
-    font-size: 0.92em;
-}
-.grouplet_card_doc_body img {
-    max-width: 100%;
-    height: auto;
-}
-.grouplet_card_doc_body :is(p, ul, ol) {
-    margin: 0.4em 0;
-}
-.grouplet_card_doc_body code {
-    padding: 0 0.25em;
-    border-radius: 3px;
-    background: var(--surface-alt, #f3f4f6);
-    font-size: 0.95em;
 }

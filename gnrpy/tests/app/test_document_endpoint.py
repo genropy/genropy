@@ -10,6 +10,7 @@ from core.common import BaseGnrTest
 
 from gnr.core.gnrlang import gnrImport
 from gnr.lib.services.storage import StorageNode
+from gnr.web.gnrwebpage import GnrUserNotAllowed
 
 
 def setup_module(module):
@@ -20,9 +21,15 @@ def teardown_module(module):
     BaseGnrTest.teardown_class()
 
 
-ENDPOINT_PATH = (Path(__file__).resolve().parents[3] / 'projects' / 'gnrcore'
-                 / 'packages' / 'sys' / 'webpages' / 'ep_table.py')
+ROOT = Path(__file__).resolve().parents[3]
+ENDPOINT_PATH = ROOT / 'projects' / 'gnrcore' / 'packages' / 'sys' / 'webpages' / 'ep_table.py'
 endpoint = gnrImport(str(ENDPOINT_PATH), avoidDup=True)
+externalcall = gnrImport(str(ROOT / 'resources' / 'common' / 'gnrcomponents' / 'externalcall.py'),
+                         avoidDup=True)
+
+
+class EndpointPage(endpoint.GnrCustomWebPage, externalcall.EndpointPermission):
+    pass
 
 
 class VersionedStorage:
@@ -68,7 +75,7 @@ def document(db_sqlite, tmp_path):
     generate.tags = False
     generate.pathTemplate = 'archive:{0[id]}.pdf'
     generate.outdatedWatermark = 'Version of {localized_date}'
-    page = endpoint.GnrCustomWebPage()
+    page = EndpointPage()
     page.db = db_sqlite
     page.site = SimpleNamespace(
         storageNode=lambda path, version=None: StorageNode(service=storage, path=path, version=version),
@@ -126,7 +133,7 @@ def test_version_without_path_does_not_generate(document):
 
 def test_historical_version_still_requires_permission(document):
     document.generate.tags = 'admin'
-    with pytest.raises(endpoint.NotAllowedError):
+    with pytest.raises(GnrUserNotAllowed):
         document.page._get_documentNode(document.table, pkey=document.pkey,
                                        source='document', version='previous')
     assert document.generated == []
