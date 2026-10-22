@@ -375,7 +375,7 @@ class TableHandlerView(BaseComponent):
                 if searchOn is False:
                     base_slots.remove('searchOn')
             else:
-                base_slots = ['5','vtitle','count','10',statsSlot,pageHooksSelector,'*'] if count is not False else ['5','vtitle','10',statsSlot,pageHooksSelector,'*','5']
+                base_slots = ['5','vtitle','vhelp','count','10',statsSlot,pageHooksSelector,'*'] if count is not False else ['5','vtitle','vhelp','10',statsSlot,pageHooksSelector,'*','5']
                 if searchOn:
                     base_slots.append('searchOn')
 
@@ -575,6 +575,10 @@ class TableHandlerView(BaseComponent):
     @struct_method
     def th_slotbar_vtitle(self,pane,**kwargs):
         pane.div('^.title' ,_class='frameGridTitle')
+
+    @struct_method
+    def th_slotbar_vhelp(self,pane,**kwargs):
+        pane.docHelpButton(f"table:{pane.getInheritedAttributes()['table']}:")
 
     @struct_method
     def th_slotbar_importer(self,pane,frameCode=None,importer=None,**kwargs):

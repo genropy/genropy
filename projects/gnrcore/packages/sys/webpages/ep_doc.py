@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import json
+import os
 import re
 from html import escape
 from urllib.parse import urlencode
@@ -10,19 +11,24 @@ from werkzeug.wrappers import Response
 from gnr.core.gnrstring import templateReplace
 from gnr.web.gnrdocumentation import (DocumentationConflict, DocumentationStore,
                                       doc_folder, render_markdown)
+from gnr.web.gnrmanual import Manual
 from gnr.web.gnrwebpage import GnrUserNotAllowed
 
 
 class GnrCustomWebPage(object):
-    """The docs of the `inlinedoc` storage (gnr.web.gnrdocumentation), for a
-    registered calling page of a logged user (`_calling_page_id`); writing needs
-    the documenter tags `_DOC_,doc_<pkg>` of the doc's package, or the
-    `doc_editor_tags` the calling page declares.
+    """The help of an address for a registered calling page of a logged user
+    (`_calling_page_id`): the section of the published manual documenting it
+    (gnr.web.gnrmanual, the manual pages of the user's group in adm.helpdoc)
+    and the customer's note of the `inlinedoc` storage (gnr.web.gnrdocumentation).
+    Writing a note needs the documenter tags `_DOC_,doc_<pkg>` of the address's
+    package, or the `doc_editor_tags` the calling page declares.
 
     address                      the doc as a page of its own
-    address, _fragment           {exists, editable, title, html, markdown, language, mtime}
+    address, _fragment           {exists, editable, title, html, markdown, language, mtime,
+                                  manual: {label, url, title, html} or None}
     address, asset               an image of the doc
-    _index, addresses            {docs: {address: {language, mtime}}, editable: [address]}
+    _index, addresses            {docs: {address: {language, mtime}}, editable: [address],
+                                  manual: [address]}
     POST _save, address, markdown, title, base_mtime, force
                                  writes the doc; 409 when it changed since base_mtime
     POST _asset, address, dataUrl
@@ -37,6 +43,7 @@ class GnrCustomWebPage(object):
         languages = [language or self.language, self.db.default_language, 'en']
         try:
             page_item = self.checkEndpointPermission(**kwargs)
+            self._manual_user = page_item['user']
             if kwargs.get('_index'):
                 return self.doc_index(store, (kwargs.pop('addresses', None) or '').split(','), languages, **kwargs)
             doc_folder(address)
@@ -66,6 +73,55 @@ class GnrCustomWebPage(object):
             return False
         return True
 
+    def docManual(self):
+        """The manual sections the user reaches: the adm.helpdoc pages of the
+        user's group, then those linked to no group"""
+        user = getattr(self, '_manual_user', None)
+        cached = getattr(self, '_manual', None)
+        if not cached or cached[0] != user:
+            own, others = self.manualPages(user)
+            folders = {}
+            own, others = ([self.manualReadUrl(url, folders) for url in pages] for pages in (own, others))
+
+            def public_url(url):
+                for local, public in folders.items():
+                    if url.startswith(local):
+                        return public + url[len(local):]
+                return url
+            cached = self._manual = (user, Manual(own, others, public_url=public_url))
+        return cached[1]
+
+    def manualReadUrl(self, url, folders):
+        """Where the server reads a manual page: a page in a local storage of the
+        site (`site:manual/index.html`) is read as a file, which the browser
+        opens at its storage url; any other url as it is"""
+        if not url or not re.match(r'^[A-Za-z_]\w*:(?!//)', url):
+            return url
+        node = self.site.storageNode(url)
+        local_path = getattr(node, 'internal_path', None)
+        public = (node.url() or '').split('?')[0]
+        if not (local_path and os.path.isabs(local_path) and local_path.endswith(node.path)
+                and public.endswith(node.path)):
+            return url
+        # the whole storage, so a page links the site above its own folder
+        folders[local_path[:-len(node.path)]] = public[:-len(node.path)]
+        return local_path
+
+    def manualPages(self, user):
+        """(the adm.helpdoc urls of the user's group, those linked to no group)"""
+        if not user or 'adm' not in self.db.packages:
+            return [], []
+        # the group the user logged in with, as the Help menu of the index reads it
+        avatar = self.avatar if getattr(self.avatar, 'user', None) == user else \
+            self.db.application.getAvatar(user, authenticate=False)
+        group_code = getattr(avatar, 'group_code', None)
+        links = self.db.table('adm.group_helpdoc').query(columns='$group_code,$url',
+                                                         order_by='$_row_count').fetch()
+        linked = {r['url'] for r in links}
+        others = [r['url'] for r in self.db.table('adm.helpdoc').query(columns='$url').fetch()
+                  if r['url'] not in linked]
+        return [r['url'] for r in links if group_code and r['group_code'] == group_code], others
+
     def docUrl(self, address, **kwargs):
         return '/sys/ep_doc?%s' % urlencode(dict(address=address, **kwargs))
 
@@ -85,7 +141,8 @@ class GnrCustomWebPage(object):
                 allowed[pkg] = self.isDocumenter(address, **kwargs)
             if allowed[pkg]:
                 editable.append(address)
-        return self._json(dict(docs=store.index(addresses, languages), editable=editable))
+        manual = [address for address in addresses if address and self.docManual().find(address)]
+        return self._json(dict(docs=store.index(addresses, languages), editable=editable, manual=manual))
 
     def doc_read(self, store, address, languages, _fragment=None, **kwargs):
         doc = store.read(address, languages)
@@ -102,12 +159,15 @@ class GnrCustomWebPage(object):
             return templateReplace(self.getResourceContent(resource='ep_doc/doc_page_tpl', ext='html'),
                                    dict(title=escape(title), body=templateReplace(html, values)))
         editable = self.isDocumenter(address, _calling_page_id=page_id)
-        if not (doc or editable):
+        manual = self.docManual().section(address)
+        if not (doc or editable or manual):
             return NotFound()
+        if manual and not doc:
+            title = manual['title']
         return self._json(dict(exists=bool(doc), editable=editable, title=title, html=html,
                                markdown=doc['markdown'] if doc else '',
                                language=doc['language'] if doc else languages[0],
-                               mtime=doc['mtime'] if doc else None))
+                               mtime=doc['mtime'] if doc else None, manual=manual))
 
     def doc_save(self, store, address, language, user, markdown=None, title=None,
                  base_mtime=None, force=None, **kwargs):

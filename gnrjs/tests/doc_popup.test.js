@@ -76,13 +76,18 @@ function createPage() {
             .map((k) => k + '=' + encodeURIComponent(params[k])).join('&')
     };
     genro.dlg = new context.gnr.GnrDlgHandler();
-    const popups = [];
-    genro.dlg.quickTooltipPane = (kw, cb) => {
-        const built = [];
-        const node = {_: (tag, attrs) => { built.push([tag, attrs]); return node; }};
-        cb(node);
-        popups.push({kw, built});
-    };
+    // the page source as the help panel uses it: one named node, cleared and refilled
+    const panels = [];
+    let panelNode = null;
+    const sourceNode = (built) => ({_: (tag, attrs) => { built.push([tag, attrs]); return sourceNode(built); }});
+    genro.src = {getNode: (name) => {
+        if (!name) return {_: () => { panelNode = panelNode || {}; }};
+        if (!panelNode) return null;
+        return Object.assign(panelNode, {
+            freeze() {}, unfreeze() {},
+            clearValue() { const built = []; panels.push(built); Object.assign(panelNode, sourceNode(built)); return panelNode; }
+        });
+    }};
     const dialogs = [];
     genro.dlg.quickDialog = (title, kw) => {
         const built = [];
@@ -100,12 +105,16 @@ function createPage() {
         icons.push(icon);
         return icon;
     };
-    return {context, genro, data, requests, responses, popups, dialogs, published, docListeners, newIcon, editors};
+    return {context, genro, data, requests, responses, panels, dialogs, published, docListeners, newIcon, editors};
 }
 
 const flush = () => new Promise((resolve) => setImmediate(resolve));
+// the index request leaves on a setTimeout(0): wait past it and its promises
+const settle = () => new Promise((resolve) => setTimeout(resolve, 5));
 const shown = (icon) => icon.classList.contains('doc_icon--shown');
 const empty = (icon) => icon.classList.contains('doc_icon--empty');
+const classes = (built) => built.map(([tag, attrs]) => [tag, attrs._class]);
+const byClass = (built, cls) => (built.find(([, attrs]) => attrs._class === cls) || [])[1];
 
 test('the icons of a page ask sys/ep_doc in one request which docs exist and which may be edited', async () => {
     const page = createPage();
@@ -117,8 +126,7 @@ test('the icons of a page ask sys/ep_doc in one request which docs exist and whi
     page.genro.dlg.docTrack(c, 'field:sys.service:name');
     page.genro.dlg.docTrack(a2, 'field:adm.user:username');
     assert.ok(a.classList.contains('doc_icon') && !shown(a), 'hidden until the answer');
-    await flush();
-    await flush();
+    await settle();
     assert.equal(page.requests.length, 1, 'one request for the page');
     const {method, params} = page.requests[0];
     assert.equal(method, 'POST');
@@ -135,44 +143,80 @@ test('the icons of a page ask sys/ep_doc in one request which docs exist and whi
     assert.ok(shown(late) && page.requests.length === 1, 'a known address asks nothing');
 });
 
-test('the popup shows the doc with a link to its page and, to a documenter, Edit', () => {
+test('a manual section shows the icon to everybody, red only where nothing documents the address', async () => {
     const page = createPage();
-    const icon = {};
-    let edited = 0;
-    page.genro.dlg.docPopup(icon, {title: 'Username', html: '<p>Login</p>', address: 'field:adm.user:username',
-                                   onEdit: () => edited++});
-    const {kw, built} = page.popups[0];
-    assert.equal(kw.nodeId, 'doc_popup', 'one popup for the page');
-    assert.equal(kw.domNode, icon);
-    assert.deepEqual(built.map(([tag, attrs]) => [tag, attrs._class]),
-                     [['div', 'doc_popup_box'], ['div', 'doc_popup_title'], ['div', 'doc_popup_body'],
-                      ['div', 'doc_popup_links'], ['a', 'doc_popup_open'], ['a', 'doc_popup_edit']]);
-    assert.equal(built[4][1].href, '/sys/ep_doc?address=field%3Aadm.user%3Ausername&language=it&_calling_page_id=PAGE1');
-    built[5][1].connect_onclick({preventDefault() {}});
-    assert.equal(edited, 1);
-    assert.deepEqual(page.published.map(([topic]) => topic), ['doc_popup_opener_close'], 'the popup closes first');
-    page.docListeners.keydown({key: 'Escape'});
-    assert.equal(page.docListeners.keydown, undefined, 'Esc closes it and stops listening');
-    page.genro.dlg.docPopup(icon, {title: 'Missing'});
-    assert.equal(page.popups[1].built[2][1].innerHTML, '!!No documentation available');
-    assert.equal(page.popups[1].built.length, 4, 'no link and no Edit');
+    const [manual, none] = [page.newIcon(), page.newIcon()];
+    page.responses.push([200, {docs: {}, editable: ['field:adm.user:email', 'field:adm.user:phone'],
+                               manual: ['field:adm.user:email']}]);
+    page.genro.dlg.docTrack(manual, 'field:adm.user:email');
+    page.genro.dlg.docTrack(none, 'field:adm.user:phone');
+    await settle();
+    assert.ok(shown(manual) && !empty(manual), 'the manual documents it');
+    assert.ok(!shown(none));
+    page.data['gnr.docModeVisible'] = true;
+    page.genro.dlg.docApplyStates();
+    assert.ok(shown(none) && empty(none) && !empty(manual));
 });
 
-test('openDoc: a doc fills its template; an empty one opens the editor to a documenter, says so to others', async () => {
+test('the help panel shows the manual section, a link to the manual and the customer note', () => {
+    const page = createPage();
+    let edited = 0;
+    page.genro.dlg.docEdit = () => edited++;
+    page.genro.dlg.helpPanel('field:adm.user:email', {fill: (html) => html.replace('$x', 'X')}, {
+        exists: true, editable: true, title: 'email', html: '<p>Note $x</p>',
+        manual: {title: 'The email', html: '<p>From the manual</p>', url: 'https://docs.example.org/op.html#a'}});
+    const built = page.panels[0];
+    assert.deepEqual(classes(built), [
+        ['div', 'doc_help_panel'], ['div', 'doc_help_panel_head'], ['div', 'doc_help_panel_title'],
+        ['div', 'doc_help_panel_close'], ['div', 'doc_help_panel_body'], ['div', 'doc_help_manual'],
+        ['a', 'doc_help_link'], ['div', 'doc_help_note'], ['div', 'doc_help_note_title'],
+        ['div', 'doc_help_note_body'], ['a', 'doc_help_edit']]);
+    assert.equal(byClass(built, 'doc_help_panel_title').innerHTML, 'The email', 'the manual\'s title');
+    assert.equal(byClass(built, 'doc_help_manual').innerHTML, '<p>From the manual</p>');
+    assert.equal(byClass(built, 'doc_help_link').href, 'https://docs.example.org/op.html#a');
+    assert.equal(byClass(built, 'doc_help_link').target, '_blank');
+    assert.equal(byClass(built, 'doc_help_note_body').innerHTML, '<p>Note X</p>', 'the note filled');
+    assert.equal(byClass(built, 'doc_help_edit').innerHTML, '!!Edit the note');
+    byClass(built, 'doc_help_edit').connect_onclick({preventDefault() {}});
+    assert.equal(edited, 1);
+    page.docListeners.keydown({key: 'Escape'});
+    assert.equal(page.panels.length, 2, 'Esc clears the panel');
+    assert.equal(page.panels[1].length, 0);
+    assert.equal(page.docListeners.keydown, undefined, 'and stops listening');
+});
+
+test('the help panel without manual: the note alone, or a way to add one, or nothing to show', () => {
+    const page = createPage();
+    page.genro.dlg.helpPanel('field:adm.user:email', {title: 'Email'}, {exists: true, editable: false,
+                                                                        title: 'email', html: '<p>Note</p>'});
+    assert.deepEqual(classes(page.panels[0]).slice(5).map(([, c]) => c), ['doc_help_note', 'doc_help_note_body'],
+                     'no manual, no "Notes" title, no Edit');
+    page.genro.dlg.helpPanel('field:adm.user:phone', {}, {exists: false, editable: true, title: 'phone'});
+    assert.deepEqual(classes(page.panels[1]).slice(5).map(([, c]) => c), ['doc_help_empty', 'doc_help_edit']);
+    assert.equal(byClass(page.panels[1], 'doc_help_edit').innerHTML, '!!Add a note');
+    byClass(page.panels[1], 'doc_help_panel_close').connect_onclick();
+    assert.equal(page.panels[2].length, 0, 'the close button clears it');
+});
+
+test('openDoc: the panel with the note filled; an address with nothing opens the editor to a documenter', async () => {
     const page = createPage();
     page.responses.push([200, {exists: true, editable: false, title: 'Shipping', html: '<p>$city</p>',
-                               markdown: '$city', language: 'it', mtime: 5}]);
+                               markdown: '$city', language: 'it', mtime: 5, manual: null}]);
     await page.genro.dlg.openDoc({}, 'grouplet:test:card_profile', {fill: (html) => html.replace('$city', 'Turin')});
-    assert.equal(page.popups[0].built[2][1].innerHTML, '<p>Turin</p>');
-    assert.equal(page.popups[0].built.filter(([tag]) => tag === 'a').length, 1, 'no Edit without the tag');
+    assert.equal(byClass(page.panels[0], 'doc_help_note_body').innerHTML, '<p>Turin</p>');
     page.responses.push([200, {exists: false, editable: true, title: 'email', html: '', markdown: '',
-                               language: 'it', mtime: null}]);
+                               language: 'it', mtime: null, manual: null}]);
     await page.genro.dlg.openDoc({}, 'field:adm.user:email', {title: 'Email'});
     assert.equal(page.dialogs.length, 1, 'straight to the editor');
     assert.equal(page.dialogs[0].title, '!!Documentation · Email (it)');
+    page.responses.push([200, {exists: false, editable: true, title: 'email', html: '', markdown: '',
+                               language: 'it', mtime: null, manual: {title: 'T', html: '<p>M</p>', url: 'u'}}]);
+    await page.genro.dlg.openDoc({}, 'field:adm.user:phone', {});
+    assert.equal(page.dialogs.length, 1, 'a manual section opens the panel, the note is added from there');
+    assert.equal(byClass(page.panels[1], 'doc_help_manual').innerHTML, '<p>M</p>');
     page.responses.push([404, null]);
     await page.genro.dlg.openDoc({}, 'field:sys.service:name', {title: 'Name'});
-    assert.equal(page.popups[1].built[2][1].innerHTML, '!!No documentation available');
+    assert.equal(byClass(page.panels[2], 'doc_help_empty').innerHTML, '!!No documentation available');
 });
 
 test('the editor saves the Markdown with relative images, then the doc shows for everybody', async () => {
