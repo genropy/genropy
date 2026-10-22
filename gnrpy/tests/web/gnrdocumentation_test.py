@@ -26,7 +26,7 @@ from gnr.app.gnrapp import GnrApp
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrlang import gnrImport, instanceMixin
 from gnr.lib.services.storage import StorageService
-from gnr.web import gnrdocumentation, gnrmanual
+from gnr.web import gnrdocumentation
 from gnr.web.gnrdocumentation import (DocumentationConflict, DocumentationStore, doc_folder,
                                       join_front_matter, render_markdown, split_front_matter)
 from gnr.web.gnrdummysite import GnrDummySite
@@ -406,7 +406,7 @@ class TestDocumentation(BaseGnrTest):
         link = db.table('adm.group_helpdoc').newrecord(group_code='DOCOPS', helpdoc_id=helpdocs[0]['id'])
         db.table('adm.group_helpdoc').insert(link)
         db.commit()
-        gnrmanual._cache.clear()
+        self.site.manual_cache.clear()
         try:
             index = self.call('P_OPERATOR', _index=1, addresses='field:adm.user:email,field:adm.user:username')
             assert index['manual'] == ['field:adm.user:email'] and index['docs'] == {}
@@ -425,4 +425,4 @@ class TestDocumentation(BaseGnrTest):
             db.table('adm.user').delete(operator)
             db.table('adm.group').delete(group)
             db.commit()
-            gnrmanual._cache.clear()
+            self.site.manual_cache.clear()

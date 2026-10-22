@@ -90,7 +90,8 @@ class GnrCustomWebPage(object):
                     if url.startswith(local):
                         return public + url[len(local):]
                 return url
-            cached = self._manual = (user, Manual(own, others, public_url=public_url))
+            cached = self._manual = (user, Manual(own, others, public_url=public_url,
+                                                    cache=self.site.manual_cache))
         return cached[1]
 
     def manualReadUrl(self, url, folders):
