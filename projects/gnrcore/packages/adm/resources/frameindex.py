@@ -73,7 +73,7 @@ class FrameIndex(BaseComponent):
         root.attributes['overflow'] = 'hidden'
         root.dataController("""if(window.location.search){
                                 var urlParsed = parseURL(window.location.href);
-                                objectExtract(urlParsed.params,'page_id,_no_cache_');
+                                objectExtract(urlParsed.params,'_no_cache_');
                                 window.history.replaceState({},document.title,serializeURL(urlParsed));
                             }""",_onStart=True)
         if menucode:

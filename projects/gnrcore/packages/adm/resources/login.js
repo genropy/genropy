@@ -130,7 +130,9 @@ const LoginComponent = {
                     }
                 }else{
                     //different context page
-                    kwreload.page_id = genro.page_id;
+                    if(LoginComponent.hasVisibleFields(sourceNode)){
+                        kwreload.page_id = genro.page_id;
+                    }
                     objectPop(kwreload,'new_window');
                     genro.pageReload(kwreload);
                 }
