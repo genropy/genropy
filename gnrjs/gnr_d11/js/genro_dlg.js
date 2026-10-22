@@ -990,8 +990,13 @@ dojo.declare("gnr.GnrDlgHandler", null, {
         const body = panel._('div', {_class: 'doc_help_panel_body'});
         if (manual) {
             body._('div', {_class: 'doc_help_manual', innerHTML: manual.html});
-            body._('a', {_class: 'doc_help_link', href: manual.url, target: '_blank',
-                         innerHTML: _T('!!Open in the manual') + ' &#8599;'});
+            // a window of its own, reused by the next link: the page stays where it is
+            body._('a', {_class: 'doc_help_link', href: manual.url, target: 'gnr_manual',
+                         innerHTML: _T('!!Open in the manual') + ' &#8599;',
+                         connect_onclick: (e) => {
+                             e.preventDefault();
+                             genro.openWindow(manual.url, 'gnr_manual', {width: '1000', height: '800'});
+                         }});
         }
         if (source.exists) {
             const note = body._('div', {_class: 'doc_help_note'});

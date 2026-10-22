@@ -174,7 +174,14 @@ test('the help panel shows the manual section, a link to the manual and the cust
     assert.equal(byClass(built, 'doc_help_panel_title').innerHTML, 'The email', 'the manual\'s title');
     assert.equal(byClass(built, 'doc_help_manual').innerHTML, '<p>From the manual</p>');
     assert.equal(byClass(built, 'doc_help_link').href, 'https://docs.example.org/op.html#a');
-    assert.equal(byClass(built, 'doc_help_link').target, '_blank');
+    assert.equal(byClass(built, 'doc_help_link').target, 'gnr_manual');
+    const opened = [];
+    page.genro.openWindow = (url, name, params) => opened.push([url, name, params.width]);
+    let prevented = false;
+    byClass(built, 'doc_help_link').connect_onclick({preventDefault() { prevented = true; }});
+    assert.ok(prevented, 'the page is not left');
+    assert.deepEqual(opened, [['https://docs.example.org/op.html#a', 'gnr_manual', '1000']],
+                     'a window of its own, the same one for every link');
     assert.equal(byClass(built, 'doc_help_note_body').innerHTML, '<p>Note X</p>', 'the note filled');
     assert.equal(byClass(built, 'doc_help_edit').innerHTML, '!!Edit the note');
     byClass(built, 'doc_help_edit').connect_onclick({preventDefault() {}});
