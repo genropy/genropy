@@ -37,6 +37,7 @@ from gnr.lib.services import ServiceHandler
 from gnr.app.pathresolver import PathResolver
 from gnr.app.gnrapp import GnrPackage
 from gnr.web import logger
+from gnr.web.gnrmanual import ManualCache
 from gnr.web.gnrwebapp import GnrWsgiWebApp
 from gnr.web.gnrwebpage import GnrUnsupportedBrowserException
 from gnr.web.gnrwsgisite_proxy.gnrresourceloader import ResourceLoader
@@ -437,6 +438,7 @@ class GnrWsgiSite(object):
         self.storageTypes = STORAGE_TYPES + STATIC_HANDLER_TYPES
         self.pathfile_cache = {}
         self.doc_listings = {}
+        self.manual_cache = ManualCache()
         self._currentAuxInstanceNames = ThreadedDict()
         self._currentPages = ThreadedDict()
         self._currentRequests = ThreadedDict()

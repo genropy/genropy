@@ -11,6 +11,7 @@ import json
 import os
 import shutil
 import time
+import zlib
 from datetime import datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace
@@ -37,6 +38,22 @@ aws_s3 = gnrImport(str(ROOT / 'projects' / 'gnrcore' / 'packages' / 'sys' / 'res
                        / 'storage' / 'aws_s3.py'), avoidDup=True)
 PNG = 'data:image/png;base64,iVBORw0KGgo='
 CONNECTION = 'C_PROBE'
+
+
+def write_manual(folder, sections):
+    """A published manual in the shape Sphinx writes it: objects.inv and the
+    pages, sections = {label: (page, anchor, title, text)}"""
+    lines = ''.join(f'{label} std:label -1 {page}#{anchor} {title}\n'
+                    for label, (page, anchor, title, text) in sections.items())
+    (folder / 'objects.inv').write_bytes(b'# Sphinx inventory version 2\n# Project: Probe\n# Version: \n'
+                                         b'# The remainder of this file is compressed using zlib.\n'
+                                         + zlib.compress(lines.encode('utf-8')))
+    pages = {}
+    for label, (page, anchor, title, text) in sections.items():
+        pages.setdefault(page, []).append(f'<span id="{anchor}"></span><section id="s-{anchor}">'
+                                          f'<h2>{title}</h2><p>{text}</p></section>')
+    for page, body in pages.items():
+        (folder / page).write_text('<html><body>%s</body></html>' % ''.join(body))
 
 
 class WithMethod(object):
@@ -136,8 +153,8 @@ class TestDocumentation(BaseGnrTest):
         db.table('adm.user_tag').insert(db.table('adm.user_tag').newrecord(user_id=users['writer'],
                                                                            tag_id=tag['id']))
         db.commit()
-        page_items = dict(P_WRITER=dict(user='writer'), P_READER=dict(user='reader'),
-                          P_GUEST=dict(user='guest_123'))
+        page_items = cls.page_items = dict(P_WRITER=dict(user='writer'), P_READER=dict(user='reader'),
+                                           P_GUEST=dict(user='guest_123'))
         for page_item in page_items.values():
             page_item['connection_id'] = CONNECTION
         page_items['P_ELSEWHERE'] = dict(user='writer', connection_id='C_OTHER')
@@ -367,3 +384,45 @@ class TestDocumentation(BaseGnrTest):
             assert isinstance(self.call(address='field:adm.user:username', _fragment=1), NotFound)
         finally:
             config.setAttr('experimental.gui', inlinedoc='true')
+
+    def test_the_manual_of_the_users_group_documents_the_address(self, tmp_path):
+        write_manual(tmp_path, {
+            'help-field-adm-user-email': ('backoffice.html', 'help-field-adm-user-email', 'Email',
+                                          'For the backoffice.'),
+            'help-field-adm-user-email--operatore': ('operatore.html', 'help-field-adm-user-email-operatore',
+                                                     'Your email', 'For the operator.')})
+        db = self.site.db
+        group = db.table('adm.group').newrecord(code='DOCOPS', description='Doc operators')
+        db.table('adm.group').insert(group)
+        operator = db.table('adm.user').newrecord(username='operator', firstname='Op', lastname='Probe',
+                                                  email='operator@example.org', group_code='DOCOPS')
+        db.table('adm.user').insert(operator)
+        self.page_items['P_OPERATOR'] = dict(user='operator', connection_id=CONNECTION)
+        helpdocs = []
+        for title, page in (('Operator manual', 'operatore.html'), ('Backoffice manual', 'backoffice.html')):
+            helpdoc = db.table('adm.helpdoc').newrecord(title=title, url=str(tmp_path / page))
+            db.table('adm.helpdoc').insert(helpdoc)
+            helpdocs.append(helpdoc)
+        link = db.table('adm.group_helpdoc').newrecord(group_code='DOCOPS', helpdoc_id=helpdocs[0]['id'])
+        db.table('adm.group_helpdoc').insert(link)
+        db.commit()
+        self.site.manual_cache.clear()
+        try:
+            index = self.call('P_OPERATOR', _index=1, addresses='field:adm.user:email,field:adm.user:username')
+            assert index['manual'] == ['field:adm.user:email'] and index['docs'] == {}
+            doc = self.call('P_OPERATOR', address='field:adm.user:email', _fragment=1)
+            assert (doc['exists'], doc['title']) == (False, 'Your email'), 'a section without a note is shown'
+            assert doc['manual']['html'] == '<p>For the operator.</p>', "the user's group manual first"
+            assert doc['manual']['url'].endswith('operatore.html#help-field-adm-user-email-operatore')
+            writer = self.call('P_WRITER', address='field:adm.user:email', _fragment=1)
+            assert writer['manual']['html'] == '<p>For the backoffice.</p>', \
+                'a user of no group: the manuals linked to no group, then the label without variant'
+            assert isinstance(self.call('P_OPERATOR', address='field:adm.user:username', _fragment=1), NotFound)
+        finally:
+            db.table('adm.group_helpdoc').delete(link)
+            for helpdoc in helpdocs:
+                db.table('adm.helpdoc').delete(helpdoc)
+            db.table('adm.user').delete(operator)
+            db.table('adm.group').delete(group)
+            db.commit()
+            self.site.manual_cache.clear()
