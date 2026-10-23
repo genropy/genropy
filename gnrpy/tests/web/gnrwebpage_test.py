@@ -1,12 +1,14 @@
 import io
 import os
 import pickle
+from types import SimpleNamespace
 from urllib.parse import parse_qs, urlsplit
 
 import pytest
 from werkzeug.datastructures import FileStorage, MultiDict
 
 from gnr.core.gnrlang import GnrException
+from gnr.sql.gnrsqltable import GnrSqlBusinessLogicException
 from gnr.web.gnrwebpage import GnrWebPage, UNSET_COLOR_VARIANT
 
 
@@ -51,6 +53,37 @@ def test_exception_unknown_name_raises_naming_it():
 def test_exception_registered_name_returns_instance():
     exc = GnrWebPage.exception(_ExceptionPageStub(), 'generic')
     assert isinstance(exc, GnrException)
+
+
+def test_exception_business_logic_from_a_page_carries_its_message():
+    exc = GnrWebPage.exception(_ExceptionPageStub(), 'business_logic',
+                               msg='Row %(row)s is locked', row='10% fee')
+    assert isinstance(exc, GnrSqlBusinessLogicException)
+    assert str(exc).endswith('business logic: Row 10% fee is locked')
+
+
+def test_exception_sql_caption_needing_a_table_renders_from_a_page():
+    exc = GnrWebPage.exception(_ExceptionPageStub(), 'protect_delete', msg='in use')
+    assert str(exc).endswith('is not deletable:in use')
+
+
+class _ForbiddenTablePageStub(_ExceptionPageStub):
+    db = SimpleNamespace(table=lambda name: SimpleNamespace(runIt=lambda: None))
+
+    def checkTablePermission(self, **kwargs):
+        return False
+
+    def localize(self, txt):
+        return txt
+
+    def exception(self, *args, **kwargs):
+        return GnrWebPage.exception(self, *args, **kwargs)
+
+
+def test_forbidden_table_method_says_which_operation():
+    with pytest.raises(GnrSqlBusinessLogicException) as excinfo:
+        GnrWebPage._getProxyObject(_ForbiddenTablePageStub(), '_table.pkg.tbl.runIt')
+    assert 'Operation runIt is not allowed' in str(excinfo.value)
 
 
 class _ForbiddenPageStub(object):
