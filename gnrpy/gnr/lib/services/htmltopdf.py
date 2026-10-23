@@ -11,10 +11,6 @@ from gnr.core.gnrlang import  GnrException
 from gnr.lib.services import GnrBaseService,BaseServiceType
 from gnr.lib.services.storage import StorageNode
 
-#when set, the url of a kajenn print server: htmltopdf defaults to the kajennprint
-#implementation, connecting to that server
-KAJENN_PRINT_ENV = 'KAJENN_PRINT_URL'
-
 #a valid margin: non-negative number with an optional css length unit (bare number -> mm)
 CSS_LENGTH_RE = re.compile(r'^(?:\d+(?:\.\d+)?|\.\d+)(?P<unit>mm|cm|in|px|pt|pc|em|rem|%)?$')
 
@@ -24,7 +20,11 @@ class HtmlToPdfError(GnrException):
 
 class ServiceType(BaseServiceType):
     def conf_htmltopdf(self):
-        kajenn_url = os.environ.get(KAJENN_PRINT_ENV, '').strip()
+        #experimental: <experimental><htmltopdf kajenn_print_url="..."/></experimental>
+        #makes a kajenn print server the default renderer
+        gnrapp = getattr(self.site, 'gnrapp', None)
+        kajenn_url = gnrapp.experimentalValue('htmltopdf', 'kajenn_print_url') if gnrapp else None
+        kajenn_url = (kajenn_url or '').strip()
         if kajenn_url:
             return dict(implementation='kajennprint', url=kajenn_url)
         try:
