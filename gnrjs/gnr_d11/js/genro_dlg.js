@@ -894,6 +894,203 @@ dojo.declare("gnr.GnrDlgHandler", null, {
         return tp;
     },
 
+    docUrl: function(address, kw) {
+        // the page of a doc address (sys/ep_doc), asked by this page
+        return genro.addParamsToUrl('/sys/ep_doc', objectUpdate({address: address,
+            language: genro.getData('gnr.language'), _calling_page_id: genro.page_id}, kw || {}));
+    },
+
+    docAssetUrl: function(address, name) {
+        return this.docUrl(address) + '&asset=' + (name || '');
+    },
+
+    _docPost: function(params) {
+        const body = new URLSearchParams(objectUpdate({language: genro.getData('gnr.language'),
+                                                       _calling_page_id: genro.page_id}, params));
+        return fetch('/sys/ep_doc', {method: 'POST', body: body, credentials: 'same-origin'});
+    },
+
+    docTrack: function(domNode, address) {
+        // an icon of a doc address: shown when the doc exists, and red where it
+        // is empty to a documenter in documentation mode. The addresses of the
+        // page go to sys/ep_doc in one request
+        domNode.setAttribute('data-doc-address', address);
+        domNode.classList.add('doc_icon');
+        const states = this._docStates = this._docStates || {};
+        if (address in states) {
+            this.docApplyState(domNode);
+            return;
+        }
+        states[address] = null;
+        (this._docPending = this._docPending || new Set()).add(address);
+        if (!this._docPendingTimer) {
+            this._docPendingTimer = setTimeout(() => this._docIndex(), 0);
+        }
+    },
+
+    _docIndex: function() {
+        const addresses = [...this._docPending];
+        this._docPending = new Set();
+        this._docPendingTimer = null;
+        return this._docPost({_index: 1, addresses: addresses.join(',')})
+            .then((response) => response.ok ? response.json() : null)
+            .catch(() => null)
+            .then((result) => {
+                result = result || {docs: {}, editable: []};
+                addresses.forEach((address) => {
+                    this._docStates[address] = {exists: address in result.docs,
+                                                editable: result.editable.indexOf(address) >= 0};
+                });
+                this.docApplyStates();
+            });
+    },
+
+    docApplyStates: function() {
+        document.querySelectorAll('[data-doc-address]').forEach((domNode) => this.docApplyState(domNode));
+    },
+
+    docApplyState: function(domNode) {
+        const state = (this._docStates || {})[domNode.getAttribute('data-doc-address')] || {};
+        const docMode = !!genro.getData('gnr.docModeVisible');
+        domNode.classList.toggle('doc_icon--shown', !!state.exists || (!!state.editable && docMode));
+        domNode.classList.toggle('doc_icon--empty', !state.exists);
+    },
+
+    docSource: function(address, cb) {
+        // {exists, editable, title, html, markdown, language, mtime} of a doc
+        // address, fetched once per page; null when it is not for this user
+        const sources = this._docSources = this._docSources || {};
+        if (!(address in sources)) {
+            sources[address] = fetch(this.docUrl(address, {_fragment: 1}), {credentials: 'same-origin'})
+                .then((response) => response.ok ? response.json() : null)
+                .catch(() => null);
+        }
+        return sources[address].then(cb);
+    },
+
+    docPopup: function(domNode, kw) {
+        // one popup for the page, moved to the icon clicked (a toggletip):
+        // title, html, the address of its page of its own, onEdit for a documenter
+        genro.dlg.quickTooltipPane({nodeId: 'doc_popup', domNode: domNode, _class: 'doc_popup_pane'}, (pane) => {
+            const box = pane._('div', {_class: 'doc_popup_box'});
+            if (kw.title) box._('div', {_class: 'doc_popup_title', innerHTML: kw.title});
+            box._('div', {_class: 'doc_popup_body', innerHTML: kw.html || _T('!!No documentation available')});
+            const links = box._('div', {_class: 'doc_popup_links'});
+            if (kw.address && kw.html) {
+                links._('a', {_class: 'doc_popup_open', href: this.docUrl(kw.address), target: '_blank',
+                              innerHTML: _T('!!Open in a new tab')});
+            }
+            if (kw.onEdit) {
+                links._('a', {_class: 'doc_popup_edit', href: '#', innerHTML: _T('!!Edit'),
+                              connect_onclick: (e) => {
+                                  e.preventDefault();
+                                  genro.publish('doc_popup_opener_close', {evt: e});
+                                  kw.onEdit();
+                              }});
+            }
+        });
+        // the focus is in the popup: Esc is heard on the document while it is open
+        if (this._docEscape) return;
+        this._docEscape = (e) => {
+            if (e.key !== 'Escape') return;
+            document.removeEventListener('keydown', this._docEscape, true);
+            this._docEscape = null;
+            genro.publish('doc_popup_opener_close', {evt: e});
+        };
+        document.addEventListener('keydown', this._docEscape, true);
+    },
+
+    _docTitleHtml: function(kw, source) {
+        // kw.title is the caller's markup (a label, a card title); the doc's
+        // own title is text a documenter wrote, never markup
+        if (kw.title) return kw.title;
+        return String((source && source.title) || '').replace(/&/g, '&amp;').replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    },
+
+    openDoc: function(domNode, address, kw) {
+        // the ⓘ of a doc address. kw: title, fill (the doc's html filled with
+        // the caller's data), placeholders (the variables the editor offers)
+        kw = kw || {};
+        return this.docSource(address, (source) => {
+            const edit = source && source.editable ? () => this.docEdit(address, kw, source) : null;
+            if (source && !source.exists && edit) {
+                edit();
+                return;
+            }
+            const exists = source && source.exists;
+            this.docPopup(domNode, {title: this._docTitleHtml(kw, source), address: exists ? address : null,
+                                    html: exists ? (kw.fill ? kw.fill(source.html) : source.html) : null,
+                                    onEdit: edit});
+        });
+    },
+
+    docEdit: function(address, kw, source) {
+        // the doc in the user's language: another language's text is the
+        // starting point of a translation, saved as a new file
+        const language = genro.getData('gnr.language');
+        const assets = this.docAssetUrl(address);
+        const title = kw.title || source.title;
+        genro.setData('gnr.docEditor.markdown', (source.markdown || '').split('](assets/').join('](' + assets));
+        const dlg = this.quickDialog(_T('!!Documentation') + ' · ' + this._docTitleHtml(kw, source) + ' (' + language + ')',
+                                     {width: '760px', closable: true});
+        const placeholders = kw.placeholders ? kw.placeholders() : [];
+        dlg.center._('MDEditor', {nodeId: 'doc_editor_md', value: '^gnr.docEditor.markdown',
+            height: '440px', width: '740px',
+            initialEditType: 'wysiwyg', usageStatistics: false,
+            hooks: {addImageBlobHook: (blob, callback) => {
+                this.docUploadImage(address, blob).then((link) => {
+                    if (link) callback(assets + link.slice('assets/'.length), '');
+                });
+            }}});
+        if (placeholders.length) {
+            dlg.center._('div', {_class: 'doc_editor_placeholders',
+                                 innerHTML: _T('!!Variables') + ': ' + placeholders.map((p) => '$' + p).join(' ')});
+        }
+        const save = (force) => {
+            // the editor writes its datapath on blur, which a click on Save may precede
+            const editorNode = genro.nodeById('doc_editor_md');
+            const current = editorNode && editorNode.externalWidget
+                ? editorNode.externalWidget.getMarkdown() : genro.getData('gnr.docEditor.markdown');
+            const markdown = (current || '').split(assets).join('assets/');
+            const params = {_save: 1, address: address, markdown: markdown, title: title};
+            if (source.exists && source.language === language) params.base_mtime = source.mtime;
+            if (force) params.force = 1;
+            this._docPost(params).then((response) => {
+                if (response.status === 409) {
+                    this.ask(_T('!!Documentation'), _T('!!Somebody saved this doc while you were editing it'),
+                             {overwrite: _T('!!Overwrite'), cancel: _T('!!Cancel')},
+                             {overwrite: () => save(true)});
+                    return;
+                }
+                if (!response.ok) {
+                    genro.publish('floating_message', {message: _T('!!The doc was not saved'), messageType: 'error'});
+                    return;
+                }
+                delete this._docSources[address];
+                this._docStates[address] = {exists: !!markdown.trim(), editable: true};
+                this.docApplyStates();
+                dlg.close_action();
+            });
+        };
+        dlg.bottom._('button', 'save', {float: 'right', label: _T('!!Save'), action: () => save(false)});
+        dlg.bottom._('button', 'cancel', {float: 'right', label: _T('!!Cancel'), action: () => dlg.close_action()});
+        dlg.show_action();
+        return dlg;
+    },
+
+    docUploadImage: function(address, blob) {
+        // an image pasted or dropped in the editor, stored next to the doc
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = () => resolve(null);
+            reader.readAsDataURL(blob);
+        }).then((dataUrl) => dataUrl ? this._docPost({_asset: 1, address: address, dataUrl: dataUrl}) : null)
+          .then((response) => response && response.ok ? response.json() : null)
+          .then((result) => result && result.link);
+    },
+
     quickDialog: function(title,kw,rootNode) {
         kw = objectUpdate({_class:'dlg_prompt'},kw);
         var quickRoot = '_dlg_quick_'+genro.getCounter();

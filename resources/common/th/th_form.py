@@ -83,7 +83,8 @@ class TableHandlerForm(BaseComponent):
 
     def th_finalizeForm(self,form,table=None,options=None,frameCode=None,formCb=None):
         self._th_applyOnForm(form,options=options,mangler=frameCode)  
-        self._th_prepareFormDataHelper(form)
+        if not self.inlineDoc:
+            self._th_prepareFormDataHelper(form)
         if formCb:
             formCb(form)
         elif table == self.maintable and hasattr(self,'th_form'):

@@ -19,6 +19,7 @@ from datetime import datetime
 from gnr.lib.services.storage import StorageNode as LegacyStorageNode
 from gnr.core.gnrsys import expandpath
 from gnr.core.gnrbag import Bag
+from gnr.core.gnrstring import boolean
 from gnr.core.gnrdecorator import deprecated
 from gnr.core.gnrstring import boolean
 from gnr.web import logger
@@ -42,6 +43,9 @@ class BaseStorageHandler:
     Args:
         site: The GnrWsgiSite instance this handler belongs to
     """
+
+    # the docs of gnr.web.gnrdocumentation, served only by sys/ep_doc
+    PRIVATE_STORAGES = {'inlinedoc'}
 
     # Default configurations for built-in storage services
     DEFAULT_STORAGE_CONFIGS = {
@@ -265,6 +269,12 @@ class BaseStorageHandler:
         """
         return self.storage_params.get(storage_name)
 
+    def isPrivateStorage(self, storage_name):
+        """A private storage is never served by url (/_storage/<name>/...,
+        /<name>:...): only an endpoint of its own reads it"""
+        params = self.getStorageParameters(storage_name) or {}
+        return storage_name in self.PRIVATE_STORAGES or boolean(params.get('private'))
+
     def getAllStorageParameters(self):
         """Get all storage parameters.
 
@@ -487,7 +497,7 @@ class LegacyStorageHandler(BaseStorageHandler):
 
         If storage_name is not found in storage_params, falls back to legacy
         behavior: creates a local storage with storage_name as subdirectory
-        of site_static_dir.
+        of site_static_dir, of the instance folder for a private storage.
 
         Args:
             storage_name: Name of the storage service
@@ -499,7 +509,9 @@ class LegacyStorageHandler(BaseStorageHandler):
         self._refreshChangedStorageParams(storage_name)
         stored_params = self.getStorageParameters(storage_name)
         if not stored_params:
-            volume_path = expandpath(os.path.join(self.site.site_static_dir, storage_name))
+            root = self.site.gnrapp.instanceFolder if self.isPrivateStorage(storage_name) \
+                else self.site.site_static_dir
+            volume_path = expandpath(os.path.join(root, storage_name))
             return self.site.getService(
                 service_type='storage',
                 service_name=storage_name,
@@ -508,6 +520,7 @@ class LegacyStorageHandler(BaseStorageHandler):
             )
         service_params = dict(stored_params)
         service_params.pop('service_name', None)
+        service_params.pop('private', None)
         service_params.update(kwargs)
         service = self.site.getService(
             service_type='storage',

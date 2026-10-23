@@ -15,8 +15,10 @@
   test_6_profile      the same resource three times: its own card profile,
                       the profile given by the caller, the resource's
                       profile overridden by the caller
-  test_7_doc          the ⓘ doc: an inline template with variables, a file
-                      next to the resource with an image
+  test_7_doc          the ⓘ doc, read from the inlinedoc storage: the
+                      resource's own address, and a card in place pointing to
+                      one with doc= (doc_kw fills its variables); empty docs
+                      show their ⓘ only in documentation mode
   test_8_clear        Clear empties only the card's fields; with
                       delitem='==!invoiced' it greys out once Invoiced is ticked
   test_9_use_form     useForm=True: the grouplet edits a copy in a form of its
@@ -128,13 +130,12 @@ class GnrCustomWebPage(object):
                          titleTemplate='!!Ship to $street')
 
     def test_7_doc(self, pane):
-        """The ⓘ doc: a template with variables, a file with an image"""
+        """The ⓘ doc of the resource and of a card in place, from the inlinedoc storage"""
         pane.data('.shipping', Bag(dict(street='Via Roma 1', city='Milano', province='MI')))
+        pane.checkbox(value='^gnr.docModeVisible', label='!!Documentation mode')
         row = pane.div(display='flex', gap='12px', align_items='start')
         row.groupletCard(datapath='.shipping', handler=self.shipping_fields, width='22em',
-                         title='!!Inline doc',
-                         doc='<p>Goods for <b>$city</b> ($province) leave <i>$when</i>.</p>'
-                             '<p>The province decides the delivery zone.</p>',
+                         title='!!Card in place', doc='grouplet:test:shipping_notes',
                          doc_kw=dict(when='every morning'))
         row.groupletCard(datapath='.shipping', resource='card_profile', width='22em')
 

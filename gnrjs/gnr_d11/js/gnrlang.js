@@ -2060,7 +2060,9 @@ function funcApply(fnc, parsobj, scope,argNames,argValues,showError) {
     argNames.push('_kwargs');
     argValues.push(parsobj);
     if(typeof(fnc)=='function'){
-        var signature = fnc.toString().match(/function *\(([\w \,]*)\)/)[1];
+        // an arrow function or a method has no `function(...)`: no named arguments
+        var signatureMatch = fnc.toString().match(/function *\(([\w \,]*)\)/);
+        var signature = signatureMatch && signatureMatch[1];
         var idx;
         if(signature){
             var argValuesCopy = copyArray(argValues);
