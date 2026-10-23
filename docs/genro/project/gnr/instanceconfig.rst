@@ -194,6 +194,12 @@ Tags
       ``compiler_next.py``, the copy of the query compiler that receives new work,
       instead of the frozen ``SqlQueryCompiler``.
 
+    ``<storage>`` switches:
+
+    * ``use_genro_storage``: serve the mappable storage mounts through the
+      ``genro-storage`` package instead of the legacy services; see
+      ``docs/development/genro-storage-migration.md``.
+
     A missing tag or attribute reads as ``False`` for a boolean switch and as
     ``None`` for one carrying a value.
 
