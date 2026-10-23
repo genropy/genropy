@@ -1211,7 +1211,7 @@ dojo.declare("gnr.GnrDevHandler", null, {
                 });
             },label:_T('Screenshot')});
             fb.addField('br',{});
-            fb.addField('img',{src:'^.preview',height:'50px',width:'200px',border:'1px solid silver'});
+            fb.addField('img',{src:'^.preview',height:'50px',width:'200px',border:'1px solid var(--border-color)'});
         }
         var meta = genro.getData(datapath) || new gnr.GnrBag();
         var canDuplicate = meta.getItem('id') || meta.getItem('pkey');
@@ -1330,7 +1330,7 @@ dojo.declare("gnr.GnrDevHandler", null, {
         var pane = parent._('palettePane',{'paletteCode':'gnrerrors','dockTo':false,
                                         title:'Current errors'});
         pane._('div',{innerHTML:'==genro.dev.formatErrors(_errors)',_errors:'^gnr.errors',padding:'5px',
-                    border:'1px solid silver',background:'whitesmoke',rounded:6,margin:'5px'});
+                    border:'1px solid var(--border-color)',background:'whitesmoke',rounded:6,margin:'5px'});
         parent.unfreeze();
     },
     currDataExplorer:function(kw){
@@ -1528,7 +1528,7 @@ dojo.declare("gnr.GnrDevHandler", null, {
                 });
             },label:_T('Screenshot')});
             fb.addField('br',{});
-            fb.addField('img',{src:'^.screenshot',height:'100px',width:'300px',border:'1px solid silver'});
+            fb.addField('img',{src:'^.screenshot',height:'100px',width:'300px',border:'1px solid var(--border-color)'});
 
         });
 

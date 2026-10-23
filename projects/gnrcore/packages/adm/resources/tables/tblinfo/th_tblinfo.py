@@ -81,7 +81,7 @@ class Form(BaseComponent):
                                 var s = this._value.getNode('store').gnrwdg.store;
                                 s.deleteAsk([value]);
                             """,
-                                margin='3px',border='1px solid silver')
+                                margin='3px',border='1px solid var(--border-color)')
         frame.multiButtonView.item(code='add_it',caption='+',
                                     action='FIRE .new_item = {code:custom_code || standard_code,description:custom_description || description || custom_code,based_on:based_on};',
                                     ask=dict(title='New Item',fields=[dict(lbl='Standard code',

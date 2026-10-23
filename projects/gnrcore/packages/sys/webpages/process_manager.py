@@ -47,7 +47,7 @@ class GnrCustomWebPage(object):
     
         pane.quickGrid(value='^.data',height='200px',width='auto',
                                       sortedBy='cpu_percent:d',
-                                      border='1px solid silver')
+                                      border='1px solid var(--border-color)')
         
     @public_method
     def getProcessesBag(self,columns=None, userName=None, 

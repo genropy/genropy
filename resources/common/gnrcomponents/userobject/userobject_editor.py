@@ -173,7 +173,7 @@ class PrintGridEditor(UserObjectEditor):
                             datapath='.viewer',margin='4px',
                             grid_externalSave=True,
                             _newGrid=True,
-                            rounded=6,border='1px solid silver')
+                            rounded=6,border='1px solid var(--border-color)')
         gridattr = frame.grid.attributes
         configuratorId = '{}_configurator'.format(gridattr['nodeId'])
         gridattr['configuratorId'] = configuratorId
@@ -183,7 +183,7 @@ class PrintGridEditor(UserObjectEditor):
                             grid=frame.grid.js_widget,
                             struct='^.grid.struct',_delay=100)
 
-        right = bc.framePane(region='right',width='200px',border_left='1px solid silver')
+        right = bc.framePane(region='right',width='200px',border_left='1px solid var(--border-color)')
 
         right.center.contentPane(nodeId=configuratorId).fieldsTree(table=table,checkPermissions=True,searchOn=True,
                             box_top='0',box_bottom='0',box_left='0',box_right='0',box_position='absolute',

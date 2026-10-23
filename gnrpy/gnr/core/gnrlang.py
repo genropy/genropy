@@ -270,11 +270,8 @@ class GnrException(Exception):
             st = inspect.stack()
             description = "%s:%i"%(st[1][1],st[1][2])
         self.description = description
-        # FIXME: why a localizer param saved as attribute
-        # and immediately discarded?
         self.localizer = localizer
         self.msgargs = kwargs
-        self.localizer = None
 
     def __str__(self):
         msgargs = dict(code=self.code, description=self.description)

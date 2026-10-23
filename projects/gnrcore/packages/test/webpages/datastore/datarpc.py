@@ -31,14 +31,14 @@ class GnrCustomWebPage(object):
 
     def test_2_simplesum(self, pane):
         "dataRpc can be triggered by value insertion. Insert numbers and push tab"
-        fb = pane.formbuilder(cols=3, fld_width='5em')
+        fb = pane.formlet(cols=3)
         #initialize fields
         fb.data('.first_term',0)
         fb.data('.second_term',0)
         
         fb.numbertextbox('^.first_term', lbl='First term')
         fb.numbertextbox('^.second_term', lbl='Second term')
-        fb.numbertextbox('^.result', readOnly=True)
+        fb.numbertextbox('^.result', lbl='Result', readOnly=True)
         
         #parameters triggers the rpc when they are updated
         fb.dataRpc('.result', self.simplesum, first='^.first_term', second='^.second_term')

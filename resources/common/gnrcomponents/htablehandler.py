@@ -357,15 +357,15 @@ class HTableHandler(HTableHandlerBase):
                               
         if editMode == 'bc':
             ht = bc = parent.borderContainer(region='center', datapath=datapath, nodeId=nodeId, design='sidebar',_class='hideSplitter')
-            treepane = bc.framePane(region='left', width='220px', splitter=True,rounded=6,border='1px solid silver',margin='2px',childname='treepane')
-            frame = bc.framePane(region='center',rounded=6,margin='2px',border='1px solid silver',childname='editpane')
+            treepane = bc.framePane(region='left', width='220px', splitter=True,rounded=6,border='1px solid var(--border-color)',margin='2px',childname='treepane')
+            frame = bc.framePane(region='center',rounded=6,margin='2px',border='1px solid var(--border-color)',childname='editpane')
             formBC = frame.center
             commonTop = frame.top
             
         elif editMode == 'sc':
             ht = sc = parent.stackContainer(region='center', datapath=datapath, nodeId=nodeId,
                                        selectedPage='^.selectedPage', margin='2px')
-            treepane = sc.framePane(pageName='tree',rounded=6,border='1px solid silver')
+            treepane = sc.framePane(pageName='tree',rounded=6,border='1px solid var(--border-color)')
             formPanePars['pageName'] = 'edit'
             formBC = sc.borderContainer(region='center')
             

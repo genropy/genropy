@@ -24,6 +24,6 @@ class GnrCustomWebPage(object):
                                         that.setRelativeData('main.doc_url',selectedUrl);
                                     },1);""",selectedUrl='^.selectedId?doc_url')
         frame.contentPane(region='right',width='50%',splitter=True,
-                         border_left='1px solid silver').iframe(src='^main.doc_url',height='100%',width='100%',
+                         border_left='1px solid var(--border-color)').iframe(src='^main.doc_url',height='100%',width='100%',
                                                                               border=0)
         

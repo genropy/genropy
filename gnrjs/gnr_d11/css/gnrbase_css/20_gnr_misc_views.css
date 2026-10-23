@@ -517,8 +517,14 @@
     padding-right:0;
 }
 
-/* the edit pencil of a flex linker box: a small glyph, not a button */
-.th_linkerBoxFlex > .th_linkerBoxFooter .iconbox.pencil{
+/* min-height, not height: applications add slots to these bars, so they may still grow */
+.th_linkerBar,
+.th_linkerBoxFooter{
+    min-height:var(--groupbar-min-height);
+    box-sizing:border-box;
+}
+/* the edit pencil of a linker box: a small glyph, not a button */
+.th_linkerBoxFooter .iconbox.pencil{
     transform:scale(.7);
 }
 
@@ -714,9 +720,9 @@
 .linkerCenter {
     background: rgba(255, 255, 255, 0.75);
     margin: 2px 6px;
-    border: 1px solid rgba(0, 0, 0, 0.08);
+    border: none;
     border-radius: var(--radius-sm);
-    padding: 4px 8px;
+    padding: 2px 6px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;

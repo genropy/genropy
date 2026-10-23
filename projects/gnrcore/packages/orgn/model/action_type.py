@@ -75,7 +75,7 @@ class Table(object):
         template = record_action['@action_type_id.text_template']
         renderedTemplate = self.db.currentPage.renderTemplate(record_id=action_id,table='orgn.annotation',template=template['compiled'])
         bc.data('#FORM.record.implementor_data.sms_content',renderedTemplate)
-        footer = frame.bottom.slotBar('*,sendSms,5',border_top='1px solid silver',height='22px')
+        footer = frame.bottom.slotBar('*,sendSms,5',border_top='1px solid var(--border-color)',height='22px')
         footer.sendSms.button('Send SMS').dataRpc('#FORM.record.implementor_result',self.runImplementor,
                                                 implementor='SMS',
                                                 action_id='=#FORM.record.id',

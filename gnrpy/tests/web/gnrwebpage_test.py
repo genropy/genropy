@@ -1,12 +1,15 @@
 import io
+import os
 import pickle
+from types import SimpleNamespace
 from urllib.parse import parse_qs, urlsplit
 
 import pytest
 from werkzeug.datastructures import FileStorage, MultiDict
 
 from gnr.core.gnrlang import GnrException
-from gnr.web.gnrwebpage import GnrWebPage
+from gnr.sql.gnrsqltable import GnrSqlBusinessLogicException
+from gnr.web.gnrwebpage import GnrWebPage, UNSET_COLOR_VARIANT
 
 
 class _PaneStub(object):
@@ -50,6 +53,37 @@ def test_exception_unknown_name_raises_naming_it():
 def test_exception_registered_name_returns_instance():
     exc = GnrWebPage.exception(_ExceptionPageStub(), 'generic')
     assert isinstance(exc, GnrException)
+
+
+def test_exception_business_logic_from_a_page_carries_its_message():
+    exc = GnrWebPage.exception(_ExceptionPageStub(), 'business_logic',
+                               msg='Row %(row)s is locked', row='10% fee')
+    assert isinstance(exc, GnrSqlBusinessLogicException)
+    assert str(exc).endswith('business logic: Row 10% fee is locked')
+
+
+def test_exception_sql_caption_needing_a_table_renders_from_a_page():
+    exc = GnrWebPage.exception(_ExceptionPageStub(), 'protect_delete', msg='in use')
+    assert str(exc).endswith('is not deletable:in use')
+
+
+class _ForbiddenTablePageStub(_ExceptionPageStub):
+    db = SimpleNamespace(table=lambda name: SimpleNamespace(runIt=lambda: None))
+
+    def checkTablePermission(self, **kwargs):
+        return False
+
+    def localize(self, txt):
+        return txt
+
+    def exception(self, *args, **kwargs):
+        return GnrWebPage.exception(self, *args, **kwargs)
+
+
+def test_forbidden_table_method_says_which_operation():
+    with pytest.raises(GnrSqlBusinessLogicException) as excinfo:
+        GnrWebPage._getProxyObject(_ForbiddenTablePageStub(), '_table.pkg.tbl.runIt')
+    assert 'Operation runIt is not allowed' in str(excinfo.value)
 
 
 class _ForbiddenPageStub(object):
@@ -143,3 +177,63 @@ def test_register_new_page_keeps_uploaded_files_out_of_register_data():
     assert 'file' not in async_registration['class_info']['request_kwargs']
     assert 'file' not in async_registration['init_info']['request_kwargs']
     assert 'file' not in async_registration['page_info']['_call_kwargs']
+
+
+class _LocalNode(object):
+    def __init__(self, path):
+        self.path = path
+        self.exists = os.path.exists(path)
+
+    def open(self, mode):
+        return open(self.path, mode)
+
+
+class _ColorVariantPageStub(object):
+    resourceDirs = ()
+
+    def __init__(self, css_files):
+        loader = type('Loader', (), {'getResourceList': lambda s, dirs, path, ext: [
+            f for f in css_files if f.endswith(path + '.' + ext)]})()
+        self.site = type('Site', (), {'resource_loader': loader,
+                                      'storageNode': staticmethod(_LocalNode)})()
+
+    def get_css_theme(self):
+        return 'mimi'
+
+    def get_css_theme_variant(self):
+        return 'base'
+
+    def localize(self, txt):
+        return txt.replace('!![en]', '')
+
+
+THEMES_DIR = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'resources', 'common', 'themes')
+
+
+def _color_variants(css_files, **kwargs):
+    return GnrWebPage.getAvailableColorVariants(_ColorVariantPageStub(css_files), **kwargs).split(',')
+
+
+def test_color_variants_theme_option_merges_gray_into_default():
+    """The theme default entry stands for gray, which leaves the list."""
+    css_files = [os.path.join(THEMES_DIR, 'mimi.css'), os.path.join(THEMES_DIR, 'mimi', 'base.css')]
+    assert 'gray' in _color_variants(css_files)
+    variants = _color_variants(css_files, unset_option='theme')
+    assert variants[0] == f'{UNSET_COLOR_VARIANT}:Gray (default)'
+    assert 'gray' not in variants
+    assert 'blue' in variants
+
+
+def test_color_variants_theme_option_without_gray(tmp_path):
+    css = tmp_path / 'themes' / 'plain.css'
+    css.parent.mkdir()
+    css.write_text('body.color_variant_red {color: red;}\n')
+    variants = _color_variants([str(css)], theme='plain', unset_option='theme')
+    assert variants == [f'{UNSET_COLOR_VARIANT}:Default', 'red']
+
+
+def test_color_variants_application_option_keeps_gray():
+    css_files = [os.path.join(THEMES_DIR, 'mimi.css')]
+    variants = _color_variants(css_files, unset_option='application')
+    assert variants[0] == f'{UNSET_COLOR_VARIANT}:Application default'
+    assert 'gray' in variants

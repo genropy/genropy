@@ -2120,7 +2120,7 @@ dojo.declare("gnr.widgets.SimpleTextarea", gnr.widgets.baseDojo, {
             var top = sourceNode._('div',tKw,notrigger);
             var bottom = sourceNode._('div',{_class:'textAreaWrapperButtons',transition:'1s all'},notrigger)
             if(editor){
-                bottom._('div',{_class:'TAeditorPalette',innerHTML:_T('Full editor'),title:_T('Open in a floating editor'),connect_onclick:function(evt){
+                bottom._('div',{_class:'TAeditorPalette',title:_T('Open in a floating editor'),connect_onclick:function(evt){
                     var wrapper = evt.target.closest('.textAreaWrapper');
                     if(wrapper && wrapper.querySelector('.jodit_disabled')){
                         return;
@@ -2135,6 +2135,14 @@ dojo.declare("gnr.widgets.SimpleTextarea", gnr.widgets.baseDojo, {
                     areaAttr['height'] = '100%';
                 }
                 areaAttr['toolbar'] = false;
+                areaAttr = objectUpdate({enter: 'br', config_addNewLine: false}, areaAttr);
+                if(!('bodyStyle' in areaAttr)){
+                    // the editor body lives in an iframe, out of reach of the page's CSS variables:
+                    // give it the theme's field padding instead of jodit's default 10px
+                    var pageStyle = getComputedStyle(document.body);
+                    areaAttr['bodyStyle'] = 'padding:' + pageStyle.getPropertyValue('--formlet-field-padding-y').trim()
+                                            + ' ' + pageStyle.getPropertyValue('--formlet-field-padding-x').trim();
+                }
                 this._dojotag = null;
             }
             var textarea = top._(tag,areaAttr,notrigger).getParentNode();
@@ -6409,13 +6417,13 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
         var preview = sc._('ContentPane',{pageName:'preview'});
         var cropPage = sc._('ContentPane',{pageName:'crop'});
         video._('video',{autoplay:true,margin:'10px',
-                            border:'1px solid silver',
+                            border:'1px solid var(--border-color)',
                             height:videoHeight+'px',
                             width:videoWidth+'px',
                             nodeId:videoNodeId,
                         selfsubscribe_takePicture:function(){
                             var preview_canvas = preview._('canvas','currentCanvas',{height:videoHeight+'px',nodeId:canvasNodeId,
-                                                border:'1px solid silver',
+                                                border:'1px solid var(--border-color)',
                                                 width:videoWidth+'px',display:'block',margin:'10px',hidden:false})     
                             preview_canvas.getParentNode().takePhoto(this);
                             let cropperBox = cropPage._('div',{height:videoHeight+'px',width:videoWidth+'px',nodeId:cropperNodeId});

@@ -53,6 +53,6 @@ class Main(BaseResourceAction):
                         **kw)
             f.attributes.pop('disabled',None)
             f.attributes.pop('unmodifiable',None)
-        box.div(border_top='1px solid silver',padding='3px',text_align='right').checkbox(value='^.do_triggers',label='Do triggers',_tags='_DEV_')
+        box.div(border_top='1px solid var(--border-color)',padding='3px',text_align='right').checkbox(value='^.do_triggers',label='Do triggers',_tags='_DEV_')
 
 

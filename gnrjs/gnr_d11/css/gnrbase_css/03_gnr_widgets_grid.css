@@ -243,6 +243,7 @@ div.cellContent{
 .textAreaIsEditor .jodit-container:not(.jodit_fullsize){
     border: 0;
     border-radius: 0;
+    background: transparent;
 }
 .textAreaIsEditor .textAreaWrapperButtons{
     display: flex;
@@ -251,23 +252,15 @@ div.cellContent{
     gap: var(--bar-adornment-gap);
     margin-left: 0;
     padding: 1px 0.4em;
-    border-top: 1px solid var(--border-light);
-    background: var(--surface-light);
 }
 .textAreaIsEditor .TAeditorPalette{
-    width: auto;
-    height: auto;
-    background: none;
-    font-size: 0.85em;
-    font-weight: bold;
-    line-height: var(--bar-adornment-size);
-    color: var(--text-secondary);
+    opacity: 0.6;
 }
 .textAreaIsEditor .TAeditorPalette:hover{
-    color: var(--text-color);
+    opacity: 1;
 }
 .textAreaIsEditor:has(.jodit_disabled) .TAeditorPalette{
-    color: var(--text-placeholder);
+    opacity: 0.3;
     cursor: default;
     pointer-events: none;
 }

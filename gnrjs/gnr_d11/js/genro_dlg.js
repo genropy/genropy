@@ -750,8 +750,8 @@ dojo.declare("gnr.GnrDlgHandler", null, {
                         }
                     };
         var bar = dlg.bottom._('slotBar',{slots:'*,cancel,confirm',action:actionCb});
-        bar._('button','cancel',{'label':'Cancel',command:'cancel'});
-        var confirmbtnKW = {'label':'Confirm',command:'confirm'};
+        bar._('button','cancel',{'label':_T('Cancel'),command:'cancel'});
+        var confirmbtnKW = {'label':_T('Confirm'),command:'confirm'};
         if(mandatory){
             confirmbtnKW.disabled = '^.promptvalue?=(#v==null) || (#v=="")';
         }

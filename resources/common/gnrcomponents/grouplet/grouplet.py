@@ -1,4 +1,6 @@
 import math
+import os
+import re
 from gnr.core.gnrdecorator import extract_kwargs, public_method
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdict import dictExtract
@@ -124,6 +126,18 @@ class GroupletHandler(BaseComponent):
 
     def gr_getTemplatePars(self, resource=None, table=None,
                            grouplets_root=None):
+        info = self._gr_resourceInfo(resource=resource, table=table,
+                                     grouplets_root=grouplets_root)[0]
+        result = {}
+        if info.get('template'):
+            result['template'] = info['template']
+        if info.get('template_virtual_columns'):
+            result['virtual_columns'] = info['template_virtual_columns']
+        return result
+
+    def _gr_resourceInfo(self, resource=None, table=None, grouplets_root=None):
+        """The `__info__` of a grouplet resource (of its topic for a folder)
+        and the path of the file declaring it"""
         grouplets_root = grouplets_root or 'grouplets'
         clean_resource = resource.split(':')[0] if ':' in resource else resource
         if '/' in clean_resource:
@@ -144,21 +158,69 @@ class GroupletHandler(BaseComponent):
                 page=self, path=search_path))
         node = resources.getNode(name)
         if not node:
-            return {}
+            return {}, None
         if node.value:
             children = Bag(node.value)
             info_node = children.getNode('__info__')
             if not info_node:
-                return {}
+                return {}, None
             node = info_node
         resmodule = gnrImport(node.attr['abs_path'], avoid_module_cache=True)
-        info = self._get_raw_info(resmodule)
-        result = {}
+        return self._get_raw_info(resmodule), node.attr['abs_path']
+
+    def _gr_cardInfo(self, resource=None, table=None, grouplets_root=None):
+        """The card profile a grouplet resource declares: `card=dict(...)` in
+        its `__info__`, its `template` as the title of last resort"""
+        if not resource:
+            return {}
+        info, abs_path = self._gr_resourceInfo(resource=resource, table=table,
+                                               grouplets_root=grouplets_root)
+        card = dict(info.get('card') or {})
         if info.get('template'):
-            result['template'] = info['template']
-        if info.get('template_virtual_columns'):
-            result['virtual_columns'] = info['template_virtual_columns']
-        return result
+            card.setdefault('template', info['template'])
+        if card.get('doc'):
+            card['doc'] = self._gr_cardDoc(card['doc'], abs_path=abs_path, table=table)
+        return card
+
+    def _gr_cardDoc(self, doc, abs_path=None, table=None):
+        """A doc given as `file:name.html` is read next to the resource (among
+        the resources without one), its relative image paths made urls; any
+        other doc is the template itself"""
+        if not (isinstance(doc, str) and doc.startswith('file:')):
+            return doc
+        filename = doc[len('file:'):]
+        path = os.path.join(os.path.dirname(abs_path), filename) if abs_path \
+            else self.getResource(filename)
+        if not (path and os.path.isfile(path)):
+            raise self.exception('generic', msg=f'grouplet card: doc file {filename} not found')
+        with open(path, encoding='utf-8') as f:
+            html = f.read()
+        folder = os.path.dirname(path)
+        pkg = table.split('.')[0] if table else None
+
+        def url(match):
+            src = os.path.normpath(os.path.join(folder, match.group(2)))
+            return match.group(1) + (self.resolveResourceUri(src, pkg=pkg) or match.group(2))
+        return re.sub(r'''(src=["'])(?![a-z]+:|/)([^"']+)''', url, html)
+
+    def _gr_template(self, spec):
+        """A row template (title, collapsed card, doc) in the shape the JS
+        compiles: a string, or dict(template=, formats=, sums=) where `sums`
+        maps a $name to 'path.field', the field summed under the row's path."""
+        if not spec:
+            return None
+        spec = dict(template=spec) if isinstance(spec, str) else dict(spec)
+        spec['template'] = self._(spec.get('template') or '')
+        return spec
+
+    def _gr_cardForJs(self, card):
+        """The profile as the JS reads it: its templates translated, the
+        resource `template` as groupletChunk and the entry rows take it"""
+        card = dict(card)
+        for key in ('titleTemplate', 'doc'):
+            if card.get(key):
+                card[key] = self._gr_template(card[key])
+        return card
 
     @extract_kwargs(grouplet=dict(slice_prefix=False, pop=True), template=True, btn=True)
     @struct_method
@@ -413,19 +475,19 @@ class GroupletHandler(BaseComponent):
             center.grouplet(**grouplet_kwargs)
         return frame
 
-    def _groupletPanel_innerReload(self, node, formId):
+    def _groupletPanel_innerReload(self, node, formId, flagPath='#ANCHOR.after_save'):
         # the open group follows the outer record on every load, except right after the outer
         # form's own save: an invalid edit the group still holds was not flushed and must stay
-        node.dataController("this.setRelativeData('#ANCHOR.after_save', true);",
+        node.dataController(f"this.setRelativeData('{flagPath}', true);",
                             formsubscribe_onSaved=True)
-        node.dataController("""
+        node.dataController(f"""
             var inner = genro.formById(innerFormId);
             var keep = afterSave && inner.changed;
-            this.setRelativeData('#ANCHOR.after_save', false);
-            if(inner.status!='noItem' && !keep){
+            this.setRelativeData('{flagPath}', false);
+            if(inner.status!='noItem' && !keep){{
                 inner.reload();
-            }
-            """, innerFormId=formId, afterSave='=#ANCHOR.after_save',
+            }}
+            """, innerFormId=formId, afterSave=f'={flagPath}',
             formsubscribe_onLoaded=True)
 
     def _groupletPanel_tree(self, pane, menu, frameCode=None,
@@ -1087,10 +1149,121 @@ class GroupletHandler(BaseComponent):
         return self._get_raw_info(resmodule)
 
 
+class GroupletCardHandler(BaseComponent):
+    py_requires = 'gnrcomponents/grouplet/grouplet:GroupletHandler'
+    css_requires = 'gnrcomponents/grouplet/grouplet'
+    js_requires = 'gnrcomponents/grouplet/grouplet,gnrcomponents/grouplet/grouplet_card'
+
+    @extract_kwargs(grouplet=dict(slice_prefix=False, pop=True), editmenu=True, form=True)
+    @struct_method
+    def gr_groupletCard(self, pane, datapath=None, resource=None, handler=None, table=None,
+                        grouplets_root=None, chromeSide=None, collapsible=None, collapsed=None,
+                        title=None, titleField=None, titleTemplate=None, emptyTitle=None,
+                        tools=None, doc=None, doc_kw=None, delitem=None, editmenu=None,
+                        checkbox=None, useForm=False, nodeId=None, grouplet_kwargs=None,
+                        editmenu_kwargs=None, form_kwargs=None, **kwargs):
+        """A grouplet bound to a datapath with its chrome band: a titled group
+        that can take a roundedGroup's place in a form. Without resource or
+        handler it returns its body, to be filled in place.
+
+        The profile — chromeSide, collapsible, title, titleField, titleTemplate,
+        emptyTitle, tools, doc, doc_kw, delitem, editmenu — is the resource's
+        `card` (in its `__info__`), then what is given here. `collapsed` and
+        `checkbox` take a path ('^.path') holding the state; delitem is True,
+        False or a '^path' / '=path' / '==expr' read as the menu opens, and
+        its entry clears the fields of the card.
+
+        useForm=True edits the grouplet in a GroupletForm of its own: a copy
+        of the card's data, written back as it is saved (form_autoSave, 1 by
+        default; the other form_* go to the GroupletForm). It needs resource
+        or handler, and follows the loads of the form the card sits in."""
+        nodeId = nodeId or f'grpcard_{id(pane)}_{len(pane)}'
+        if useForm and not (resource or handler):
+            raise self.exception('generic', msg='groupletCard: useForm needs resource or handler')
+        card = self._gr_cardInfo(resource=resource, table=table, grouplets_root=grouplets_root)
+        caller = dict(chromeSide=chromeSide, collapsible=collapsible, title=title,
+                      titleField=titleField, titleTemplate=titleTemplate, emptyTitle=emptyTitle,
+                      tools=tools, doc=doc, doc_kw=doc_kw, delitem=delitem, editmenu=editmenu)
+        card.update({k: v for k, v in caller.items() if v is not None})
+        if doc is not None:
+            card['doc'] = self._gr_cardDoc(doc, table=table)
+        side = card.get('chromeSide') or 'top'
+        if side not in ('top', 'left', 'right'):
+            raise self.exception('generic', msg="groupletCard: chromeSide is 'top', 'left' or 'right'")
+        collapsible = card.get('collapsible', False)
+        # a '^path' state is the caller's, at a path relative to where the
+        # card is placed; otherwise the card keeps it in its workspace
+        bound_collapsed = isinstance(collapsed, str) and collapsed.startswith('^')
+        bound_checkbox = isinstance(checkbox, str) and checkbox.startswith('^')
+        flavours = ['grouplet_card', 'grouplet_card--box', f'grouplet_card--chrome-{side}']
+        extra_class = kwargs.pop('_class', None)
+        if extra_class:
+            flavours.append(extra_class)
+        root = pane.div(_class=' '.join(flavours), nodeId=nodeId, datapath=datapath,
+                        _gc_root=True, _workspace=True, **kwargs)
+        if not bound_collapsed:
+            root.data('#WORKSPACE.collapsed', bool(collapsed) or collapsible == 'closed')
+        body = root.div(_class='grouplet_card_body')
+        form_id = f'{nodeId}_form' if useForm else None
+        if useForm:
+            form_kwargs = dict(form_kwargs or {})
+            # a card follows its content: no dijit pane sizing it to a frame
+            grouplet_kwargs.setdefault('grouplet_rootWidget', 'div')
+            body.GroupletForm(resource=resource, handler=handler if isinstance(handler, str) or not handler
+                              else handler.__name__,
+                              table=table, grouplets_root=grouplets_root, value='^.', formId=form_id,
+                              loadOnBuilt=True, rootTag='div',
+                              store_autoSave=form_kwargs.pop('autoSave', 1),
+                              **form_kwargs, **grouplet_kwargs)
+            self._groupletPanel_innerReload(root, form_id, flagPath='#WORKSPACE.after_save')
+            root.dataController("""
+                var host = this.attributeOwnerNode('_gc_root').cardHost;
+                if (host) { host.setFormStatus(status); }
+            """, **{f'subscribe_form_{form_id}_onStatusChange': True})
+        elif resource or isinstance(handler, str):
+            body.grouplet(resource=resource, handler=handler, table=table,
+                          grouplets_root=grouplets_root, value='^.', **grouplet_kwargs)
+        elif handler:
+            handler(body, **grouplet_kwargs)
+        editmenu = card.get('editmenu') or {}
+        root.dataController("""
+            var node = this.attributeOwnerNode('_gc_root');
+            node.cardHost = new gnr.GroupletCardHost(node, kw);
+        """, _onBuilt=True,
+            kw=dict(tools=card.get('tools'), collapsible=bool(collapsible),
+                    collapsedPath=collapsed[1:] if bound_collapsed else None,
+                    checkboxPath=checkbox[1:] if bound_checkbox else None,
+                    title=self._(card['title']) if card.get('title') else None,
+                    titleField=card.get('titleField'),
+                    emptyTitle=self._(card.get('emptyTitle') or '!!Untitled'),
+                    titleTemplate=self._gr_template(card.get('titleTemplate')),
+                    template=card.get('template'),
+                    doc=self._gr_template(card.get('doc')), doc_kw=card.get('doc_kw') or {},
+                    delitem=card.get('delitem', False),
+                    editmenu=editmenu if isinstance(editmenu, dict) else {},
+                    editmenu_kw=editmenu_kwargs or {}, formId=form_id))
+        if collapsible:
+            (pane if bound_collapsed else root).dataController("""
+                var node = genro.nodeById(cardId);
+                if (node && node.cardHost) { node.cardHost.applyCollapsed(collapsed); }
+            """, cardId=nodeId, collapsed=collapsed if bound_collapsed else '^#WORKSPACE.collapsed')
+        if bound_checkbox:
+            pane.dataController("""
+                var node = genro.nodeById(cardId);
+                if (node && node.cardHost) { node.cardHost.card.setChecked(checked); }
+            """, cardId=nodeId, checked=checkbox)
+        root.dataController("""
+            var host = this.attributeOwnerNode('_gc_root').cardHost;
+            if (host) { host.card.refreshTitle(); }
+        """, data='^.', _delay=1)
+        return body
+
+
 class GroupletGridHandler(BaseComponent):
     py_requires = 'gnrcomponents/grouplet/grouplet:GroupletHandler'
     css_requires = 'gnrcomponents/grouplet/grouplet'
     js_requires = ('gnrcomponents/grouplet/grouplet,'
+                   'gnrcomponents/grouplet/grouplet_card,'
                    'gnrcomponents/grouplet/grouplet_grid')
 
     @public_method
@@ -1147,8 +1320,11 @@ class GroupletGridHandler(BaseComponent):
                 grouplets_root=grouplets_root,
                 grouplet_kwargs=grouplet_kwargs,
                 _inheritedAttributes=_inheritedAttributes)
+            card = self._gr_cardInfo(resource=resource_path, table=table,
+                                     grouplets_root=grouplets_root)
             result.setItem(resource_path.replace('/', '_'), template,
-                           resource=resource_path)
+                           resource=resource_path,
+                           card=self._gr_cardForJs(card) if card else None)
         return result
 
     def _walkGroupletMenu(self, menu):
@@ -1164,7 +1340,7 @@ class GroupletGridHandler(BaseComponent):
     @extract_kwargs(
         grouplet=dict(slice_prefix=False, pop=True),
         store= dict(slice_prefix=False,pop=True),
-        additem=True, delitem=True, editmenu=True, totals=True,
+        additem=True, delitem=True, copyitem=True, editmenu=True, totals=True, card=True,
     )
     @struct_method
     def gr_groupletGrid(self, pane, datapath=None, storepath=None,
@@ -1175,14 +1351,15 @@ class GroupletGridHandler(BaseComponent):
                         table=None, grouplets_root=None,
                         cols=1, min_width=None, gap='12px',
                         height=None, max_height=None, fillParent=False,
-                        additem=True, delitem=True, editmenu=False,
+                        additem=True, delitem=None, copyitem=False, editmenu=None,
                         layout='cards',
                         lazyTabs=False,
                         titleField=None,
                         titleTemplate=None,
                         sortField=None, sortStore=False,
-                        collapsible=False, collapsedTemplate=None,
-                        emptyTitle='!!Untitled',
+                        collapsible=None, collapsedTemplate=None,
+                        chromeSide=None,
+                        emptyTitle=None,
                         dragCode=None,
                         onSelfDropRows=None,
                         afterSelfDropRows=None,
@@ -1196,15 +1373,32 @@ class GroupletGridHandler(BaseComponent):
                         grouplet_kwargs=None,
                         additem_kwargs=None,
                         delitem_kwargs=None,
+                        copyitem_kwargs=None,
                         editmenu_kwargs=None,
                         totals_kwargs=None,
                         store_kwargs=None,
+                        card_kwargs=None,
                         nodeId=None, **kwargs):
         # Author-supplied nodeIds inside the template must bake in `rowKey`
         # (or similar): the framework does NOT auto-rename them per row clone.
         nodeId = nodeId or kwargs.pop('gridId', None) or f'grpgrid_{id(pane)}'
+        # the card profile: the resource's `card`, then what the caller sets
+        # (card_tools, card_doc, ... and the grid's own profile parameters);
+        # with resourceField each row's resource adds its own, client side
+        card = self._gr_cardInfo(resource=resource, table=table, grouplets_root=grouplets_root)
+        caller = dict(card_kwargs or {}, delitem=delitem, editmenu=editmenu, collapsible=collapsible,
+                      chromeSide=chromeSide, emptyTitle=emptyTitle, titleTemplate=titleTemplate)
+        card.update({k: v for k, v in caller.items() if v is not None})
+        delitem = card.get('delitem', True)
+        editmenu = card.get('editmenu', False)
+        collapsible = card.get('collapsible', False)
+        chromeSide = card.get('chromeSide', False)
+        emptyTitle = card.get('emptyTitle', '!!Untitled')
+        titleTemplate = card.get('titleTemplate')
         if editmenu is True:
             editmenu = {'addPrev': True, 'addNext': True}
+            if not copyitem:
+                editmenu['copy'] = True
             if not delitem:
                 editmenu['delete'] = True
         elif not editmenu:
@@ -1234,6 +1428,9 @@ class GroupletGridHandler(BaseComponent):
         flavours = ['grouplet_grid_container', 'grouplet_grid']
         if struct_mode:
             flavours.append('grouplet_grid--struct')
+            row_tools = sum(1 for tool in (delitem, copyitem, editmenu) if tool)
+            if row_tools > 1:
+                flavours.append(f'grouplet_grid--tools-{row_tools}')
         if framed:
             flavours.append('grouplet_grid--framed')
         if fillParent:
@@ -1251,18 +1448,27 @@ class GroupletGridHandler(BaseComponent):
                 flavours.append('grouplet_grid--templated')
         else:
             rowTemplate = None
-        # actions on several selected rows: rows are selectable in template
-        # mode, cards and editable rows by their checkboxes; delete is preset
-        # whenever rows can be deleted
-        selectable = bool(rowTemplate or rowCheckbox) \
-            and layout not in ('tabs', 'vtabs')
+        # actions on several selected rows: outside tabs every row is
+        # selectable by Cmd/Ctrl/Shift-click, and by its checkbox given
+        # rowCheckbox; copy is preset, delete whenever rows can be deleted;
+        # exportXls and print are presets to ask for;
+        # selectionmenu=False turns the selection off
+        selectable = layout not in ('tabs', 'vtabs')
         if not selectable or selectionmenu is False:
             selectionmenu = {}
         elif selectionmenu is None:
-            selectionmenu = {'delete': True} if delitem else {}
+            selectionmenu = {'copy': True, 'delete': True} if delitem else {'copy': True}
         rowCheckbox = bool(rowCheckbox and selectionmenu)
         if rowCheckbox:
             flavours.append('grouplet_grid--checkbox')
+        # chromeSide='top'|'left'|'right': cards gather checkbox, chevron and
+        # kebab in a band along that side, the band being the drag source;
+        # False (default) keeps the corner chrome
+        if chromeSide not in (None, False, 'top', 'left', 'right'):
+            raise self.exception('generic',
+                                 msg="groupletGrid: chromeSide is 'top', 'left', 'right' or False")
+        if struct_mode or rowTemplate or layout in ('tabs', 'vtabs'):
+            chromeSide = None
         totals_kwargs = dict(totals_kwargs or {})
         if totals_kwargs.pop('sticky', False):
             flavours.append('grouplet_grid--sticky-totals')
@@ -1344,16 +1550,18 @@ class GroupletGridHandler(BaseComponent):
             grouplet_kwargs=grouplet_kwargs,
             store_kwargs=store_kwargs,
             cols=cols, min_width=min_width, gap=gap,
-            additem=additem, delitem=delitem, editmenu=editmenu,
+            additem=additem, delitem=delitem, copyitem=copyitem, editmenu=editmenu,
             additem_kwargs=additem_kwargs,
             delitem_kwargs=delitem_kwargs,
+            copyitem_kwargs=copyitem_kwargs,
             editmenu_kwargs=editmenu_kwargs,
             layout=layout, lazyTabs=lazyTabs,
             titleField=titleField, emptyTitle=emptyTitle,
-            titleTemplate=self._gr_groupletGrid_template(titleTemplate),
+            titleTemplate=self._gr_template(titleTemplate),
             sortField=sortField, sortStore=sortStore,
             collapsible=collapsible,
-            collapsedTemplate=self._gr_groupletGrid_template(collapsedTemplate),
+            collapsedTemplate=self._gr_template(collapsedTemplate),
+            chromeSide=chromeSide, card=self._gr_cardForJs(card),
             defaultRow=defaultRow, minRows=minRows, maxRows=maxRows,
             counterField=counterField,
             formulas=formulas, totals=totals,
@@ -1363,16 +1571,6 @@ class GroupletGridHandler(BaseComponent):
             loaderrpc=self.gr_getGroupletGridTemplate,
             mapLoaderrpc=self.gr_getGroupletGridTemplateMap)
         return container
-
-    def _gr_groupletGrid_template(self, spec):
-        """A row template (tab title, collapsed card) in the shape the JS
-        compiles: a string, or dict(template=, formats=, sums=) where `sums`
-        maps a $name to 'path.field', the field summed under the row's path."""
-        if not spec:
-            return None
-        spec = dict(template=spec) if isinstance(spec, str) else dict(spec)
-        spec['template'] = self._(spec.get('template') or '')
-        return spec
 
     def _gr_groupletGrid_totals(self, totals, default_format=None):
         """The `totals=` entries in the shape the JS band reads: `key` is
@@ -1409,11 +1607,11 @@ class GroupletGridHandler(BaseComponent):
             resource, handler_name, resourceField, structpath, table,
             grouplets_root, grouplet_kwargs, store_kwargs,
             cols, min_width, gap,
-            additem, delitem, editmenu,
-            additem_kwargs, delitem_kwargs, editmenu_kwargs,
+            additem, delitem, copyitem, editmenu,
+            additem_kwargs, delitem_kwargs, copyitem_kwargs, editmenu_kwargs,
             layout, lazyTabs, titleField, emptyTitle,
             titleTemplate, sortField, sortStore,
-            collapsible, collapsedTemplate,
+            collapsible, collapsedTemplate, chromeSide, card,
             defaultRow, minRows, maxRows, counterField,
             formulas, totals, rowTemplate, selectionmenu, rowCheckbox,
             selectionGroup, resolved_drag_code,
@@ -1453,9 +1651,11 @@ class GroupletGridHandler(BaseComponent):
                 gap: gap,
                 additem: additem,
                 delitem: delitem,
+                copyitem: copyitem,
                 editmenu: editmenu,
                 additem_kw: additem_kw,
                 delitem_kw: delitem_kw,
+                copyitem_kw: copyitem_kw,
                 editmenu_kw: editmenu_kw,
                 layout: layout,
                 lazyTabs: lazyTabs,
@@ -1465,6 +1665,8 @@ class GroupletGridHandler(BaseComponent):
                 sortStore: sortStore,
                 collapsible: collapsible,
                 collapsedTemplate: collapsedTemplate,
+                chromeSide: chromeSide,
+                card: card,
                 emptyTitle: emptyTitle,
                 defaultRow: defaultRow,
                 minRows: minRows,
@@ -1493,9 +1695,11 @@ class GroupletGridHandler(BaseComponent):
             gap=gap,
             additem=additem,
             delitem=delitem,
+            copyitem=copyitem,
             editmenu=editmenu,
             additem_kw=additem_kwargs or {},
             delitem_kw=delitem_kwargs or {},
+            copyitem_kw=copyitem_kwargs or {},
             editmenu_kw=editmenu_kwargs or {},
             layout=layout,
             lazyTabs=lazyTabs,
@@ -1505,6 +1709,8 @@ class GroupletGridHandler(BaseComponent):
             sortStore=sortStore,
             collapsible=collapsible,
             collapsedTemplate=collapsedTemplate,
+            chromeSide=chromeSide or None,
+            card=card,
             emptyTitle=emptyTitle,
             defaultRow=defaultRow,
             minRows=minRows,

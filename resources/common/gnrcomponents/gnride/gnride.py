@@ -157,7 +157,7 @@ class GnrIde(BaseComponent):
                 preview_url = '/%s' %os.path.join(pkg,*plist[windex+1:])
                 bc = frame.center.borderContainer()
                 cmroot = bc.contentPane(region='center')
-                rightpane = bc.contentPane(region='right',overflow='hidden',splitter=True,border_left='1px solid silver',background='white'
+                rightpane = bc.contentPane(region='right',overflow='hidden',splitter=True,border_left='1px solid var(--border-color)',background='white'
                 )
                 frame.data('.preview_url',preview_url)
                 preview_iframe = rightpane.iframe(src='^.preview_url',height='100%',width='100%',border=0)

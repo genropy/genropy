@@ -174,7 +174,7 @@ class BaseDashboardItem(object):
                         datapath='%s.configurationSubscriber' %self.workpath,
                         struct=self.configurationSubscriberStruct,
                         addrow=False,
-                        margin='2px',border='1px solid silver')
+                        margin='2px',border='1px solid var(--border-color)')
         frame.dataController("""
             var conf_subscribers = genro.getData(subspath) || new gnr.GnrBag();
             var conf = genro.getData(confpath) || new gnr.GnrBag();

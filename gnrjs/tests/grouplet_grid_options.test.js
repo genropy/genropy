@@ -4,8 +4,23 @@ const path = require('node:path');
 const {test} = require('node:test');
 const vm = require('node:vm');
 
+// the browser's DOMParser as far as a title check reads it: the text outside the tags
+class TextParser {
+    parseFromString(html) {
+        let text = '';
+        let inTag = false;
+        for (const ch of String(html)) {
+            if (ch === '<') inTag = true;
+            else if (ch === '>') inTag = false;
+            else if (!inTag) text += ch;
+        }
+        return {body: {textContent: text.split('&nbsp;').join('\u00a0')}};
+    }
+}
+
+
 function loadGrid() {
-    const context = {console, File: function() {}, gnr: {}, genro: {}, setTimeout,
+    const context = {console, File: function() {}, gnr: {}, genro: {}, setTimeout, DOMParser: TextParser,
                      dijit: {getEnclosingWidget: () => null}};
     context.dojo = {
         Deferred: function() {
@@ -40,6 +55,8 @@ function loadGrid() {
         vm.runInContext(readFileSync(path.join(sourceDir, filename), 'utf8'), context, {filename});
     }
     const gridJs = path.join(__dirname, '../../resources/common/gnrcomponents/grouplet/grouplet_grid.js');
+    vm.runInContext(readFileSync(path.join(path.dirname(gridJs), 'grouplet_card.js'), 'utf8'), context,
+                    {filename: 'grouplet_card.js'});
     vm.runInContext(readFileSync(gridJs, 'utf8'), context, {filename: 'grouplet_grid.js'});
     context._T = str => str;
     return context;
@@ -90,6 +107,7 @@ function createGrid(kw = {}) {
         dataStore: {
             addRow: (key, values) => lines.setItem(key, new Bag(values)),
             rowValue: key => lines.getItem(key),
+            rowNode: key => lines.getNode(key),
             removeRow: key => lines.popNode(key),
             getData: () => lines,
             getNodes: () => lines.getNodes(),
@@ -148,6 +166,83 @@ function chapters(s, rows) {
     });
 }
 
+test('defaultRow: a ==expression is worked out at each add, over the rows and the grid', () => {
+    const s = createGrid({controller: {defaultRow: {
+        code: "==String(rows.len() + 1).padStart(3, '0')",
+        name: '',
+        owner: '==this.attr.owner + "/" + grid.nodeId'}}});
+    s.controller.sourceNode.attr.owner = 'budget';
+    s.controller._doAddItem();
+    s.controller._doAddItem(null, {name: 'Crew'});
+    assert.deepEqual(plain(s.lines.getItem('r_k1')), {code: '001', name: '', owner: 'budget/grid'});
+    assert.deepEqual(plain(s.lines.getItem('r_k2')), {code: '002', name: 'Crew', owner: 'budget/grid'});
+    s.controller.entry = true;
+    s.controller.entryTile = {domNode: () => null, tileContent: {walk: () => undefined}};
+    s.controller._resetEntry();
+    assert.equal(s.data.getItem('ws.entry.code'), '003', 'the entry row shows the next one too');
+    s.controller._announcer = {textContent: ''};
+    const tile = {domNode: () => null, flash() {}};
+    s.controller.tiles = {r_k1: tile, r_k2: tile};
+    s.controller._insertPastedRows([{name: 'Grip'}, {name: 'Sound'}], null);
+    assert.deepEqual([...s.lines.getNodes().map((n) => n.getValue().getItem('code'))], ['001', '002', '003', '004'], 'each pasted row the next code');
+});
+
+test('defaultRow: a fresh row left empty is measured on the defaults it was given', () => {
+    const s = createGrid({controller: {phantom: true, defaultRow: {code: "==String(rows.len() + 1)"}}});
+    s.controller._doAddItem();
+    s.controller.tiles = {r_k1: {}};
+    assert.equal(s.controller.defaultRowValues().code, '2', 'worked out again it is the next code');
+    s.controller._dropIfEmpty('r_k1');
+    assert.equal(s.lines.len(), 0, 'still a row with no entry');
+});
+
+function focusTile(s, {bodyMounted = true} = {}) {
+    // a tile with a code badge, a name and a read-only note, as editors
+    // and as source nodes bound to their fields
+    const focused = [];
+    const editor = (name) => ({name, focus: () => focused.push(name), select() {}});
+    const editors = {code: editor('code'), name: editor('name'), note: editor('note')};
+    const nodes = ['code', 'name', 'note'].map((f) => ({attr: {value: '^.' + f}, widget: {focusNode: editors[f]}}));
+    const tile = Object.create(s.context.gnr.GroupletGridTile.prototype);
+    Object.assign(tile, {
+        controller: s.controller,
+        bodyMounted,
+        tileContent: {walk: (cb) => nodes.reduce((found, n) => found || cb(n), undefined)},
+        domNode: () => ({isConnected: true, querySelectorAll: () => [editors.code, editors.name]}),
+        tileNode: {freeze() {}, unfreeze() {}},
+        _cancelPendingBody() {},
+        _mountChrome() {},
+        _mountBody() {}
+    });
+    return {tile, focused};
+}
+
+test('additem_focus: a row added with + puts the caret on that field, else on the first editor', async () => {
+    const s = createGrid({controller: {additemKw: {focus: 'name'}}});
+    s.controller._reproxyForm = () => {};
+    s.controller._doAddItem();
+    assert.equal(s.controller._pendingFocusField, 'name');
+    let t = focusTile(s);
+    s.controller._focusFirstEditor(t.tile, null, 'name');
+    await tick();
+    assert.deepEqual(t.focused, ['name']);
+    t = focusTile(s);
+    s.controller._focusFirstEditor(t.tile, null, null);
+    await tick();
+    assert.deepEqual(t.focused, ['code'], 'without additem_focus the first editor');
+    t = focusTile(s);
+    s.controller._focusFirstEditor(t.tile, null, 'note');
+    await tick();
+    assert.deepEqual(t.focused, ['code'], 'a field that takes no typing falls back to the first');
+    t = focusTile(s, {bodyMounted: false});
+    s.controller._focusFirstEditor(t.tile, null, 'name');
+    await tick();
+    assert.deepEqual(t.focused, [], 'a lazy tab has no body yet');
+    t.tile.mountBody();
+    await tick();
+    assert.deepEqual(t.focused, ['name'], 'the caret goes there once the body is mounted');
+});
+
 test('naturalCompare orders codes as read, blanks last', () => {
     const {context} = createGrid();
     const cmp = context.gnr.GroupletGridController.naturalCompare;
@@ -175,13 +270,27 @@ test('sortField orders the tab keys without touching the Bag, unless sortStore',
 test('titleTemplate shows fields and a live subtree total', () => {
     const s = createGrid();
     chapters(s, [['r_a', '1', 'Story', [100, 250.5]]]);
-    const Ctrl = s.context.gnr.GroupletGridController;
-    const tpl = Ctrl.compileTemplate({template: '$code $name $total', sums: {total: 'accounts.amount'}});
+    const Card = s.context.gnr.GroupletCard;
+    const tpl = Card.compileTemplate({template: '$code $name $total', sums: {total: 'accounts.amount'}});
     assert.equal(s.controller.renderTemplate(tpl, 'r_a'), '1 Story 350.5');
     s.lines.setItem('r_a.accounts.a2', new s.Bag({amount: 9.5}));
     assert.equal(s.controller.renderTemplate(tpl, 'r_a'), '1 Story 360');
-    assert.equal(Ctrl.deepSum(s.lines.getItem('r_a'), 'amount'), 360, 'no path: the whole row');
-    assert.equal(s.controller.renderTemplate(Ctrl.compileTemplate('$name'), 'r_a'), 'Story');
+    assert.equal(Card.deepSum(s.lines.getItem('r_a'), 'amount'), 360, 'no path: the whole row');
+    assert.equal(s.controller.renderTemplate(Card.compileTemplate('$name'), 'r_a'), 'Story');
+});
+
+test('a row whose own fields are blank shows its label, not its sums alone', () => {
+    const s = createGrid();
+    chapters(s, [['r_a', '1', 'Story', [100]], ['r_n', '', '', []]]);
+    const tpl = s.context.gnr.GroupletCard.compileTemplate(
+        {template: '<b>$code</b> $name <i>$total</i>', sums: {total: 'accounts.amount'}});
+    const dom = () => ({textContent: '', set innerHTML(v) { this.textContent = v; }});
+    const shown = dom();
+    s.controller._renderTitle(shown, tpl, 'r_a');
+    assert.equal(shown.textContent, '<b>1</b> Story <i>100</i>');
+    const blank = dom();
+    s.controller._renderTitle(blank, tpl, 'r_n');
+    assert.equal(blank.textContent, 'r_n', 'no titleField: the key');
 });
 
 test('a changed sort field re-sorts the strip once, a template row is redrawn', async () => {
@@ -197,7 +306,7 @@ test('a changed sort field re-sorts the strip once, a template row is redrawn', 
                                                           get textContent() { return titles[k]; }})});
     Object.assign(s.controller, {
         dataStore: store, sortField: 'code', tabstripDom: strip, _dirtyRows: new Set(),
-        titleTemplate: s.context.gnr.GroupletGridController.compileTemplate('$code·$name'),
+        titleTemplate: s.context.gnr.GroupletCard.compileTemplate('$code·$name'),
         _tabsByPkey: {r_a: chip('r_a'), r_b: chip('r_b')}
     });
     strip.children = [s.controller._tabsByPkey.r_a, s.controller._tabsByPkey.r_b];
@@ -302,7 +411,7 @@ test('collapsible: closed cards fold to their summary, the state survives a re-r
     const s = createGrid({controller: {collapsible: 'closed', _dirtyRows: new Set()}});
     chapters(s, [['r_a', '1', 'Crew', [100, 50]], ['r_b', '2', 'Cast', [10]]]);
     const Ctrl = s.context.gnr.GroupletGridController;
-    s.controller.collapsedTemplate = Ctrl.compileTemplate({template: '$code $name $total',
+    s.controller.collapsedTemplate = s.context.gnr.GroupletCard.compileTemplate({template: '$code $name $total',
                                                            sums: {total: 'accounts.amount'}});
     s.controller.dataStore.rowNode = (k) => s.lines.getNode(k);
     const doms = {r_a: fakeTileDom(), r_b: fakeTileDom()};
@@ -323,6 +432,21 @@ test('collapsible: closed cards fold to their summary, the state survives a re-r
     assert.equal(again.isCollapsed('r_c'), true);
     const plainGrid = createGrid();
     assert.equal(plainGrid.controller.isCollapsed('r_a'), false, 'not collapsible: never folded');
+});
+
+test('a band title follows its row open or folded; a band without title is left alone', async () => {
+    const s = createGrid({controller: {collapsible: true, _dirtyRows: new Set()}});
+    chapters(s, [['r_a', '1', 'Crew', [100]], ['r_b', '2', 'Cast', [10]]]);
+    const refreshed = [];
+    s.controller.tiles = {
+        r_a: {card: {titleDom: {}, refreshTitle: () => refreshed.push('r_a')}},
+        r_b: {card: {titleDom: null, refreshTitle: () => refreshed.push('r_b')}}
+    };
+    const storeNode = s.lines.getParentNode();
+    s.controller._onRowContentChanged(s.lines.getNode('r_a.name'), storeNode);
+    s.controller._onRowContentChanged(s.lines.getNode('r_b.name'), storeNode);
+    await tick();
+    assert.deepEqual(refreshed, ['r_a'], 'r_a is open, its title is still drawn');
 });
 
 function pendingForm(context) {
@@ -423,4 +547,22 @@ test('entry row: an invalid field stops the entry with its message', () => {
     assert.deepEqual(focused, ['qty']);
     assert.deepEqual(JSON.parse(JSON.stringify(s.published.at(-1))),
                      ['floating_message', {message: 'Qty: Too small', sound: '$onerror', messageType: 'error'}]);
+});
+
+test('cards without checkboxes: Cmd/Ctrl/Shift-click selects, once, only with a selection menu', () => {
+    const {context} = createGrid();
+    const a = groupGrid(context, 'clicks', ['d1', 'd2', 'd3']);
+    a.grid.rowCheckbox = false;
+    assert.equal(a.grid._clickSelects({metaKey: true}), true);
+    assert.equal(a.grid._clickSelects({}), false, 'a plain click edits');
+    assert.equal(a.grid._clickSelects({ctrlKey: true, _groupletSelected: true}), false,
+                 'an inner row already took it');
+    a.grid._onRowCheck('d1', {metaKey: true}, true);
+    a.grid._onRowCheck('d3', {shiftKey: true}, true);
+    assert.deepEqual([...a.grid._multiKeys], ['d1', 'd2', 'd3']);
+    assert.equal(a.grid._clickClearsSelection({}), true, 'a plain click leaves the selection');
+    a.grid.clearSelection(true);
+    assert.equal(a.grid._clickClearsSelection({}), false, 'nothing selected: the click edits');
+    a.grid.selectionmenu = {};
+    assert.equal(a.grid._clickSelects({metaKey: true}), false);
 });

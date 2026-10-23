@@ -227,7 +227,7 @@ class FrameGridTools(BaseComponent):
             closable_tip='!!Group by',
             closable__class='tab_opener grouper_opener')
         default_closable.update(closable_kwargs)
-        box_kwargs.setdefault('border_right','1px solid silver')
+        box_kwargs.setdefault('border_right','1px solid var(--border-color)')
         box_kwargs.update(default_closable)
         splitter = False if self.isMobile else splitter
         bc = view.grid_envelope.borderContainer(region= region or 'left',
@@ -336,7 +336,7 @@ class FrameGridTools(BaseComponent):
             static_searchOn = static_kwargs.get('searchOn',False)
             if static_searchOn:
                 static_slots = '2,viewsSelect,*,searchOn,2'
-            gth.top.bar.replaceSlots('#',static_slots,height='22px',border_bottom='1px solid silver')
+            gth.top.bar.replaceSlots('#',static_slots,height='22px',border_bottom='1px solid var(--border-color)')
             gth.dataController("""gth.widget.setRegionVisible('top',(resource_structs && resource_structs.len()>1));""", gth=gth,
                                     resource_structs='^.grid.resource_structs',static_searchOn=static_searchOn,_if='!static_searchOn')
             
@@ -373,7 +373,7 @@ class FrameGridTools(BaseComponent):
         right = view.grid_envelope.borderContainer(region=region or 'right',width=width,closable=closable,
                                         closable_animate=closable_animate,
                                         nodeId='{frameCode}_configurator'.format(frameCode=frameCode),
-                                        splitter=True,border_left='1px solid silver',hidden=closable is False)
+                                        splitter=True,border_left='1px solid var(--border-color)',hidden=closable is False)
         gridId = grid.attributes.get('nodeId')
         if toolbar:
             confBar = right.contentPane(region='top')
@@ -392,7 +392,7 @@ class FrameGridTools(BaseComponent):
                                         action='genro.nodeById(this.attr.gridId).publish("configuratorPalette");',
                                         gridId=gridId)
         if queryLimit is not False and (table==getattr(self,'maintable',None) or configurable=='*'):
-            footer = right.contentPane(region='bottom',height='25px',border_top='1px solid silver',overflow='hidden').formbuilder(cols=1,font_size='.8em',
+            footer = right.contentPane(region='bottom',height='25px',border_top='1px solid var(--border-color)',overflow='hidden').formbuilder(cols=1,font_size='.8em',
                                                 fld_color='#555',fld_font_weight='bold')
             footer.numberSpinner(value='^.hardQueryLimit',lbl='!!Limit',width='6em',smallDelta=1000)
 
