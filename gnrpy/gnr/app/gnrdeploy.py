@@ -14,6 +14,7 @@ from gnr.core.gnrbag import Bag, DirectoryResolver
 from gnr.core.gnrconfig import IniConfStruct
 from gnr.core.gnrconfig import getGnrConfig,gnrConfigPath
 from gnr.app.pathresolver import PathResolver as _PathResolver
+from gnr.app.gnrapp import GnrApp
 from gnr.app import logger
 
 
@@ -503,8 +504,9 @@ class GunicornDeployBuilder(object):
     
     
 
-    def __init__(self, site_name, **kwargs):
+    def __init__(self, site_name, app=None, **kwargs):
         self.site_name = site_name
+        self.app = app or GnrApp(site_name, config_only=True, static_closure=True)
         self.path_resolver = _PathResolver()
         self.site_path = self.path_resolver.site_name_to_path(site_name)
         self.instance_path = self.path_resolver.instance_name_to_path(site_name)
@@ -595,9 +597,7 @@ class GunicornDeployBuilder(object):
         """
         create the configuration to start the local task scheduler
         """
-        has_sys = 'gnrcore:sys' in self.instance_config['packages']
-        secondary = has_sys and self.instance_config['packages'].getAttr('gnrcore:sys').get('secondary')
-        if not has_sys or secondary:
+        if not self.app.has_primary_sys_package():
             return
         scheduler_section = group.section("program", f"{self.site_name}_taskscheduler")
         scheduler_section.parameter("process_name", f"{self.site_name}_gnrtaskscheduler")
@@ -608,9 +608,7 @@ class GunicornDeployBuilder(object):
         create the configuration to start the local task worker
         """
         taskworkers = self.site_config.getAttr('taskworkers') or {'count':'1'}
-        has_sys = 'gnrcore:sys' in self.instance_config['packages']
-        secondary = has_sys and self.instance_config['packages'].getAttr('gnrcore:sys').get('secondary')
-        if not has_sys or secondary:
+        if not self.app.has_primary_sys_package():
             return
         if taskworkers:
             tw_base = group.section('program', f'{self.site_name}_taskworkers')

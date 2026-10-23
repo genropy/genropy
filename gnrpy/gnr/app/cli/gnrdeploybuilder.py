@@ -45,7 +45,8 @@ def main():
         createVirtualEnv(name=options.make_virtualenv, copy_genropy=options.copy_genropy,
             branch=options.branch, copy_projects=options.copy_projects)
     if site:
-        deployer = GunicornDeployBuilder(site)
+        app = GnrApp(site, checkdepcli=True)
+        deployer = GunicornDeployBuilder(site, app=app)
         deployer.write_gunicorn_conf()
         deployer.local_supervisor_conf()
         deployer.main_supervisor_conf()
@@ -63,7 +64,6 @@ def main():
 
                 
         # check for missing dependencies
-        app = GnrApp(site, checkdepcli=True)
         instance_deps = app.instance_packages_dependencies
         logger.debug("Instance deps: %s", instance_deps)
         missing, wrong = app.check_package_missing_dependencies()
