@@ -1399,6 +1399,7 @@ class GnrWebPage(GnrBaseWebPage):
         kwargs['dojoXhrPatch'] = self.application.experimentalValue(
             'page', 'dojo_xhr_patch') or ''
         kwargs['useFormletsInJsFb'] = self.application.experimentalFlag('gui', 'use_formlets_in_js_fb')
+        kwargs['inlineDoc'] = self.application.experimentalFlag('gui', 'inlinedoc')
         self.getPwaIntegration(arg_dict)
         self.getSquareLogoUrl(arg_dict)
         self.getCoverLogoUrl(arg_dict)
@@ -2469,6 +2470,11 @@ class GnrWebPage(GnrBaseWebPage):
         page.dataController("""
                             genro.dom.setClass(document.body,'developerToolElementsVisible',developerToolsVisible)""",
                             developerToolsVisible='^gnr.developerToolsVisible')
+        if self.inlineDoc:
+            page.data('gnr.docModeVisible',False)
+            page.dataController("""genro.dom.setClass(document.body,'docModeVisible',docModeVisible);
+                                   genro.dlg.docApplyStates();""",
+                                docModeVisible='^gnr.docModeVisible')
         page.dataController("""genro.src.updatePageSource('_pageRoot')""",
                         subscribe_gnrIde_rebuildPage=True,_delay=100)
         page.dataController("PUBLISH setWindowTitle=windowTitle;",windowTitle="^gnr.windowTitle",_onStart=True)
@@ -3097,6 +3103,12 @@ class GnrWebPage(GnrBaseWebPage):
     def isDeveloper(self):
         """TODO"""
         return self.hasTag('_DEV_')
+
+    @property
+    def inlineDoc(self):
+        """The docs of the inlinedoc storage (sys/ep_doc) instead of helper.xml:
+        ``<experimental><gui inlinedoc="true"/></experimental>``"""
+        return self.application.experimentalFlag('gui', 'inlinedoc')
 
         
 

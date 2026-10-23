@@ -37,10 +37,11 @@ from gnr.lib.services import ServiceHandler
 from gnr.app.pathresolver import PathResolver
 from gnr.app.gnrapp import GnrPackage
 from gnr.web import logger
+from gnr.web.gnrmanual import ManualCache
 from gnr.web.gnrwebapp import GnrWsgiWebApp
 from gnr.web.gnrwebpage import GnrUnsupportedBrowserException
 from gnr.web.gnrwsgisite_proxy.gnrresourceloader import ResourceLoader
-from gnr.web.gnrwsgisite_proxy.gnrstoragehandler import LegacyStorageHandler
+from gnr.web.gnrwsgisite_proxy.gnrstoragehandler import GenroStorageHandler, LegacyStorageHandler
 from gnr.web.gnrwsgisite_proxy.gnrstatichandler import StaticHandlerManager
 from gnr.web.gnrwsgisite_proxy.gnrpwahandler import PWAHandler
 from gnr.web.daemon.siteregister_client import SiteRegisterClient
@@ -208,7 +209,13 @@ class GnrDomainProxy(object):
     @property
     def storage_handler(self):
         if self._storage_handler is None:
-            self._storage_handler = LegacyStorageHandler(self.parent.site, domain=self.domain)
+            site = self.parent.site
+            # The main instance, not site.gnrapp: that one follows the thread's
+            # current aux instance, and this handler is built once and cached.
+            if site._main_gnrapp.experimentalFlag('storage', 'use_genro_storage'):
+                self._storage_handler = GenroStorageHandler(site, domain=self.domain)
+            else:
+                self._storage_handler = LegacyStorageHandler(site, domain=self.domain)
         return self._storage_handler
 
 
@@ -430,6 +437,8 @@ class GnrWsgiSite(object):
         GNRSITE = self
         self.storageTypes = STORAGE_TYPES + STATIC_HANDLER_TYPES
         self.pathfile_cache = {}
+        self.doc_listings = {}
+        self.manual_cache = ManualCache()
         self._currentAuxInstanceNames = ThreadedDict()
         self._currentPages = ThreadedDict()
         self._currentRequests = ThreadedDict()
@@ -844,6 +853,8 @@ class GnrWsgiSite(object):
     
     def storageDispatcher(self,path_list,environ,start_response,storageType=None,**kwargs):
         storageNode = self.storageNodeFromPathList(path_list, storageType)
+        if storageNode and self.storage_handler.isPrivateStorage(storageNode.service.service_name):
+            return self.not_found_exception(environ, start_response)
         exists = storageNode and storageNode.exists
         if not exists and '_lazydoc' in kwargs:
             #fullpath = None ### QUI NON DOBBIAMO USARE I FULLPATH

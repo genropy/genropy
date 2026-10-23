@@ -879,7 +879,10 @@ dojo.declare("gnr.widgets.labledbox", gnr.widgets.baseHtml, {
         }
         sourceNode._value = null;
         
+        // a field documents its column, a widget with helpcode its page
         let helpcode = sourceNode.attr.helpcode;
+        let docAddress = genro.startArgs.inlineDoc && (sourceNode.attr.docAddress || (helpcode
+            && `page:${genro.getData('gnr.package')}/${genro.getData('gnr.pagename')}:${helpcode}`));
         let labelBoxAttr = {_class:'labledBox_label',...box_l_kw};
         if (sourceNode.attr.moveable){
             labelBoxAttr.id='handle_'+sourceNode.getStringId()
@@ -888,10 +891,21 @@ dojo.declare("gnr.widgets.labledbox", gnr.widgets.baseHtml, {
         let labelBox = sourceNode._('div',labelBoxAttr,{'doTrigger':false});
         let labelSrc = labelBox._('div',objectUpdate({innerHTML:label},label_attr),{'doTrigger':false});
         sourceNode._labelNode = labelSrc.getParentNode();
-        if(helpcode){
+        if(docAddress){
+            labelBox._('div','spacer',{innerHTML:'&nbsp;',width:'100%','flex':'1'},{'doTrigger':false});
+            labelBox._('lightbutton','helper',{_class:'helperbutton iconbox innericonbox',
+                onCreated:function(){
+                    genro.dlg.docTrack(this.domNode, docAddress);
+                },
+                action:function(){
+                    genro.dlg.openDoc(this.domNode, docAddress,
+                                      {title: sourceNode._labelNode.domNode.innerHTML});
+                },
+            },{'doTrigger':false});
+        }else if(helpcode){
             let helperEditor = genro.isDeveloper? ' helperEditor':'';
             labelBox._('div','spacer',{innerHTML:'&nbsp;',width:'100%','flex':'1'},{'doTrigger':false});
-            let btn = labelBox._('lightbutton','helper',{_class:'helperbutton iconbox innericonbox '+helperEditor,
+            labelBox._('lightbutton','helper',{_class:'helperbutton iconbox innericonbox '+helperEditor,
                 action:function(){
                     sourceNode.onHelperClick(this);
                 },
@@ -919,7 +933,9 @@ dojo.declare("gnr.widgets.labledbox", gnr.widgets.baseHtml, {
     },
 
     created:function(newobj, savedAttrs, sourceNode){
-        sourceNode.updateHelperClasses();
+        if(!genro.startArgs.inlineDoc){
+            sourceNode.updateHelperClasses();
+        }
     },
 
     setSide:function(domNode,value,kw){

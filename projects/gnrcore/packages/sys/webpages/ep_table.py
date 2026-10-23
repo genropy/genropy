@@ -2,15 +2,12 @@
 from gnr.sql.gnrsql_exceptions import GnrSqlMissingTable
 from gnr.core.gnrstring import templateReplace
 from gnr.core.gnrbag import Bag
+from gnr.web.gnrwebpage import GnrUserNotAllowed
 AUTH_FORBIDDEN = -1
 
 
-class NotAllowedError(Exception):
-    pass
-
-
 class GnrCustomWebPage(object):
-    py_requires='gnrcomponents/externalcall:RecordRpc'
+    py_requires='gnrcomponents/externalcall:EndpointPermission'
     convert_result = False
     skip_connection = False
 
@@ -32,7 +29,7 @@ class GnrCustomWebPage(object):
             return
         try:
             documentNode = self._get_documentNode(tblobj,pkey=pkey,source=source,version=version,**kwargs)
-        except NotAllowedError:
+        except GnrUserNotAllowed:
             return AUTH_FORBIDDEN
         if not documentNode:
             return ''
@@ -53,20 +50,6 @@ class GnrCustomWebPage(object):
                 tpl,{'download_url':download_url}
             )
 
-
-    def _checkEndpointPermission(self,tags,**kwargs):
-        _current_page_id = kwargs.get('_current_page_id') or kwargs.get('_calling_page_id')
-        page_item = self.site.register.page(_current_page_id,include_data='lazy')
-        if not page_item:
-            raise NotAllowedError
-        user = page_item['user'] or 'guest_'
-        if user.startswith('guest_'):
-            raise NotAllowedError
-        tags = tags or ''
-        user_tags = self.db.application.getAvatar(user,authenticate=False).user_tags
-        if tags and not self.db.application.getResourcePermission(tags,user_tags):
-            raise NotAllowedError
-        return page_item
 
     def _get_documentNode(self,tblobj,pkey=None,source=None,version=None,**kwargs):
         if version=='_latest_':
@@ -96,7 +79,7 @@ class GnrCustomWebPage(object):
                 documentPath = documentPathHandler(record,**kwargs)
         if readTags is not False:
             #do with permissions
-            related_page_item = self._checkEndpointPermission(readTags,**kwargs)
+            related_page_item = self.checkEndpointPermission(readTags,**kwargs)
         documentNode = None
         clientRecordUpdater = Bag()
         if documentPath:

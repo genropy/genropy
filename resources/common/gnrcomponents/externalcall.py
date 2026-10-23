@@ -47,6 +47,28 @@ Marshaller.dispatch[Decimal] = dump_decimal
 Marshaller.dispatch[datetime.date] = dump_date
 
 
+class EndpointPermission(BaseComponent):
+    """An endpoint answers only a registered calling page of a logged user;
+    with same_connection only from that page's own connection, so a page id
+    copied out of a url is not a bearer token"""
+
+    def checkEndpointPermission(self, tags=None, same_connection=False, _current_page_id=None,
+                                _calling_page_id=None, **kwargs):
+        page_item = self.site.register.page(_current_page_id or _calling_page_id, include_data='lazy')
+        if not page_item:
+            raise GnrUserNotAllowed
+        if same_connection and page_item['connection_id'] != self.connection.connection_id:
+            raise GnrUserNotAllowed
+        user = page_item['user'] or 'guest_'
+        if user.startswith('guest_'):
+            raise GnrUserNotAllowed
+        if tags:
+            user_tags = self.db.application.getAvatar(user, authenticate=False).user_tags
+            if not self.db.application.checkResourcePermission(tags, user_tags):
+                raise GnrUserNotAllowed
+        return page_item
+
+
 class BaseRpc(BaseComponent):
     convert_result = True
     skip_connection = True

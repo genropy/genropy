@@ -926,18 +926,18 @@ test('a row\'s card profile: its resource\'s card, then the caller\'s, the title
     s.genro.safeHtmlContent = (v) => v;
     Object.assign(c, {_cardProfiles: {}, collapsedTemplate: null,
                       card: inVm({tools: 'title,menu'}),
-                      templateCards: inVm({offer: {tools: 'title,doc', delitem: false, doc: 'About $item',
+                      templateCards: inVm({offer: {tools: 'title,doc', delitem: false, doc: 'grouplet:test:offer',
                                                    template: '$item!'}})});
     const offer = c._cardProfile('offer');
     assert.equal(offer.tools, 'title,menu', 'the caller wins');
     assert.equal(offer.delitem, false);
     const row = new s.lines.constructor({item: 'Milk'});
     assert.equal(s.context.gnr.GroupletCard.renderTemplate(offer.title, row), 'Milk!');
-    assert.equal(s.context.gnr.GroupletCard.renderDoc(offer.docTemplate, row), 'About Milk');
+    assert.equal(offer.doc, 'grouplet:test:offer', 'the row\'s doc address');
     assert.equal(c._cardProfile('offer'), offer, 'computed once per resource');
     const plain = c._cardProfile('__default__');
     assert.equal(plain.title, null);
-    assert.equal(plain.docTemplate, null);
+    assert.equal(plain.doc, undefined);
     assert.ok(!('delitem' in plain), 'the grid\'s delitem then applies');
 });
 
