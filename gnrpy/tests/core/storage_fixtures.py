@@ -23,7 +23,7 @@ import uuid
 from genro_storage import StorageManager
 
 from gnr.core.gnrbag import Bag
-from gnr.lib.services import storage_genro
+from gnr.web.gnrwsgisite_proxy import storage_genro
 from gnr.lib.services.storage import BaseLocalService, StorageNode
 
 MODES = ['legacy', 'genro']

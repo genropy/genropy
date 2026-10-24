@@ -24,7 +24,7 @@ from gnr.web.gnrwsgisite_proxy.gnrstoragehandler import (GenroStorageHandler,
 pytest.importorskip(
     'genro_storage', reason="genro-storage is an optional dependency (genro_storage extra)")
 
-from gnr.lib.services import storage_genro  # noqa: E402
+from gnr.web.gnrwsgisite_proxy import storage_genro  # noqa: E402
 
 SITE_NAME = 'gnrdevelop'
 SYMBOLIC_MOUNTS = ['rsrc', 'pkg', 'page', 'conn', 'user', 'temp', 'dojo', 'gnr', 'pages']

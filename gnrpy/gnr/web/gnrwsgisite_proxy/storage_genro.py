@@ -12,9 +12,10 @@ coming from StorageService and behave as they do on the legacy services.
 import os
 import shutil
 
-# genro-storage is optional (the genro_storage extra). ServiceHandler imports
-# every module in this folder at startup, so a hard import here would break
-# every site that does not install the extra, flag on or off.
+# genro-storage is optional (the genro_storage extra): importing this module
+# must not fail on a site that does not install it. It lives here rather than
+# in gnr/lib/services because it is not a service type: ServiceHandler imports
+# every module of that folder at startup.
 try:
     from genro_storage.exceptions import StorageError
 except ImportError:
