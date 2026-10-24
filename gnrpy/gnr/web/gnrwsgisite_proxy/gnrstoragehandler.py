@@ -28,7 +28,7 @@ from gnr.web import logger
 # experimental/storage@use_genro_storage flag off nothing here is needed.
 try:
     from genro_storage import StorageManager
-    from gnr.lib.services import storage_genro
+    from gnr.web.gnrwsgisite_proxy import storage_genro
 except ImportError:
     StorageManager = None
     storage_genro = None
