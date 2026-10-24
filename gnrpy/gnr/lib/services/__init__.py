@@ -55,8 +55,14 @@ class ServiceHandler(object):
                 if service_type == '__init__':
                     continue
                 logger.debug("Found service %s in %s", service_type, service_root)
+                try:
+                    m = gnrImport(os.path.join(service_root, f'{service_type}.py'))
+                except ImportError as e:
+                    # A module needing an optional dependency that is not
+                    # installed must not take down every service of the site.
+                    logger.warning("Skipping service %s in %s: %s", service_type, service_root, e)
+                    continue
                 all_service_types.add(service_type)
-                m = gnrImport(os.path.join(service_root, f'{service_type}.py'))
                 service_type_factory = getattr(m, 'ServiceType', None)
                 if service_type_factory:
                     service_types_factories[service_type] = service_type_factory

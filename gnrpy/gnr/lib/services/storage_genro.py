@@ -12,7 +12,14 @@ coming from StorageService and behave as they do on the legacy services.
 import os
 import shutil
 
-from genro_storage.exceptions import StorageError
+# genro-storage is optional (the genro_storage extra). ServiceHandler imports
+# every module in this folder at startup, so a hard import here would break
+# every site that does not install the extra, flag on or off.
+try:
+    from genro_storage.exceptions import StorageError
+except ImportError:
+    class StorageError(Exception):
+        """Placeholder: never raised without genro-storage installed."""
 
 from gnr.core.gnrsys import expandpath
 from gnr.lib.services.storage import (LocalPath, StorageNode, StorageService,
