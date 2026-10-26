@@ -5045,6 +5045,7 @@ gnr.GroupletGridTile = class GroupletGridTile {
         const tile = this;
         let tileClass = 'grouplet_grid_row';
         if (this._usesBand()) tileClass += ' grouplet_card grouplet_card--chrome-' + c.chromeSide;
+        if (this.profile && this.profile.wide) tileClass += ' grouplet_grid_row--wide';
         if (c._isTabsLayout() && c.activePkey === pkey) {
             tileClass += ' grouplet_grid_tab_active';
             this.isActive = true;

@@ -664,6 +664,18 @@
     max-width: calc(var(--gg-cols, 1) * var(--gg-min-width, 280px)
                     + (var(--gg-cols, 1) - 1) * var(--gg-gap, 12px));
 }
+/* fillRow: the cards share the whole row, up to --gg-cols of them, so a
+   lone card takes it all; a track is never narrower than a cols-th of the
+   row, which keeps the cap, and auto-fit drops the empty ones. */
+.grouplet_grid_container.grouplet_grid_responsive.grouplet_grid--fillrow > .grouplet_grid_body {
+    grid-template-columns: repeat(auto-fit, minmax(max(var(--gg-min-width, 280px),
+        calc((100% - (var(--gg-cols, 1) - 1) * var(--gg-gap, 12px)) / var(--gg-cols, 1))), 1fr));
+    max-width: none;
+}
+/* a card whose grouplet declares card=dict(wide=True) takes the whole row */
+.grouplet_grid_responsive > .grouplet_grid_body > .grouplet_grid_row--wide {
+    grid-column: 1 / -1;
+}
 
 /* --- Row blocchetto card ---
    Layout: position:relative + padding orizzontale per kebab (dx) e drag
