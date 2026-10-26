@@ -855,6 +855,11 @@ dojo.declare("gnr.widgets.labledbox", gnr.widgets.baseHtml, {
     },
 
     onBuilding:function(sourceNode){
+        // a rebuild (e.g. an ancestor's unfreeze) finds the label and content boxes already in place
+        let builtLabelBox = sourceNode._labelNode && sourceNode._labelNode.getParentNode();
+        if(builtLabelBox && builtLabelBox.getParentNode()===sourceNode){
+            return;
+        }
         let label = sourceNode.attr.label;
         let default_side = sourceNode.getInheritedAttributes().label_side;
         let side = sourceNode.attr.side || default_side;
