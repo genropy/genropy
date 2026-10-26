@@ -899,7 +899,7 @@ dojo.declare("gnr.widgets.labledbox", gnr.widgets.baseHtml, {
                 },
                 action:function(){
                     genro.dlg.openDoc(this.domNode, docAddress,
-                                      {title: sourceNode._labelNode.domNode.innerHTML});
+                                      {title: sourceNode._labelNode.domNode.innerHTML, tooltip: true});
                 },
             },{'doTrigger':false});
         }else if(helpcode){

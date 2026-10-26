@@ -977,20 +977,67 @@ dojo.declare("gnr.GnrDlgHandler", null, {
         // next click; the close button or Esc closes it
         kw = kw || {};
         source = source || {};
-        const manual = source.manual;
-        const title = this._docTitleHtml(kw, {title: (manual && manual.title) || source.title});
-        // the server sends only http(s) urls under the manual's site: a url of any
-        // other shape is not followed
-        const manualUrl = manual && /^(https?:\/\/|\/(?!\/))/i.test(manual.url || '') ? manual.url : null;
         genro.src.getNode()._('div', '_doc_help_panel_');
         const node = genro.src.getNode('_doc_help_panel_').clearValue();
         node.freeze();
         const panel = node._('div', {_class: 'doc_help_panel', role: 'complementary', 'aria_label': _T('!!Help')});
         const head = panel._('div', {_class: 'doc_help_panel_head'});
-        head._('div', {_class: 'doc_help_panel_title', innerHTML: title});
+        head._('div', {_class: 'doc_help_panel_title', innerHTML: this._docHelpTitle(kw, source)});
         head._('div', {_class: 'doc_help_panel_close', innerHTML: '&times;', title: _T('!!Close'),
                        connect_onclick: () => this.closeHelpPanel()});
-        const body = panel._('div', {_class: 'doc_help_panel_body'});
+        this._docHelpBody(panel._('div', {_class: 'doc_help_panel_body'}), address, kw, source);
+        node.unfreeze();
+        this._helpPanelAddress = address;
+        if (this._helpEscape) return;
+        // Esc closes the panel and nothing else: a dialog above the page (the
+        // note's editor among them) keeps its own Esc
+        this._helpEscape = (e) => {
+            if (e.key !== 'Escape' || (e.target && e.target.closest && e.target.closest('.dijitDialog'))) return;
+            e.stopPropagation();
+            e.preventDefault();
+            this.closeHelpPanel();
+        };
+        document.addEventListener('keydown', this._helpEscape, true);
+    },
+
+    helpTooltip: function(domNode, address, kw, source) {
+        // the help of an address in a popup at its icon, for a field or a part
+        // of a page: what the help panel shows. One popup for the page, moved to
+        // the icon clicked; a click outside or Esc closes it
+        kw = kw || {};
+        source = source || {};
+        this.quickTooltipPane({nodeId: 'doc_help_tooltip', domNode: domNode, _class: 'doc_help_tooltip'}, (pane) => {
+            const box = pane._('div', {_class: 'doc_help_tooltip_box'});
+            box._('div', {_class: 'doc_help_tooltip_title', innerHTML: this._docHelpTitle(kw, source)});
+            this._docHelpBody(box._('div', {_class: 'doc_help_tooltip_body'}), address, kw, source);
+        });
+        if (this._tooltipEscape) return;
+        // the focus is in the popup: Esc is heard on the document while it is open
+        this._tooltipEscape = (e) => {
+            if (e.key !== 'Escape') return;
+            this.closeHelpTooltip();
+        };
+        document.addEventListener('keydown', this._tooltipEscape, true);
+    },
+
+    closeHelpTooltip: function() {
+        if (!this._tooltipEscape) return;
+        document.removeEventListener('keydown', this._tooltipEscape, true);
+        this._tooltipEscape = null;
+        genro.publish('doc_help_tooltip_opener_close');
+    },
+
+    _docHelpTitle: function(kw, source) {
+        return this._docTitleHtml(kw, {title: (source.manual && source.manual.title) || source.title});
+    },
+
+    _docHelpBody: function(body, address, kw, source) {
+        // the manual's section with a link to it, then the customer's note, with
+        // Edit for a documenter: the content of the help panel and of the popup
+        const manual = source.manual;
+        // the server sends only http(s) urls under the manual's site: a url of any
+        // other shape is not followed
+        const manualUrl = manual && /^(https?:\/\/|\/(?!\/))/i.test(manual.url || '') ? manual.url : null;
         if (manual) {
             body._('div', {_class: 'doc_help_manual', innerHTML: manual.html});
         }
@@ -1016,21 +1063,10 @@ dojo.declare("gnr.GnrDlgHandler", null, {
                          innerHTML: source.exists ? _T('!!Edit the note') : _T('!!Add a note'),
                          connect_onclick: (e) => {
                              e.preventDefault();
+                             this.closeHelpTooltip();
                              this.docEdit(address, kw, source);
                          }});
         }
-        node.unfreeze();
-        this._helpPanelAddress = address;
-        if (this._helpEscape) return;
-        // Esc closes the panel and nothing else: a dialog above the page (the
-        // note's editor among them) keeps its own Esc
-        this._helpEscape = (e) => {
-            if (e.key !== 'Escape' || (e.target && e.target.closest && e.target.closest('.dijitDialog'))) return;
-            e.stopPropagation();
-            e.preventDefault();
-            this.closeHelpPanel();
-        };
-        document.addEventListener('keydown', this._helpEscape, true);
     },
 
     closeHelpPanel: function() {
@@ -1053,12 +1089,17 @@ dojo.declare("gnr.GnrDlgHandler", null, {
 
     openDoc: function(domNode, address, kw) {
         // the "?" of an address. kw: title, fill (a note's html filled with the
-        // caller's data), placeholders (the variables the editor offers). An
-        // address with neither manual nor note opens the editor to a documenter
+        // caller's data), placeholders (the variables the editor offers),
+        // tooltip (a popup at the icon instead of the help panel). An address
+        // with neither manual nor note opens the editor to a documenter
         kw = kw || {};
         return this.docSource(address, (source) => {
             if (source && !source.exists && !source.manual && source.editable) {
                 this.docEdit(address, kw, source);
+                return;
+            }
+            if (kw.tooltip) {
+                this.helpTooltip(domNode, address, kw, source);
                 return;
             }
             this.helpPanel(address, kw, source);

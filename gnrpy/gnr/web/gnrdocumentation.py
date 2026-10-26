@@ -9,6 +9,7 @@ one file per language, its images beside it:
     <pkg>/<table>/fields/<column>/<lang>.md          field:<pkg.table>:<column>
     <pkg>/<table>/grouplets/<resource>/<lang>.md     grouplet:<pkg.table>:<resource>
     <pkg>/_grouplets/<resource>/<lang>.md            grouplet:<pkg>:<resource>
+    <pkg>/_pages/<page>/_page/<lang>.md              page:<pkg>/<page>:
     <pkg>/_pages/<page>/<helpcode>/<lang>.md         page:<pkg>/<page>:<helpcode>
     <folder>/assets/<file>
 
@@ -64,9 +65,9 @@ def doc_folder(address):
     kind, target, name = parts
     if kind == 'package' and target and not name:
         return _path(target, '_package')
-    if kind == 'page' and '/' in target and name:
+    if kind == 'page' and '/' in target:
         pkg, page = target.split('/', 1)
-        return _path(pkg, '_pages', page, name)
+        return _path(pkg, '_pages', page, name or '_page')
     pkg, _, table = target.partition('.')
     if kind == 'table' and table and not name:
         return _path(pkg, table, '_table')

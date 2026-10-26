@@ -88,6 +88,13 @@ function createPage() {
             clearValue() { const built = []; panels.push(built); Object.assign(panelNode, sourceNode(built)); return panelNode; }
         });
     }};
+    // the popup at an icon: one built content per opening
+    const tooltips = [];
+    genro.dlg.quickTooltipPane = (kw, contentCb) => {
+        const built = [];
+        contentCb(sourceNode(built));
+        tooltips.push({kw, built});
+    };
     const dialogs = [];
     genro.dlg.quickDialog = (title, kw) => {
         const built = [];
@@ -105,7 +112,8 @@ function createPage() {
         icons.push(icon);
         return icon;
     };
-    return {context, genro, data, requests, responses, panels, dialogs, published, docListeners, newIcon, editors};
+    return {context, genro, data, requests, responses, panels, tooltips, dialogs, published, docListeners, newIcon,
+            editors};
 }
 
 const flush = () => new Promise((resolve) => setImmediate(resolve));
@@ -248,6 +256,47 @@ test('openDoc: the panel with the note filled; an address with nothing opens the
     page.responses.push([404, null]);
     await page.genro.dlg.openDoc({}, 'field:sys.service:name', {title: 'Name'});
     assert.equal(byClass(page.panels[2], 'doc_help_empty').innerHTML, '!!No documentation available');
+});
+
+test('openDoc with tooltip: the help in a popup at the icon, the panel untouched', async () => {
+    const page = createPage();
+    const icon = {};
+    page.responses.push([200, {exists: true, editable: true, title: 'email', html: '<p>Note</p>', markdown: 'Note',
+                               language: 'it', mtime: 5,
+                               manual: {title: 'The email', html: '<p>M</p>', url: 'https://docs.example.org/a.html#x'}}]);
+    await page.genro.dlg.openDoc(icon, 'field:adm.user:email', {title: 'Email', tooltip: true});
+    assert.equal(page.panels.length, 0, 'no help panel');
+    assert.equal(page.tooltips.length, 1);
+    const {kw, built} = page.tooltips[0];
+    assert.equal(kw.domNode, icon, 'anchored to the icon clicked');
+    assert.equal(kw.nodeId, 'doc_help_tooltip', 'one popup for the page');
+    assert.deepEqual(classes(built), [
+        ['div', 'doc_help_tooltip_box'], ['div', 'doc_help_tooltip_title'], ['div', 'doc_help_tooltip_body'],
+        ['div', 'doc_help_manual'], ['a', 'doc_help_link'], ['div', 'doc_help_note'], ['div', 'doc_help_note_title'],
+        ['div', 'doc_help_note_body'], ['a', 'doc_help_edit']], 'what the help panel shows');
+    assert.equal(byClass(built, 'doc_help_tooltip_title').innerHTML, 'Email', "the caller's title");
+    byClass(built, 'doc_help_edit').connect_onclick({preventDefault() {}});
+    assert.deepEqual(page.published.at(-1), ['doc_help_tooltip_opener_close', undefined], 'Edit closes the popup');
+    assert.equal(page.dialogs.length, 1, 'and opens the editor');
+    assert.equal(page.docListeners.keydown, undefined, 'Esc is no longer heard for it');
+});
+
+test('the help popup closes on Esc; an address with nothing still opens the editor to a documenter', async () => {
+    const page = createPage();
+    page.responses.push([200, {exists: false, editable: false, title: 'card', html: '', markdown: '',
+                               language: 'it', mtime: null, manual: {title: 'Card', html: '<p>M</p>', url: ''}}]);
+    await page.genro.dlg.openDoc({}, 'grouplet:test:card_profile', {tooltip: true});
+    assert.equal(byClass(page.tooltips[0].built, 'doc_help_tooltip_title').innerHTML, 'Card', "the manual's title");
+    page.docListeners.keydown({key: 'Enter'});
+    assert.equal(page.published.length, 0, 'another key leaves it open');
+    page.docListeners.keydown({key: 'Escape'});
+    assert.deepEqual(page.published.at(-1), ['doc_help_tooltip_opener_close', undefined]);
+    assert.equal(page.docListeners.keydown, undefined);
+    page.responses.push([200, {exists: false, editable: true, title: 'phone', html: '', markdown: '',
+                               language: 'it', mtime: null, manual: null}]);
+    await page.genro.dlg.openDoc({}, 'field:adm.user:phone', {title: 'Phone', tooltip: true});
+    assert.equal(page.tooltips.length, 1, 'no popup');
+    assert.equal(page.dialogs.length, 1, 'straight to the editor');
 });
 
 test("the doc's own title is text: its markup is escaped, the caller's title is the caller's", async () => {

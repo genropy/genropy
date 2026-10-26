@@ -187,7 +187,8 @@ gnr.GroupletCard = class GroupletCard {
         const title = this.titleDom ? this.titleDom.innerHTML : '';
         if (this.doc.address) {
             genro.dlg.openDoc(domNode, this.doc.address, {title: title, fill: this.doc.fill,
-                                                          placeholders: this.doc.placeholders});
+                                                          placeholders: this.doc.placeholders,
+                                                          tooltip: true});
             return;
         }
         this.doc.html((html) => gnr.GroupletCard.showDoc(domNode, title, html));
