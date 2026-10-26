@@ -1371,7 +1371,7 @@ class GroupletGridHandler(BaseComponent):
                         resourceField=None,
                         struct=None, structpath=None,
                         table=None, grouplets_root=None,
-                        cols=1, min_width=None, gap='12px',
+                        cols=1, min_width=None, gap='12px', fillRow=False,
                         height=None, max_height=None, fillParent=False,
                         additem=True, delitem=None, copyitem=False, editmenu=None,
                         layout='cards',
@@ -1457,6 +1457,8 @@ class GroupletGridHandler(BaseComponent):
             flavours.append('grouplet_grid--framed')
         if fillParent:
             flavours.append('grouplet_grid--fill')
+        if fillRow:
+            flavours.append('grouplet_grid--fillrow')
         if additem == 'phantom' and not resourceField:
             flavours.append('grouplet_grid--phantom')
         entry_mode = additem == 'entry' and not resourceField
