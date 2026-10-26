@@ -169,6 +169,7 @@ Tags
         <experimental>
             <page no_mako="True" page_class_cache="True" dojo_xhr_patch="fetch"/>
             <db next_sql_compiler="True"/>
+            <htmltopdf kajenn_print_url="http://print.example.com:8000"/>
         </experimental>
 
     A switch of an experimental feature lives under ``<experimental>`` and nowhere
@@ -193,6 +194,15 @@ Tags
     * ``next_sql_compiler``: compile the queries with ``SqlQueryCompilerNext`` of
       ``compiler_next.py``, the copy of the query compiler that receives new work,
       instead of the frozen ``SqlQueryCompiler``.
+
+    ``<htmltopdf>`` switches:
+
+    * ``kajenn_print_url``: the url of a kajenn print server. When set, the default
+      htmltopdf service is the ``kajennprint`` implementation connecting to that
+      server, instead of a renderer installed on the site host. A service configured
+      in ``sys.service`` or in the site configuration is not affected; the ``KAJENN_PRINT_URL`` environment
+      variable is only the url default of a ``kajennprint`` service and does not
+      switch anything by itself.
 
     ``<storage>`` switches:
 
