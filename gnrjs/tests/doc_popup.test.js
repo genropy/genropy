@@ -88,6 +88,13 @@ function createPage() {
             clearValue() { const built = []; panels.push(built); Object.assign(panelNode, sourceNode(built)); return panelNode; }
         });
     }};
+    // the popup at an icon: one built content per opening
+    const tooltips = [];
+    genro.dlg.quickTooltipPane = (kw, contentCb) => {
+        const built = [];
+        contentCb(sourceNode(built));
+        tooltips.push({kw, built});
+    };
     const dialogs = [];
     genro.dlg.quickDialog = (title, kw) => {
         const built = [];
@@ -105,7 +112,8 @@ function createPage() {
         icons.push(icon);
         return icon;
     };
-    return {context, genro, data, requests, responses, panels, dialogs, published, docListeners, newIcon, editors};
+    return {context, genro, data, requests, responses, panels, tooltips, dialogs, published, docListeners, newIcon,
+            editors};
 }
 
 const flush = () => new Promise((resolve) => setImmediate(resolve));
@@ -172,33 +180,31 @@ test('the help panel shows the manual section, a link to the manual and the cust
         manual: {title: 'The email', html: '<p>From the manual</p>', url: 'https://docs.example.org/op.html#a'}});
     const built = page.panels[0];
     assert.deepEqual(classes(built), [
-        ['div', 'doc_help_panel'], ['div', 'doc_help_panel_head'], ['div', 'doc_help_panel_title'],
-        ['div', 'doc_help_panel_close'], ['div', 'doc_help_panel_body'], ['div', 'doc_help_manual'],
+        ['div', 'doc_help_panel'], ['div', 'doc_help_panel_resize'], ['div', 'doc_help_panel_head'],
+        ['div', 'doc_help_panel_title'], ['div', 'doc_help_panel_tool'], ['div', 'doc_help_panel_close'],
+        ['div', 'doc_help_panel_body'], ['div', 'doc_help_manual'],
         ['a', 'doc_help_link'], ['div', 'doc_help_note'], ['div', 'doc_help_note_title'],
         ['div', 'doc_help_note_body'], ['a', 'doc_help_edit']]);
     assert.equal(byClass(built, 'doc_help_panel_title').innerHTML, 'The email', 'the manual\'s title');
     assert.equal(byClass(built, 'doc_help_manual').innerHTML, '<p>From the manual</p>');
     assert.equal(byClass(built, 'doc_help_link').href, 'https://docs.example.org/op.html#a');
-    assert.equal(byClass(built, 'doc_help_link').target, 'gnr_manual');
-    const opened = [];
-    page.genro.openWindow = (url, name, params) => opened.push([url, name, params.width]);
-    let prevented = false;
-    byClass(built, 'doc_help_link').connect_onclick({preventDefault() { prevented = true; }});
-    assert.ok(prevented, 'the page is not left');
-    assert.deepEqual(opened, [['https://docs.example.org/op.html#a', 'gnr_manual', '1000']],
-                     'a window of its own, the same one for every link');
+    assert.equal(byClass(built, 'doc_help_link').target, '_blank', 'a plain click elsewhere: a new tab');
     assert.equal(byClass(built, 'doc_help_note_body').innerHTML, '<p>Note X</p>', 'the note filled');
     assert.equal(byClass(built, 'doc_help_edit').innerHTML, '!!Edit the note');
     byClass(built, 'doc_help_edit').connect_onclick({preventDefault() {}});
     assert.equal(edited, 1);
+    page.panels.length = 0;
+    page.genro.dlg.closeHelpPanel();
+    page.genro.dlg.helpPanel('field:adm.user:email', {}, {exists: false, editable: false,
+                                                           manual: {title: 'T', html: '', url: 'https://d.org/a.html#x'}});
     const inDialog = escape({closest: (selector) => (selector === '.dijitDialog' ? {} : null)});
     page.docListeners.keydown(inDialog);
-    assert.equal(page.panels.length, 1, 'Esc in a dialog above the page is the dialog\'s');
+    assert.equal(page.panels.length, 2, 'Esc in a dialog above the page is the dialog\'s');
     assert.ok(!inDialog.stopped);
     const onPage = escape({closest: () => null});
     page.docListeners.keydown(onPage);
-    assert.equal(page.panels.length, 2, 'Esc clears the panel');
-    assert.equal(page.panels[1].length, 0);
+    assert.equal(page.panels.length, 3, 'Esc clears the panel');
+    assert.equal(page.panels[2].length, 0);
     assert.ok(onPage.stopped && onPage.prevented, 'and nothing below closes with it');
     assert.equal(page.docListeners.keydown, undefined, 'and stops listening');
 });
@@ -220,10 +226,10 @@ test('the help panel without manual: the note alone, or a way to add one, or not
     const page = createPage();
     page.genro.dlg.helpPanel('field:adm.user:email', {title: 'Email'}, {exists: true, editable: false,
                                                                         title: 'email', html: '<p>Note</p>'});
-    assert.deepEqual(classes(page.panels[0]).slice(5).map(([, c]) => c), ['doc_help_note', 'doc_help_note_body'],
+    assert.deepEqual(classes(page.panels[0]).slice(7).map(([, c]) => c), ['doc_help_note', 'doc_help_note_body'],
                      'no manual, no "Notes" title, no Edit');
     page.genro.dlg.helpPanel('field:adm.user:phone', {}, {exists: false, editable: true, title: 'phone'});
-    assert.deepEqual(classes(page.panels[1]).slice(5).map(([, c]) => c), ['doc_help_empty', 'doc_help_edit']);
+    assert.deepEqual(classes(page.panels[1]).slice(7).map(([, c]) => c), ['doc_help_empty', 'doc_help_edit']);
     assert.equal(byClass(page.panels[1], 'doc_help_edit').innerHTML, '!!Add a note');
     byClass(page.panels[1], 'doc_help_panel_close').connect_onclick();
     assert.equal(page.panels[2].length, 0, 'the close button clears it');
@@ -248,6 +254,101 @@ test('openDoc: the panel with the note filled; an address with nothing opens the
     page.responses.push([404, null]);
     await page.genro.dlg.openDoc({}, 'field:sys.service:name', {title: 'Name'});
     assert.equal(byClass(page.panels[2], 'doc_help_empty').innerHTML, '!!No documentation available');
+});
+
+test('Open in the manual shows the manual page in the widened panel, never leaving the page', () => {
+    const page = createPage();
+    const url = '/_storage/site/manual/users.html#help-field-adm-user-email';
+    const source = {exists: false, editable: false, manual: {title: 'Email', html: '<p>M</p>', url}};
+    page.genro.dlg.helpPanel('field:adm.user:email', {}, source);
+    let prevented = false;
+    byClass(page.panels[0], 'doc_help_link').connect_onclick({preventDefault() { prevented = true; }});
+    assert.ok(prevented, 'the link is not followed');
+    const built = page.panels[1];
+    assert.equal(byClass(built, 'doc_help_panel doc_help_panel--wide').width, null, 'widened');
+    const frame = byClass(built, 'doc_help_panel_frame');
+    assert.equal(frame.src, url, 'at the section');
+    assert.equal(frame.externalSite, true, 'no page id appended to its url');
+    assert.ok(!/allow-same-origin|allow-top-navigation/.test(frame.sandbox), 'it can neither reach nor replace the page');
+    assert.equal(byClass(built, 'doc_help_panel_body'), undefined, 'the frame in place of the help');
+    const [, [, newWindow]] = built.filter(([, attrs]) => attrs._class === 'doc_help_panel_tool');
+    assert.deepEqual([newWindow.href, newWindow.target, newWindow.rel], [url, '_blank', 'noopener']);
+    built.find(([, attrs]) => attrs.title === '!!Back to the help')[1].connect_onclick();
+    assert.equal(byClass(page.panels[2], 'doc_help_manual').innerHTML, '<p>M</p>', 'back to the section');
+    assert.equal(byClass(page.panels[2], 'doc_help_panel_frame'), undefined);
+});
+
+test('the help panel widens and narrows; a dragged width is used by the next panel', () => {
+    const page = createPage();
+    page.genro.dlg.helpPanel('field:adm.user:email', {}, {exists: true, html: '<p>N</p>'});
+    assert.equal(byClass(page.panels[0], 'doc_help_panel').width, null, 'the default width of the css');
+    page.panels[0].find(([, attrs]) => attrs.title === '!!Widen')[1].connect_onclick();
+    assert.ok(byClass(page.panels[1], 'doc_help_panel doc_help_panel--wide'));
+    page.panels[1].find(([, attrs]) => attrs.title === '!!Narrow')[1].connect_onclick();
+    assert.ok(byClass(page.panels[2], 'doc_help_panel'));
+    const style = {}, classList = new Set(['doc_help_panel']);
+    const panelDom = {style, classList: {add: (c) => classList.add(c), remove: (c) => classList.delete(c)}};
+    const listeners = {};
+    const handle = {parentNode: panelDom, setPointerCapture() {},
+                    addEventListener: (evt, h) => { listeners[evt] = h; },
+                    removeEventListener: (evt) => { delete listeners[evt]; }};
+    page.context.window = {innerWidth: 1000};
+    const stored = [];
+    page.genro.setInStorage = (type, key, value) => stored.push([type, key, value]);
+    byClass(page.panels[2], 'doc_help_panel_resize').connect_onpointerdown(
+        {currentTarget: handle, pointerId: 1, preventDefault() {}});
+    listeners.pointermove({clientX: 400});
+    assert.equal(style.width, '600px', 'from the pointer to the right edge');
+    listeners.pointermove({clientX: 950});
+    assert.equal(style.width, '320px', 'never narrower than 320px');
+    listeners.pointermove({clientX: 10});
+    assert.equal(style.width, '900px', 'never wider than 90% of the window');
+    listeners.pointerup();
+    assert.deepEqual(stored, [['local', 'docHelpPanelWidth', 900]], 'kept in the browser');
+    assert.equal(listeners.pointermove, undefined);
+    page.genro.dlg.helpPanel('field:adm.user:phone', {}, {exists: true, html: '<p>N</p>'});
+    assert.equal(byClass(page.panels.at(-1), 'doc_help_panel').width, '900px');
+});
+
+test('openDoc with tooltip: the help in a popup at the icon, the panel untouched', async () => {
+    const page = createPage();
+    const icon = {};
+    page.responses.push([200, {exists: true, editable: true, title: 'email', html: '<p>Note</p>', markdown: 'Note',
+                               language: 'it', mtime: 5,
+                               manual: {title: 'The email', html: '<p>M</p>', url: 'https://docs.example.org/a.html#x'}}]);
+    await page.genro.dlg.openDoc(icon, 'field:adm.user:email', {title: 'Email', tooltip: true});
+    assert.equal(page.panels.length, 0, 'no help panel');
+    assert.equal(page.tooltips.length, 1);
+    const {kw, built} = page.tooltips[0];
+    assert.equal(kw.domNode, icon, 'anchored to the icon clicked');
+    assert.equal(kw.nodeId, 'doc_help_tooltip', 'one popup for the page');
+    assert.deepEqual(classes(built), [
+        ['div', 'doc_help_tooltip_box'], ['div', 'doc_help_tooltip_title'], ['div', 'doc_help_tooltip_body'],
+        ['div', 'doc_help_manual'], ['a', 'doc_help_link'], ['div', 'doc_help_note'], ['div', 'doc_help_note_title'],
+        ['div', 'doc_help_note_body'], ['a', 'doc_help_edit']], 'what the help panel shows');
+    assert.equal(byClass(built, 'doc_help_tooltip_title').innerHTML, 'Email', "the caller's title");
+    byClass(built, 'doc_help_edit').connect_onclick({preventDefault() {}});
+    assert.deepEqual(page.published.at(-1), ['doc_help_tooltip_opener_close', undefined], 'Edit closes the popup');
+    assert.equal(page.dialogs.length, 1, 'and opens the editor');
+    assert.equal(page.docListeners.keydown, undefined, 'Esc is no longer heard for it');
+});
+
+test('the help popup closes on Esc; an address with nothing still opens the editor to a documenter', async () => {
+    const page = createPage();
+    page.responses.push([200, {exists: false, editable: false, title: 'card', html: '', markdown: '',
+                               language: 'it', mtime: null, manual: {title: 'Card', html: '<p>M</p>', url: ''}}]);
+    await page.genro.dlg.openDoc({}, 'grouplet:test:card_profile', {tooltip: true});
+    assert.equal(byClass(page.tooltips[0].built, 'doc_help_tooltip_title').innerHTML, 'Card', "the manual's title");
+    page.docListeners.keydown({key: 'Enter'});
+    assert.equal(page.published.length, 0, 'another key leaves it open');
+    page.docListeners.keydown({key: 'Escape'});
+    assert.deepEqual(page.published.at(-1), ['doc_help_tooltip_opener_close', undefined]);
+    assert.equal(page.docListeners.keydown, undefined);
+    page.responses.push([200, {exists: false, editable: true, title: 'phone', html: '', markdown: '',
+                               language: 'it', mtime: null, manual: null}]);
+    await page.genro.dlg.openDoc({}, 'field:adm.user:phone', {title: 'Phone', tooltip: true});
+    assert.equal(page.tooltips.length, 1, 'no popup');
+    assert.equal(page.dialogs.length, 1, 'straight to the editor');
 });
 
 test("the doc's own title is text: its markup is escaped, the caller's title is the caller's", async () => {

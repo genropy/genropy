@@ -110,7 +110,7 @@ class PublicBase(BaseComponent):
         if title and helpcode:
             label = rb.div(_class='pbl_roundedGroupLabel', display='flex', flex_direction='row', align_items='center')
             label.div(title, flex='1')
-            label.docHelpButton(self.public_pageDocAddress(helpcode), title=title)
+            label.docHelpButton(self.public_pageDocAddress(helpcode), title=title, tooltip=True)
         elif title:
             rb.div(title,_class='pbl_roundedGroupLabel')
         return rb.div(_class='pbl_roundedGroupContent')
@@ -128,7 +128,8 @@ class PublicBase(BaseComponent):
             bar = frame.top.slotBar('5,blocktitle,*,blockhelp,5' if helpcode else '5,blocktitle,*',
                                     _class='pbl_roundedGroupLabel',blocktitle=title)
             if helpcode:
-                bar.blockhelp.docHelpButton(self.public_pageDocAddress(helpcode), title=title)
+                bar.blockhelp.docHelpButton(self.public_pageDocAddress(helpcode), title=title,
+                                            tooltip=True)
         return frame
 
 

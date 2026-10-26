@@ -974,50 +974,62 @@ dojo.declare("gnr.GnrDlgHandler", null, {
         // the help of an address, on the right of the page (a help panel): the
         // manual's section with a link to it, then the customer's note, with
         // Edit for a documenter. One panel per page, its topic changes on the
-        // next click; the close button or Esc closes it
-        kw = kw || {};
-        source = source || {};
-        const manual = source.manual;
-        const title = this._docTitleHtml(kw, {title: (manual && manual.title) || source.title});
-        // the server sends only http(s) urls under the manual's site: a url of any
-        // other shape is not followed
-        const manualUrl = manual && /^(https?:\/\/|\/(?!\/))/i.test(manual.url || '') ? manual.url : null;
+        // next click; the close button or Esc closes it. Its left edge drags
+        // its width, kept in the browser; ⤢ widens it
+        this._helpPanelArgs = [address, kw || {}, source || {}];
+        this._helpPanelManualUrl = null;
+        this._renderHelpPanel();
+    },
+
+    showManual: function(address, kw, source, url) {
+        // the manual's page in the help panel, widened: the page is never left,
+        // whatever the browser makes of a new window
+        this._helpPanelArgs = [address, kw || {}, source || {}];
+        this._helpPanelManualUrl = url;
+        this._helpPanelWide = true;
+        this._renderHelpPanel();
+    },
+
+    _renderHelpPanel: function() {
+        const [address, kw, source] = this._helpPanelArgs;
+        const manualUrl = this._helpPanelManualUrl;
+        const width = this._helpPanelWidth || this._storedHelpPanelWidth();
         genro.src.getNode()._('div', '_doc_help_panel_');
         const node = genro.src.getNode('_doc_help_panel_').clearValue();
         node.freeze();
-        const panel = node._('div', {_class: 'doc_help_panel', role: 'complementary', 'aria_label': _T('!!Help')});
+        const panel = node._('div', {_class: 'doc_help_panel' + (this._helpPanelWide ? ' doc_help_panel--wide' : ''),
+                                     width: !this._helpPanelWide && width ? width + 'px' : null,
+                                     role: 'complementary', 'aria_label': _T('!!Help')});
+        panel._('div', {_class: 'doc_help_panel_resize', title: _T('!!Drag to resize'),
+                        connect_onpointerdown: (e) => this._resizeHelpPanel(e)});
         const head = panel._('div', {_class: 'doc_help_panel_head'});
-        head._('div', {_class: 'doc_help_panel_title', innerHTML: title});
+        if (manualUrl) {
+            head._('div', {_class: 'doc_help_panel_tool', innerHTML: '&#8592; ' + _T('!!Help'),
+                           title: _T('!!Back to the help'), connect_onclick: () => {
+                               this._helpPanelManualUrl = null;
+                               this._renderHelpPanel();
+                           }});
+        }
+        head._('div', {_class: 'doc_help_panel_title', innerHTML: this._docHelpTitle(kw, source)});
+        if (manualUrl) {
+            head._('a', {_class: 'doc_help_panel_tool', href: manualUrl, target: '_blank', rel: 'noopener',
+                         innerHTML: '&#8599;', title: _T('!!Open in a new window')});
+        }
+        head._('div', {_class: 'doc_help_panel_tool', innerHTML: this._helpPanelWide ? '&#8690;' : '&#10530;',
+                       title: this._helpPanelWide ? _T('!!Narrow') : _T('!!Widen'), connect_onclick: () => {
+                           this._helpPanelWide = !this._helpPanelWide;
+                           this._renderHelpPanel();
+                       }});
         head._('div', {_class: 'doc_help_panel_close', innerHTML: '&times;', title: _T('!!Close'),
                        connect_onclick: () => this.closeHelpPanel()});
-        const body = panel._('div', {_class: 'doc_help_panel_body'});
-        if (manual) {
-            body._('div', {_class: 'doc_help_manual', innerHTML: manual.html});
-        }
         if (manualUrl) {
-            // a window of its own, reused by the next link: the page stays where it is
-            body._('a', {_class: 'doc_help_link', href: manualUrl, target: 'gnr_manual',
-                         innerHTML: _T('!!Open in the manual') + ' &#8599;',
-                         connect_onclick: (e) => {
-                             e.preventDefault();
-                             genro.openWindow(manualUrl, 'gnr_manual', {width: '1000', height: '800'});
-                         }});
-        }
-        if (source.exists) {
-            const note = body._('div', {_class: 'doc_help_note'});
-            if (manual) note._('div', {_class: 'doc_help_note_title', innerHTML: _T('!!Notes')});
-            note._('div', {_class: 'doc_help_note_body',
-                           innerHTML: kw.fill ? kw.fill(source.html) : source.html});
-        } else if (!manual) {
-            body._('div', {_class: 'doc_help_empty', innerHTML: _T('!!No documentation available')});
-        }
-        if (source.editable) {
-            body._('a', {_class: 'doc_help_edit', href: '#',
-                         innerHTML: source.exists ? _T('!!Edit the note') : _T('!!Add a note'),
-                         connect_onclick: (e) => {
-                             e.preventDefault();
-                             this.docEdit(address, kw, source);
-                         }});
+            // no same-origin and no top navigation: the manual can neither
+            // reach this page nor replace it; externalSite keeps the page id
+            // off its url, where it would also break the section's anchor
+            panel._('iframe', {_class: 'doc_help_panel_frame', src: manualUrl, externalSite: true,
+                               sandbox: 'allow-scripts allow-popups allow-popups-to-escape-sandbox'});
+        } else {
+            this._docHelpBody(panel._('div', {_class: 'doc_help_panel_body'}), address, kw, source);
         }
         node.unfreeze();
         this._helpPanelAddress = address;
@@ -1033,10 +1045,116 @@ dojo.declare("gnr.GnrDlgHandler", null, {
         document.addEventListener('keydown', this._helpEscape, true);
     },
 
+    _resizeHelpPanel: function(e) {
+        const panel = e.currentTarget.parentNode;
+        const handle = e.currentTarget;
+        e.preventDefault();
+        handle.setPointerCapture(e.pointerId);
+        panel.classList.add('doc_help_panel--resizing');
+        const move = (evt) => {
+            const width = Math.round(Math.min(Math.max(window.innerWidth - evt.clientX, 320), window.innerWidth * 0.9));
+            panel.classList.remove('doc_help_panel--wide');
+            panel.style.width = width + 'px';
+            this._helpPanelWide = false;
+            this._helpPanelWidth = width;
+        };
+        const up = () => {
+            handle.removeEventListener('pointermove', move);
+            handle.removeEventListener('pointerup', up);
+            panel.classList.remove('doc_help_panel--resizing');
+            try {
+                genro.setInStorage('local', 'docHelpPanelWidth', this._helpPanelWidth);
+            } catch (error) {
+                // a browser with no storage keeps the width for this page only
+            }
+        };
+        handle.addEventListener('pointermove', move);
+        handle.addEventListener('pointerup', up);
+    },
+
+    _storedHelpPanelWidth: function() {
+        try {
+            return genro.getFromStorage('local', 'docHelpPanelWidth') || null;
+        } catch (error) {
+            return null;
+        }
+    },
+
+    helpTooltip: function(domNode, address, kw, source) {
+        // the help of an address in a popup at its icon, for a field or a part
+        // of a page: what the help panel shows. One popup for the page, moved to
+        // the icon clicked; a click outside or Esc closes it
+        kw = kw || {};
+        source = source || {};
+        this.quickTooltipPane({nodeId: 'doc_help_tooltip', domNode: domNode, _class: 'doc_help_tooltip'}, (pane) => {
+            const box = pane._('div', {_class: 'doc_help_tooltip_box'});
+            box._('div', {_class: 'doc_help_tooltip_title', innerHTML: this._docHelpTitle(kw, source)});
+            this._docHelpBody(box._('div', {_class: 'doc_help_tooltip_body'}), address, kw, source);
+        });
+        if (this._tooltipEscape) return;
+        // the focus is in the popup: Esc is heard on the document while it is open
+        this._tooltipEscape = (e) => {
+            if (e.key !== 'Escape') return;
+            this.closeHelpTooltip();
+        };
+        document.addEventListener('keydown', this._tooltipEscape, true);
+    },
+
+    closeHelpTooltip: function() {
+        if (!this._tooltipEscape) return;
+        document.removeEventListener('keydown', this._tooltipEscape, true);
+        this._tooltipEscape = null;
+        genro.publish('doc_help_tooltip_opener_close');
+    },
+
+    _docHelpTitle: function(kw, source) {
+        return this._docTitleHtml(kw, {title: (source.manual && source.manual.title) || source.title});
+    },
+
+    _docHelpBody: function(body, address, kw, source) {
+        // the manual's section with a link to it, then the customer's note, with
+        // Edit for a documenter: the content of the help panel and of the popup
+        const manual = source.manual;
+        // the server sends only http(s) urls under the manual's site: a url of any
+        // other shape is not followed
+        const manualUrl = manual && /^(https?:\/\/|\/(?!\/))/i.test(manual.url || '') ? manual.url : null;
+        if (manual) {
+            body._('div', {_class: 'doc_help_manual', innerHTML: manual.html});
+        }
+        if (manualUrl) {
+            // the manual's page in the help panel: the page stays where it is
+            body._('a', {_class: 'doc_help_link', href: manualUrl, target: '_blank', rel: 'noopener',
+                         innerHTML: _T('!!Open in the manual') + ' &#8599;',
+                         connect_onclick: (e) => {
+                             e.preventDefault();
+                             this.closeHelpTooltip();
+                             this.showManual(address, kw, source, manualUrl);
+                         }});
+        }
+        if (source.exists) {
+            const note = body._('div', {_class: 'doc_help_note'});
+            if (manual) note._('div', {_class: 'doc_help_note_title', innerHTML: _T('!!Notes')});
+            note._('div', {_class: 'doc_help_note_body',
+                           innerHTML: kw.fill ? kw.fill(source.html) : source.html});
+        } else if (!manual) {
+            body._('div', {_class: 'doc_help_empty', innerHTML: _T('!!No documentation available')});
+        }
+        if (source.editable) {
+            body._('a', {_class: 'doc_help_edit', href: '#',
+                         innerHTML: source.exists ? _T('!!Edit the note') : _T('!!Add a note'),
+                         connect_onclick: (e) => {
+                             e.preventDefault();
+                             this.closeHelpTooltip();
+                             this.docEdit(address, kw, source);
+                         }});
+        }
+    },
+
     closeHelpPanel: function() {
         const node = genro.src.getNode('_doc_help_panel_');
         if (node) node.clearValue();
         this._helpPanelAddress = null;
+        this._helpPanelManualUrl = null;
         if (this._helpEscape) {
             document.removeEventListener('keydown', this._helpEscape, true);
             this._helpEscape = null;
@@ -1053,12 +1171,17 @@ dojo.declare("gnr.GnrDlgHandler", null, {
 
     openDoc: function(domNode, address, kw) {
         // the "?" of an address. kw: title, fill (a note's html filled with the
-        // caller's data), placeholders (the variables the editor offers). An
-        // address with neither manual nor note opens the editor to a documenter
+        // caller's data), placeholders (the variables the editor offers),
+        // tooltip (a popup at the icon instead of the help panel). An address
+        // with neither manual nor note opens the editor to a documenter
         kw = kw || {};
         return this.docSource(address, (source) => {
             if (source && !source.exists && !source.manual && source.editable) {
                 this.docEdit(address, kw, source);
+                return;
+            }
+            if (kw.tooltip) {
+                this.helpTooltip(domNode, address, kw, source);
                 return;
             }
             this.helpPanel(address, kw, source);

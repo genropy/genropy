@@ -74,6 +74,7 @@ class WithMethod(object):
     ('grouplet:adm.user:contacts', 'adm/user/grouplets/contacts'),
     ('grouplet:test:topic/card', 'test/_grouplets/topic/card'),
     ('page:test/orders:delivery', 'test/_pages/orders/delivery'),
+    ('page:test/orders:', 'test/_pages/orders/_page'),
 ])
 def test_an_address_has_one_folder(address, folder):
     assert doc_folder(address) == folder
