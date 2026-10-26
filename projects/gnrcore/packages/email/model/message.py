@@ -301,7 +301,8 @@ class Table(object):
         extra_headers = Bag(dict(message_id=message_id,message_date=str(message_date)))
         if headers_kwargs:
             extra_headers.update(headers_kwargs)
-        account_id = account_id or self.db.application.getPreference('mail.email_account_id', pkg='adm')
+        account_id = account_id or self.db.application.getPreference(
+            'mail.email_account_id', pkg='adm', mandatoryMsg='!!No default mail account is configured')
         
         if not weak_attachments:
             weak_attachments = None
