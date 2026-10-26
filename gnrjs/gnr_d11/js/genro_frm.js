@@ -1671,6 +1671,11 @@ dojo.declare("gnr.GnrFrmHandler", null, {
 
     _triggerInvalidFields:function(invalidFields,recordData){
         for (var p in invalidFields){
+            if(!recordData.getNode(p)){
+                //setting a missing path would recreate it, a removed row first
+                delete invalidFields[p];
+                continue;
+            }
             if(this.currentFocused && this.currentFocused._focused && this.currentFocused.sourceNode.attr.value){
                 let valuepath = this.currentFocused.sourceNode.absDatapath(this.currentFocused.sourceNode.attr.value)
                 let invalidValuePath = this.sourceNode.absDatapath('.record.'+p);
@@ -2117,7 +2122,23 @@ dojo.declare("gnr.GnrFrmHandler", null, {
                 changes.popNode(n.label);
             }
         });
+        this.forgetRemovedInvalidFields(kw.node, kw.where);
         this.updateStatus();
+    },
+    forgetRemovedInvalidFields:function(node, where){
+        //the record keeps its invalid fields to save them anyway: a removed node takes its own away
+        var ownerNode = this.recordOwnerNode(node);
+        var invalidFields = ownerNode && ownerNode.attr._invalidFields;
+        if(!invalidFields){
+            return;
+        }
+        var parentPath = where.getFullpath('static', ownerNode.getValue('static'));
+        var removed = parentPath ? parentPath + '.' + node.label : node.label;
+        for(var fpath in invalidFields){
+            if(fpath == removed || fpath.indexOf(removed + '.') === 0){
+                delete invalidFields[fpath];
+            }
+        }
     },
     getChangeKey:function(changekey) {
         if (typeof(changekey) != 'string') {//changekey is a data node
