@@ -209,3 +209,41 @@ class GnrCustomWebPage(object):
             viewResource='ViewWizard',
             formResource='FormWizardLeft',
             view_store__onStart=True)
+
+    def test_13_wizard_step_summary_left(self, pane):
+        """stepSummary=True, stepper on the left: every COMPLETED step shows
+        its grouplet's __info__ template under the caption. Fill Contact and
+        Shipping and advance: each summary appears once its step is passed,
+        never on the active one. Back to Contact, change the name, advance:
+        the summary follows. Going back to Contact turns the later steps
+        pending again, and their summaries disappear. Notes has no template:
+        it never shows one."""
+        pane.borderContainer(height='420px', border='1px solid silver',
+                             datapath='.wizard_summary_left').groupletWizard(
+            topic='wizard_summary', value='^.record',
+            frameCode='wizard_summary_left', stepperPosition='left',
+            stepSummary=True, region='center')
+
+    def test_14_wizard_no_step_summary(self, pane):
+        """test_13 without stepSummary: the steps declare a template, and
+        the stepper shows only the captions, as before."""
+        pane.borderContainer(height='420px', border='1px solid silver',
+                             datapath='.wizard_no_summary').groupletWizard(
+            topic='wizard_summary', value='^.record',
+            frameCode='wizard_no_summary', stepperPosition='left',
+            region='center')
+
+    def test_15_wizard_save_on_one_step(self, pane):
+        """saveOnNext='charge', saveLabel, confirmedReadOnly on test.booking
+        (no draftField). A NEW booking: Period → Holder → Charge saves
+        nothing (the list does not grow); the Next of Charge reads Register;
+        it inserts the booking and lands on Registered, locked, without
+        Back. Close the dialog: no pending-changes question. Reopen the
+        booking: it opens on Registered, locked."""
+        pane.borderContainer(height='500px').contentPane(
+            region='center').dialogTableHandler(
+            table='test.booking',
+            datapath='.booking_save_step',
+            viewResource='View',
+            formResource='FormSaveStep',
+            view_store__onStart=True)

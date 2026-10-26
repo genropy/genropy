@@ -135,7 +135,7 @@ class Form(BaseComponent):
                             subscribe_setInLocalIframe=True,grid=fg.grid.js_widget,
                             data='=#FORM.record.sourcebag')
 
-        center = bc.borderContainer(region='center',_class='hideSplitter',border='1px solid silver',margin='4px')
+        center = bc.borderContainer(region='center',_class='hideSplitter',border='1px solid var(--border-color)',margin='4px')
         bc.dataController("""var width = 0;
                             status = status || 'rstonly';
                              if(status=='mixed'){
@@ -187,7 +187,7 @@ class Form(BaseComponent):
         return cm
         
     def sourcePreviewIframe(self,parent):
-        bc = parent.borderContainer(region='right',splitter=True,border_left='1px solid silver',background='white')
+        bc = parent.borderContainer(region='right',splitter=True,border_left='1px solid var(--border-color)',background='white')
         bc.contentPane(region='center',overflow='hidden').iframe(src='^#FORM.versionsFrame.selectedUrl',src__avoid_module_cache=True,height='100%',
                     width='100%',border=0,margin='3px')
         bc.dataController("PUT #FORM.versionsFrame.selectedUrl = null;",_fired='^#FORM.controller.saving')

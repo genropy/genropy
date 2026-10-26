@@ -99,6 +99,12 @@
 .slotbar_toolbar_standard + .slotbar_toolbar_standard{
     border-top: none;
 }
+/* only a th view toolbar at the top edge of a tab page: it sits under the tab pane border */
+.dijitTabPane:not(.dijitBorderContainer) > .frameGrid > .dijitContentPane > .slotbar_toolbar_standard.slotbar_toolbar_side_top,
+.dijitTabPane:not(.dijitBorderContainer) > .dijitContentPane > .frameGrid > .dijitContentPane > .slotbar_toolbar_standard.slotbar_toolbar_side_top,
+.dijitTabPane:not(.dijitBorderContainer) > .dijitContentPane > .dijitContentPane > .frameGrid > .dijitContentPane > .slotbar_toolbar_standard.slotbar_toolbar_side_top{
+    border-top: none;
+}
 
 
 /* Arrow in dropdown buttons - toolbar */

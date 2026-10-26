@@ -83,6 +83,8 @@ class AppPrefHandler(BasePreferenceTabs):
                                 #store_startKey='_mainpref_',
                                 table='adm.preference', datapath=datapath,
                                 store=True, modal=True, **kwargs)
+        form.store.handler('load', onLoadingHandler=self.ph_onLoadingAppPreferences)
+        form.store.handler('save', onSavingHandler=self.ph_onSavingAppPreferences)
         form.dataController("""
             var tkw = _triggerpars.kw;
             if(tkw.reason && tkw.reason.attr && tkw.reason.attr.livePreference){
@@ -102,6 +104,15 @@ class AppPrefHandler(BasePreferenceTabs):
         bar.savebtn.button('!!Save', action='this.form.publish("save")',
                            iconClass='fh_semaphore')
         return form
+
+    @public_method
+    def ph_onLoadingAppPreferences(self, record, newrecord, loadingParameters, recInfo):
+        if not newrecord:
+            self.db.table('adm.preference').applyHostingPreferences(record, recInfo)
+
+    @public_method
+    def ph_onSavingAppPreferences(self, recordCluster, recordClusterAttr, resultAttr=None):
+        self.db.table('adm.preference').restoreTenantPreferences(recordCluster['data'])
 
     def _ph_preferenceMenu(self, **kwargs):
         menu = self.gr_getGroupletMenu(grouplets_root='app_preferences')
@@ -162,7 +173,7 @@ class AppPrefHandler(BasePreferenceTabs):
     
     @public_method
     def ph_updatePrefCache(self,prefdbstore=None,**kwargs):
-        self.db.application.cache.updatedItem( '_storepref_%s' %prefdbstore)
+        self.db.table('adm.preference').invalidateStorePreference(prefdbstore)
     
 
     @struct_method
@@ -301,7 +312,7 @@ class UserPrefHandler(BasePreferenceTabs):
     
     @public_method
     def ph_updatePrefCache(self,prefdbstore=None,**kwargs):
-        self.db.application.cache.updatedItem( '_storepref_%s' %prefdbstore)
+        self.db.table('adm.preference').invalidateStorePreference(prefdbstore)
     
 
 class UserPrefMenu(BaseComponent):

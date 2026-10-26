@@ -41,6 +41,10 @@ from gnr.web.gnrwebpage_proxy.frontend.template_lookup import lookup_template_cl
 
 
 DEFAULT_CSS_THEME = os.environ.get('GNR_CSS_THEME', 'mimi')
+# the explicit variant of the palette a theme shows when no color variant is set
+DEFAULT_COLOR_VARIANT = 'gray'
+# a values= key cannot be empty: the select offers this one and the pane stores null for it
+UNSET_COLOR_VARIANT = '_default_'
 
 from gnr.core.gnrstring import toText, toJson, concat, jsquote,splitAndStrip,boolean,asDict
 from gnr.core.gnrdict import dictExtract
@@ -71,6 +75,7 @@ from gnr.web.gnrbaseclasses import BaseComponent # noqa: F401
 
 
 from gnr.app.gnrlocalization import GnrLocString
+from gnr.sql.gnrsqltable import EXCEPTIONS as SQL_EXCEPTIONS
 
 AUTH_OK = 0
 AUTH_NOT_LOGGED = 1
@@ -78,6 +83,15 @@ AUTH_EXPIRED = 2
 AUTH_FORBIDDEN = -1
 PAGE_TIMEOUT = 60
 PAGE_REFRESH = 20
+LOGIN_COMPONENT = 'login:LoginComponent'
+# they authenticate by themselves, so the login dialog can call them without a session
+LOGIN_RPCS = ('login_checkAvatar', 'login_doLogin', 'login_checkOTPCode')
+
+
+def isLoginRpc(method):
+    mixin_info, _, name = (method or '').rpartition(';')
+    return name in LOGIN_RPCS and mixin_info in ('', '*|%s' % LOGIN_COMPONENT)
+
 
 ATTRIBUTES_SIMPLEWEBPAGE = ('_workdate','_language','_call_args','_call_kwargs','user','connection_id','user_ip','dbstore','user_agent','siteName')
 
@@ -154,6 +168,7 @@ class GnrWebPage(GnrBaseWebPage):
         self.extraFeatures.update(dictExtract(request_kwargs,'_extrafeature_',pop=True))
         self.base_dbstore = request_kwargs.pop('base_dbstore',None)
         self.temp_dbstore = request_kwargs.pop('temp_dbstore',None)
+        self.temp_tenant_schema = request_kwargs.pop('temp_tenant_schema',None)
         if self.temp_dbstore is False:
             self.temp_dbstore = self.application.db.rootstore
         dbstore = self.temp_dbstore or self.base_dbstore
@@ -327,7 +342,14 @@ class GnrWebPage(GnrBaseWebPage):
             self.connection.create()
             
         self.page_id = page_id or getUuid()
+        files = self.request.files
+        kwargs = {k:v for k,v in kwargs.items() if k not in files}
+        if init_info:
+            init_info = dict(init_info, request_kwargs=kwargs)
+        if class_info:
+            class_info = dict(class_info, request_kwargs=kwargs)
         page_info = dict([(k,getattr(self,k,None)) for k in ATTRIBUTES_SIMPLEWEBPAGE])
+        page_info['_call_kwargs'] = {k:v for k,v in self._call_kwargs.items() if k not in files}
         data = Bag()
         data['rootenv'] = Bag()
         data['pageArgs'] = kwargs
@@ -527,6 +549,8 @@ class GnrWebPage(GnrBaseWebPage):
             envPageArgs = dictExtract(self.pageArgs,'env_')
             if envPageArgs:
                 self._db.updateEnv(**envPageArgs)
+            if self.temp_tenant_schema:
+                self._db.updateEnv(tenant_schema=self.temp_tenant_schema)
             envCallArgs = dictExtract(self._call_kwargs,'dbenv_')
             if envCallArgs:
                 self._db.updateEnv(**envCallArgs)
@@ -651,7 +675,7 @@ class GnrWebPage(GnrBaseWebPage):
             logger.warning('page %s vanished from the register: serverstore changes discarded (%s)',
                            self.page_id, ','.join(sorted(_serverstore_changes)))
         auth = AUTH_OK
-        if method not in ('doLogin', 'onClosePage'):
+        if method not in ('doLogin', 'onClosePage') and not isLoginRpc(method):
             auth = self._checkAuth(method=method, **kwargs)
             #if auth == AUTH_OK:
             #    auth = self._checkRootPage()
@@ -1216,7 +1240,8 @@ class GnrWebPage(GnrBaseWebPage):
             handler = getattr(proxy_object,submethod)
             permissions = getattr(handler,'permissions',None)
             if not self.checkTablePermission(table=table_name,permissions=permissions):
-                raise self.exception('business_logic',message='Operation %s is not allowed' %submethod)
+                raise self.exception('business_logic', msg=self.localize('!!Operation %(operation)s is not allowed'),
+                                     operation=submethod)
         elif proxy_name == '_tblscript':
             table_pkg,table_name,table_respath,class_name,submethod = submethod.split('.')
             proxy_object = self.loadTableScript(table='.'.join((table_pkg,table_name)),respath=table_respath,class_name=class_name)
@@ -1329,9 +1354,13 @@ class GnrWebPage(GnrBaseWebPage):
         :param record: TODO.
         :param msg: TODO."""
         if isinstance(exception, str):
-            exception = EXCEPTIONS.get(exception)
+            name = exception
+            exception = EXCEPTIONS.get(name) or SQL_EXCEPTIONS.get(name)
             if not exception:
-                raise exception
+                raise GnrException(f'Unknown exception name: {name}')
+            if name in SQL_EXCEPTIONS:
+                kwargs.setdefault('tablename', '')
+                kwargs.setdefault('rowcaption', '')
         return exception(user=self.user,localizer=self.application.localizer,**kwargs)
 
     def gnrjs_imports(self):
@@ -1369,6 +1398,8 @@ class GnrWebPage(GnrBaseWebPage):
         kwargs['websockets_endpoint'] = self.async_endpoint if self.wsk_enabled else None
         kwargs['dojoXhrPatch'] = self.application.experimentalValue(
             'page', 'dojo_xhr_patch') or ''
+        kwargs['useFormletsInJsFb'] = self.application.experimentalFlag('gui', 'use_formlets_in_js_fb')
+        kwargs['inlineDoc'] = self.application.experimentalFlag('gui', 'inlinedoc')
         self.getPwaIntegration(arg_dict)
         self.getSquareLogoUrl(arg_dict)
         self.getCoverLogoUrl(arg_dict)
@@ -1892,15 +1923,20 @@ class GnrWebPage(GnrBaseWebPage):
         return ','.join(sorted(variants))
 
     @public_method
-    def getAvailableColorVariants(self, theme=None, theme_variant=None):
+    def getAvailableColorVariants(self, theme=None, theme_variant=None, unset_option=None):
         """Discover available color variants by parsing .color_variant_* classes
-        from the active theme variant CSS file."""
+        from the theme CSS file and the active theme variant CSS file.
+
+        unset_option prepends an UNSET_COLOR_VARIANT entry: 'theme' labels it as the
+        theme default (merging DEFAULT_COLOR_VARIANT into it), 'application' as the
+        application default."""
         theme = theme or self.get_css_theme() or DEFAULT_CSS_THEME
         theme_variant = theme_variant or self.get_css_theme_variant() or 'base'
         color_variants = set()
-        css_path = 'themes/%s/%s' % (theme, theme_variant)
-        css_files = self.site.resource_loader.getResourceList(
-            self.resourceDirs, css_path, 'css')
+        css_files = []
+        for css_path in ('themes/%s' % theme, 'themes/%s/%s' % (theme, theme_variant)):
+            css_files.extend(self.site.resource_loader.getResourceList(
+                self.resourceDirs, css_path, 'css'))
         for fpath in css_files:
             snode = self.site.storageNode(fpath)
             if snode.exists:
@@ -1908,7 +1944,16 @@ class GnrWebPage(GnrBaseWebPage):
                     content = f.read()
                 for match in re.finditer(r'\.color_variant_([\w-]+)\s*\{', content):
                     color_variants.add(match.group(1))
-        return ','.join(sorted(color_variants))
+        color_variants = sorted(color_variants)
+        if unset_option == 'theme':
+            caption = '!![en]Default'
+            if DEFAULT_COLOR_VARIANT in color_variants:
+                color_variants.remove(DEFAULT_COLOR_VARIANT)
+                caption = '!![en]Gray (default)'
+            color_variants.insert(0, f'{UNSET_COLOR_VARIANT}:{self.localize(caption)}')
+        elif unset_option == 'application':
+            color_variants.insert(0, f"{UNSET_COLOR_VARIANT}:{self.localize('!![en]Application default')}")
+        return ','.join(color_variants)
 
     def get_css_icons(self):
         """Get the css_icons and return it. The css_icons get is the one defined the :ref:`siteconfig_gui`
@@ -2390,7 +2435,7 @@ class GnrWebPage(GnrBaseWebPage):
         return self._package_folder
     package_folder = property(_get_package_folder)
     
-    def rpc_main(self, _auth=AUTH_OK, debugger=None,windowTitle=None,_parent_page_id=None,_root_page_id=None,branchIdentifier=None, **kwargs):
+    def rpc_main(self, _auth=AUTH_OK, debugger=None,windowTitle=None,_parent_page_id=None,_root_page_id=None,branchIdentifier=None, _forbidden_from=None, **kwargs):
         """The first method loaded in a Genro application
         
         :param _auth: the page authorizations. For more information, check the :ref:`auth` page
@@ -2425,6 +2470,11 @@ class GnrWebPage(GnrBaseWebPage):
         page.dataController("""
                             genro.dom.setClass(document.body,'developerToolElementsVisible',developerToolsVisible)""",
                             developerToolsVisible='^gnr.developerToolsVisible')
+        if self.inlineDoc:
+            page.data('gnr.docModeVisible',False)
+            page.dataController("""genro.dom.setClass(document.body,'docModeVisible',docModeVisible);
+                                   genro.dlg.docApplyStates();""",
+                                docModeVisible='^gnr.docModeVisible')
         page.dataController("""genro.src.updatePageSource('_pageRoot')""",
                         subscribe_gnrIde_rebuildPage=True,_delay=100)
         page.dataController("PUBLISH setWindowTitle=windowTitle;",windowTitle="^gnr.windowTitle",_onStart=True)
@@ -2566,14 +2616,11 @@ class GnrWebPage(GnrBaseWebPage):
                 _auth = AUTH_OK if self.deferredMainPageAuthTags(page) else AUTH_FORBIDDEN
         if _auth == AUTH_NOT_LOGGED:
             root.clear()
-            self.mixinComponent('login:LoginComponent',safeMode=True,only_callables=False)
+            self.mixinComponent(LOGIN_COMPONENT,safeMode=True,only_callables=False)
             self.loginDialog(root, **kwargs)
         elif _auth == AUTH_FORBIDDEN:
-            redirect = self.forbiddenRedirectPage
+            redirect = self._forbiddenRedirectUrl()
             if redirect:
-                params = urllib.parse.urlencode(self.pageArgs)
-                if params:
-                    redirect = '%s?%s' % (redirect, params)
                 return (page,dict(redirect=redirect))
             self.forbiddenPage(root, **kwargs)
         if not self.isGuest:
@@ -3036,6 +3083,19 @@ class GnrWebPage(GnrBaseWebPage):
         if self.avatar_rootpage:
             return self.avatar_rootpage
 
+    def _forbiddenRedirectUrl(self):
+        redirect = self.forbiddenRedirectPage
+        if not redirect:
+            return
+        params = dict(self.pageArgs)
+        # paths already rejected in this redirect chain: landing on one again would loop
+        rejected = [p for p in (params.pop('_forbidden_from', None) or '').split(',') if p]
+        rejected.append(self.request.path_info)
+        if urllib.parse.urlsplit(redirect).path in rejected:
+            return
+        params['_forbidden_from'] = ','.join(rejected)
+        return '%s%s%s' % (redirect, '&' if '?' in redirect else '?', urllib.parse.urlencode(params))
+
     def isLocalizer(self):
         """TODO"""
         return self.hasTag('_TRD_')
@@ -3043,6 +3103,12 @@ class GnrWebPage(GnrBaseWebPage):
     def isDeveloper(self):
         """TODO"""
         return self.hasTag('_DEV_')
+
+    @property
+    def inlineDoc(self):
+        """The docs of the inlinedoc storage (sys/ep_doc) instead of helper.xml:
+        ``<experimental><gui inlinedoc="true"/></experimental>``"""
+        return self.application.experimentalFlag('gui', 'inlinedoc')
 
         
 

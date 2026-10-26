@@ -97,6 +97,10 @@ class _FakeSite:
     """Bag of attributes accessed by the cleanup methods. Methods are
     invoked unbound: ``GnrWsgiSite._method(self_=_FakeSite(...))``."""
 
+    currentDomain = None
+    # the real walk, so the tests below exercise it through _runCleanup
+    _cleanupConnectionFolders = gws.GnrWsgiSite._cleanupConnectionFolders
+
     def __init__(self, **kwargs):
         for k, v in kwargs.items():
             setattr(self, k, v)
@@ -188,8 +192,9 @@ def test_maybe_both_win_spawns_thread(monkeypatch):
     site = _FakeSite(
         cleanup_threshold=100,
         cleanup_interval_minutes=4,
+        currentDomain='acme',
         register=_FakeRegister(claim_returns=True),
-        _runCleanup=lambda: runs.append(True),
+        _runCleanup=lambda **kw: runs.append(kw),
     )
     spawned = []
 
@@ -203,6 +208,43 @@ def test_maybe_both_win_spawns_thread(monkeypatch):
     # Thread is configured as a daemon and targets the site's _runCleanup
     assert spawned[0]['daemon'] is True
     assert spawned[0]['target'] is site._runCleanup
+    # the thread has no currentDomain of its own: the claimed one travels with it
+    assert spawned[0]['kwargs'] == {'domain': 'acme'}
+
+
+def test_runcleanup_walks_the_handed_domain_and_leaves_the_thread_clean():
+    seen = []
+    site = _FakeSite(
+        _cleanupConnectionFolders=lambda: seen.append(site.currentDomain),
+    )
+    gws.GnrWsgiSite._runCleanup(site, domain='acme')
+    assert seen == ['acme']
+    assert site.currentDomain is None
+
+
+def test_runcleanup_without_a_domain_leaves_the_request_domain_alone():
+    """register_explorer calls it inside an rpc: the rest of that rpc still
+    talks to the workspace register."""
+    seen = []
+    site = _FakeSite(
+        currentDomain='acme',
+        _cleanupConnectionFolders=lambda: seen.append(site.currentDomain),
+    )
+    gws.GnrWsgiSite._runCleanup(site)
+    assert seen == ['acme']
+    assert site.currentDomain == 'acme'
+
+
+def test_runcleanup_resets_the_domain_on_failure():
+    def boom():
+        raise RuntimeError('cleanup failed')
+
+    site = _FakeSite(_cleanupConnectionFolders=boom)
+    try:
+        gws.GnrWsgiSite._runCleanup(site, domain='acme')
+    except RuntimeError:
+        pass
+    assert site.currentDomain is None
 
 
 # ---------------------------------------------------------------------------
@@ -433,7 +475,7 @@ def test_maybe_real_thread_runs_cleanup():
     started = threading.Event()
     captured_ident = []
 
-    def _capture():
+    def _capture(**kw):
         captured_ident.append(threading.get_ident())
         started.set()
 

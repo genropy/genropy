@@ -19,12 +19,12 @@ dojo.declare("gnr.widgets.MDEditor", gnr.widgets.baseExternalWidget, {
     },
 
     created:function(widget, savedAttrs, sourceNode){
-        const scriptUrl = "https://uicdn.toast.com/editor/latest/toastui-editor-all.min.js";
-        const cssUrl = "https://uicdn.toast.com/editor/latest/toastui-editor.min.css";
-        const pickerCss = "https://uicdn.toast.com/tui-color-picker/latest/tui-color-picker.min.css";
-        const pickerJs  = "https://uicdn.toast.com/tui-color-picker/latest/tui-color-picker.min.js";
-        const colorCss  = "https://uicdn.toast.com/editor-plugin-color-syntax/latest/toastui-editor-plugin-color-syntax.min.css";
-        const colorJs   = "https://uicdn.toast.com/editor-plugin-color-syntax/latest/toastui-editor-plugin-color-syntax.min.js";
+        const scriptUrl = "https://uicdn.toast.com/editor/3.2.2/toastui-editor-all.min.js";
+        const cssUrl = "https://uicdn.toast.com/editor/3.2.2/toastui-editor.min.css";
+        const pickerCss = "https://uicdn.toast.com/tui-color-picker/v2.2.8/tui-color-picker.min.css";
+        const pickerJs  = "https://uicdn.toast.com/tui-color-picker/v2.2.8/tui-color-picker.min.js";
+        const colorCss  = "https://uicdn.toast.com/editor-plugin-color-syntax/3.0.3/toastui-editor-plugin-color-syntax.min.css";
+        const colorJs   = "https://uicdn.toast.com/editor-plugin-color-syntax/3.0.3/toastui-editor-plugin-color-syntax.min.js";
         
         const loadResource = (url, type) => new Promise((resolve) => {
             if (type === 'js') { genro.dom.loadJs(url, resolve); }
@@ -1677,8 +1677,14 @@ dojo.declare("gnr.widgets.joditEditor", gnr.widgets.baseExternalWidget, {
     },
     creating: function(attributes, sourceNode) {
         objectPop(attributes, 'value');
+        // read back from sourceNode.attr when the text is written, as mode and _delay are
+        objectPop(attributes, 'textpath');
         var toolbar = objectPop(attributes, 'toolbar');
         var placeholder = objectPop(attributes, 'placeholder');
+        var placeholders = this.splitList(objectPop(attributes, 'placeholders'));
+        var codeBlock = objectPop(attributes, 'codeBlock');
+        var maxLength = Number(objectPop(attributes, 'maxLength')) || 0;
+        var imageData = objectPop(attributes, 'imageData');
         var options = {
             toolbar: toolbar !== false,
             buttons: this.resolveToolbar(toolbar),
@@ -1701,7 +1707,24 @@ dojo.declare("gnr.widgets.joditEditor", gnr.widgets.baseExternalWidget, {
             beautifyHTML: false,
             cleanHTML: objectUpdate({}, this.cleanHTML)
         };
+        if(maxLength){
+            // Jodit's own counters are on by default and would sit next to the
+            // remaining budget repeating it: the budget alone is shown. Without
+            // countTextSpaces the limit plugin counts the words joined, so it
+            // would block at a different number than the one on display.
+            objectUpdate(options, {limitChars: maxLength, countTextSpaces: true, statusbar: true,
+                                   showCharsCounter: false, showWordsCounter: false});
+        }
+        // with toolbar=False there is no bar to put them in: the buttons are dropped
+        var extraButtons = options.toolbar ? this.resolveExtraButtons(placeholders, codeBlock) : [];
+        if(extraButtons.length){
+            options.extraButtons = extraButtons;
+        }
         objectUpdate(options, objectExtract(attributes, 'config_*'));
+        if(imageData){
+            // merged after config_*, so an uploader passed by the caller survives and wins
+            options.uploader = objectUpdate({insertImageAsBase64URI: true}, options.uploader);
+        }
         return {joditAttrs: {options: options,
                              mode: objectPop(attributes, 'mode') || 'wysiwyg',
                              sourceEditor: objectPop(attributes, 'sourceEditor') || 'codemirror',
@@ -1741,6 +1764,42 @@ dojo.declare("gnr.widgets.joditEditor", gnr.widgets.baseExternalWidget, {
         }
         return value.map(function(item){ return item.trim(); }).filter(Boolean);
     },
+    // extraButtons is appended to the toolbar on its own: naming a control in the
+    // buttons list too renders it twice, the second time as its bare name.
+    resolveExtraButtons: function(placeholders, codeBlock) {
+        var buttons = [];
+        if(placeholders.length){
+            buttons.push(this.placeholdersButton(placeholders));
+        }
+        if(codeBlock){
+            buttons.push(this.codeBlockButton());
+        }
+        return buttons;
+    },
+    placeholdersButton: function(names) {
+        var list = {};
+        names.forEach(function(name){
+            list['$' + name] = '$' + name;
+        });
+        return {name: 'placeholders', text: '$', tooltip: _T('Insert field'), list: list,
+                exec: function(jodit, current, opts){
+                    jodit.s.insertHTML(opts.control.args[0]);
+                }};
+    },
+    // No vendored Jodit icon fits a code block, and the only near one, source, is the
+    // glyph of the Source button already in the toolbar: a text label instead.
+    codeBlockButton: function() {
+        var that = this;
+        return {name: 'codeBlock', text: '{ }', tooltip: _T('Code block'),
+                exec: function(jodit){ that.insertCodeBlock(jodit); }};
+    },
+    // The caret cannot sit in a truly empty element: setCursorIn leaves there the
+    // invisible space Jodit uses for it, which textLength and the drop code skip.
+    insertCodeBlock: function(editor) {
+        var code = editor.createInside.element('code');
+        editor.s.insertNode(editor.createInside.element('pre', [code]));
+        editor.s.setCursorIn(code);
+    },
     modeCode: function(name) {
         var code = this.modeNames.indexOf(name) + 1;
         if(!code){
@@ -1770,11 +1829,19 @@ dojo.declare("gnr.widgets.joditEditor", gnr.widgets.baseExternalWidget, {
         editor.e.on('keydown mousedown paste drop', markUserEdit)
                 .on(editor.container, 'mousedown keydown touchstart', markUserEdit)
                 .on('change', function(){ that.onEditorChange(editor); })
-                .on('blur', function(){ that.writeValue(editor); })
+                .on('blur', function(){ that.writeValue(editor, true); })
                 .on('afterSetMode', function(){ that.onModeChange(editor); });
+        // Jodit sizes its workplace on window resize only: built in a hidden page it stays 150px high
+        var parentWidget = dijit.getEnclosingWidget(widget);
+        if(parentWidget){
+            editor._gnrParentResize = dojo.connect(parentWidget, 'resize', function(){ editor.e.fire('resize'); });
+        }
         editor.waitForReady().then(function(){
             editor.gnr_contentStyles(joditAttrs.contentStyles);
             editor.gnr_bodyStyle(joditAttrs.bodyStyle);
+            that.setupFieldDrop(editor);
+            that.releaseChangeLimit(editor);
+            that.setupCharCounter(editor);
         });
     },
     onSpeechEnd: function(sourceNode, text) {
@@ -1782,6 +1849,195 @@ dojo.declare("gnr.widgets.joditEditor", gnr.widgets.baseExternalWidget, {
         editor._gnrUserEdit = true;
         editor.s.insertNode(editor.createInside.text(text));
         this.writeValue(editor);
+    },
+    // A Genropy drag (a template variable from a tree) stops its dragstart, so neither
+    // Jodit nor the browser place it reliably: it is shown and inserted here.
+    isFieldDrag: function(editor, dataTransfer) {
+        if(editor.getReadOnly()){
+            return false;
+        }
+        var types = Array.prototype.slice.call((dataTransfer && dataTransfer.types) || []);
+        return types.indexOf('dragsourceinfo') >= 0 && types.indexOf('text/plain') >= 0
+            && types.indexOf('text/html') < 0 && types.indexOf('Files') < 0;
+    },
+    dropRange: function(editor, x, y) {
+        var doc = editor.ed;
+        var body = editor.editor;
+        var range = null;
+        if(doc.caretRangeFromPoint){
+            range = doc.caretRangeFromPoint(x, y);
+        } else if(doc.caretPositionFromPoint){
+            var position = doc.caretPositionFromPoint(x, y);
+            if(position){
+                range = doc.createRange();
+                range.setStart(position.offsetNode, position.offset);
+            }
+        }
+        var last = body.lastElementChild || body.lastChild;
+        var below = !last || (last.getBoundingClientRect && y > last.getBoundingClientRect().bottom);
+        if(!range || below || range.startContainer === body || !body.contains(range.startContainer)){
+            var block = last && last.nodeType === 1 ? last : body;
+            range = doc.createRange();
+            if(block !== body && !/^(P|DIV|H[1-6]|PRE|BLOCKQUOTE)$/.test(block.nodeName)){
+                // a table, a list or an image closing the content: the field goes after it, not inside
+                range.setStartAfter(block);
+                range.collapse(true);
+            } else if(block.lastChild && block.lastChild.nodeName === 'BR'){
+                range.setStartBefore(block.lastChild);
+                range.collapse(true);
+            } else {
+                range.selectNodeContents(block);
+                range.collapse(false);
+            }
+        }
+        return range;
+    },
+    // Jodit surrounds the caret with \uFEFF text nodes, and with marker spans while the editor is not focused
+    isCursorMarker: function(node) {
+        if(node.nodeType === 3){
+            return !node.data.replace(/\uFEFF/g, '');
+        }
+        return node.nodeType === 1 && node.hasAttribute('data-jodit-selection_marker');
+    },
+    // the visible character next to the drop point, on the given side
+    charAround: function(range, side) {
+        var node = range.startContainer;
+        var offset = range.startOffset;
+        var step = function(n){ return side < 0 ? n.previousSibling : n.nextSibling; };
+        if(node.nodeType === 3){
+            var text = (side < 0 ? node.data.slice(0, offset) : node.data.slice(offset)).replace(/\uFEFF/g, '');
+            if(text){
+                return side < 0 ? text.charAt(text.length - 1) : text.charAt(0);
+            }
+            node = step(node);
+        } else {
+            node = node.childNodes[side < 0 ? offset - 1 : offset];
+        }
+        while(node && this.isCursorMarker(node)){
+            node = step(node);
+        }
+        if(node && node.nodeType === 3){
+            return side < 0 ? node.data.charAt(node.data.length - 1) : node.data.charAt(0);
+        }
+        return '';
+    },
+    dropText: function(range, text) {
+        if(/\S/.test(this.charAround(range, -1))){
+            text = ' ' + text;
+        }
+        if(/\S/.test(this.charAround(range, 1))){
+            text = text + ' ';
+        }
+        return text;
+    },
+    showDropCaret: function(editor, range) {
+        var doc = editor.ed;
+        var caret = editor._gnrDropCaret;
+        if(!caret){
+            caret = doc.createElement('div');
+            caret.className = 'gnr-jodit-dropcaret';
+            caret.style.cssText = 'position:absolute;width:2px;background:#1a73e8;pointer-events:none;z-index:10;';
+            // outside the body, so it never becomes part of the value
+            doc.documentElement.appendChild(caret);
+            editor._gnrDropCaret = caret;
+        }
+        var rect = range.getBoundingClientRect();
+        if(!rect.height){
+            var block = range.startContainer.nodeType === 1 ? range.startContainer : range.startContainer.parentNode;
+            var blockRect = block.getBoundingClientRect();
+            rect = {left: blockRect.left, top: blockRect.top, height: blockRect.height || 16};
+        }
+        var win = doc.defaultView;
+        caret.style.left = (rect.left + win.scrollX) + 'px';
+        caret.style.top = (rect.top + win.scrollY) + 'px';
+        caret.style.height = rect.height + 'px';
+    },
+    dropHighlightNode: function(editor) {
+        return editor.o.iframe ? editor.ed.documentElement : editor.editor;
+    },
+    clearFieldDrop: function(editor) {
+        var highlight = this.dropHighlightNode(editor).style;
+        highlight.boxShadow = '';
+        highlight.background = '';
+        if(editor._gnrDropCaret){
+            editor._gnrDropCaret.remove();
+            delete editor._gnrDropCaret;
+        }
+    },
+    setupFieldDrop: function(editor) {
+        var that = this;
+        // with the iframe the empty area under the content belongs to <html>, not to the body
+        var target = editor.o.iframe ? editor.ed : editor.editor;
+        editor.e.on(target, 'dragover', function(evt){
+            if(!that.isFieldDrag(editor, evt.dataTransfer)){
+                return;
+            }
+            evt.preventDefault();
+            var highlight = that.dropHighlightNode(editor).style;
+            highlight.boxShadow = 'inset 0 0 0 2px #1a73e8';
+            highlight.background = 'rgba(26, 115, 232, .05)';
+            that.showDropCaret(editor, that.dropRange(editor, evt.clientX, evt.clientY));
+        }).on(target, 'dragleave', function(evt){
+            if(!evt.relatedTarget || !target.contains(evt.relatedTarget)){
+                that.clearFieldDrop(editor);
+            }
+        }).on(target, 'drop', function(evt){
+            if(!that.isFieldDrag(editor, evt.dataTransfer)){
+                return;
+            }
+            evt.preventDefault();
+            evt.stopPropagation();
+            that.clearFieldDrop(editor);
+            var range = that.dropRange(editor, evt.clientX, evt.clientY);
+            var text = that.dropText(range, evt.dataTransfer.getData('text/plain'));
+            var field = editor.createInside.text(text);
+            editor._gnrUserEdit = true;
+            editor.s.selectRange(range);
+            editor.s.insertNode(field);
+            // the <br> Jodit keeps in an empty block would push the field onto a second line
+            if(field.nextSibling && field.nextSibling.nodeName === 'BR' && !field.nextSibling.nextSibling){
+                field.nextSibling.remove();
+            }
+            that.writeValue(editor);
+            return false;
+        });
+    },
+    // What the limit plugin counts with countTextSpaces: editor.text is innerText,
+    // which adds a newline between blocks that the plugin strips before comparing.
+    textLength: function(editor) {
+        return (editor.text || '').replace(/[\uFEFF\r\n]/g, '').length;
+    },
+    // The limit plugin reverts the whole value on its change hook, and that hook fires on
+    // a programmatic assignment too: a value loaded over the limit would be refused, and
+    // an over-limit record would be frozen, the revert undoing a deletion as well. Only
+    // that listener goes: the key guard still blocks typing at the limit (its COMMAND_KEYS
+    // exemption is what lets an over-limit record be deleted back under it) and
+    // afterPaste.limit still refuses a paste that does not fit.
+    releaseChangeLimit: function(editor) {
+        if(editor.o.limitChars){
+            editor.e.off('change.limit');
+        }
+    },
+    // limitChars blocks typing at the limit without saying how much is left:
+    // the budget takes the place of the Jodit counters switched off with it.
+    setupCharCounter: function(editor) {
+        var limit = editor.o.limitChars;
+        if(!limit || !editor.statusbar){
+            return;
+        }
+        var that = this;
+        var counter = document.createElement('span');
+        counter.className = 'gnr-jodit-charcounter';
+        var label = _T('Remaining') + ': ';
+        var update = function(){
+            var left = limit - that.textLength(editor);
+            counter.textContent = label + left;
+            // typing cannot go past the limit: only a value loaded over it goes negative
+            counter.style.color = left < 0 ? 'red' : (left < limit * 0.1 ? 'orange' : '');
+        };
+        editor.statusbar.append(counter, true);
+        editor.e.on('change keyup', update);
+        update();
     },
     setContentStyle: function(editor, id, css) {
         if(!editor.o.iframe || !editor.ed){
@@ -1804,7 +2060,7 @@ dojo.declare("gnr.widgets.joditEditor", gnr.widgets.baseExternalWidget, {
         sourceNode.delayedCall(function(){ that.writeValue(editor); },
                                sourceNode.attr._delay || 500, 'updatingContent');
     },
-    writeValue: function(editor) {
+    writeValue: function(editor, onBlur) {
         if(editor.isInDestruct){
             return;
         }
@@ -1818,6 +2074,11 @@ dojo.declare("gnr.widgets.joditEditor", gnr.widgets.baseExternalWidget, {
         var value = editor.value || null;
         if(value !== (sourceNode.getAttributeFromDatasource('value') || null)){
             sourceNode.setAttributeInDatasource('value', value);
+        }
+        // the plain text follows the markup only when the user leaves the editor,
+        // so loading a record never marks it as modified
+        if(onBlur && sourceNode.attr.textpath){
+            sourceNode.setRelativeData(sourceNode.attr.textpath, editor.text || null);
         }
     },
     onModeChange: function(editor) {
@@ -1995,6 +2256,9 @@ dojo.declare("gnr.widgets.joditEditor", gnr.widgets.baseExternalWidget, {
     },
     mixin_destroy: function() {
         this.gnr.writeValue(this);
+        if(this._gnrParentResize){
+            dojo.disconnect(this._gnrParentResize);
+        }
         this.destruct();
     }
 });

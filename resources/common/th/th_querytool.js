@@ -740,7 +740,7 @@ dojo.declare("gnr.QueryManager", null, {
         var box = center._('div', {datapath:datapath,padding:'5px'});
         var fb = genro.dev.formbuilder(box, 1, {border_spacing:'6px'});
         fb.addField('simpleTextArea', {lbl:_T("IN"),value:'^.items',
-                                        width:'20em',height:'15ex',colspan:2,lbl_vertical_align:'top'});
+                                        width:'20em',height:'15ex',lbl_vertical_align:'top'});
         var footer = dlg.bottom._('slotBar',{slots:'*,cancel,confirm'});
         footer._('button','cancel',{label:_T('Cancel'),'action':dlg.close_action});
         footer._('button','confirm',{label:_T('Confirm'),action:function(){
@@ -929,7 +929,7 @@ dojo.declare("gnr.QueryManager", null, {
         };
         var center = dlg.center._('div',{padding:'10px'});
         var bottom = dlg.bottom._('slotBar',{'slots':'cancel,*,confirm',_class:'dialog_bottom'});
-        genro.dev.dynamicQueryParsFb(center,sourceNode.getRelativeData(this.wherepath),parslist,1);
+        genro.dev.dynamicQueryParsFb(center,sourceNode.getRelativeData(this.wherepath),parslist,1,confirm);
         bottom._('button', 'cancel',{label:'Cancel',baseClass:'bottom_btn',action:cancel});
         bottom._('button', 'confirm',{label:'Confirm',baseClass:'bottom_btn',action:confirm});
         dlg.show_action();

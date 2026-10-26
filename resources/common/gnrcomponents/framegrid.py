@@ -221,20 +221,17 @@ class FrameGridTools(BaseComponent):
     @struct_method
     def fg_viewGrouper(self,view,table=None,region=None,closable='close',width=None
                         ,splitter=True,closable_kwargs=None,groupedThViewResource=None,box_kwargs=None,**kwargs):
-        default_closable = dict(closable_background='rgba(222, 255, 0, 1)',
-            closable_bottom='2px',
-            closable_width='14px',
-            closable_right='-20px',
-            closable_height='14px',
-            closable_padding='2px',
-            closable_opacity='1',
-            closable_iconClass='smalliconbox statistica_tools')
+        default_closable = dict(closable_bottom='12px',
+            closable_animate=True,
+            closable_iconClass='sigma_icon',
+            closable_tip='!!Group by',
+            closable__class='tab_opener grouper_opener')
         default_closable.update(closable_kwargs)
-        box_kwargs.setdefault('border_right','1px solid silver')
+        box_kwargs.setdefault('border_right','1px solid var(--border-color)')
         box_kwargs.update(default_closable)
         splitter = False if self.isMobile else splitter
         bc = view.grid_envelope.borderContainer(region= region or 'left',
-                                        width=width or '300px',
+                                        width=width or '340px',
                                         closable=closable,
                                         splitter=splitter,
                                         selfsubscribe_closable_change="""SET .use_grouper = $1.open;""",
@@ -268,7 +265,8 @@ class FrameGridTools(BaseComponent):
         gth.dataController("""
         if(_reason=='node'){
             PUT .output = null;
-            SET .output = genro.groupth.groupCellInfoFromStruct(struct).group_by_cols.length>1?'tree':'grid'
+            var group_by_cols = genro.groupth.groupCellInfoFromStruct(struct).group_by_cols;
+            SET .output = group_by_cols.length>1 || group_by_cols.some(cell=>cell.hierarchical_field_of)?'tree':'grid';
         }
         """,struct='^.grid.struct')
         gth.dataController(f"""
@@ -338,7 +336,7 @@ class FrameGridTools(BaseComponent):
             static_searchOn = static_kwargs.get('searchOn',False)
             if static_searchOn:
                 static_slots = '2,viewsSelect,*,searchOn,2'
-            gth.top.bar.replaceSlots('#',static_slots,height='22px',border_bottom='1px solid silver')
+            gth.top.bar.replaceSlots('#',static_slots,height='22px',border_bottom='1px solid var(--border-color)')
             gth.dataController("""gth.widget.setRegionVisible('top',(resource_structs && resource_structs.len()>1));""", gth=gth,
                                     resource_structs='^.grid.resource_structs',static_searchOn=static_searchOn,_if='!static_searchOn')
             
@@ -363,7 +361,8 @@ class FrameGridTools(BaseComponent):
         
 
     @struct_method
-    def fg_viewConfigurator(self,view,table=None,queryLimit=None,region=None,configurable=None,toolbar=True,closable=None,readOnly=None):
+    def fg_viewConfigurator(self,view,table=None,queryLimit=None,region=None,configurable=None,toolbar=True,closable=None,readOnly=None,
+                            width='240px',closable_animate=True):
         if not self.checkTablePermission(table=table,permissions='configure_view'):
             return
         grid = view.grid
@@ -371,9 +370,10 @@ class FrameGridTools(BaseComponent):
         if closable is None:
             closable = 'close'
         frameCode = view.attributes.get('frameCode')
-        right = view.grid_envelope.borderContainer(region=region or 'right',width='160px',closable=closable,
+        right = view.grid_envelope.borderContainer(region=region or 'right',width=width,closable=closable,
+                                        closable_animate=closable_animate,
                                         nodeId='{frameCode}_configurator'.format(frameCode=frameCode),
-                                        splitter=True,border_left='1px solid silver',hidden=closable is False)
+                                        splitter=True,border_left='1px solid var(--border-color)',hidden=closable is False)
         gridId = grid.attributes.get('nodeId')
         if toolbar:
             confBar = right.contentPane(region='top')
@@ -392,7 +392,7 @@ class FrameGridTools(BaseComponent):
                                         action='genro.nodeById(this.attr.gridId).publish("configuratorPalette");',
                                         gridId=gridId)
         if queryLimit is not False and (table==getattr(self,'maintable',None) or configurable=='*'):
-            footer = right.contentPane(region='bottom',height='25px',border_top='1px solid silver',overflow='hidden').formbuilder(cols=1,font_size='.8em',
+            footer = right.contentPane(region='bottom',height='25px',border_top='1px solid var(--border-color)',overflow='hidden').formbuilder(cols=1,font_size='.8em',
                                                 fld_color='#555',fld_font_weight='bold')
             footer.numberSpinner(value='^.hardQueryLimit',lbl='!!Limit',width='6em',smallDelta=1000)
 

@@ -123,7 +123,7 @@ genropatches.dojoXhr = function(transport){
             }).then(function(response){
                 if(finished){ return; }
                 xhr.status = response.status;
-                xhr.statusText = response.statusText;
+                xhr.statusText = httpStatusText(response.status, response.statusText);
                 xhr.readyState = 2;
                 responseHeaders = response.headers;
                 return response.text().then(function(text){

@@ -55,7 +55,7 @@ class Main(BaseDashboardItem):
 
         center.quickGrid(value='^.data',height='200px',width='500px',
                                       sortedBy='cpu_percent:d',
-                                      border='1px solid silver')
+                                      border='1px solid var(--border-color)')
 
 
     def configuration(self,pane,**kwargs):

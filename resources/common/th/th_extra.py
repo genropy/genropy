@@ -67,7 +67,7 @@ class THStatsHandler(BaseComponent):
         frame.dataRpc('.grid.struct', self.stats_get_struct_total, tot_mode='^#main_stats_frame.stats.tree.tot_mode')
     
     def stats_center_detail(self,bc,**kwargs):
-        frame = bc.frameGrid('detail',margin='2px',rounded=5,border='1px solid silver',_newGrid=True,
+        frame = bc.frameGrid('detail',margin='2px',rounded=5,border='1px solid var(--border-color)',_newGrid=True,
                                 datapath='.stats.detail',#structpath='#main_stats_frame.grid.struct',
                                 **kwargs)
         frame.dataRpc('.grid.struct', self.stats_get_struct_detail, tot_mode='^#main_stats_frame.stats.tree.tot_mode')

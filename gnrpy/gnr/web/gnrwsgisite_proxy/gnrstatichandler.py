@@ -296,20 +296,33 @@ class GnrStaticHandler(StaticHandler):
         else:
             return '%s_gnr/%s/%s' % (self.home_uri, version, '/'.join(args))
 
-class ConnectionStaticHandler(StaticHandler):
+class DomainHomeUri(object):
+    """Mixin for the statics whose files belong to the current domain.
+
+    The url carries the workspace segment, so the dispatcher sets the
+    domain before the file is served and ``path`` resolves in its folder.
+    Not a StaticHandler itself: addAllStatics registers every subclass.
+    """
+
+    @property
+    def home_uri(self):
+        return self.site.current_home_uri
+
+
+class ConnectionStaticHandler(DomainHomeUri, StaticHandler):
     prefix = 'conn'
 
     def path(self, connection_id, *args):
-        return os.path.join(self.site.site_path, 'data', '_connections', connection_id, *args)
+        return self.site.domainDataFolder('_connections', connection_id, *args)
 
     def url(self, connection_id, *args, **kwargs):
         return '%s_conn/%s/%s' % (self.home_uri, connection_id, '/'.join(args))
 
-class PageStaticHandler(StaticHandler):
+class PageStaticHandler(DomainHomeUri, StaticHandler):
     prefix = 'page'
 
     def path(self, connection_id, page_id, *args):
-        return os.path.join(self.site.site_path, 'data', '_connections', connection_id, page_id, *args)
+        return self.site.domainDataFolder('_connections', connection_id, page_id, *args)
 
     def url(self, connection_id, page_id, *args, **kwargs):
         return '%s_page/%s/%s/%s' % (self.home_uri, connection_id, page_id, '/'.join(args))
@@ -326,11 +339,11 @@ class TempStaticHandler(StaticHandler):
         #return '%s_page/%s/%s/%s' % (self.home_uri, connection_id, page_id, '/'.join(args))
 
 
-class UserStaticHandler(StaticHandler):
+class UserStaticHandler(DomainHomeUri, StaticHandler):
     prefix = 'user'
 
     def path(self, user, *args):
-        return os.path.join(self.site.site_path, 'data', '_users', user, *args)
+        return self.site.domainDataFolder('_users', user, *args)
 
     def url(self, user, *args):
         return '%s_user/%s/%s' % (self.home_uri, user, '/'.join(args))

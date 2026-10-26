@@ -715,16 +715,27 @@ dojo.declare("gnr.FramedIndexManager", null, {
     checkStartPage:function(){
         let menubag = genro.getData('gnr.appmenu.root');
         let n = menubag.getNodeByAttr('openOnStart');
-        if(!n){
-            return;
+        if(n){
+            genro.publish('selectIframePage',{addToHistory:false,...n.attr});
         }
-        genro.publish('selectIframePage',{addToHistory:false,...n.attr});
+        if(this.pendingMenuCode){
+            let pending = this.pendingMenuCode;
+            this.pendingMenuCode = null;
+            this.handleExternalMenuCode(pending.menucode,pending.runKwargs);
+        }
     },
     handleExternalMenuCode:function(external_menucode,runKwargs){
         runKwargs = runKwargs || {}
         let menubag = genro.getData('gnr.appmenu.root');
+        if(!menubag){
+            this.pendingMenuCode = {menucode:external_menucode,runKwargs:runKwargs};
+            return;
+        }
         let n = menubag.getNodeByAttr('menucode',external_menucode);
-        inattr = n.getInheritedAttributes()
+        if(!n){
+            return;
+        }
+        let inattr = n.getInheritedAttributes()
         let kw = {name:n.label,pkg_menu:inattr.pkg_menu,"file":null,table:null,formResource:null,
                                 viewResource:null,fullpath:n.getFullpath(null,true),modifiers:null,
                     ...n.attr,...objectExtract(runKwargs,'url_*',null,true)};

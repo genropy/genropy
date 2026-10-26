@@ -9,10 +9,10 @@ class GnrCustomWebPage(object):
         
     def test_0_numberTextBox(self, pane):
         "NumberTextBox and currencyTextBox, with and without constraints and use of Mask"
-        fb=pane.formbuilder(cols=1)
+        fb=pane.formlet(cols=1)
         fb.numberTextBox(lbl='No constraints',value='^.number_1')
         fb.CurrencyTextBox(value='^.number_1',format_pattern='##0.00000',lbl='Currency')
-        fb.div('^.number_1',format='##0.00000', mask='Masked value:%s')
+        fb.div('^.number_1',format='##0.00000', mask='Masked value:%s', lbl='Masked')
 
     def test_1_numberTextBox_pattern(self, pane):
         "NumberTextBox with formattedValue. Check changes in console"

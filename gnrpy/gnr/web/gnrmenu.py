@@ -337,7 +337,9 @@ class MenuResolver(BagResolver):
             titleCounter_val = attributes.get('titleCounter')
             menuLineBadge = attributes.get('menuLineBadge')
             menuLineBadge_attr = {}
-            if (titleCounter_val or menuLineBadge) and menuTag != 'tableBranch':
+            # a tableBranch counts its own children in nodeType_tableBranch
+            childCountBadge = menuTag == 'tableBranch' and (titleCounter_val or menuLineBadge == '#')
+            if (titleCounter_val or menuLineBadge) and not childCountBadge:
                 if menuLineBadge:
                     menuLineBadge_attr = dictExtract(attributes,'menuLineBadge_',pop=False)
                     menuLineBadge_attr['table'] = menuLineBadge_attr.get('table') or attributes.get('table')
@@ -593,11 +595,17 @@ class MenuResolver(BagResolver):
         kwargs = dict(attributes)
         kwargs.pop('titleCounter',None)
         kwargs.pop('menuLineBadge',None)
+        kwargs.pop('badgeClass',None)
+        dictExtract(kwargs,'menuLineBadge_',pop=True)
         kwargs.pop('tag')
         cacheTime = kwargs.pop('cacheTime',None)
         xmlresolved = kwargs.pop('resolved',False)
+        refreshOnTables = kwargs.pop('refreshOnTables',None)
         attributes.pop('branchPage',None)
         self._page.subscribeTable(kwargs['table'],True,subscribeMode=True)
+        for tbl in (refreshOnTables or '').split(','):
+            if tbl.strip():
+                self._page.subscribeTable(tbl.strip(),True,subscribeMode=True)
         titleCounter = attributes.get('titleCounter')
         menuLineBadge = attributes.get('menuLineBadge')
         xmlresolved=titleCounter is not None
@@ -649,6 +657,9 @@ class MenuResolver(BagResolver):
 
 
 class TableMenuResolver(MenuResolver):
+    # keys returned by menu_dynamicMenuLine that style the menu line instead of its url
+    node_attributes = ('customLabelClass','badgeContent','badgeClass')
+
     @extract_kwargs(query=True,add=True)
     def __init__(self, table=None,branchId=None, branchMethod=None,webpage=None,
                         branchIdentifier=None, cacheTime=None,caption_field=None,branchPage=None,
@@ -714,6 +725,7 @@ class TableMenuResolver(MenuResolver):
         else:
             linekw.setdefault('title',self.title or self.label)
         linekw.update(kwargs)
+        nodekw = {k:linekw.pop(k) for k in self.node_attributes if k in linekw}
         webpage = kwargs.get('webpage') or self.webpage
         if webpage:
             start_pkey = None
@@ -733,7 +745,7 @@ class TableMenuResolver(MenuResolver):
             result.webpage(label = label,branchPage=self.branchPage,start_pkey=start_pkey,title=title,
                            url_pkey=url_pkey,filepath=webpage,
                            pageName=pageName,**{f'url_{k}':v for k,v in linekw.items()},
-                           **self.leaf_kwargs)
+                           **dict(self.leaf_kwargs,**nodekw))
         else:
             linekw.update(objectExtract(self,'th_',slicePrefix=False))
             branchPage = True if self.branchPage is None else self.branchPage
@@ -745,6 +757,7 @@ class TableMenuResolver(MenuResolver):
                 linekw['pkey'] = record['pkey']    
                 linekw['title'] = record.get(self.title_field)
                 linekw['pageName'] = record['pkey']
+            linekw.update(nodekw)
             result.thpage(table=self.table,**linekw)
 
 

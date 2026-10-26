@@ -209,7 +209,7 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         if(value instanceof gnr.GnrBag){
             value = value.toXml();
         }
-        navigator.clipboard.writeText(value);
+        genro.textToClipboard(value);
     },
     setDataNodeValue:function(nodeOrRunKwargs, kw, trigger_reason, subscription_args) {
         if(nodeOrRunKwargs===null){
@@ -980,16 +980,21 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
             this._registerInForm();
         }
         this._isBuilding = true;
-        var aux = '_bld_' + this.attr.tag.toLowerCase();
-        if (aux in this) {
-            this[aux].call(this);
-        }else{
-            var attributes = this.registerNodeDynAttr(true);
-            var tag=objectPop(attributes,'tag');
-            this._doBuildNode(tag, attributes, destination, ind);
-            this._setDynAttributes();
+        try{
+            var aux = '_bld_' + this.attr.tag.toLowerCase();
+            if (aux in this) {
+                this[aux].call(this);
+            }else{
+                var attributes = this.registerNodeDynAttr(true);
+                this._appliedClass = attributes._class;
+                var tag=objectPop(attributes,'tag');
+                this._doBuildNode(tag, attributes, destination, ind);
+                this._setDynAttributes();
+            }
+        }finally{
+            //left set, nodeTrigger would ignore this node from now on
+            this._isBuilding = false;
         }
-        this._isBuilding = false;
     },
     _buildChildren: function(destination) {
         if (this.attr.remote) {
@@ -1122,7 +1127,7 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         if (bld_attrs.tooltip) {
             genro.wdg.create('tooltip', null, {label:bld_attrs.tooltip,tooltip_type:'help'}).connectOneNode(newobj.domNode || newobj);
         }
-        if (genro.src._started && this.widget && (this.widget instanceof dijit.form.ValidationTextBox)){
+        if (genro.src._started && this.widget){
             var validations = objectExtract(this.attr, 'validate_*',true);
             if (this.validationsOnChange && objectNotEmpty(validations)){
                 this.resetValidationError();
@@ -1451,7 +1456,8 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
                 }
             }
         }
-        if (!(kw.evt == 'ins' || kw.evt == 'del')) {
+        // a row inserted or deleted under the bound path leaves that path in place
+        if (!(kw.evt == 'ins' || kw.evt == 'del') || trigger_reason == 'child') {
             value = this.getAttributeFromDatasource(attr, true);
         }
         //value = (value != null) ? value : '';
@@ -1487,7 +1493,10 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
             else {
                 domnode = this.domNode;
             }
-            if (oldvalue) {
+            if (this._appliedClass !== undefined) {
+                genro.dom.removeClass(domnode, this._appliedClass);
+            }
+            else if (oldvalue) {
                 var old_class;
                 if (oldvalue instanceof gnr.GnrBag) {
                     var q = kw.pathlist.length;
@@ -1499,6 +1508,7 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
                 genro.dom.removeClass(domnode, old_class);
             }
             genro.dom.addClass(domnode, value);
+            this._appliedClass = value;
         }
         else if (attr=='style'){
             genro.dom.style(this,value);
@@ -1700,10 +1710,21 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
 
     },
     
-    setHidden:function(hidden){
+    setHidden:function(hidden,_fromGroup){
         let labelWrapper = this.getLabelWrapper();
         if(labelWrapper){
             labelWrapper.setHidden(hidden);
+        }
+        // the table formbuilder collects the group cells in _hiddenTargets; a formlet
+        // has no cells, so the members are its siblings carrying the same hiddenGroup
+        if(!_fromGroup && this.attr.hiddenGroup && !this._hiddenTargets){
+            this._setHiddenGroup(hidden,labelWrapper);
+        }
+        var parent = this.widget && this.widget.parentBorderContainer;
+        var animatedRegion = parent && parent._drawerAnimations &&
+                parent._drawerAnimations[this.widget.region];
+        if (animatedRegion) {
+            parent._stopDrawerAnimation(this.widget.region, true);
         }
         var targets = this._hiddenTargets || [this.domNode || this.widget.domNode];
         var statusChanged = false;
@@ -1715,11 +1736,30 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
                 statusChanged = true;
             }
         });
+        if (animatedRegion) {
+            parent._layoutChildren(this.widget.region);
+        }
         if(statusChanged){
             genro.fakeResize()
         }
     },
     
+    _setHiddenGroup:function(hidden,labelWrapper){
+        let own = labelWrapper || this;
+        let container = own.getParentNode();
+        let siblings = container && container.getValue('static');
+        if(!(siblings instanceof gnr.GnrDomSource)){
+            return;
+        }
+        for(let node of siblings.getNodes()){
+            // a labeled member is hidden through its labledbox, which holds the whole cell
+            let memberAttr = (node._contentNode || node).attr;
+            if(node!==own && memberAttr.hiddenGroup===this.attr.hiddenGroup && (node.domNode || node.widget)){
+                node.setHidden(hidden,true);
+            }
+        }
+    },
+
     updateRemoteContent:function(forceUpdate,async) {
         var _onRemote = false;
         var currentValue = this.getValue('static');
@@ -1872,7 +1912,13 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         }
     },
     getElementLabel:function(){
-        var raw = this.attr.error_label || this.attr._valuelabel || this.attr.field_name_long || this.attr.name_long || stringCapitalize(this.label);
+        //a formlet lbl lives on the labledbox wrapper (buildLblWrapper); '&nbsp;' is its placeholder
+        var wrapper = this.getLabelWrapper();
+        var wrapperLabel = wrapper ? wrapper.getAttributeFromDatasource('label') : null;
+        if(wrapperLabel=='&nbsp;'){
+            wrapperLabel = null;
+        }
+        var raw = this.attr.error_label || this.attr._valuelabel || this.attr.field_name_long || this.attr.name_long || wrapperLabel || stringCapitalize(this.label);
         if(raw && raw.indexOf('<') >= 0){
             var tmp = document.createElement('div');
             tmp.innerHTML = raw;
@@ -1974,6 +2020,7 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         this._value = null;
         wrp_attr.helpcode = objectPop(attr,'helpcode');
         wrp_attr.helpcode_package = objectPop(attr,'helpcode_package')
+        wrp_attr.docAddress = objectPop(attr,'docAddress');
         wrp_attr.tag = 'labledbox'
         let gridbox_itemattr = objectExtract(attr,'grid_column,grid_row,colspan,rowspan');
         this.attr = {...wrp_attr,...box_kw,...label_attr,...box_l_kw,...box_c_kw,...gridbox_itemattr};
@@ -2006,6 +2053,11 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         }
         let side = this.getInheritedAttributes().lbl_side || 'top';
         if(side!='top' && side!='bottom'){
+            return false;
+        }
+        // a single column formlet has no sibling on the same row to line up with
+        let columns = parentNode.attr.grid_template_columns || parentNode.attr.columns || parentNode.attr.cols;
+        if(isNullOrBlank(columns) || /^\s*(1|1fr|repeat\(\s*1\s*,\s*1fr\s*\))\s*$/.test(String(columns))){
             return false;
         }
         let siblings = parentNode.getValue('static');
@@ -2067,19 +2119,37 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         if(domNode._gnrErrorTooltipBound){
             return;
         }
-        domNode.addEventListener('mouseenter', function(){
-            if(domNode._gnrErrorText){
-                dijit.showTooltip(
-                    '<span class="gnrErrorTooltip">' + domNode._gnrErrorText + '</span>',
-                    domNode
-                );
+        var that = this;
+        var showError = function(){
+            if(!domNode._gnrErrorText){
+                return;
             }
+            if(!dijit._masterTT){
+                dijit._masterTT = new dijit._MasterTooltip();
+            }
+            // the master tooltip is shared: only the error tooltip enters slower
+            var fadeIn = dijit._masterTT.fadeIn;
+            var duration = fadeIn.duration;
+            fadeIn.duration = that._errorTooltipFade;
+            dijit.showTooltip(
+                '<span class="gnrErrorTooltip">' + domNode._gnrErrorText + '</span>',
+                domNode
+            );
+            fadeIn.duration = duration;
+        };
+        domNode.addEventListener('mouseenter', function(){
+            clearTimeout(domNode._gnrErrorTooltipTimer);
+            domNode._gnrErrorTooltipTimer = setTimeout(showError, that._errorTooltipDelay);
         });
         domNode.addEventListener('mouseleave', function(){
+            clearTimeout(domNode._gnrErrorTooltipTimer);
             dijit.hideTooltip(domNode);
         });
         domNode._gnrErrorTooltipBound = true;
     },
+
+    _errorTooltipDelay: 1500,
+    _errorTooltipFade: 400,
 
     _errorFallbacks: {
         'notnull':  '!!Required field',

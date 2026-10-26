@@ -953,6 +953,13 @@ class SqlDbAdapter(object):
         """
         return f"string_agg({fieldpath},'{separator}')"
 
+    def string_join(self, expressions, separator):
+        """
+        Returns a SQL expression joining the non NULL values of ``expressions``
+        with ``separator``; an empty string when all of them are NULL.
+        """
+        return f"array_to_string(ARRAY[{','.join(expressions)}],'{separator}')"
+
     def mask_field_sql(self, field, mode='2-4', placeholder='*'):
         """
         Returns a SQL expression for masking a field value for secure display.

@@ -67,7 +67,7 @@ class PdfTkEditor(BaseComponent):
         frame.left.slotBar('5,fieldsTree,*',
                             fieldsTree_table=table,
                             fieldsTree_dragCode='fieldvars',
-                            border_right='1px solid silver',
+                            border_right='1px solid var(--border-color)',
                             closable=True,width='150px',
                             fieldsTree_height='100%',splitter=True)
         grid = frame.grid

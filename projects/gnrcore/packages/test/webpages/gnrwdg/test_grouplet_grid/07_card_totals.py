@@ -74,9 +74,23 @@ class GnrCustomWebPage(object):
 
         pane.groupletGrid(storepath='.righe', struct=struct, additem=False)
 
-    def _grid(self, pane, storepath, **kwargs):
+    def test_7_count_and_hidden_entries(self, pane):
+        """count=True and hidden= per entry: the rows stay, the money follows the flag"""
+        pane.data('.righe', self._righe())
+        pane.data('.vendita', True)
+        pane.checkbox(value='^.vendita', label='Sale document (show the money)')
+        money = dict(hidden='^.vendita?=!#v')
+        totals = [dict(name='righe', count=True, label='Rows'),
+                  dict(field='netto_riga', label='Net', **money),
+                  dict(name='iva', label='VAT', formula='totale_riga-netto_riga',
+                       **money),
+                  dict(field='totale_riga', label='Total', highlight=True,
+                       **money)]
+        self._grid(pane, '.righe', totals=totals)
+
+    def _grid(self, pane, storepath, totals=None, **kwargs):
         pane.groupletGrid(storepath=storepath, handler=self.rigaDocumento,
-                          cols=1, formulas=FORMULAS, totals=TOTALS,
+                          cols=1, formulas=FORMULAS, totals=totals or TOTALS,
                           totals_format='#,###.00',
                           defaultRow=dict(quantita=1, prezzo_unitario=0,
                                           aliquota_iva=4),

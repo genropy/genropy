@@ -652,10 +652,12 @@ dojo.declare("gnr.GnrStoreQuery", gnr.GnrStoreBag, {
                     return;
                 }
                 var scope = request.scope ? request.scope : dojo.global;
-                if(r.attr.errors){
-                    this._parentSourceNode.widget._lastQueryError = r.attr.errors;
-
-                    this._parentSourceNode.setValidationError({error:r.attr.errors});
+                var sn = this._parentSourceNode;
+                if(r.attr.errors && sn && sn.widget){
+                    sn.widget._lastQueryError = r.attr.errors;
+                    sn.setValidationError({error:r.attr.errors,
+                                           warnings:sn.getValidationWarnings(),
+                                           required:sn.isValidationRequired()});
                 }
                 //if (result) {
                     if(!result){

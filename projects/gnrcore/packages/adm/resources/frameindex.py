@@ -71,6 +71,11 @@ class FrameIndex(BaseComponent):
                     genro.pageReload()}})""",msg='!!Invalid Access',_onStart=True)
             return 
         root.attributes['overflow'] = 'hidden'
+        root.dataController("""if(window.location.search){
+                                var urlParsed = parseURL(window.location.href);
+                                objectExtract(urlParsed.params,'_no_cache_');
+                                window.history.replaceState({},document.title,serializeURL(urlParsed));
+                            }""",_onStart=True)
         if menucode:
             menucode_kwargs = dictExtract(kwargs,f'{menucode}_')
             menucode_kwargs['menucode'] = menucode
@@ -266,7 +271,7 @@ class FrameIndex(BaseComponent):
         pane = bc.contentPane(region='bottom',overflow='hidden')
         sb = pane.slotToolbar("""5,genrologo,1,helpdesk,1,settings,10,refresh,10,phonelink,left_placeholder,*,
                                     right_placeholder,count_errors,10,owner_name,user_name,logout,debugping,5""",
-                                    _class='slotbar_toolbar framefooter', background='#EEEEEE',border_top='1px solid silver')
+                                    _class='slotbar_toolbar framefooter', background='var(--surface-light)',border_top='1px solid var(--border-color)')
         return sb
 
     @customizable
@@ -274,7 +279,7 @@ class FrameIndex(BaseComponent):
         pane = bc.contentPane(region='bottom',overflow='hidden')
         sb = pane.slotToolbar("""5,genrologo,2,helpdesk,2,settings,5,refresh,5,left_placeholder,*,
                                 right_placeholder,user_name,logout,debugping,5""",
-                                _class='slotbar_toolbar framefooter', background='#EEEEEE',border_top='1px solid silver')
+                                _class='slotbar_toolbar framefooter', background='var(--surface-light)',border_top='1px solid var(--border-color)')
         pane.div(height='10px',background='black')
         return sb
     
@@ -302,9 +307,16 @@ class FrameIndex(BaseComponent):
         logomenu.menuline("!![en]Theme Editor",_tags='_DEV_').dataController('genro.dev.openThemeEditor();')
         logomenu.menuline("!![en]Application info").dataController("genro.publish('application_info')")
         
-        logomenu.menuline('!![en]Open helper editor in root',_tags='_DEV_').dataController('genro.dev.openHelperEditor();') 
-        logomenu.menuline('!![en]Open helper editor in current',_tags='_DEV_').dataController(
-                                                        'genro._lastFocusedWindow.genro.dev.openHelperEditor();')
+        if self.inlineDoc:
+            logomenu.menuline('!![en]Toggle documentation mode in root',_tags='_DOC_').dataController(
+                                                            "genro.setData('gnr.docModeVisible',!genro.getData('gnr.docModeVisible'));")
+            logomenu.menuline('!![en]Toggle documentation mode in current',_tags='_DOC_').dataController(
+                                                            """let cg = genro._lastFocusedWindow.genro;
+                                                               cg.setData('gnr.docModeVisible',!cg.getData('gnr.docModeVisible'));""")
+        else:
+            logomenu.menuline('!![en]Open helper editor in root',_tags='_DEV_').dataController('genro.dev.openHelperEditor();')
+            logomenu.menuline('!![en]Open helper editor in current',_tags='_DEV_').dataController(
+                                                            'genro._lastFocusedWindow.genro.dev.openHelperEditor();')
         
         logomenu.menuline('!![en]Toggle dev items in root',_tags='_DEV_').dataController("""let current = genro.getData('gnr.developerToolsVisible');
                                                                                          genro.setData('gnr.developerToolsVisible',!current);""") 
@@ -448,7 +460,7 @@ class FrameIndex(BaseComponent):
 
     def prepareCenter_std(self,bc):
         sc = bc.stackContainer(selectedPage='^selectedFrame',nodeId='iframe_stack',region='center',
-                                #border_left='1px solid silver',
+                                border_left='1px solid var(--border-color)',
                                 onCreated='genro.framedIndexManager = new gnr.FramedIndexManager(this);',_class='frameindexcenter')
         sc.dataController("""setTimeout(function(){
                                 genro.framedIndexManager.selectIframePage(selectIframePage[0])
@@ -521,7 +533,8 @@ class FrameIndex(BaseComponent):
         if not (self.plugin_list or self.custom_plugin_list):
             return
         pane = bc.contentPane(region='left',splitter=True,width='210px',datapath='left',_lazyBuild=True,
-                                   overflow='hidden',hidden=self.hideLeftPlugins,border_right='1px solid #eee')
+                                   drawer_animate=True,
+                                   overflow='hidden',hidden=self.hideLeftPlugins,border_right='1px solid var(--border-color)')
         sc = pane.stackContainer(selectedPage='^.selected',nodeId='gnr_main_left_center',
                                 subscribe_open_plugin="""var plugin_name = $1.plugin;
                                                          SET left.selected = plugin_name;
@@ -552,6 +565,7 @@ class FrameIndex(BaseComponent):
 
     def prepareLeft_mobile(self,bc):
         frame = bc.framePane(region='left',width='100%',datapath='left',
+                                drawer_animate=True,
                                 overflow='hidden',hidden=self.hideLeftPlugins)
         frame.top.slotBar('*,close_icon,5'
                           ).close_icon.lightButton(_class='google_icon google_cancel',height='30px',width='30px',background_color='white',
@@ -598,11 +612,11 @@ class FrameIndex(BaseComponent):
     
     @struct_method
     def fi_slotbar_newWindow(self,pane,**kwargs):
-        pane.div(_class='windowaddIcon iconbox',tip='!!New Window',
+        pane.div(_class='windowaddButton iconbox',tip='!!New Window',
                  connect_onclick="""
                  let urlObj = new URL(window.location.href);
                  urlObj.searchParams.delete("page_id");
-                 genro.openBrowserTab(urlObj.toString(),{new_window:true});""")
+                 genro.openBrowserTab(urlObj.toString(),{new_window:true});""").div(_class='windowaddIcon')
         
     @struct_method
     def fi_pluginButton(self,pane,name,caption=None,iconClass=None,defaultWidth=None,**kwargs):

@@ -380,6 +380,32 @@ class TestFormulaSelect:
 # Formula columns with SQL expressions
 # ===================================================================
 
+class TestFormulaSqlThisRelation:
+    """1505: #THIS.@relation.column inside a sql_formula is expanded.
+
+    The column is a sqlparams override of the display_total formula column,
+    so the test model does not change.
+    """
+
+    @pytest.fixture(params=['False', 'True'], ids=['legacy', 'next'])
+    def sql_compiler(self, request, db_sqlite):
+        with next_sql_compiler_flag(db_sqlite, request.param):
+            yield request.param
+
+    @pytest.mark.usefixtures('sql_compiler')
+    def test_this_relation_in_sql_formula_sqlite(self, db_sqlite):
+        tbl = db_sqlite.table('invc.invoice')
+        q = tbl.query(columns='$customer_name,$this_customer', limit=5,
+                      where='$customer_id IS NOT NULL',
+                      this_customer=dict(field='display_total', dtype='T',
+                                         sql_formula='#THIS.@customer_id.account_name'))
+        assert '#THIS' not in q.sqltext
+        rows = q.fetch()
+        assert rows
+        for row in rows:
+            assert row['this_customer'] == row['customer_name']
+
+
 class TestFormulaSql:
 
     def test_line_total_pg(self, db_pg):
@@ -2644,6 +2670,36 @@ class TestExpandBag:
             limit=5
         ).fetch()
         assert len(rows) == 5
+
+    def _bagcols_nested(self, db):
+        tbl = db.table('invc.product')
+        pkey = tbl.query(columns='$id', limit=1).fetch()[0]['id']
+        details = Bag()
+        details['a.b.c'] = 1
+        details['a.d'] = 2
+        details['e'] = 3
+        with tbl.recordToUpdate(pkey) as rec:
+            original = rec['details']
+            rec['details'] = details
+        db.commit()
+        try:
+            row = tbl.query(columns='#BAGCOLS($details) AS dc',
+                            where='$id = :pkey', pkey=pkey).fetch()[0]
+            bag_keys = {k for k in row.keys() if k.startswith('dc')}
+            assert bag_keys == {'dc', 'dc_a_b_c', 'dc_a_d', 'dc_e'}
+            assert row['dc'] is None
+            assert (row['dc_a_b_c'], row['dc_a_d'], row['dc_e']) == (1, 2, 3)
+        finally:
+            with tbl.recordToUpdate(pkey) as rec:
+                rec['details'] = original
+            db.commit()
+
+    def test_bagcols_nested_leaves_only_pg(self, db_pg):
+        """#BAGCOLS expands only leaves, never nested folders."""
+        self._bagcols_nested(db_pg)
+
+    def test_bagcols_nested_leaves_only_sqlite(self, db_sqlite):
+        self._bagcols_nested(db_sqlite)
 
 
 class TestCompiledRecordQuery:

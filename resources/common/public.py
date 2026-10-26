@@ -83,6 +83,8 @@ class PublicBase(BaseComponent):
     def public_frameTopBar(self,pane,slots=None,title=None,**kwargs):
         pane.attributes.update(dict(_class='pbl_root_top'))
         baseslots = 'left_placeholder,15,captionslot,*,dock,avatar,countErrors,right_placeholder'
+        if self.inlineDoc:
+            baseslots = baseslots.replace('captionslot','captionslot,pageHelp')
 
         if self._call_kwargs.get('branchIdentifier'):
             baseslots = baseslots.replace('captionslot','captionslot,pageBranchSelector')
@@ -95,24 +97,38 @@ class PublicBase(BaseComponent):
         return pane.slotBar(slots=slots,childname='bar',
                             **kwargs)
 
+    def public_pageDocAddress(self, helpcode=''):
+        """The doc address of this page, of a part of it with a helpcode"""
+        return f'page:{self.package.name}/{self.pagename}:{helpcode}'
+
     @struct_method
-    def public_roundedGroup(self, container, title=None,frame=False,top=None,bottom=None,left=None,right=None,overflow='hidden',**kwargs):
+    def public_roundedGroup(self, container, title=None,frame=False,top=None,bottom=None,left=None,right=None,overflow='hidden',
+                            helpcode=None,**kwargs):
+        helpcode = helpcode if self.inlineDoc else None
         pane = container.contentPane(overflow=overflow,**kwargs)
         rb = pane.div(_class='pbl_roundedBlock',top=top,bottom=bottom,left=left,right=right)
-        if title:
+        if title and helpcode:
+            label = rb.div(_class='pbl_roundedGroupLabel', display='flex', flex_direction='row', align_items='center')
+            label.div(title, flex='1')
+            label.docHelpButton(self.public_pageDocAddress(helpcode), title=title)
+        elif title:
             rb.div(title,_class='pbl_roundedGroupLabel')
         return rb.div(_class='pbl_roundedGroupContent')
 
     @struct_method
-    def public_roundedGroupFrame(self, container, title=None,frameCode=None,**kwargs):
+    def public_roundedGroupFrame(self, container, title=None,frameCode=None,helpcode=None,**kwargs):
         kwargs['overflow'] = 'hidden'
+        helpcode = helpcode if self.inlineDoc else None
         if container.attributes['tag'].lower() in ('tabcontainer','stackcontainer'):
             kwargs['title'] = title
         pane = container.contentPane(**kwargs)
         frame = pane.framePane(frameCode=frameCode,margin='2px',_class='pbl_roundedGroup',
                                center_class='pbl_roundedGroupContent')
         if title:
-            frame.top.slotBar('5,blocktitle,*',_class='pbl_roundedGroupLabel',blocktitle=title)
+            bar = frame.top.slotBar('5,blocktitle,*,blockhelp,5' if helpcode else '5,blocktitle,*',
+                                    _class='pbl_roundedGroupLabel',blocktitle=title)
+            if helpcode:
+                bar.blockhelp.docHelpButton(self.public_pageDocAddress(helpcode), title=title)
         return frame
 
 
@@ -292,6 +308,13 @@ class PublicSlots(BaseComponent):
         pane.data('current.%s' %partition_field,default_partition_value,
                     serverpath='rootenv.current_%s' %partition_path,dbenv=True)
         self.pageStore().setItem('rootenv.partition_kw',kw)
+
+    @struct_method
+    def public_publicRoot_pageHelp(self,pane,**kwargs):
+        """The "?" of the page: its table's doc for a page of a table, its own otherwise"""
+        maintable = getattr(self, 'maintable', None)
+        pane.docHelpButton(f'table:{maintable}:' if maintable else self.public_pageDocAddress(),
+                           margin_left='6px')
 
     @struct_method
     def public_publicRoot_captionslot(self,pane,title='',**kwargs):  
@@ -737,6 +760,13 @@ class TableHandlerMain(BaseComponent):
         form = self._th_prepareForm(root,formCb=formCb,pkey=pkey,**kwargs)
         self.root_form = form
     
+    @struct_method
+    def public_publicRoot_pageHelp(self,pane,**kwargs):
+        """The "?" of the page: its table's doc for a page of a table, its own otherwise"""
+        maintable = getattr(self, 'maintable', None)
+        pane.docHelpButton(f'table:{maintable}:' if maintable else self.public_pageDocAddress(),
+                           margin_left='6px')
+
     @struct_method
     def public_publicRoot_captionslot(self,pane,title='',**kwargs):  
         if title:

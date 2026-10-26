@@ -954,6 +954,10 @@ dojo.declare("gnr.GnrDomHandler", null, {
                 genro.dom.onDragLeave(event);
             }
             genro._lastDropTarget = event.target;
+            genro.dom._dragOverRefresh = false;
+            genro.dom.onDragEnter(event);
+        } else if (genro.dom._dragOverRefresh) {
+            genro.dom._dragOverRefresh = false;
             genro.dom.onDragEnter(event);
         }
         if(event.target.sourceNode && event.target.sourceNode.getInheritedAttributes().dragOverCb){
@@ -1464,7 +1468,7 @@ dojo.declare("gnr.GnrDomHandler", null, {
             curridx += bar_width+bar_margin;
         }
         let tophalf = `<div style="position:absolute;top:0;left:0;right:0;height:${Math.abs(ovf_max)}px;">${result.join("")}</div>`;
-        let bottomhalf = `<div style="position:absolute;bottom:0;left:0;right:0;height:${Math.abs(ovf_min)}px; border-top:1px solid silver;"></div>`;
+        let bottomhalf = `<div style="position:absolute;bottom:0;left:0;right:0;height:${Math.abs(ovf_min)}px; border-top:1px solid var(--border-color);"></div>`;
         
         result = `<div class="mc_root" style="position:relative; height:${tot_height}px; width:${tot_width}px;">${tophalf}${bottomhalf}</div>`;
         if(where){
@@ -1633,7 +1637,7 @@ dojo.declare("gnr.GnrDomHandler", null, {
         var whatDomNode = this.getDomNode(what);
         let str = whatDomNode.textContent;
         genro.dom.addClass(whatDomNode,'copyingContent');
-        navigator.clipboard.writeText(str).then(function(){
+        genro.textToClipboard(str).then(function(){
             setTimeout(function(){
                 genro.dom.removeClass(whatDomNode,'copyingContent');
             },500);
@@ -1922,7 +1926,7 @@ dojo.declare("gnr.GnrDomHandler", null, {
                 genro.dlg.prompt('Upload screenshot',{
                     cancelCb:kw.onResult,
                     widget:function(center){
-                        var preview = center._('div',{margin:'2px',height:'150px',border:'1px solid silver', overflow:'auto',
+                        var preview = center._('div',{margin:'2px',height:'150px',border:'1px solid var(--border-color)', overflow:'auto',
                                                         onCreated:function(domnode){
                                                             dojo.style(canvas,{zoom:'.5'})
                                                             domnode.appendChild(canvas)

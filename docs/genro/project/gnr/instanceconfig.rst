@@ -194,8 +194,26 @@ Tags
       ``compiler_next.py``, the copy of the query compiler that receives new work,
       instead of the frozen ``SqlQueryCompiler``.
 
+    ``<storage>`` switches:
+
+    * ``use_genro_storage``: serve the mappable storage mounts through the
+      ``genro-storage`` package instead of the legacy services; see
+      ``docs/development/genro-storage-migration.md``.
+
     A missing tag or attribute reads as ``False`` for a boolean switch and as
     ``None`` for one carrying a value.
+
+    ``gnr web serve`` switches features on for a single run with ``--xpr``, a
+    comma-separated list of ``group.name`` (the switch is on) or
+    ``group.name=value`` items, applied on top of this tag::
+
+        gnr web serve myinstance --xpr page.no_mako,page.dojo_xhr_patch=fetch
+
+    The command line wins over ``instanceconfig.xml`` for the attributes it names
+    and leaves the others as they are. Surrounding square brackets are accepted
+    when quoted (``--xpr '[page.no_mako]'``); unquoted, zsh reads them as a glob
+    pattern. Processes started separately (``gnrdaemon``, the websocket server,
+    the task workers) do not receive the option.
 
 .. _instanceconfig_authentication:
 

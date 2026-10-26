@@ -3,6 +3,31 @@ name: Code testing (python)
 on: [push]
 
 jobs:
+  base-install:
+    # The build job installs .[developer], which pulls the optional extras
+    # (genro-storage among them), so it cannot see a startup import that
+    # needs one. This job installs genropy alone and checks that every
+    # module a site imports at startup still loads.
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.13"
+    - name: Install genropy without extras
+      run: |
+        python -m pip install --upgrade pip
+        cd gnrpy && pip install -e . pytest
+        # the check below means nothing if a base dependency pulls the extra
+        if python -c "import genro_storage" 2>/dev/null; then
+          echo "genro_storage is installed: this job no longer tests the base install"
+          exit 1
+        fi
+    - name: Startup imports
+      run: |
+        cd gnrpy && pytest tests/web/gnrservices_import_test.py -q
+
   build:
     runs-on: ubuntu-latest
     strategy:
@@ -77,5 +102,6 @@ jobs:
         # instance and a running daemon, which this job does not provide. Its
         # backpressure logic is covered without one, so that check runs here.
         pytest projects/gnrcore/packages/test/tests/test_pages_documented.py \
+               projects/gnrcore/packages/test/tests/test_pages_framecodes.py \
                projects/gnrcore/packages/test/tests/test_pages_ratchet.py \
                projects/gnrcore/packages/test/tests/test_smoke_backpressure.py -q

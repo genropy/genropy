@@ -119,7 +119,7 @@ class Table(object):
             return '*'
         if task['frequency']:
             last_scheduled_ts = task['last_scheduled_ts']
-            if last_scheduled_ts is None or (timestamp-last_scheduled_ts).seconds/60.>=task['frequency']:
+            if last_scheduled_ts is None or (timestamp-last_scheduled_ts).total_seconds()/60.>=task['frequency']:
                 return '*'
             else:
                 return False

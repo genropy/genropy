@@ -1,6 +1,7 @@
 import pytest
 from gnr.sql.adapters import _gnrbaseadapter as ba
 from gnr.sql.adapters import _gnrbasepostgresadapter as pgmod
+from gnr.sql.adapters.gnrsqlite import SqlDbAdapter as SqliteAdapter
 
 class FakeCursor(object):
     def fetchall(self):
@@ -257,7 +258,9 @@ class TestSqlDbAdapter():
         assert "field" in r
         assert "separator" in r
 
-        
+        r = self.adapter.string_join(["a", "b"], ",")
+        assert r == "array_to_string(ARRAY[a,b],',')"
+
         r = self.adapter.addUniqueConstraint("package", "table", "field")
         assert r == "ALTER TABLE package.table ADD CONSTRAINT un_package_table_field UNIQUE (field)"
 
@@ -430,6 +433,22 @@ class TestSqliteAdapterMaskField:
         # Should fall back to 2-4
         assert "2" in result
         assert "4" in result
+
+
+class TestSqliteAdapterStringJoin:
+
+    @classmethod
+    def setup_class(cls):
+        cls.adapter = SqliteAdapter(FakeDbRoot(False))
+
+    def test_string_join(self):
+        r = self.adapter.string_join(["a", "b"], ",")
+        assert r == "substr(COALESCE(','||(a),'')||COALESCE(','||(b),''),2)"
+        assert "ARRAY" not in r
+
+    def test_string_join_separator_length(self):
+        r = self.adapter.string_join(["a"], " | ")
+        assert r == "substr(COALESCE(' | '||(a),''),4)"
 
 
 class FakeCompletedProcess(object):

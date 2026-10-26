@@ -28,7 +28,7 @@ class Form(BaseComponent):
         fb.field('server',html_label=True)
 
         tc = bc.tabContainer(region='center',margin='2px')
-        tc.contentPane(title='!!Parameters').fieldsGrid(margin='2px',rounded=6,border='1px solid silver') #ok
+        tc.contentPane(title='!!Parameters').fieldsGrid(margin='2px',rounded=6,border='1px solid var(--border-color)') #ok
         bc = tc.borderContainer(title='!!Documentation')
         bc.roundedGroupFrame(title='!!Summary',region='top',height='50%',splitter=True).simpleTextArea('^#FORM.record.summary',colspan=3,height='100px',editor=True)
         bc.contentPane(region='center').bagGrid(storepath='#FORM.record.docrows',title='!!Parameters doc',

@@ -85,7 +85,7 @@ class TableHandlerView(BaseComponent):
             bar = view.top.bar.replaceSlots('#','#,structPalette,5')
             scode = structure_field.replace('.','_').replace('@','_')
             bar.structPalette.palettePane(paletteCode=scode,title='!![en]Structure',dockButton=True).borderContainer(closable=True,width='300px',
-                                    border_right='1px solid silver'
+                                    border_right='1px solid var(--border-color)'
                                     ).contentPane(region='center'
                                     ).structureTree(structure_field=structure_field,view=view,**structure_field_kwargs)
         return view
@@ -352,6 +352,7 @@ class TableHandlerView(BaseComponent):
         if statsEnabled is None:
             statsEnabled = True if extendedQuery else False
         statsSlot = 'stats' if statsEnabled else False
+        vhelp = 'vhelp' if self.inlineDoc else False
         if extendedQuery:
             if 'adm' in self.db.packages and not self.isMobile:
                 templateManager = 'templateManager'
@@ -375,7 +376,7 @@ class TableHandlerView(BaseComponent):
                 if searchOn is False:
                     base_slots.remove('searchOn')
             else:
-                base_slots = ['5','vtitle','count','10',statsSlot,pageHooksSelector,'*'] if count is not False else ['5','vtitle','10',statsSlot,pageHooksSelector,'*','5']
+                base_slots = ['5','vtitle',vhelp,'count','10',statsSlot,pageHooksSelector,'*'] if count is not False else ['5','vtitle',vhelp,'10',statsSlot,pageHooksSelector,'*','5']
                 if searchOn:
                     base_slots.append('searchOn')
 
@@ -546,7 +547,7 @@ class TableHandlerView(BaseComponent):
 
     def _th_handle_stats_pages(self,view):
         bc = view.borderContainer(title='!!Stats tools',pageName='statsTools',childname='statsTools',
-                                    margin='5px',rounded=4,border='1px solid silver',
+                                    margin='5px',rounded=4,border='1px solid var(--border-color)',
                                     datapath='.statsTools')
         bar = bc.contentPane(region='top').slotToolbar('20,*,s_title,*,closbtn,2',
                                                     background='#444',height='22px',
@@ -567,7 +568,7 @@ class TableHandlerView(BaseComponent):
     @struct_method
     def th_viewLeftDrawer(self,pane,table,th_root):
         bar = pane.slotBar('drawerStack',min_width='160px',closable='close',
-                            splitter=True,border_right='1px solid silver')
+                            splitter=True,border_right='1px solid var(--border-color)')
         bar.drawerStack.attributes['height'] = '100%'
         sc = bar.drawerStack.stackContainer(height='100%')
         sc.contentPane(background='red')
@@ -575,6 +576,10 @@ class TableHandlerView(BaseComponent):
     @struct_method
     def th_slotbar_vtitle(self,pane,**kwargs):
         pane.div('^.title' ,_class='frameGridTitle')
+
+    @struct_method
+    def th_slotbar_vhelp(self,pane,**kwargs):
+        pane.docHelpButton(f"table:{pane.getInheritedAttributes()['table']}:")
 
     @struct_method
     def th_slotbar_importer(self,pane,frameCode=None,importer=None,**kwargs):

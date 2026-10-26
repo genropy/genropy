@@ -81,7 +81,7 @@ class Form(BaseComponent):
                             return result;
                             """,
                             grid_excludeCol='_package_identifier',
-                            margin='2px',rounded=6,border='1px solid silver',
+                            margin='2px',rounded=6,border='1px solid var(--border-color)',
                             addrow=False)
         bar = view.top.bar.replaceSlots('vtitle','mbpackages')
         bar.replaceSlots('delrow','searchOn,delrow')

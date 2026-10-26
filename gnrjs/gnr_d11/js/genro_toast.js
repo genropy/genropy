@@ -131,7 +131,7 @@ dojo.declare("gnr.GnrToast", null, {
             el.querySelector('.gnr-toast-copy').addEventListener('click', function(e){
                 e.stopPropagation();
                 var text = (e.shiftKey && copyDetail) ? copyDetail : copyText;
-                navigator.clipboard.writeText(text);
+                genro.textToClipboard(text);
             });
         }
         el.querySelector('.gnr-toast-close').addEventListener('click', function(e){

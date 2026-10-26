@@ -88,10 +88,24 @@ dojo.declare("gnr.GnrTriggerIndex", null, {
             this._collect(trienode, targets);
         }
         for (let sub of targets) {
-            if (!sub._removed) {
-                sub.node.trigger_data(sub.attr, kw);
+            if (sub._removed) {
+                continue;
             }
+            if (sub.node.isLostNode()) {
+                console.error('trigger index: subscription of a discarded source node',
+                              sub.node.attr.tag, sub.attr, this._subPath(sub));
+                this.remove(sub);
+                continue;
+            }
+            sub.node.trigger_data(sub.attr, kw);
         }
+    },
+    _subPath: function(sub) {
+        let keys = [];
+        for (let trienode = sub._trienode; trienode && trienode.parent; trienode = trienode.parent) {
+            keys.unshift(trienode.key);
+        }
+        return keys.length ? keys.join('.') : null;
     },
     _collect: function(trienode, targets) {
         if (trienode.subs) {
@@ -175,20 +189,20 @@ dojo.declare("gnr.GnrSrcHandler", null, {
             //sees this content again, and externalWidgets hang off no dijit
             //parent, so no destroyRecursive reaches them either
             if (kw.evt == 'del') {
+                this.cleanupNodeSubscriptions(kw.node);
                 kw.node._onDeleting();
                 this._onDeletingContent(kw.node._value);
                 this.deleteChildrenExternalWidget(kw.node);
                 if (kw.node.externalWidget && kw.node.externalWidget.destroy) {
                     kw.node.externalWidget.destroy();
                 }
-                this.cleanupNodeSubscriptions(kw.node);
             } else if (kw.evt == 'upd' && kw.oldvalue !== kw.node._value) {
                 //the discarded content only: this node is not dying, it is
                 //frozen and rebuilds on unfreeze, and tearing it down here
                 //would take it off screen before that
+                this.cleanupContentSubscriptions(kw.oldvalue);
                 this._onDeletingContent(kw.oldvalue);
                 this.deleteContentExternalWidget(kw.oldvalue);
-                this.cleanupContentSubscriptions(kw.oldvalue);
             }
             return;
         }
@@ -197,14 +211,26 @@ dojo.declare("gnr.GnrSrcHandler", null, {
             this.building = true;
             while (this.pendingBuild.length > 0) {
                 kw = this.pendingBuild.pop();
-                dojo.hitch(this, '_trigger_' + kw.evt)(kw);
+                try {
+                    dojo.hitch(this, '_trigger_' + kw.evt)(kw);
+                } catch (e) {
+                    //the queue holds the work of other callers too: a failed
+                    //build must not stop it, nor leave building set for the
+                    //whole page. Rethrown on its own it stays an uncaught error
+                    setTimeout(function() { throw e; }, 0);
+                }
             }
             this.building = false;
         }
     },
+    _awaitsBuild:function(sourceNode) {
+        return this.pendingBuild.some(function(kw) {
+            return kw.evt == 'ins' && (kw.node === sourceNode || sourceNode.isChildOf(kw.node));
+        });
+    },
     _trigger_ins:function(kw) {//da rivedere
         //console.log('trigger_ins',kw);
-        if(kw.reason=='autocreate'){
+        if(kw.reason=='autocreate' || kw.node.isLostNode()){
             return;
         }
         var node = kw.node;
@@ -214,6 +240,10 @@ dojo.declare("gnr.GnrSrcHandler", null, {
             if (wherenode) {
                 where = wherenode.widget || wherenode.domNode;
                 if (!where) {
+                    //queued after its parent (LIFO): the parent's build makes it
+                    if (this._awaitsBuild(wherenode)) {
+                        return;
+                    }
                     console.error('Missing destination node in trigger_ins',kw);
                 }
             } else {
@@ -236,7 +266,17 @@ dojo.declare("gnr.GnrSrcHandler", null, {
     _trigger_upd:function(kw) {//da rivedere
         //console.log('trigger_upd',kw);
         var updatingNode = kw.node;
+        //not built yet: its queued insertion builds the new value, while
+        //getDomNode would hand over the first built ancestor to replace
+        if (!updatingNode.widget && !updatingNode.domNode && this._awaitsBuild(updatingNode)) {
+            return;
+        }
         genro.assert(!updatingNode._isComponentNode);
+        if (kw.oldvalue !== kw.node._value) {
+            //on a same-bag rebuild the content is kept, not discarded: its
+            //data* nodes are already stripped and would never resubscribe
+            this.cleanupContentSubscriptions(kw.oldvalue);
+        }
         updatingNode._onDeleting();
         if(updatingNode.externalWidget && updatingNode.externalWidget.destroy){
             updatingNode.externalWidget.destroy();
@@ -246,11 +286,6 @@ dojo.declare("gnr.GnrSrcHandler", null, {
             console.log('missing destination in rebuild');
         }
         this._onDeletingContent(kw.oldvalue);
-        if (kw.oldvalue !== kw.node._value) {
-            //on a same-bag rebuild the content is kept, not discarded: its
-            //data* nodes are already stripped and would never resubscribe
-            this.cleanupContentSubscriptions(kw.oldvalue);
-        }
         var domNode = kw.node.getDomNode();//get the domnode
         var newNode = document.createElement('div');
         var widget = kw.node.widget;
@@ -342,6 +377,7 @@ dojo.declare("gnr.GnrSrcHandler", null, {
     
     _trigger_del:function(kw) {//da rivedere
         var deletingNode = kw.node;
+        this.cleanupNodeSubscriptions(deletingNode);
         deletingNode._onDeleting();
         if(deletingNode._isComponentNode){
             this.deleteNodeContent(deletingNode);
@@ -362,14 +398,15 @@ dojo.declare("gnr.GnrSrcHandler", null, {
                     }
                 }
                 this.widgetDestroyAndUnlink(widget);
-                //widget.destroyRecursive();
+                if(parentWdg && parentWdg._checkIfSingleChild){
+                    parentWdg._checkIfSingleChild();
+                }
             } else if(domNode) {
                 this.deleteDomNodeContent(domNode);
             }else if(deletingNode.externalWidget){
                 deletingNode.externalWidget.destroy();
             }
         }
-        this.cleanupNodeSubscriptions(deletingNode);
     },
 
     cleanupNodeSubscriptions:function(node){

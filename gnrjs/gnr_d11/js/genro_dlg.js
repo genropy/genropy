@@ -650,7 +650,7 @@ dojo.declare("gnr.GnrDlgHandler", null, {
             promptkw.widget = objectPop(promptkw,'fields');
         }
         if(!doAsk){
-            if(default_result && objectNotEmpty(default_result)){
+            if(objectNotEmpty(default_result)){
                 parameters._askResult = default_result;
             }
             funcApply(cb, parameters, sourceNode,argnames,argvalues);
@@ -664,7 +664,7 @@ dojo.declare("gnr.GnrDlgHandler", null, {
             }
             funcApply(cb, parameters, sourceNode,argnames,argvalues);
         }
-        genro.dlg.prompt(_T(objectPop(promptkw,'title','Parameters')),promptkw,sourceNode);
+        genro.dlg.prompt(_T(objectPop(promptkw,'title','!!Parameters')),promptkw,sourceNode);
     },
 
     prompt: function(title, kw,sourceNode) {
@@ -677,6 +677,10 @@ dojo.declare("gnr.GnrDlgHandler", null, {
         var remote = kw.remote;
         var dflt = kw.dflt;
         var cols = objectPop(kw,'cols') || 1;
+        var formlet = objectPop(kw,'formlet');
+        if(isNullOrBlank(formlet)){
+            formlet = genro.startArgs.useFormletsInJsFb;
+        }
         genro.dlg.prompt_counter = genro.dlg.prompt_counter || 0;
         genro.dlg.prompt_counter++;
         var prompt_datapath = kw.datapath || 'gnr.promptDlg.prompt_'+genro.dlg.prompt_counter;
@@ -746,8 +750,8 @@ dojo.declare("gnr.GnrDlgHandler", null, {
                         }
                     };
         var bar = dlg.bottom._('slotBar',{slots:'*,cancel,confirm',action:actionCb});
-        bar._('button','cancel',{'label':'Cancel',command:'cancel'});
-        var confirmbtnKW = {'label':'Confirm',command:'confirm'};
+        bar._('button','cancel',{'label':_T('Cancel'),command:'cancel'});
+        var confirmbtnKW = {'label':_T('Confirm'),command:'confirm'};
         if(mandatory){
             confirmbtnKW.disabled = '^.promptvalue?=(#v==null) || (#v=="")';
         }
@@ -771,36 +775,37 @@ dojo.declare("gnr.GnrDlgHandler", null, {
             dlg.center._('multiValueEditor',objectUpdate({value:'^.promptvalue',height:'250px',width:'350px'},objectExtract(kw,'wdg_*')));
         }
         else{
-            kwbox.padding = '10px';
-            kwbox.width=dlg_kw.width;
+            kwbox.padding = formlet? null : '10px';
+            kwbox.width = formlet? null : dlg_kw.width;
             var box = dlg.center._('div',kwbox);
             var fb;
 
             var onEnter ='onEnter' in kw? funcCreate(kw.onEnter,null,sourceNode):null;
+            var lblKw = formlet? {} : {lbl_color:'#666',lbl_text_align:'right'};
             if(msg){
-                box._('div',{innerHTML:msg,color:'#666',margin_bottom:'10px',_class:'selectable'});
+                box._('div',{innerHTML:msg,color:'#666',_class:'selectable',
+                             margin_bottom:formlet?null:'10px',
+                             padding:formlet?'0 var(--formlet-padding)':null});
             }
             if(typeof(wdg)=='string'){
-                fb = genro.dev.formbuilder(box,cols,{border_spacing:'1px',onEnter:onEnter,width:'100%',fld_width:'100%'});
-                fb.addField(wdg,objectUpdate({value:'^.promptvalue',lbl:kw.lbl,lbl_color:'#666',lbl_text_align:'right'},objectExtract(kw,'wdg_*')));
+                fb = genro.dev.formbuilder(box,cols,{formlet:formlet,border_spacing:'1px',onEnter:onEnter,width:'100%',fld_width:'100%'});
+                fb.addField(wdg,objectUpdate(objectUpdate({value:'^.promptvalue',lbl:kw.lbl},lblKw),objectExtract(kw,'wdg_*')));
             }else{
-                fb = genro.dev.formbuilder(box,cols,{border_spacing:'4px',width:'100%',onEnter:onEnter,fld_width:'100%',datapath:'.promptvalue'});
+                fb = genro.dev.formbuilder(box,cols,{formlet:formlet,border_spacing:'4px',width:'100%',onEnter:onEnter,fld_width:'100%',datapath:'.promptvalue'});
                 wdg.forEach(function(n){
                     n = objectUpdate({},n);
                     var w = objectPop(n,'wdg','textbox');
-                    fb.addField(w,objectUpdate({lbl_color:'#666',lbl_text_align:'right'},n));
+                    fb.addField(w,objectUpdate(objectUpdate({},lblKw),n));
                 });
             }
         }
         dlg.show_action(function(){
-            //genro.bp(true);
             setTimeout(function(){
                 var inputNodes = dojo.query('input',dlg.getParentNode().widget.domNode) || [];
                 if(inputNodes.length){
                     inputNodes[0].focus();
                 }
             },500);
-            //console.log('dlg',dojo.query(dlg.getParentNode().domNode,'input'));
         });
     },
 
@@ -867,12 +872,13 @@ dojo.declare("gnr.GnrDlgHandler", null, {
         }
         var fields = objectPop(kw,'fields');
         var cols = objectPop(kw,'cols',1);
+        var formlet = objectPop(kw,'formlet');
 
         var tp = node._('tooltipPane',kw);
         if(fields){
             if(fields instanceof Array){
                 tp = tp._('div',{_class:'quickTooltipContainer'});
-                var fb = genro.dev.formbuilder(tp,cols,{border_spacing:'4px',width:'100%',fld_width:'100%'});
+                var fb = genro.dev.formbuilder(tp,cols,{formlet:formlet,border_spacing:'4px',width:'100%',fld_width:'100%'});
                 fields.forEach(function(n){
                     n = objectUpdate({},n);
                     var w = objectPop(n,'wdg','textbox');
@@ -886,6 +892,247 @@ dojo.declare("gnr.GnrDlgHandler", null, {
         }
         node.unfreeze();
         return tp;
+    },
+
+    docUrl: function(address, kw) {
+        // the page of a doc address (sys/ep_doc), asked by this page
+        return genro.addParamsToUrl('/sys/ep_doc', objectUpdate({address: address,
+            language: genro.getData('gnr.language'), _calling_page_id: genro.page_id}, kw || {}));
+    },
+
+    docAssetUrl: function(address, name) {
+        return this.docUrl(address) + '&asset=' + (name || '');
+    },
+
+    _docPost: function(params) {
+        const body = new URLSearchParams(objectUpdate({language: genro.getData('gnr.language'),
+                                                       _calling_page_id: genro.page_id}, params));
+        return fetch('/sys/ep_doc', {method: 'POST', body: body, credentials: 'same-origin'});
+    },
+
+    docTrack: function(domNode, address) {
+        // an icon of a doc address: shown when the doc exists, and red where it
+        // is empty to a documenter in documentation mode. The addresses of the
+        // page go to sys/ep_doc in one request
+        domNode.setAttribute('data-doc-address', address);
+        domNode.classList.add('doc_icon');
+        const states = this._docStates = this._docStates || {};
+        if (address in states) {
+            this.docApplyState(domNode);
+            return;
+        }
+        states[address] = null;
+        (this._docPending = this._docPending || new Set()).add(address);
+        if (!this._docPendingTimer) {
+            this._docPendingTimer = setTimeout(() => this._docIndex(), 0);
+        }
+    },
+
+    _docIndex: function() {
+        const addresses = [...this._docPending];
+        this._docPending = new Set();
+        this._docPendingTimer = null;
+        return this._docPost({_index: 1, addresses: addresses.join(',')})
+            .then((response) => response.ok ? response.json() : null)
+            .catch(() => null)
+            .then((result) => {
+                result = result || {docs: {}, editable: []};
+                addresses.forEach((address) => {
+                    this._docStates[address] = {exists: address in result.docs,
+                                                editable: result.editable.indexOf(address) >= 0,
+                                                manual: (result.manual || []).indexOf(address) >= 0};
+                });
+                this.docApplyStates();
+            });
+    },
+
+    docApplyStates: function() {
+        document.querySelectorAll('[data-doc-address]').forEach((domNode) => this.docApplyState(domNode));
+    },
+
+    docApplyState: function(domNode) {
+        const state = (this._docStates || {})[domNode.getAttribute('data-doc-address')] || {};
+        const docMode = !!genro.getData('gnr.docModeVisible');
+        const documented = !!state.exists || !!state.manual;
+        domNode.classList.toggle('doc_icon--shown', documented || (!!state.editable && docMode));
+        domNode.classList.toggle('doc_icon--empty', !documented);
+    },
+
+    docSource: function(address, cb) {
+        // {exists, editable, title, html, markdown, language, mtime, manual} of a
+        // doc address, fetched once per page; null when it is not for this user
+        const sources = this._docSources = this._docSources || {};
+        if (!(address in sources)) {
+            sources[address] = fetch(this.docUrl(address, {_fragment: 1}), {credentials: 'same-origin'})
+                .then((response) => response.ok ? response.json() : null)
+                .catch(() => null);
+        }
+        return sources[address].then(cb);
+    },
+
+    helpPanel: function(address, kw, source) {
+        // the help of an address, on the right of the page (a help panel): the
+        // manual's section with a link to it, then the customer's note, with
+        // Edit for a documenter. One panel per page, its topic changes on the
+        // next click; the close button or Esc closes it
+        kw = kw || {};
+        source = source || {};
+        const manual = source.manual;
+        const title = this._docTitleHtml(kw, {title: (manual && manual.title) || source.title});
+        // the server sends only http(s) urls under the manual's site: a url of any
+        // other shape is not followed
+        const manualUrl = manual && /^(https?:\/\/|\/(?!\/))/i.test(manual.url || '') ? manual.url : null;
+        genro.src.getNode()._('div', '_doc_help_panel_');
+        const node = genro.src.getNode('_doc_help_panel_').clearValue();
+        node.freeze();
+        const panel = node._('div', {_class: 'doc_help_panel', role: 'complementary', 'aria_label': _T('!!Help')});
+        const head = panel._('div', {_class: 'doc_help_panel_head'});
+        head._('div', {_class: 'doc_help_panel_title', innerHTML: title});
+        head._('div', {_class: 'doc_help_panel_close', innerHTML: '&times;', title: _T('!!Close'),
+                       connect_onclick: () => this.closeHelpPanel()});
+        const body = panel._('div', {_class: 'doc_help_panel_body'});
+        if (manual) {
+            body._('div', {_class: 'doc_help_manual', innerHTML: manual.html});
+        }
+        if (manualUrl) {
+            // a window of its own, reused by the next link: the page stays where it is
+            body._('a', {_class: 'doc_help_link', href: manualUrl, target: 'gnr_manual',
+                         innerHTML: _T('!!Open in the manual') + ' &#8599;',
+                         connect_onclick: (e) => {
+                             e.preventDefault();
+                             genro.openWindow(manualUrl, 'gnr_manual', {width: '1000', height: '800'});
+                         }});
+        }
+        if (source.exists) {
+            const note = body._('div', {_class: 'doc_help_note'});
+            if (manual) note._('div', {_class: 'doc_help_note_title', innerHTML: _T('!!Notes')});
+            note._('div', {_class: 'doc_help_note_body',
+                           innerHTML: kw.fill ? kw.fill(source.html) : source.html});
+        } else if (!manual) {
+            body._('div', {_class: 'doc_help_empty', innerHTML: _T('!!No documentation available')});
+        }
+        if (source.editable) {
+            body._('a', {_class: 'doc_help_edit', href: '#',
+                         innerHTML: source.exists ? _T('!!Edit the note') : _T('!!Add a note'),
+                         connect_onclick: (e) => {
+                             e.preventDefault();
+                             this.docEdit(address, kw, source);
+                         }});
+        }
+        node.unfreeze();
+        this._helpPanelAddress = address;
+        if (this._helpEscape) return;
+        // Esc closes the panel and nothing else: a dialog above the page (the
+        // note's editor among them) keeps its own Esc
+        this._helpEscape = (e) => {
+            if (e.key !== 'Escape' || (e.target && e.target.closest && e.target.closest('.dijitDialog'))) return;
+            e.stopPropagation();
+            e.preventDefault();
+            this.closeHelpPanel();
+        };
+        document.addEventListener('keydown', this._helpEscape, true);
+    },
+
+    closeHelpPanel: function() {
+        const node = genro.src.getNode('_doc_help_panel_');
+        if (node) node.clearValue();
+        this._helpPanelAddress = null;
+        if (this._helpEscape) {
+            document.removeEventListener('keydown', this._helpEscape, true);
+            this._helpEscape = null;
+        }
+    },
+
+    _docTitleHtml: function(kw, source) {
+        // kw.title is the caller's markup (a label, a card title); the doc's
+        // own title is text a documenter wrote, never markup
+        if (kw.title) return kw.title;
+        return String((source && source.title) || '').replace(/&/g, '&amp;').replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    },
+
+    openDoc: function(domNode, address, kw) {
+        // the "?" of an address. kw: title, fill (a note's html filled with the
+        // caller's data), placeholders (the variables the editor offers). An
+        // address with neither manual nor note opens the editor to a documenter
+        kw = kw || {};
+        return this.docSource(address, (source) => {
+            if (source && !source.exists && !source.manual && source.editable) {
+                this.docEdit(address, kw, source);
+                return;
+            }
+            this.helpPanel(address, kw, source);
+        });
+    },
+
+    docEdit: function(address, kw, source) {
+        // the doc in the user's language: another language's text is the
+        // starting point of a translation, saved as a new file
+        const language = genro.getData('gnr.language');
+        const assets = this.docAssetUrl(address);
+        const title = kw.title || source.title;
+        genro.setData('gnr.docEditor.markdown', (source.markdown || '').split('](assets/').join('](' + assets));
+        const dlg = this.quickDialog(_T('!!Documentation') + ' · ' + this._docTitleHtml(kw, source) + ' (' + language + ')',
+                                     {width: '760px', closable: true});
+        const placeholders = kw.placeholders ? kw.placeholders() : [];
+        dlg.center._('MDEditor', {nodeId: 'doc_editor_md', value: '^gnr.docEditor.markdown',
+            height: '440px', width: '740px',
+            initialEditType: 'wysiwyg', usageStatistics: false,
+            hooks: {addImageBlobHook: (blob, callback) => {
+                this.docUploadImage(address, blob).then((link) => {
+                    if (link) callback(assets + link.slice('assets/'.length), '');
+                });
+            }}});
+        if (placeholders.length) {
+            dlg.center._('div', {_class: 'doc_editor_placeholders',
+                                 innerHTML: _T('!!Variables') + ': ' + placeholders.map((p) => '$' + p).join(' ')});
+        }
+        const save = (force) => {
+            // the editor writes its datapath on blur, which a click on Save may precede
+            const editorNode = genro.nodeById('doc_editor_md');
+            const current = editorNode && editorNode.externalWidget
+                ? editorNode.externalWidget.getMarkdown() : genro.getData('gnr.docEditor.markdown');
+            const markdown = (current || '').split(assets).join('assets/');
+            const params = {_save: 1, address: address, markdown: markdown, title: title};
+            if (source.exists && source.language === language) params.base_mtime = source.mtime;
+            if (force) params.force = 1;
+            this._docPost(params).then((response) => {
+                if (response.status === 409) {
+                    this.ask(_T('!!Documentation'), _T('!!Somebody saved this doc while you were editing it'),
+                             {overwrite: _T('!!Overwrite'), cancel: _T('!!Cancel')},
+                             {overwrite: () => save(true)});
+                    return;
+                }
+                if (!response.ok) {
+                    genro.publish('floating_message', {message: _T('!!The doc was not saved'), messageType: 'error'});
+                    return;
+                }
+                delete this._docSources[address];
+                const state = this._docStates[address] || {};
+                this._docStates[address] = {exists: !!markdown.trim(), editable: true, manual: !!state.manual};
+                this.docApplyStates();
+                dlg.close_action();
+                if (this._helpPanelAddress === address) {
+                    this.docSource(address, (fresh) => this.helpPanel(address, kw, fresh));
+                }
+            });
+        };
+        dlg.bottom._('button', 'save', {float: 'right', label: _T('!!Save'), action: () => save(false)});
+        dlg.bottom._('button', 'cancel', {float: 'right', label: _T('!!Cancel'), action: () => dlg.close_action()});
+        dlg.show_action();
+        return dlg;
+    },
+
+    docUploadImage: function(address, blob) {
+        // an image pasted or dropped in the editor, stored next to the doc
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = () => resolve(null);
+            reader.readAsDataURL(blob);
+        }).then((dataUrl) => dataUrl ? this._docPost({_asset: 1, address: address, dataUrl: dataUrl}) : null)
+          .then((response) => response && response.ok ? response.json() : null)
+          .then((result) => result && result.link);
     },
 
     quickDialog: function(title,kw,rootNode) {
@@ -1313,7 +1560,7 @@ dojo.declare("gnr.GnrDlgHandler", null, {
         var kw = kw || {};
         var dlg_kw = objectUpdate({closable:true,autoSize:true,dialog_bottom:false},objectExtract(kw,'dlg_*'));
         var dlg = genro.dlg.quickDialog(title,dlg_kw);
-        kw.label = _T(kw.label || 'Drop the file to import here');
+        kw.label = _T(kw.label || '!!Drop the file to import here');
         kw.onUploadedMethod = method;
         kw.onResult = function(handler){
             var result = handler.currentTarget.responseText;
@@ -1331,9 +1578,9 @@ dojo.declare("gnr.GnrDlgHandler", null, {
 
     _modalUploader_uploader:function(sc,kw,dlg){
         let uploaderBc = sc._('borderContainer','uploaderPane',{pageName:'uploaderPane'});
-        let defaultLabel = 'Drop the file to import here or dblclick to open the file explorer';
+        let defaultLabel = '!!Drop the file to import here or dblclick to open the file explorer';
         if(genro.isMobile){
-            defaultLabel = 'Press to open the file explorer';
+            defaultLabel = '!!Press to open the file explorer';
         }
         kw.label = `<div style="font-size:1.1em;">${_T(kw.label || defaultLabel)}</div>`;
         kw.position = 'absolute';

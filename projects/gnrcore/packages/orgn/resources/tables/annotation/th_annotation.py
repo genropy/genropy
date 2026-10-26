@@ -226,7 +226,7 @@ class ActionOutcomeForm(BaseComponent):
         bc.contentPane(region='top',height='95px').templateChunk(template='action_tpl',
                                                     record_id='^#FORM.record.id',table='orgn.annotation',_class='orgn_form_tpl')
 
-        centerframe = bc.framePane(region='center',border_top='1px solid silver')
+        centerframe = bc.framePane(region='center',border_top='1px solid var(--border-color)')
         centerframe.top.slotToolbar('*,stackButtons,*')
         sc = centerframe.center.stackContainer(selectedPage='^#FORM.record.exit_status')
         self.orgnActionExecution(sc.borderContainer(title='!!More info',pageName='more_info'))

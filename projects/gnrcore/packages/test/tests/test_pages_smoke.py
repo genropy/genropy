@@ -1,12 +1,11 @@
 """Render sweep over the gnrcore test-page packages.
 
-Every page under the `webpages/` folder of `test` and `test15` is rendered
+Every page under the `webpages/` folder of `test` is rendered
 through a real WSGI request against the gnrdevelop site. The sweep is a ratchet
 against `smoke_known_failures.txt` and fails in both directions: a page that
 fails while outside the list is a regression, and a list entry that answers 200
 is a stale entry, so the list can only shrink. Pages are discovered by walking
-the tree (`pages_ratchet.discover_pages`), so the sweep shrinks by itself as
-test15 empties.
+the tree (`pages_ratchet.discover_pages`).
 
 Every discovered page is rendered, the ones addressing a package the instance
 does not mount included. Naming a package is not the same as needing it mounted
