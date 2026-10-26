@@ -130,17 +130,21 @@ class Package(GnrDboPackage):
 
     def checkFullSyncTables_do(self,errorlog_folder=None,dbstores=None,packages=None,tbllist=None):
         errors = Bag()
-        master_index = self.db.tablesMasterIndex(filterPackages=packages)['_index_'] 
+        master_index = self.db.tablesMasterIndex(filterPackages=packages)['_index_']
+        tables = []
         for tbl in master_index.digest('#a.tbl'):
             if tbllist and tbl not in tbllist:
                 continue
             pkg,tblname = tbl.split('.')
             if packages and pkg not in packages:
                 continue
-            tbl = self.db.table(tbl)
-            multidb = tbl.multidb
+            multidb = self.db.table(tbl).multidb
             if not multidb or multidb=='one' or multidb=='parent':
                 continue
+            tables.append(tbl)
+        for tbl in self.syncTablesOrder(tables):
+            tbl = self.db.table(tbl)
+            multidb = tbl.multidb
             main_f = tbl.query(addPkeyColumn=False,bagFields=True,subtable='*',
                                 excludeLogicalDeleted=False,ignorePartition=True,
                                 excludeDraft=False).fetch()
@@ -156,6 +160,21 @@ class Package(GnrDboPackage):
                     v.toXml(p,autocreate=True)
                 else:
                     os.remove(p)
+
+    def syncTablesOrder(self,tables):
+        #tablesMasterIndex ignores deferred relations, but each table is committed
+        #in the stores as soon as it is synced: a deferred foreign key is checked
+        #at that commit, so its target table must already be synced
+        dependencies = dict((tbl,set(d for d,_ in self.db.model.table(tbl).dependencies))
+                            for tbl in tables)
+        pending = list(tables)
+        result = []
+        while pending:
+            ready = [tbl for tbl in pending if not dependencies[tbl].intersection(pending)]
+            tbl = ready[0] if ready else pending[0]
+            pending.remove(tbl)
+            result.append(tbl)
+        return result
 
 
     def onAuthentication(self,avatar):
