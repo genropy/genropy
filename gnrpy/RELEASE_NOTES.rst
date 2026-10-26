@@ -1,3 +1,17 @@
+Release 26.10.26
+================
+
+Hotfix release:
+
+- webtools: new health endpoints for liveness and readiness probes,
+  so a newly deployed container receives traffic only once the
+  application is fully bootstrapped (#1755)
+- dockerize: ``gnr app dockerize`` now exits with an error when the
+  docker build, tag or push fails, instead of always exiting 0 (#1754)
+- resources: ``css_requires`` declared on a component mixed in at
+  runtime now loads every same-named css file across the resource
+  cascade, not only the first match (#1706, #1713)
+
 Release 26.10.19
 ================
 
