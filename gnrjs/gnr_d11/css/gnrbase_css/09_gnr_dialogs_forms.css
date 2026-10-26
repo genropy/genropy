@@ -438,6 +438,45 @@ table.formbuilder {
     line-height: 1;
     color: var(--text-muted, #4b5563);
 }
+.doc_help_panel--wide {
+    width: min(75vw, 1200px);
+}
+.doc_help_panel--resizing {
+    user-select: none;
+}
+.doc_help_panel_resize {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: -3px;
+    width: 6px;
+    cursor: ew-resize;
+    touch-action: none;
+}
+.doc_help_panel_resize:hover, .doc_help_panel--resizing > .doc_help_panel_resize {
+    background: var(--accent-color, #7aa7d8);
+    opacity: 0.5;
+}
+.doc_help_panel_tool {
+    cursor: pointer;
+    white-space: nowrap;
+    font-size: 1.1em;
+    line-height: 1;
+    color: var(--text-muted, #4b5563);
+    text-decoration: none;
+}
+.doc_help_panel_tool:hover, .doc_help_panel_close:hover {
+    color: var(--text-color, #1f2933);
+}
+.doc_help_panel_frame {
+    flex: 1;
+    width: 100%;
+    border: 0;
+    background: #fff;
+}
+.doc_help_panel--resizing > .doc_help_panel_frame {
+    pointer-events: none;
+}
 .doc_help_panel_body {
     flex: 1;
     overflow: auto;

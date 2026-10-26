@@ -974,18 +974,63 @@ dojo.declare("gnr.GnrDlgHandler", null, {
         // the help of an address, on the right of the page (a help panel): the
         // manual's section with a link to it, then the customer's note, with
         // Edit for a documenter. One panel per page, its topic changes on the
-        // next click; the close button or Esc closes it
-        kw = kw || {};
-        source = source || {};
+        // next click; the close button or Esc closes it. Its left edge drags
+        // its width, kept in the browser; ⤢ widens it
+        this._helpPanelArgs = [address, kw || {}, source || {}];
+        this._helpPanelManualUrl = null;
+        this._renderHelpPanel();
+    },
+
+    showManual: function(address, kw, source, url) {
+        // the manual's page in the help panel, widened: the page is never left,
+        // whatever the browser makes of a new window
+        this._helpPanelArgs = [address, kw || {}, source || {}];
+        this._helpPanelManualUrl = url;
+        this._helpPanelWide = true;
+        this._renderHelpPanel();
+    },
+
+    _renderHelpPanel: function() {
+        const [address, kw, source] = this._helpPanelArgs;
+        const manualUrl = this._helpPanelManualUrl;
+        const width = this._helpPanelWidth || this._storedHelpPanelWidth();
         genro.src.getNode()._('div', '_doc_help_panel_');
         const node = genro.src.getNode('_doc_help_panel_').clearValue();
         node.freeze();
-        const panel = node._('div', {_class: 'doc_help_panel', role: 'complementary', 'aria_label': _T('!!Help')});
+        const panel = node._('div', {_class: 'doc_help_panel' + (this._helpPanelWide ? ' doc_help_panel--wide' : ''),
+                                     width: !this._helpPanelWide && width ? width + 'px' : null,
+                                     role: 'complementary', 'aria_label': _T('!!Help')});
+        panel._('div', {_class: 'doc_help_panel_resize', title: _T('!!Drag to resize'),
+                        connect_onpointerdown: (e) => this._resizeHelpPanel(e)});
         const head = panel._('div', {_class: 'doc_help_panel_head'});
+        if (manualUrl) {
+            head._('div', {_class: 'doc_help_panel_tool', innerHTML: '&#8592; ' + _T('!!Help'),
+                           title: _T('!!Back to the help'), connect_onclick: () => {
+                               this._helpPanelManualUrl = null;
+                               this._renderHelpPanel();
+                           }});
+        }
         head._('div', {_class: 'doc_help_panel_title', innerHTML: this._docHelpTitle(kw, source)});
+        if (manualUrl) {
+            head._('a', {_class: 'doc_help_panel_tool', href: manualUrl, target: '_blank', rel: 'noopener',
+                         innerHTML: '&#8599;', title: _T('!!Open in a new window')});
+        }
+        head._('div', {_class: 'doc_help_panel_tool', innerHTML: this._helpPanelWide ? '&#8690;' : '&#10530;',
+                       title: this._helpPanelWide ? _T('!!Narrow') : _T('!!Widen'), connect_onclick: () => {
+                           this._helpPanelWide = !this._helpPanelWide;
+                           this._renderHelpPanel();
+                       }});
         head._('div', {_class: 'doc_help_panel_close', innerHTML: '&times;', title: _T('!!Close'),
                        connect_onclick: () => this.closeHelpPanel()});
-        this._docHelpBody(panel._('div', {_class: 'doc_help_panel_body'}), address, kw, source);
+        if (manualUrl) {
+            // no same-origin and no top navigation: the manual can neither
+            // reach this page nor replace it; externalSite keeps the page id
+            // off its url, where it would also break the section's anchor
+            panel._('iframe', {_class: 'doc_help_panel_frame', src: manualUrl, externalSite: true,
+                               sandbox: 'allow-scripts allow-popups allow-popups-to-escape-sandbox'});
+        } else {
+            this._docHelpBody(panel._('div', {_class: 'doc_help_panel_body'}), address, kw, source);
+        }
         node.unfreeze();
         this._helpPanelAddress = address;
         if (this._helpEscape) return;
@@ -998,6 +1043,41 @@ dojo.declare("gnr.GnrDlgHandler", null, {
             this.closeHelpPanel();
         };
         document.addEventListener('keydown', this._helpEscape, true);
+    },
+
+    _resizeHelpPanel: function(e) {
+        const panel = e.currentTarget.parentNode;
+        const handle = e.currentTarget;
+        e.preventDefault();
+        handle.setPointerCapture(e.pointerId);
+        panel.classList.add('doc_help_panel--resizing');
+        const move = (evt) => {
+            const width = Math.round(Math.min(Math.max(window.innerWidth - evt.clientX, 320), window.innerWidth * 0.9));
+            panel.classList.remove('doc_help_panel--wide');
+            panel.style.width = width + 'px';
+            this._helpPanelWide = false;
+            this._helpPanelWidth = width;
+        };
+        const up = () => {
+            handle.removeEventListener('pointermove', move);
+            handle.removeEventListener('pointerup', up);
+            panel.classList.remove('doc_help_panel--resizing');
+            try {
+                genro.setInStorage('local', 'docHelpPanelWidth', this._helpPanelWidth);
+            } catch (error) {
+                // a browser with no storage keeps the width for this page only
+            }
+        };
+        handle.addEventListener('pointermove', move);
+        handle.addEventListener('pointerup', up);
+    },
+
+    _storedHelpPanelWidth: function() {
+        try {
+            return genro.getFromStorage('local', 'docHelpPanelWidth') || null;
+        } catch (error) {
+            return null;
+        }
     },
 
     helpTooltip: function(domNode, address, kw, source) {
@@ -1042,12 +1122,13 @@ dojo.declare("gnr.GnrDlgHandler", null, {
             body._('div', {_class: 'doc_help_manual', innerHTML: manual.html});
         }
         if (manualUrl) {
-            // a window of its own, reused by the next link: the page stays where it is
-            body._('a', {_class: 'doc_help_link', href: manualUrl, target: 'gnr_manual',
+            // the manual's page in the help panel: the page stays where it is
+            body._('a', {_class: 'doc_help_link', href: manualUrl, target: '_blank', rel: 'noopener',
                          innerHTML: _T('!!Open in the manual') + ' &#8599;',
                          connect_onclick: (e) => {
                              e.preventDefault();
-                             genro.openWindow(manualUrl, 'gnr_manual', {width: '1000', height: '800'});
+                             this.closeHelpTooltip();
+                             this.showManual(address, kw, source, manualUrl);
                          }});
         }
         if (source.exists) {
@@ -1073,6 +1154,7 @@ dojo.declare("gnr.GnrDlgHandler", null, {
         const node = genro.src.getNode('_doc_help_panel_');
         if (node) node.clearValue();
         this._helpPanelAddress = null;
+        this._helpPanelManualUrl = null;
         if (this._helpEscape) {
             document.removeEventListener('keydown', this._helpEscape, true);
             this._helpEscape = null;
