@@ -299,9 +299,9 @@ stderr_logfile_maxbytes=0
             image_push = f"{self.image_name}:{version_tag}"
             image_push_url = f'{self.options.registry}/{self.options.username}/{image_push}'
             logger.info(f"Tagging image {image_push} to {image_push_url}")
-            subprocess.run(['docker','tag', image_push, image_push_url])
+            subprocess.run(['docker','tag', image_push, image_push_url], check=True)
             logger.info(f"Pushing image {image_push_url}")
-            subprocess.run(['docker', 'push', image_push_url])
+            subprocess.run(['docker', 'push', image_push_url], check=True)
 
         # docker compose conf file
         if self.options.compose:
@@ -544,4 +544,5 @@ def main():
         builder.build_docker_image(version_tag=options.version_tag)
     except Exception as e:
         logger.exception("%s", e)
+        sys.exit(1)
     
