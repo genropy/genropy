@@ -7,4 +7,5 @@ element it documents, so the "?" of that element shows it.
 :maxdepth: 2
 
 users
+inline_docs
 ```
