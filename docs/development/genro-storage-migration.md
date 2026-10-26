@@ -16,7 +16,7 @@ the default. Nothing legacy is removed on this branch.
 > legacy node then keeps its own `isinstance` identity, `.service`, `serve()`, `mkdir()`,
 > `base64` shape, `internal_url`, `listdir`, `autocreate`, and the `StorageService`
 > copy/move machinery bridges the two worlds by content on its own. So there is no node
-> adapter and no bridging code: `gnr/lib/services/storage_genro.py` is the whole
+> adapter and no bridging code: `gnr/web/gnrwsgisite_proxy/storage_genro.py` is the whole
 > variation, and `GenroStorageHandler` overrides exactly one method, `storage()`.
 > Consequences: planned Phase 3 collapsed into Phase 2, planned Phase 5 (cross-world
 > copy/move) needed no code — only tests — and planned Phase 8 (`ep_table` version keys)
@@ -311,7 +311,7 @@ Each phase ends with a commit. No push, no PR.
 | # | What | Files | Verification | State |
 |---|---|---|---|---|
 | 1 | The optional extra `genro_storage`, and genro-storage in `developer` | `gnrpy/pyproject.toml` | `pip check` output identical to §7's five lines — **verified, no new line** | done |
-| 2 | `GenroStorageService`, `GenroStorageHandler` (registry translation, per-mount `configure`, warn-never-raise, `IMPLEMENTATION_MAP` for `local`/`raw`/`aws_s3` with T2's S3 parameter names), `storage_params=None` on `BaseStorageHandler.__init__`, `updateStorageParams`/`removeStorageFromCache` re-sync | `gnrpy/gnr/lib/services/storage_genro.py` (new), `gnrpy/gnr/web/gnrwsgisite_proxy/gnrstoragehandler.py` | `flake8` clean; smoke on the live `gnrdevelop` site | done |
+| 2 | `GenroStorageService`, `GenroStorageHandler` (registry translation, per-mount `configure`, warn-never-raise, `IMPLEMENTATION_MAP` for `local`/`raw`/`aws_s3` with T2's S3 parameter names), `storage_params=None` on `BaseStorageHandler.__init__`, `updateStorageParams`/`removeStorageFromCache` re-sync | `gnrpy/gnr/web/gnrwsgisite_proxy/storage_genro.py` (new), `gnrpy/gnr/web/gnrwsgisite_proxy/gnrstoragehandler.py` | `flake8` clean; smoke on the live `gnrdevelop` site | done |
 | 3 | *(collapsed into Phase 2 — see the implementation note above: no node adapter)* | — | — | n/a |
 | 4 | The flag: `GnrDomainProxy.storage_handler` reading `experimental.storage?use_genro_storage` | `gnrpy/gnr/web/gnrwsgisite.py` | `pytest tests/web/gnrgenrostoragehandler_test.py -q`; full suite unchanged vs baseline | done |
 | 5 | *(cross-world copy/move needed no code — `StorageService` bridges it; covered by tests instead)* | — | `pytest tests/core/gnrstorage_compare_test.py -q -k "copy or move"` | n/a |

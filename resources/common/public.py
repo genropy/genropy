@@ -504,6 +504,22 @@ class TableHandlerMain(BaseComponent):
             }
             """,subscribe_frameindex_external=True,
                             formNode=getattr(th,'form',False),viewNode=th.view)
+        if extendedQuery:
+            # th_external_query: another page (e.g. the index opening this one with openKw)
+            # sends conditions to load in the query editor. The query manager and the
+            # initial query are set up after the build: wait for them.
+            root.dataController("""
+                var kw = objectUpdate({},_subscription_kwargs);
+                if(kw.table && kw.table!=table){
+                    return;
+                }
+                this.watch('th_external_query',function(){
+                    return TH(th_root).querymanager && viewNode.getRelativeData('.query.currentQuery');
+                },function(){
+                    TH(th_root).querymanager.applyExternalQuery(kw);
+                });
+                """,subscribe_th_external_query=True,th_root=th.view.attributes['th_root'],
+                    table=self.maintable,viewNode=th.view)
         if getattr(self,'public_partitioned',None) and not self.public_partitioned.get('children'):
             th.view.dataController("""FIRE .runQueryDo;""",subscribe_public_changed_partition=True,
                     storeServerTime='=.store?servertime',_if='storeServerTime')

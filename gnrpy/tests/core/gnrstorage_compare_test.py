@@ -34,7 +34,7 @@ pytest.importorskip(
 
 from genro_storage import StorageManager  # noqa: E402
 
-from gnr.lib.services import storage_genro  # noqa: E402
+from gnr.web.gnrwsgisite_proxy import storage_genro  # noqa: E402
 from core.storage_fixtures import (CONTENT, MODES, S3_ACCESS_KEY,  # noqa: E402
                                    S3_BUCKET, S3_ENDPOINT, S3_PREFIX,
                                    S3_SECRET_KEY, SiteStub, local_storage,
