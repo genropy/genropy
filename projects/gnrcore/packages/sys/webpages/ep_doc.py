@@ -11,7 +11,7 @@ from werkzeug.wrappers import Response
 from gnr.core.gnrstring import templateReplace
 from gnr.web.gnrdocumentation import (DocumentationConflict, DocumentationStore,
                                       doc_folder, render_markdown)
-from gnr.web.gnrmanual import Manual
+from gnr.web.gnrmanual import Manual, is_storage_path
 from gnr.web.gnrwebpage import GnrUserNotAllowed
 
 
@@ -98,7 +98,7 @@ class GnrCustomWebPage(object):
         """Where the server reads a manual page: a page in a local storage of the
         site (`site:manual/index.html`) is read as a file, which the browser
         opens at its storage url; any other url as it is"""
-        if not url or not re.match(r'^[A-Za-z_]\w*:(?!//)', url):
+        if not is_storage_path(url):
             return url
         node = self.site.storageNode(url)
         local_path = getattr(node, 'internal_path', None)

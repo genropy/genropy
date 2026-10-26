@@ -19,7 +19,7 @@ import requests
 
 from gnr.web import gnrmanual
 from gnr.web.gnrmanual import (Manual, ManualCache, address_label, cut_section, fetch,
-                               parse_inventory, site_of)
+                               is_storage_path, parse_inventory, site_of)
 
 PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII='
 INVENTORY_HEADER = (b'# Sphinx inventory version 2\n# Project: Probe\n# Version: \n'
@@ -323,6 +323,19 @@ def test_only_http_urls_and_absolute_paths_are_manual_pages(monkeypatch):
     for page in ('ftp://docs.example.org/manual/index.html', 'manual/index.html', 'file:///etc/index.html',
                  'javascript:alert(1)', None, ''):
         assert Manual([page]).sites == [], page
+
+
+@pytest.mark.parametrize('url, storage', [
+    ('site:manual/index.html', True),
+    ('home:docs/users.html', True),
+    ('https://docs.example.org/manual/index.html', False),
+    ('/var/www/manual/index.html', False),
+    ('manual/index.html', False),
+    ('', False),
+    (None, False),
+])
+def test_a_storage_path_names_a_storage_of_the_site(url, storage):
+    assert is_storage_path(url) is storage
 
 
 def test_a_manual_built_by_sphinx(tmp_path):

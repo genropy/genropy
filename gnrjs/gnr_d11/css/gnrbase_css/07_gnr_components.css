@@ -394,6 +394,9 @@ tr[_is_valid_item='true'].multiColumnSelectHover td {
     color: var(--root-top-color);
     font-size: .8em;
 }
+.pbl_root_top .helperbutton {
+    color: var(--root-top-color);
+}
 /* @end */
 
 /* @group frameindex_left */

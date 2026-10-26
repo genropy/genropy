@@ -36,6 +36,8 @@ ep_doc = gnrImport(str(ROOT / 'projects' / 'gnrcore' / 'packages' / 'sys' / 'web
                    avoidDup=True)
 aws_s3 = gnrImport(str(ROOT / 'projects' / 'gnrcore' / 'packages' / 'sys' / 'resources' / 'services'
                        / 'storage' / 'aws_s3.py'), avoidDup=True)
+frameindex = gnrImport(str(ROOT / 'projects' / 'gnrcore' / 'packages' / 'adm' / 'resources' / 'frameindex.py'),
+                       avoidDup=True)
 PNG = 'data:image/png;base64,iVBORw0KGgo='
 CONNECTION = 'C_PROBE'
 
@@ -385,6 +387,32 @@ class TestDocumentation(BaseGnrTest):
             assert isinstance(self.call(address='field:adm.user:username', _fragment=1), NotFound)
         finally:
             config.setAttr('experimental.gui', inlinedoc='true')
+
+    def test_the_help_menu_opens_a_manual_of_the_site_at_its_storage_url(self):
+        db = self.site.db
+        group = db.table('adm.group').newrecord(code='DOCHELP', description='Doc help menu')
+        db.table('adm.group').insert(group)
+        helpdocs = []
+        for title, url in (('Site manual', 'site:manual/users.html'),
+                           ('Published manual', 'https://docs.example.org/manual/users.html')):
+            helpdoc = db.table('adm.helpdoc').newrecord(title=title, url=url)
+            db.table('adm.helpdoc').insert(helpdoc)
+            db.table('adm.group_helpdoc').insert(
+                db.table('adm.group_helpdoc').newrecord(group_code='DOCHELP', helpdoc_id=helpdoc['id']))
+            helpdocs.append(helpdoc)
+        db.commit()
+        try:
+            index = SimpleNamespace(db=db, site=self.site, avatar=SimpleNamespace(group_code='DOCHELP'))
+            menu = {r['title']: r['url'] for r in frameindex.FrameIndex.helpdesk_userGroupDocumentation(index)}
+            assert menu == {'Site manual': self.site.storageNode('site:manual/users.html').url(),
+                            'Published manual': 'https://docs.example.org/manual/users.html'}
+            assert not menu['Site manual'].startswith('site:')
+        finally:
+            db.table('adm.group_helpdoc').deleteSelection(where='$group_code=:g', g='DOCHELP')
+            for helpdoc in helpdocs:
+                db.table('adm.helpdoc').delete(helpdoc)
+            db.table('adm.group').delete(group)
+            db.commit()
 
     def test_the_manual_of_the_users_group_documents_the_address(self, tmp_path):
         write_manual(tmp_path, {
