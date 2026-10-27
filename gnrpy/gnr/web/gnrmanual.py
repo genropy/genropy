@@ -42,6 +42,7 @@ CACHE_BYTES = 16 * 1024 * 1024
 MAX_BYTES = 2 * 1024 * 1024
 FETCH_TIMEOUT = (3, 10)
 SITE_DEPTH = 4
+STORAGE_PATH = re.compile(r'^[A-Za-z_]\w*:(?!//)')
 INVENTORY_LINE = re.compile(r'(.+?)\s+(\S+?):(\S+)\s+(-?\d+)\s+(\S*)\s+(.*)')
 ALLOWED_TAGS = frozenset((
     'section', 'div', 'p', 'span', 'a', 'em', 'strong', 'b', 'i', 'u', 's', 'code', 'pre', 'kbd',
@@ -117,6 +118,11 @@ def address_label(address):
 def is_remote(url):
     parts = urlsplit(url)
     return parts.scheme in ('http', 'https') and bool(parts.netloc)
+
+
+def is_storage_path(url):
+    """A path of a storage of the site, `site:manual/index.html`"""
+    return bool(url) and bool(STORAGE_PATH.match(url))
 
 
 def is_readable(url):

@@ -9,6 +9,7 @@ from gnr.core.gnrbag import Bag
 from gnr.core.gnrdecorator import customizable
 from gnr.core.gnrconfig import getRmsOptions
 from gnr.core.gnrdict import dictExtract
+from gnr.web.gnrmanual import is_storage_path
 from gnr.web.gnrwebpage import BaseComponent
 from gnr.web.gnrwebstruct import struct_method
 
@@ -388,11 +389,15 @@ class FrameIndex(BaseComponent):
     def helpdesk_userGroupDocumentation(self):
         if not self.avatar.group_code:
             return
-        return self.db.table('adm.group_helpdoc').query(
+        rows = self.db.table('adm.group_helpdoc').query(
             columns='$url,@helpdoc_id.title AS title',
             where='$group_code=:gc',
             gc = self.avatar.group_code,
         ).fetch()
+        # a manual the instance serves itself is a storage path (sys/ep_doc reads it as well)
+        return [dict(title=r['title'],
+                     url=self.site.storageNode(r['url']).url() if is_storage_path(r['url']) else r['url'])
+                for r in rows]
 
     def helpdesk_documentation(self):
         return
