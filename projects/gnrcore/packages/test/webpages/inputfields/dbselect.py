@@ -195,18 +195,16 @@ class GnrCustomWebPage(object):
         when the table exceeds max(field, min(2 x field, 30em)). auxColumns_multiline
         forces it (True), disables it (False) or sets a fixed ratio (a number);
         auxColumns_template still wins"""
-        fb = pane.formbuilder(cols=1, border_spacing='4px')
+        fb = pane.formlet(cols=5)
         kw = dict(callback=self.wideOptionsCallback(),auxColumns='opened,notes',
-                  hasDownArrow=True,width='12em')
+                  hasDownArrow=True)
         fb.callbackSelect(value='^.auto',lbl='Automatic',**kw)
-        fb.callbackSelect(value='^.wide',lbl='Automatic, wide field',
-                          **dict(kw,width='40em'))
         fb.callbackSelect(value='^.forced',lbl='Forced',auxColumns_multiline=True,**kw)
         fb.callbackSelect(value='^.disabled',lbl='Disabled',auxColumns_multiline=False,**kw)
         fb.callbackSelect(value='^.ratio',lbl='Ratio 10',auxColumns_multiline=10,**kw)
         fb.callbackSelect(value='^.template',lbl='Template',
                           auxColumns_template='<b>$code</b> $notes',**kw)
-        fb.div('^.auto',lbl='Automatic value')
+        fb.callbackSelect(value='^.wide',lbl='Automatic, wide field: the table fits',colspan=5,**kw)
 
     def wideOptionsCallback(self):
         return """function(kw){
