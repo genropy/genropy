@@ -5673,7 +5673,8 @@ dojo.declare("gnr.widgets.DynamicBaseCombo", gnr.widgets.BaseCombo, {
     created: function(widget, savedAttrs, sourceNode) {
         if (savedAttrs.auxColumns) {
             widget._popupWidget = new gnr.Gnr_ComboBoxMenu({onChange: dojo.hitch(widget, widget._selectOption),
-                                                            auxColumns_template:sourceNode.attr.auxColumns_template});
+                                                            auxColumns_template:sourceNode.attr.auxColumns_template,
+                                                            auxColumns_multiline:sourceNode.attr.auxColumns_multiline});
             dojo.connect(widget,'open',function(){
                 var popup = this._popupWidget.domNode.parentNode;
                 var popupcoords = dojo.coords(popup);
@@ -5684,6 +5685,11 @@ dojo.declare("gnr.widgets.DynamicBaseCombo", gnr.widgets.BaseCombo, {
                 }
                 var that = this;
                 setTimeout(function(){
+                    // the reopened list comes back through this handler and autoselects there
+                    if(that._popupWidget.adaptToField(that.domNode.offsetWidth)){
+                        that._showResultList();
+                        return;
+                    }
                     if(that.gnr._autoselectFirstOption){
                         that._popupWidget.highlightFirstOption();
                     }

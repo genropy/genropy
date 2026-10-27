@@ -184,6 +184,19 @@
     border-bottom: 1px solid var(--roundedgroup-border, rgba(0,0,0,0.06));
 }
 
+.multiColumnSelect.multilineAuxColumns table {
+    min-width: var(--auxColumns-field-width, 0);
+}
+
+.multiColumnSelect.multilineAuxColumns .auxColumns_caption {
+    font-weight: 600;
+}
+
+.multiColumnSelect.multilineAuxColumns .auxColumns_line {
+    font-size: 0.85em;
+    opacity: 0.75;
+}
+
 .touchDevice .multiColumnSelect td {
     padding: 0.5em 0.625em;
     line-height: 1.6;
