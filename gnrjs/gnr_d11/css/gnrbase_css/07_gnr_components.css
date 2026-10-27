@@ -129,7 +129,7 @@
     padding: 0.375em 0.5em;
     border-bottom: 1px solid var(--roundedgroup-border, #D1D1D6);
     background-color: var(--primary-lighter, #F2F2F7);
-    text-align: center;
+    text-align: left;
     color: var(--primary-dark, #3A3A3C);
     white-space: nowrap;
     font-weight: 600;
@@ -147,6 +147,11 @@
     padding: 0.375em 0.5em;
     border-bottom: 1px solid var(--roundedgroup-border, rgba(0,0,0,0.06));
     white-space: nowrap;
+}
+
+.multiColumnSelect th + th,
+.multiColumnSelect td + td {
+    border-left: 1px solid var(--roundedgroup-border, rgba(0,0,0,0.06));
 }
 
 .multiColumnSelect tbody tr:last-child td {
