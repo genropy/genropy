@@ -54,6 +54,12 @@ class _AsyncFixtureWrapper:
         else:
             setattr(self._wrapped, key, value)
 
+    def __delattr__(self, key):
+        if key.startswith("_"):
+            super().__delattr__(key)
+        else:
+            delattr(self._wrapped, key)
+
 
 @pytest.fixture
 def scheduler(monkeypatch, tmp_path):
