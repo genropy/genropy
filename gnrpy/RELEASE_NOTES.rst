@@ -1,3 +1,297 @@
+Release 26.10.28
+================
+
+Upgrade notes
+-------------
+
+Please read these before upgrading: some changes need a configuration
+update.
+
+* **Experimental switches moved to instanceconfig.xml** (#1235, #1236,
+  #1308, #1409): the opt-in switches no longer live in the sys
+  preferences (``experimental.*``) and the Developer tab of the sys
+  preferences is gone. They are now read from a new ``<experimental>``
+  tag of ``instanceconfig.xml``, once at startup::
+
+      <experimental>
+          <page no_mako="True" page_class_cache="True"
+                dojo_xhr_patch="fetch" remoteForm="onEnter"/>
+          <db next_sql_compiler="True"/>
+      </experimental>
+
+  There is no fallback to the old preferences: an instance that had a
+  switch on must set it again in ``instanceconfig.xml``. The
+  ``wsk_disabled`` switch is dropped (``site.wsk`` alone decides).
+  ``gnr web serve --xpr group.name[=value],...`` turns switches on for
+  a single run (#1414).
+* **Package declarations**: every loaded package should be declared in
+  the ``<packages>`` section of ``instanceconfig.xml`` (#1058). The boot
+  still loads the packages reached through ``required_packages()`` and
+  reports once, in a pasteable form, what the section is missing.
+  ``required_packages`` is now read statically from ``main.py`` /
+  ``custom.py``; ``gnr app checkdep`` walks the full dependency closure
+  and gains ``--requirements`` and ``--strict`` (#1410).
+* **ckEditor deprecated**: ``ckEditor`` and ``ExtendedCkeditor`` emit a
+  deprecation warning; use the new ``joditEditor`` (#1413).
+* **Daemon provider override**: an installed ``gnr.web:daemon`` entry
+  point replaces the classic daemon only when the
+  ``GNR_DAEMON_PROVIDER`` environment variable names it (#1070).
+* **flib uploads** now default to the ``home:`` storage instead of the
+  ephemeral ``site:`` storage (#976).
+* **test15 package retired** (#1616): its example pages were migrated
+  to the ``test`` package. ``gnrcore:test15`` survives as an empty
+  package that logs a warning at startup; remove it from
+  ``instanceconfig.xml``.
+* **tmsh** duplicate package removed from gnrcore.
+* **Dependencies**: ``paste`` removed (#958); ``watchgod`` replaced by
+  ``watchfiles``, lifting the ``anyio<4`` ceiling (#1087);
+  ``smart_open`` pinned below 8.0 (#972).
+* ``site.writeException`` / ``writeError`` are back as deprecated
+  aliases of ``errorHandler`` (#1426).
+
+New features
+------------
+
+Grids and table handlers
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+* Column value filter: a cell with ``filterField`` gets a filter icon
+  in its header that lists the column's distinct values with their
+  counts; checking values filters the grid (#1638, #1645).
+  ``grid_filterFieldDefault`` turns the filter on for every plain
+  column. Prints, exports and batch actions act on the visible rows.
+* A first column with ``hierarchical='<separator>'`` shows the grid as
+  a tree (#1637).
+* Grouped view: automatic hierarchical grouping, one tree level per
+  path segment, with totals rolled up (#1536, #1606).
+* queryBySample fields in an expandable toolbar row.
+* A warning is logged when two tableHandlers collide on the same
+  datapath.
+* Automatic per-cell row-height estimation in grid prints (#981).
+
+Grouplets
+~~~~~~~~~
+
+* ``groupletWizardForm``: the wizard as the mode of a th form, with
+  per-step remotes, silent saves, Back button, left stepper, step
+  summaries (``stepSummary``), saves on named steps (``saveOnNext``),
+  ``resumeStepField`` to reopen a saved record on the step it was left
+  on, draft confirm / back to draft, and reopening a confirmed record
+  on a given step (#1497, #1506).
+* ``groupletChoice``: choice tiles bound to a field, optionally grouped
+  and tinted, that can act as a self-advancing wizard step (#1533).
+* ``groupletGrid``: phantom row, entry row and read-only template rows
+  (``additem='phantom'|'entry'``, ``rowTemplate``), paste of delimited
+  text as rows, required-field markers on the entry row, card mode
+  with ``formulas=`` and a ``totals=`` band with row count (#1440,
+  #1473, #1544), drop on the "+" to append, focus on the first editor
+  of an added row, lazy tab mounting (``lazyTabs``).
+* ``groupletPanel``: mandatory grouplets (``mandatory`` in
+  ``__info__``) marked in the menu and blocking the outer form save;
+  ``startResource`` to open on a group.
+* ``groupletChunk``: record mode through ``record_id``; selectable
+  summary content.
+
+Forms and widgets
+~~~~~~~~~~~~~~~~~
+
+* ``joditEditor``: new WYSIWYG HTML editor (Jodit) with a CodeMirror 6
+  source view (#1413).
+* ``proseMirrorEditor`` widget and vendored ProseMirror bundle (#869).
+* Numeric keypad and calculator popup on numeric fields
+  (``keypad=True``, ``keypad_calculator=True``).
+* Date/time pickers can open on a ``start_date`` / ``start_time``
+  reference when empty (#1484).
+* ``dialog_autoSize`` fits a form dialog to the loaded content (#1482).
+* linkerBox: ``flex=True`` flow box and ``alwaysOpen`` option (#1548).
+* Formlet: responsive ``wrap`` and ``col_min_width`` modes, alignment
+  of unlabeled buttons and checkboxes, ``excludeCols`` support as in
+  the formbuilder; dynamic forms can render on the formlet backend
+  (``df_formlet``).
+* ``multiButton(minimal=True)`` for the light text-button look (#1577);
+  menudiv token look and checkstrip toggle strip in the base theme.
+* Tab skips a field whose value is kept (keepable); animated drawer
+  transitions.
+* ``onEnter_shiftNewline`` option; the event is passed to the
+  ``onEnter`` callback (#844).
+
+Application and administration
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+* ``adm.api_token`` may carry a user: ``validate_token`` then returns
+  the user identity and tags, with an ``onApiTokenValidation``
+  broadcast for packages (#1580, #1581).
+* Notification preview on each recipient (#1335).
+* Menu: handler badges, row display attributes and ``refreshOnTables``
+  on ``tableBranch`` (#1640); docpage entries for public stored
+  documents (#1059).
+* User deployment group (``adm.xgroup``: ALPHA / CANARY / BETA /
+  STANDARD / LTS) exposed on the avatar, with a developer-only UI.
+* Templates: a symbol can be resolved through a value map server-side
+  (#1056).
+* Print: generic ``_default`` resource to print a record through a
+  named template (#1045); ``sys.pdf_render`` default margins restored
+  and applied with every htmltopdf implementation (#1120).
+* Email: the composed body is shown in the message UI (#1191); SMTP
+  account fields become mandatory when ``smtp_host`` is set (#737,
+  #948); transient mail proxy errors are retried.
+* attachmentGrid forwards ``uploader_*`` kwargs to the uploader (#933).
+* Handbooks: self-healing 301 redirects, public-url media links, own
+  storage and Sphinx export from the grid selection (#1085, #1115,
+  #1142).
+
+Services and storage
+~~~~~~~~~~~~~~~~~~~~
+
+* Public (non-presigned) URL support for storage services (#990).
+* DNS manager service, starting with AWS Route53 (#1183).
+* ``service_disabled`` status in the service definition (#959).
+
+Command line and deployment
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+* ``gnr web serve --collect`` records HTTP requests and site register
+  calls (#1161).
+* ``gnr db shell -s/--storename`` (#995).
+* ``initgenropy --skip-existing`` (#938, #939).
+* k8s generator: ``--no-tls`` and ``--namespace`` options (#1020).
+* Docker builds: ``apt-dependencies.txt`` adds system packages to the
+  image (#946); OCI labels on the base and instance images.
+
+Experimental features
+---------------------
+
+PLEASE NOTE: these features are experimental, YMMV. Use at your own risk.
+All of them are switched on in the ``<experimental>`` tag described
+above.
+
+* ``page_class_cache``: reuse the page class per ``page_id`` instead of
+  rebuilding it on every RPC (#1065, #1066).
+* ``no_mako``: render the root page from a Python struct template.
+* ``dojo_xhr_patch="fetch"``: fetch transport for asynchronous Dojo
+  requests (#1280, #1308).
+* ``next_sql_compiler``: an alternative query compiler
+  (``compiler_next``) that receives new work, plus an alternative app
+  handler (#1354, #1361, #1409).
+* An optional WebSocket handler from the provider selected with
+  ``GNR_DAEMON_PROVIDER`` (#1396).
+* Gramlot pages with a single browser bundle (#1304).
+
+Performance
+-----------
+
+* Client: path-indexed trigger dispatch, per-handler caches and faster
+  Bag hot paths (#1152).
+* Site register: parent -> children links held on the register items,
+  no more full scans when walking the hierarchy (#1106).
+* Broadcast db-events are filtered at write time on the subscribed
+  tables (#968, #969); ``sendAllEvents`` defaults to false (#950).
+
+Security
+--------
+
+* Constant-time signature check and guarded expiry in ``verify_url``
+  (#1053).
+* The workdate capability is enforced on the server at login (#1379).
+* The ``sanitize_js`` switch is readable again and stripping is no
+  longer silent (#1143).
+* The forbidden redirect no longer loops on a forbidden target (#1596).
+* Local credential configuration is no longer tracked in the
+  repository.
+
+Bugfixes
+--------
+
+SQL and database
+
+* Wildcard join conditions compile their column references (#1371,
+  #1397); relationDict placeholders resolved in record join conditions
+  (#1326); ``#THIS`` expanded before relation placeholders in
+  ``sql_formula``.
+* An empty ``IN`` filter matches nothing; non-convertible filter values
+  raise a typed error; missing SQL bindings resolve to NULL.
+* ``rollback`` rolls back every connection of a multi-store selection
+  (#1202); the system connection is rolled back after read-only access
+  (#1600, #1603).
+* ``vacuum`` honours ``full`` and runs in autocommit (#1305);
+  ``batchUpdate`` / ``touchRecords`` no longer swallow calls with no
+  selection (#1055).
+* Virtual columns: declared on a colgroup (#1642), redefined with
+  another kind, inheriting attributes in the relation tree (#1027);
+  ``subQueryColumn`` xml/json under ``SELECT DISTINCT`` (#1026).
+* Hierarchical tables reject cycles; no phantom table when a model file
+  name differs from the table name (#1029).
+* Migration: column uniqueness dropped by its real names (#1425); over-
+  long upgrade file names rejected (#1054); ``gnr migrate -u`` keeps
+  going on upgrade failures (#1024); archived userobjects skipped
+  (#1001) and resource userobjects installed after the full upgrade
+  broadcast (#1068, #1072).
+
+Forms, grids and widgets
+
+* Forms: failed load/save/delete RPCs are treated as failures (#1311,
+  #1447); memory forms keep Bag attributes and write back only what
+  changed (#1420, #1465); torn-down or rebuilt widgets no longer keep
+  the form invalid (#1477, #1479); Bag fields saved after child
+  deletion (#1608); nested forms show the refused-save message
+  (#1160, #1164).
+* Selects: a single change event on typed or emptied values (#1541,
+  #1547); stale identity lookups ignored (#1422, #1278).
+* Grids: ``selectedId`` in legacy included views (#1130), hidden
+  columns with relation paths (#1010), export of an empty grid (#1041),
+  batch assign on the selected row (#1632).
+* Template editor builds again (#1579); ``draftMarker=False`` hides
+  every draft indication (#1322); dynamic ``_class`` removal (#1489);
+  numerous theme, dialog and linker layout fixes.
+* Client stability: a failed build no longer freezes the page;
+  subscriptions of discarded nodes are dropped (#1207, #1301); remote
+  content lock taken before re-entrant code (#1437); expired RPCs no
+  longer loop through dialog translations (#1598).
+
+Site, daemon and register
+
+* Connection and page cleanup: ages measured with ``total_seconds``
+  (#1566, #1571), folders kept inside the workspace and the domain
+  carried into the cleanup thread (#1564, #1565).
+* Site register: datachanges matched on path segment boundaries (#1276),
+  popped nodes announced as deletes (#1249, #1252), autocreated parents
+  not announced (#1230, #1248); register link sets kept consistent
+  (#1217 – #1227); one Pyro proxy per process (#1081, #1083).
+* Task scheduler: one legacy scheduler per site, kept running after a
+  failed pass, whole-day frequency check, local wall-clock schedules
+  (#1071, #1584, #1586, #1587, #1627).
+* Web: dotted usernames escaped in registries and chat (#1062, #1100);
+  login dialog works on pages guarding every RPC (#1599); a folder URL
+  no longer shadows its pages (#1462); catch-all page answers 404
+  (#1012); several app handler defects (#1388, #1391).
+
+Other
+
+* Storage: ``md5hash`` always hashes the content, S3 multipart ETags
+  handled (#1330, #1429); S3 uploads routing (#1434); relative storage
+  usable (#1182).
+* Print and PDF: ``joinPdf`` page order (#1137), explicit
+  ``pageMargin`` wins over ``@page`` (#1052), AFM font metrics (#1294),
+  doc-mode totals only on the last page (#1438).
+* Localization: symbol-only captions (#1111), scanner coverage
+  (#1372), edge spaces and base language preserved in automatic
+  translation.
+* Email: each received email in its own transaction (#1189).
+* ``toDHZ`` resolves zones with ``zoneinfo`` (#1089); single-file
+  PostgreSQL backups handled in deletion and dump; ``psql -l`` output
+  decoded (#943).
+
+Infrastructure
+--------------
+
+* Test suite: test15 example pages triaged and migrated to the ``test``
+  package with render-sweep and frameCode ratchets (#1132, #1133,
+  #1502, #1522, #1563, #1616); hand-maintained test menus removed
+  (#1128); PostgreSQL fixtures no longer kill concurrent runs (#1061).
+* ``GnrDummySite`` can be built without a gnrdaemon (#1049).
+* CI no longer installs wkhtmltopdf, not available on ubuntu-latest;
+  CODEOWNERS covers gnrpy (#1093).
+
 Release 26.10.26
 ================
 
