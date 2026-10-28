@@ -15,6 +15,7 @@ import boto3
 import botocore
 from smart_open import open as so_open
 
+from gnr.core.gnrlang import GnrException
 from gnr.lib.services.storage import StorageService, StorageNode
 from gnr.web.gnrbaseclasses import BaseComponent
 
@@ -129,6 +130,7 @@ class Service(StorageService):
         local_readonly = (local or secondary) and not write_in_local
         self.readonly = readonly or local_readonly
         self.versioned = versioned
+        self._content_md5_cache = {}
 
     @property
     def is_versioned(self):
@@ -186,7 +188,11 @@ class Service(StorageService):
         if len(etag) == 32:
             return etag
         #multipart upload (smart_open always writes one): the ETag is not the content md5
-        return super().md5hash(*args)
+        #etag only keys the cache: a rewrite gets a new one, so the hash cannot go stale
+        key = (etag,) + args
+        if key not in self._content_md5_cache:
+            self._content_md5_cache[key] = super().md5hash(*args)
+        return self._content_md5_cache[key]
 
     def exists(self, *args):
         return self.isfile(*args) or self.isdir(*args)
@@ -372,14 +378,19 @@ class Service(StorageService):
             Params={'Bucket': self.bucket,'Key': internal_path},
             ExpiresIn=expiration)
 
+    def autocreate(self, *args, **kwargs):
+        if self.readonly:
+            return
+        return super().autocreate(*args, **kwargs)
+
     def open(self, *args, **kwargs):
         kwargs['mode'] = kwargs.get('mode', 'rb')
         #version_id = kwargs.pop('version_id',None)
-        if self.readonly:
-            if 'b' in kwargs['mode']:
-                kwargs['mode'] = 'rb'
-            else:
-                kwargs['mode'] = 'r'
+        if self.readonly and set(kwargs['mode']) & set('wax+'):
+            raise GnrException('Storage service %(service_name)s is read-only: '
+                               'cannot write s3://%(bucket)s/%(key)s',
+                               service_name=self.service_name, bucket=self.bucket,
+                               key=self.internal_path(*args))
         so_open.DEFAULT_BUFFER_SIZE = 1024 * 1024
         version_id = kwargs.pop('version_id',None)
         return so_open("s3://%s/%s"%(self.bucket,self.internal_path(*args)),
@@ -411,6 +422,17 @@ class Service(StorageService):
         url = self.url(path, _content_disposition=content_disposition)
         if url:
             return self.parent.redirect(environ, start_response, location=url,temporary=True)
+
+    def file_mtimes(self, *args):
+        """One paginated listing instead of a HEAD per file"""
+        if not self.bucket:
+            return {}
+        prefix = self.internal_path(*args)
+        prefix = prefix.strip('/') + '/' if prefix else ''
+        pages = self._client.get_paginator('list_objects_v2').paginate(Bucket=self.bucket, Prefix=prefix)
+        return {item['Key'][len(prefix):]: item['LastModified'].timestamp()
+                for item in pages.search('Contents')
+                if item and not item['Key'].endswith('.gnrdir')}
 
     def children(self, *args, **kwargs):
         if not self.bucket:
@@ -459,7 +481,7 @@ class ServiceParameters(BaseComponent):
         fb.textbox(value='^.public_base_url',lbl='!!Public Base Url')
         fb.checkbox(value='^.disable_cert_verify',lbl='Disable Certificate Verification')
         bc.storageTreeFrame(frameCode='bucketStorage',storagepath='^#FORM.record.service_name?=#v+":"',
-                                border='1px solid silver',margin='2px',rounded=4,
+                                border='1px solid var(--border-color)',margin='2px',rounded=4,
                                 region='center',preview_region='right',
                                 store__onBuilt=1,
-                                preview_border_left='1px solid silver',preview_width='50%')
+                                preview_border_left='1px solid var(--border-color)',preview_width='50%')

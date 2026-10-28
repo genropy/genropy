@@ -197,7 +197,7 @@ class ServiceParameters(BaseComponent):
         fb.textbox(value='^.username',lbl='Username')
         fb.textbox(value='^.password',lbl='Password')
         bc.storageTreeFrame(frameCode='sftpStorage',storagepath='^#FORM.record.service_name?=#v+":"',
-                                border='1px solid silver',margin='2px',rounded=4,
+                                border='1px solid var(--border-color)',margin='2px',rounded=4,
                                 region='center',preview_region='right',
                                 store__onBuilt=1,
-                                preview_border_left='1px solid silver',preview_width='50%')
+                                preview_border_left='1px solid var(--border-color)',preview_width='50%')

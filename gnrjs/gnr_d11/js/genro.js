@@ -61,7 +61,7 @@ dojo.declare('gnr.GenroClient', null, {
         this.domRootName = kwargs.domRootName || 'mainWindow';
         this.page_id = kwargs.page_id;
         this.startArgs = kwargs.startArgs || {};
-        genropatches.dojoXhr(this.startArgs.dojoXhrPatch);
+        genropatches.dojoXhr(objectPop(this.startArgs, 'dojoXhrPatch'));
         this.debuglevel = kwargs.startArgs.debug || null;
         this.debug_sql = kwargs.startArgs.debug_sql;
         dojo.subscribe('gnrServerLog', this, 'serverLog');
@@ -351,7 +351,7 @@ dojo.declare('gnr.GenroClient', null, {
         this._sanitizedContents[key] = true;
         console.warn('[sanitize_js] active JS removed from rendered HTML.',
                      'Migrate this content to a sanitize-safe pattern (e.g. format_isbutton/format_onclick,',
-                     'a delegated onCellClick handler, or a whitelisted template/js cell),',
+                     'a delegated onCellClick handler, a literal rowTemplate or a whitelisted template/js cell),',
                      'or set <switches sanitize_js="f"/> in instanceconfig as a temporary opt-out.',
                      'Content:', str);
         if(this.isDeveloper){
@@ -418,6 +418,12 @@ dojo.declare('gnr.GenroClient', null, {
     onWindowUnload:function(e) {
         if(genro.external_window_key){
             genro.mainGenroWindow.genro.publish('closeExternalWindow',{windowKey:genro.external_window_key});
+        }
+        if(genro.root_page_id){
+            let mainGenro = genro.mainGenroWindow && genro.mainGenroWindow.genro;
+            if(mainGenro){
+                mainGenro.setFastPolling(false,genro.page_id);
+            }
         }
         this.notifyPageClosing();
     },
@@ -825,9 +831,19 @@ dojo.declare('gnr.GenroClient', null, {
         }, 100);
     },
 
-    setFastPolling:function(fast){
-        this.fast_polling = fast;
-        this.setAutoPolling(fast);
+    setFastPolling:function(fast,requester){
+        requester = requester || this.page_id;
+        if(this.root_page_id){
+            return this.mainGenroWindow.genro.setFastPolling(fast,requester);
+        }
+        this._fast_polling_requests = this._fast_polling_requests || {};
+        if(fast){
+            this._fast_polling_requests[requester] = true;
+        }else{
+            delete this._fast_polling_requests[requester];
+        }
+        this.fast_polling = objectNotEmpty(this._fast_polling_requests);
+        this.setAutoPolling(this.fast_polling);
     },
 
     setAutoPolling:function(fast){
@@ -2042,7 +2058,17 @@ dojo.declare('gnr.GenroClient', null, {
     },
 
     textToClipboard:function(txt,cb){
-        let promise = navigator.clipboard.writeText(txt); 
+        // resolves true once copied, false (after telling the user) when refused
+        let promise = (navigator.clipboard && window.isSecureContext)
+            ? navigator.clipboard.writeText(txt).then(() => true, () => false)
+            : Promise.resolve(genro._textToClipboardFallback(txt));
+        promise = promise.then(function(copied){
+            if(!copied){
+                genro.dlg.floatingMessage(genro.nodeById('_gnrRoot'),
+                                          {message:_T('!!Copy to clipboard failed'),messageType:'error'});
+            }
+            return copied;
+        });
         if(cb){
             if(typeof(cb)=='string'){
                 let message = cb;
@@ -2050,9 +2076,30 @@ dojo.declare('gnr.GenroClient', null, {
                     genro.dlg.floatingMessage(genro.nodeById('_gnrRoot'),{message:message});
                 }
             }
-            promise.then(cb);
+            promise.then(function(copied){
+                if(copied){
+                    cb();
+                }
+            });
         }
         return promise;
+    },
+
+    _textToClipboardFallback:function(txt){
+        // navigator.clipboard exists only in secure contexts (https, localhost)
+        let ta = document.createElement('textarea');
+        ta.value = txt;
+        ta.style.cssText = 'position:fixed;left:-9999px';
+        document.body.appendChild(ta);
+        ta.select();
+        let copied = false;
+        try{
+            copied = document.execCommand('copy');
+        }catch(e){
+            copied = false;
+        }
+        document.body.removeChild(ta);
+        return copied;
     },
 
     getFormChanges: function(formId) {

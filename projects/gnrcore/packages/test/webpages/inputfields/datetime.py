@@ -39,3 +39,12 @@ class GnrCustomWebPage(object):
         fb = pane.formbuilder(cols=2)
         fb.dateTextBox(value='^.date_from',lbl='Date from',period_to='.date_to')
         fb.dateTextBox(value='^.date_to',lbl='Date to')
+
+    def test_4_start_reference(self, pane):
+        """With start_date/start_time an empty end field opens its picker on the start value
+        instead of today/now. Set a start far from today, then open the end pickers."""
+        fb = pane.formbuilder(cols=2)
+        fb.dateTextBox(value='^.date_from', lbl='Date from')
+        fb.dateTextBox(value='^.date_to', lbl='Date to', start_date='=.date_from')
+        fb.timeTextBox(value='^.time_from', lbl='Time from')
+        fb.timeTextBox(value='^.time_to', lbl='Time to', start_time='=.time_from')

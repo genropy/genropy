@@ -138,6 +138,22 @@ def test_open_documentation_is_an_action(helpdesk_db):
     assert 'documentationcb' not in documentation.attr
 
 
+def test_application_documentation_leads_the_group_submenu(helpdesk_db):
+    page = _HelpdeskPage(helpdesk_db, group_code=GROUP_CODE,
+                         documentationcb=DOCUMENTATION_CB)
+    menudiv = _only_child(_helpdesk_slot(page))
+    documentation = _only_child(menudiv.value)
+    assert documentation.attr['code'] == 'documentation'
+    assert not documentation.attr.get('action')
+    submenu = _only_child(documentation.value)
+    assert submenu.attr['action'] == 'genro.openBrowserTab($1.url);'
+    application, separator, line = list(submenu.value)
+    assert application.attr['action'] == DOCUMENTATION_CB
+    assert separator.attr['label'] == '-'
+    assert line.attr['label'] == DOC_TITLE
+    assert line.attr['url'] == DOC_URL
+
+
 def test_helpdesk_slot_stays_empty_without_documentation(helpdesk_db):
     page = _HelpdeskPage(helpdesk_db)
     assert len(list(_helpdesk_slot(page))) == 0

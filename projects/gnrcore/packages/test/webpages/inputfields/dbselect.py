@@ -29,10 +29,10 @@ class GnrCustomWebPage(object):
 
     def test_5_selected(self,pane):
         "Use of selected:"
-        fb = pane.formbuilder(cols=2, border_spacing='4px')
+        fb = pane.formlet(cols=2)
         fb.dbSelect(table='glbl.provincia',value='^.sigla',
-                        lbl='Sigla',width='25em', selected_regione='.regione')
-        fb.dbSelect(table='glbl.regione',value='^.regione',lbl='Regione',width='25em',selected_nome='.nome_regione')
+                        lbl='Sigla', selected_regione='.regione')
+        fb.dbSelect(table='glbl.regione',value='^.regione',lbl='Regione',selected_nome='.nome_regione')
         fb.textbox(value='^.nome_regione',lbl='Nome regione')
 
 
@@ -89,6 +89,10 @@ class GnrCustomWebPage(object):
     def raceProvince(self,regione=None):
         return 'MI' if regione == 'LOM' else None
 
+    @public_method
+    def raceClearProvince(self,regione=None):
+        return regione == 'LOM'
+
     def test_9_condition_null(self,pane):
         "Condition change and SET null in the same tick: caption clears, no validation error"
         pane.data('.regione','VAL')
@@ -100,7 +104,45 @@ class GnrCustomWebPage(object):
                     lbl='DbSelect',width='25em',nodeId='dbselect_condition_null')
         fb.div('^.sigla',lbl='Datastore value')
         fb.button('Set LOM / null',action="SET .regione='LOM'; SET .sigla=null;")
-        
+
+    def test_10_condition_race_validation(self,pane):
+        """A stale condition reply must not overwrite the validation state of the newer value.
+        The race ends on a blank, and notnull is a warning here so the blank reaches the
+        datastore: when the stale reply lands the node carries both required and warnings"""
+        pane.data('.regione','VAL')
+        pane.data('.sigla','AO')
+        fb = pane.formbuilder(cols=2, border_spacing='4px')
+        fb.dbSelect(table='glbl.regione',value='^.regione',lbl='Regione',width='25em')
+        fb.dbSelect(table='glbl.provincia',value='^.sigla',method=self.delayedDbSelect,
+                    condition='$regione=:regione',condition_regione='^.regione',
+                    lbl='DbSelect',width='25em',
+                    validate_notnull=True,validate_notnull_iswarning=True,
+                    validate_notnull_warning='Manca il valore',
+                    nodeId='dbselect_race_validation')
+        fb.div('^.sigla',lbl='Datastore value')
+        pane.dataRpc('.race_clear',self.raceClearProvince,regione='^.regione',
+                     _if="regione=='LOM'",_else='null')
+        pane.dataController("genro.nodeById('dbselect_race_validation').widget.setValue(null,true);",
+                            clear='^.race_clear',_if='clear')
+        fb.button('Set LOM (race to blank)',action="SET .regione='LOM';")
+
+    def test_11_widget_value_out_of_condition(self,pane):
+        """A value handed to the widget while it does not fit the current condition keeps its
+        query error: no newer fetch superseded it, so the error is installed and the datastore
+        refuses the value"""
+        pane.data('.regione','LOM')
+        pane.data('.sigla','MI')
+        fb = pane.formbuilder(cols=2, border_spacing='4px')
+        fb.dbSelect(table='glbl.regione',value='^.regione',lbl='Regione',width='25em')
+        fb.dbSelect(table='glbl.provincia',value='^.sigla',
+                    condition='$regione=:regione',condition_regione='^.regione',
+                    lbl='DbSelect',width='25em',validate_notnull=True,
+                    nodeId='dbselect_out_of_condition')
+        fb.div('^.sigla',lbl='Datastore value')
+        fb.button('Set AO on the widget',
+                  action="""var w = genro.nodeById('dbselect_out_of_condition').widget;
+                            w.clearCache(); w.setValue('AO',true);""")
+
     def test_2_clientmethod(self,pane):
         "Manually set what to display with callbackSelect"
         fb = pane.formbuilder(cols=1, border_spacing='4px')
@@ -147,3 +189,39 @@ class GnrCustomWebPage(object):
                     caption_field='hierarchical_description',connectedMenu='htag_menu')
         fb.hdbSelect(value='^.tag_id_2',dbtable='adm.htag',lbl='Tag (old spelling)',width='25em',
                     caption_field='hierarchical_description',connectedMenu='htag_menu')
+
+    def test_12_multiline_auxcolumns(self,pane):
+        """Wide auxColumns in a narrow field: the menu switches to one cell per option
+        when the table exceeds max(field, min(2 x field, 30em)). auxColumns_multiline
+        forces it (True), disables it (False) or sets a fixed ratio (a number);
+        auxColumns_template still wins"""
+        fb = pane.formlet(cols=5)
+        kw = dict(callback=self.wideOptionsCallback(),auxColumns='opened,notes',
+                  hasDownArrow=True)
+        fb.callbackSelect(value='^.auto',lbl='Automatic',**kw)
+        fb.callbackSelect(value='^.forced',lbl='Forced',auxColumns_multiline=True,**kw)
+        fb.callbackSelect(value='^.disabled',lbl='Disabled',auxColumns_multiline=False,**kw)
+        fb.callbackSelect(value='^.ratio',lbl='Ratio 10',auxColumns_multiline=10,**kw)
+        fb.callbackSelect(value='^.template',lbl='Template',
+                          auxColumns_template='<b>$code</b> $notes',**kw)
+        fb.callbackSelect(value='^.wide',lbl='Automatic, wide field: the table fits',colspan=5,**kw)
+
+    def wideOptionsCallback(self):
+        return """function(kw){
+                var data = [{code:'2026/0012',opened:'12/01/2026',_pkey:'c12',caption:'2026/0012',
+                             notes:'First visit, contraception counselling, follow-up booked in three months'},
+                            {code:'2026/0047',opened:'03/03/2026',_pkey:'c47',caption:'2026/0047',
+                             notes:''},
+                            {code:'2026/0101',opened:'21/05/2026',_pkey:'c101',caption:'2026/0101',
+                             notes:'Referred by the family doctor for a pregnancy test and a social worker interview'},
+                            {code:'',caption:'',_pkey:null}];
+                var querystring = kw._querystring;
+                var cbfilter = function(n){return true};
+                if(querystring){
+                    querystring = querystring.slice(0,-1).toLowerCase();
+                    cbfilter = function(n){return n.code.toLowerCase().indexOf(querystring)>=0;};
+                }else if(kw._id){
+                    cbfilter = function(n){return n._pkey==kw._id;};
+                }
+                return {headers:'code:Case,opened:Opened,notes:Notes',data:data.filter(cbfilter)};
+            }"""

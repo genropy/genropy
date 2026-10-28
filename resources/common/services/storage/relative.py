@@ -113,6 +113,14 @@ class Service(StorageService):
             return parent_base_path
         return '%s/%s' % (parent_base_path.rstrip('/'), self.relative_path)
 
+    def parentServiceChanged(self):
+        """Returns True if the parent service has been rebuilt after this service was built.
+
+        The parent instance is kept since construction, while its expiration is tracked
+        on the parent service only: when its parameters change this service has to be
+        rebuilt, or it would keep working on the old ones."""
+        return self.parent.storage(self.parent_service_name) is not self.parent_service
+
     def __getattr__(self, name):
         """Every parameter not owned by the relative service is the one of its parent"""
         parent_service = self.__dict__.get('parent_service')
@@ -131,6 +139,9 @@ class UnconfiguredService(StorageService):
     @property
     def base_path(self):
         return None
+
+    def parentServiceChanged(self):
+        return False
 
     def internal_path(self, *args, **kwargs):
         return None
@@ -186,10 +197,10 @@ class ServiceParameters(BaseComponent):
                            values=self.relativeStorageParents(service_name=service_name))
         fb.textbox(value='^.relative_path', lbl='!!Relative path')
         bc.storageTreeFrame(frameCode='relativeStorage', storagepath='^#FORM.record.service_name?=#v+":"',
-                                border='1px solid silver', margin='2px', rounded=4,
+                                border='1px solid var(--border-color)', margin='2px', rounded=4,
                                 region='center', preview_region='right',
                                 store__onBuilt=True,
-                                preview_border_left='1px solid silver', preview_width='50%')
+                                preview_border_left='1px solid var(--border-color)', preview_width='50%')
 
     def relativeStorageParents(self, service_name=None):
         """Returns the storage services usable as parent of a relative service"""

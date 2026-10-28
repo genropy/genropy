@@ -82,7 +82,7 @@ class SettingManager(BaseComponent):
         form.dataFormula("#FORM.current_caption","caption || '' ", caption='^#ANCHOR.formlets.selected_caption')
         if self.isMobile:
             bar = form.top.slotBar('backButton,5,formletTitle,*', height='30px', font_weight='bold',
-                    color='var(--mainWindow-color)', border_bottom='1px solid silver')
+                    color='var(--mainWindow-color)', border_bottom='1px solid var(--border-color)')
             btn = bar.backButton.lightButton(action="""this.form.dismiss();""",
                                              style='display:flex;align-items:center;',
                                              cursor='pointer')
@@ -90,13 +90,13 @@ class SettingManager(BaseComponent):
         else:
             bar = form.top.slotBar('*,formletTitle,*', height='30px', font_weight='bold',
                                    color='var(--mainWindow-color)',
-                                   border_bottom='1px solid silver')
+                                   border_bottom='1px solid var(--border-color)')
         bar.formletTitle.div('^#FORM.current_caption')
     
     def formlets_tree(self, parent,frameCode=None, title=None, **kwargs):
         frame = parent.framePane(frameCode=frameCode,**kwargs)
         frame.top.slotBar('5,searchOn,*,5', height='30px', font_weight='bold',
-                color='var(--mainWindow-color)', border_bottom='1px solid silver')
+                color='var(--mainWindow-color)', border_bottom='1px solid var(--border-color)')
         frame.center.contentPane().div(padding='20px').tree(
             storepath='#ANCHOR.settings', hideValues=True,
             _class='branchtree noIcon settings_tree',

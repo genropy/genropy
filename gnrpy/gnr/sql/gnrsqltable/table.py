@@ -30,7 +30,7 @@ from __future__ import annotations
 
 import threading
 
-from gnr.core.gnrlang import GnrObject
+from gnr.core.gnrlang import GnrException, GnrObject
 from gnr.sql.gnrsqltable_proxy.hierarchical import HierarchicalHandler
 from gnr.sql.gnrsqltable_proxy.xtd import XTDHandler
 
@@ -99,9 +99,10 @@ class SqlTable(
         from gnr.sql.gnrsqltable import EXCEPTIONS
 
         if isinstance(exception, str):
-            exception = EXCEPTIONS.get(exception)
+            name = exception
+            exception = EXCEPTIONS.get(name)
             if not exception:
-                raise exception  # REVIEW: raises None when key is missing — should raise KeyError or ValueError
+                raise GnrException(f'Unknown exception name: {name}')
         rowcaption = ''
         if record:
             try:

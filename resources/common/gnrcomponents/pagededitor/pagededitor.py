@@ -29,8 +29,8 @@ class PagedEditor(BaseComponent):
         if printAction is True:
             printAction = f"""genro.nodeById('{printId}').publish('print');"""
         center = bc.contentPane(overflow='hidden',region='center')
-        editor = center.ExtendedCkeditor(value=value,**editor_kwargs)
-        right = bc.tabContainer(region='right',width='30%',closable=True,splitter=True,border_left='1px solid silver',
+        editor = center.ExtendedJoditEditor(value=value,**editor_kwargs)
+        right = bc.tabContainer(region='right',width='30%',closable=True,splitter=True,border_left='1px solid var(--border-color)',
                             margin_left='2px',margin_right='2px')
         right.contentPane(title='HTML').pagedHtml(sourceText=value,pagedText=pagedText,letterheads='^#WORKSPACE.letterheads',editor=editor,letterhead_id=letterhead_id,
                                 printAction=printAction,bodyStyle=bodyStyle,datasource=datasource,extra_bottom=extra_bottom,**tpl_kwargs)

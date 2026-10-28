@@ -791,7 +791,7 @@ dojo.declare("gnr.widgets.ChartPane", gnr.widgets.gnrwdg, {
             pageKw.fields.forEach(function(fkw){
                 dtype = fkw.dtype;
                 editkw = objectUpdate({},fkw.edit || {});
-                editkw.width = editkw.width || (dtype=='N' || dtype=='L') ?'7em':'12em';
+                editkw.width = editkw.width || ((dtype=='N' || dtype=='L') ?'7em':'12em');
                 editkw.value = '^.'+fkw.field;
                 if(fkw.values){
                     editkw.tag =editkw.tag || 'filteringSelect';

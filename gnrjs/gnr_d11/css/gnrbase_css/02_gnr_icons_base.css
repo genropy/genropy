@@ -253,6 +253,14 @@
     background: var(--icon-time) no-repeat center center;
 }
 
+.sigma_icon {
+    width: 12px;
+    height: 12px;
+    background-color: currentColor;
+    -webkit-mask: var(--icon-sigma) no-repeat center / contain;
+    mask: var(--icon-sigma) no-repeat center / contain;
+}
+
 .icnTabClose {
     width: 12px;
     height: 12px;
@@ -893,12 +901,22 @@ div.dojoxDock {
     background: var(--icon-menu) no-repeat center center;
 }
 
+.windowaddButton{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
 .windowaddIcon{
     width: 1em;
     height: 1em;
     background-color: var(--text-muted, #666);
     -webkit-mask: var(--icon-wnd-add) no-repeat center / contain;
     mask: var(--icon-wnd-add) no-repeat center / contain;
+}
+
+.windowaddButton:hover .windowaddIcon{
+    background-color: var(--text-color, #444);
 }
 
 

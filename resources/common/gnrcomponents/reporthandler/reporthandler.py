@@ -123,7 +123,7 @@ class ReportHandler(BaseComponent):
     
     def _rh_conf_columns(self,parent,rootId=None,table=None,**kwargs):
         bc = parent.borderContainer(design='sidebar',**kwargs)
-        bc.contentPane(region='left',width='200px',border_right='1px solid silver').fieldsTree(
+        bc.contentPane(region='left',width='200px',border_right='1px solid var(--border-color)').fieldsTree(
             table=table,dragCode='fieldvars')
         self._rh_conf_columns_grid(bc,frameCode='%s_conf_group_by' %rootId,
                                     datapath='#ANCHOR.grids.group_by',title='!!Group by',

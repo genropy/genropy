@@ -8,6 +8,10 @@ import threading
 
 from datetime import datetime
 from multiprocessing import Process, get_logger, cpu_count
+
+from gnr.web.gnrtask import GnrTaskScheduler
+from gnr.web import logger
+
 class GnrCronHandler(object):
     def __init__(self, parent, sitename=None, interval=None, 
         batch_queue=None, batch_pars=None, monitor_interval=None):
@@ -61,6 +65,56 @@ class GnrCronHandler(object):
             counter = 0
             if self.cron_process and not self.cron_process.is_alive():
                 self.startCronProcess()
+
+class GnrTaskSchedulerHandler(object):
+    def __init__(self, parent, sitename=None, monitor_interval=None):
+        self.parent = parent
+        self.sitename = sitename
+        self.monitor_interval = monitor_interval or 10
+        self.scheduler_process = None
+        self.monitor_thread = None
+        self.monitor_running = False
+
+    def start(self):
+        self.startSchedulerProcess()
+        self.monitor_running = True
+        self.monitor_thread = threading.Thread(target=self.monitorSchedulerProcess, daemon=True)
+        self.monitor_thread.start()
+
+    def terminate(self):
+        self.monitor_running = False
+        if self.scheduler_process and self.scheduler_process.is_alive():
+            self.scheduler_process.terminate()
+
+    def is_alive(self):
+        return bool(self.scheduler_process and self.scheduler_process.is_alive())
+
+    def startSchedulerProcess(self):
+        self.scheduler_process = Process(name='ts_%s' % self.sitename,
+                                         target=self.runSchedulerProcess,
+                                         args=(self.sitename,))
+        self.scheduler_process.daemon = True
+        self.scheduler_process.start()
+
+    @staticmethod
+    def runSchedulerProcess(sitename=None):
+        GnrTaskScheduler(sitename).start()
+
+    def monitorSchedulerProcess(self):
+        counter = 0
+        while self.monitor_running:
+            time.sleep(1)
+            counter += 1
+            if counter % self.monitor_interval:
+                continue
+            counter = 0
+            self.checkSchedulerProcess()
+
+    def checkSchedulerProcess(self):
+        if self.monitor_running and self.scheduler_process and not self.scheduler_process.is_alive():
+            logger.warning("Task scheduler of %s exited with code %s, restarting",
+                           self.sitename, self.scheduler_process.exitcode)
+            self.startSchedulerProcess()
 
 class GnrWorkerPool(object):
     def __init__(self, parent, sitename=None, workers=None, interval=None,loglevel=None, 

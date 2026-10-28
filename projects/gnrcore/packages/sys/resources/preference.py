@@ -21,6 +21,7 @@
 
 
 from gnr.core.gnrdecorator import public_method
+from gnr.web.gnrwebpage import UNSET_COLOR_VARIANT
 
 FONTFAMILIES = """Arial, Helvetica, sans-serif
 Verdana, Geneva, sans-serif
@@ -48,7 +49,7 @@ class AppPref(object):
         current_variant = (self.css_theme_variant or 'base').capitalize()
         available_themes = self.getAvailableThemes()
         available_variants = self.getAvailableThemeVariants()
-        available_colors = self.getAvailableColorVariants()
+        available_colors = self.getAvailableColorVariants(unset_option='theme')
         fb.data('#FORM.theme_available_themes', available_themes)
         fb.data('#FORM.theme_available_variants', available_variants)
         fb.data('#FORM.theme_available_colors', available_colors)
@@ -71,14 +72,16 @@ class AppPref(object):
                                                 }""")
         fb.dataRpc('#FORM.theme_available_colors', self.getAvailableColorVariants,
                    theme='^.css_theme', theme_variant='^.css_theme_variant',
-                   _fired='^.css_theme_variant')
+                   unset_option='theme', _fired='^.css_theme_variant')
         fb.filteringSelect(value='^.color_variant',
                            values='^#FORM.theme_available_colors',
-                           lbl='!![en]Color variant', _tags='_DEV_')
+                           lbl='!![en]Color variant', _tags='_DEV_',
+                           placeholder=available_colors.split(',')[0].split(':', 1)[1])
+        fb.dataController('SET .color_variant = null;', color_variant='^.color_variant',
+                          _if=f'color_variant=="{UNSET_COLOR_VARIANT}"')
         fb.textbox(value='^.palette_colors', lbl='!![en]Default color palette', _tags='_DEV_')
         fb.textbox(value='^.palette_steps', lbl='!![en]Default color steps', _tags='_DEV_')
         fb.checkBox(value='^.use_formlets', label='!!Use formlets')
-        fb.checkBox(value='^.tinymce_beta', label='!!Use TinyMCE (beta)')
 
     def printPreferences(self, pane):
         fb = pane.roundedGroup(title='!![en]Print Modes',

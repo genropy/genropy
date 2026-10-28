@@ -18,6 +18,7 @@ def test_transport_bootstrap_uses_instance_configuration(transport):
         config.setItem('experimental.page', None, dojo_xhr_patch=transport)
     application = SimpleNamespace(config=config)
     application.experimentalValue = MethodType(GnrApp.experimentalValue, application)
+    application.experimentalFlag = MethodType(GnrApp.experimentalFlag, application)
     static = SimpleNamespace(url=lambda *args: '/static/')
     page = SimpleNamespace(
         application=application,
@@ -29,7 +30,7 @@ def test_transport_bootstrap_uses_instance_configuration(transport):
             gnrjs_frontend=lambda: []),
         catalog=GnrClassCatalog(), gnrjsversion='gnr_d11',
         _htmlHeaders=[], charset='utf-8', pagename='test', page_id='test',
-        wsk_enabled=False, debug_sql=False, debug_py=False, isMobile=False,
+        wsk_enabled=False, wsk=None, debug_sql=False, debug_py=False, isMobile=False,
         isDeveloper=lambda: False, deviceScreenSize='desktop', extraFeatures={},
         connection=SimpleNamespace(is_cordova=False, electron_static=False),
         getPwaIntegration=lambda args: None,
@@ -39,6 +40,7 @@ def test_transport_bootstrap_uses_instance_configuration(transport):
         getSentryJs=lambda args: None,
         get_bodyclasses=lambda: '', get_css_genro=lambda: {}, js_requires=[],
         get_css_path=lambda: ([], {}))
+    page.gnrjs_imports = MethodType(GnrWebPage.gnrjs_imports, page)
 
     # Request arguments must neither enable nor disable the instance switch.
     supplied = 'disabled' if transport == 'fetch' else 'fetch'

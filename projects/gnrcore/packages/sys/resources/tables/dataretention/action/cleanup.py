@@ -11,5 +11,9 @@ class Main(BaseResourceAction):
     batch_steps = 'main'
     batch_cancellable = False
     
-    def steps_main(self):
+    def step_main(self):
         self.db.application.executeRetentionPolicy(dry_run=False)
+
+    def table_script_parameters_pane(self, pane, **kwargs):
+        pane.div('!!Records older than the retention policies allow will be permanently deleted.',
+                 font_style='italic', color='#666', padding='10px')

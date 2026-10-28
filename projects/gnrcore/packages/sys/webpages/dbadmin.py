@@ -133,21 +133,21 @@ class GnrCustomWebPage(object):
         pane = tc.contentPane(title='PgUtils',overflow='auto')
         for methodname,desc in PgDbUtils.list_pgutils('pgutils').items():
             g = pane.gridbox(cols=3,datapath=f'.{methodname}',margin='4px',
-                             border='2px solid silver',justify_content='center',rounded=8)
+                             border='2px solid var(--border-color)',justify_content='center',rounded=8)
             g.div(methodname,padding_left='10px',font_weight='bold')
             g.div(desc,font_style='italic')
             g.button('Run').dataController("genro.publish('dbUtilsRun',{methodname:methodname});",methodname=methodname)
-            g.div(colspan=3,border_top='1px solid silver',
+            g.div(colspan=3,border_top='1px solid var(--border-color)',
                   min_height='100px',padding='5px').quickGrid(value='^.result')
 
         pane = tc.contentPane(title='PgStats',overflow='auto')
         for methodname,desc in PgDbUtils.list_pgutils('pgstats').items():
             g = pane.gridbox(cols=3,datapath=f'.{methodname}',margin='4px',
-                             border='2px solid silver',justify_content='center',rounded=8)
+                             border='2px solid var(--border-color)',justify_content='center',rounded=8)
             g.div(methodname,padding_left='10px',font_weight='bold')
             g.div(desc,font_style='italic')
             g.button('Run').dataController("genro.publish('dbUtilsRun',{methodname:methodname});",methodname=methodname)
-            g.div(colspan=3,border_top='1px solid silver',
+            g.div(colspan=3,border_top='1px solid var(--border-color)',
                   min_height='100px',padding='5px').quickGrid(value='^.result')
 
     @public_method

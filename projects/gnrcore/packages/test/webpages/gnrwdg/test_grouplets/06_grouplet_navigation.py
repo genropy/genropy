@@ -58,7 +58,8 @@ class GnrCustomWebPage(object):
         """No-summary wizard (wizard_grouplets root) on myticket.
         Reopen a SAVED ticket, move to step 2, save from the toolbar:
         the wizard must NOT reposition to step 1 on the reload that
-        follows the save. A NEW record must still open on step 1.
+        follows the save. A NEW record must still open on step 1, and
+        so must ANOTHER saved ticket opened while on step 2.
         Step 2 hosts a groupletGrid whose editors carry
         validate_notnull: emptying product or qty must mark the form
         invalid (no console noise)."""
@@ -177,4 +178,72 @@ class GnrCustomWebPage(object):
             datapath='.tickets',
             viewResource='View',
             formResource='Form',
+            view_store__onStart=True)
+
+    def test_11_wizard_resume(self, pane):
+        """groupletWizardForm with resumeStepField: no toolbar, no padlock.
+        Move a saved ticket to step 3 and save, open another ticket, reopen
+        the first: it opens on step 3. Moving back without editing and
+        closing asks nothing. A NEW record opens on step 1. The recap shows
+        the subject (recap_remote_subject, that step only) and the note
+        (remote_ticket_note, every step); reopening another ticket on the
+        recap shows its subject, not the previous one. draftConfirm: a ticket
+        that is not a draft opens on the recap, locked, with only Back to
+        draft (backToDraft); a draft's recap has Save draft (saves and closes)
+        and Complete Ticket (asks, confirms, reloads read-only)."""
+        pane.borderContainer(height='500px').contentPane(
+            region='center').dialogTableHandler(
+            table='test.myticket',
+            datapath='.ticket_wizard_resume',
+            viewResource='ViewWizard',
+            formResource='FormWizardResume',
+            view_store__onStart=True)
+
+    def test_12_wizard_left(self, pane):
+        """test_11 with stepperPosition='left': the steps in a rail on the
+        left, full height, the footer under the step only."""
+        pane.borderContainer(height='500px').contentPane(
+            region='center').dialogTableHandler(
+            table='test.myticket',
+            datapath='.ticket_wizard_left',
+            viewResource='ViewWizard',
+            formResource='FormWizardLeft',
+            view_store__onStart=True)
+
+    def test_13_wizard_step_summary_left(self, pane):
+        """stepSummary=True, stepper on the left: every COMPLETED step shows
+        its grouplet's __info__ template under the caption. Fill Contact and
+        Shipping and advance: each summary appears once its step is passed,
+        never on the active one. Back to Contact, change the name, advance:
+        the summary follows. Going back to Contact turns the later steps
+        pending again, and their summaries disappear. Notes has no template:
+        it never shows one."""
+        pane.borderContainer(height='420px', border='1px solid silver',
+                             datapath='.wizard_summary_left').groupletWizard(
+            topic='wizard_summary', value='^.record',
+            frameCode='wizard_summary_left', stepperPosition='left',
+            stepSummary=True, region='center')
+
+    def test_14_wizard_no_step_summary(self, pane):
+        """test_13 without stepSummary: the steps declare a template, and
+        the stepper shows only the captions, as before."""
+        pane.borderContainer(height='420px', border='1px solid silver',
+                             datapath='.wizard_no_summary').groupletWizard(
+            topic='wizard_summary', value='^.record',
+            frameCode='wizard_no_summary', stepperPosition='left',
+            region='center')
+
+    def test_15_wizard_save_on_one_step(self, pane):
+        """saveOnNext='charge', saveLabel, confirmedReadOnly on test.booking
+        (no draftField). A NEW booking: Period → Holder → Charge saves
+        nothing (the list does not grow); the Next of Charge reads Register;
+        it inserts the booking and lands on Registered, locked, without
+        Back. Close the dialog: no pending-changes question. Reopen the
+        booking: it opens on Registered, locked."""
+        pane.borderContainer(height='500px').contentPane(
+            region='center').dialogTableHandler(
+            table='test.booking',
+            datapath='.booking_save_step',
+            viewResource='View',
+            formResource='FormSaveStep',
             view_store__onStart=True)

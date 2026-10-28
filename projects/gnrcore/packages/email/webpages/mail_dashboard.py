@@ -15,7 +15,7 @@ class GnrCustomWebPage(object):
 
     def main(self, root, **kwargs):
         framebc = root.rootBorderContainer(datapath='main',title='Mail dasboard')
-        self.maildashboard_left(framebc.framePane(region='left',width='220px',datapath='.configuration',splitter=True,border_right='1px solid silver'))
+        self.maildashboard_left(framebc.framePane(region='left',width='220px',datapath='.configuration',splitter=True,border_right='1px solid var(--border-color)'))
         self.maildashboard_center(framebc.borderContainer(region='center',datapath='.messages'))
 
     def maildashboard_center(self,bc):
@@ -34,7 +34,7 @@ class GnrCustomWebPage(object):
                         _fired="^#mailBoxTree.tree.mailbox_id",grid=th.view.grid)
         top.dataRpc('dummy', self.db.table('email.message').receive_imap, subscribe_check_email=True, 
                             account='=#mailBoxTree.tree.account_id',_POST=True)
-        bc.contentPane(region='center',border_top='1px solid silver',splitter=True,padding='10px').div('^.current.record.compiled_body')
+        bc.contentPane(region='center',border_top='1px solid var(--border-color)',splitter=True,padding='10px').div('^.current.record.compiled_body')
         bc.dataRecord('.current.record','email.message',pkey='^#messageth.view.grid.selectedId',_if='pkey',
                         virtual_columns='$compiled_body')
 

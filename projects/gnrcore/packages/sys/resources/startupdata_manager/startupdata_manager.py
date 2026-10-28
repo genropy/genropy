@@ -149,7 +149,7 @@ class _StartupDataDbTemplates(BaseComponent):
     def sd_startupDataDbTemplates(self, parent, frameCode=None, **kwargs):
         bc = parent.borderContainer(**kwargs)
         self.sd_treeStartupSource(bc.framePane(region='left', width='500px',
-                                               border_right='1px solid silver',
+                                               border_right='1px solid var(--border-color)',
                                                splitter=True))
         self.sd_gridPreviewSource(bc.roundedGroupFrame(
             title='Startup package content', region='center'))

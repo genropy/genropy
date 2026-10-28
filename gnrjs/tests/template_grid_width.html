@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Template grid width regression checks</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../../dojo_libs/dojo_11/dojo/dojox/grid/_grid/Grid.css">
+<link rel="stylesheet" href="../gnr_d11/css/gnrbase_css/01_gnr_variables.css">
+<link rel="stylesheet" href="../gnr_d11/css/gnrbase_css/03_gnr_widgets_grid.css">
+<link rel="stylesheet" href="../gnr_d11/css/gnrbase_css/15_gnr_grid_extended.css">
+<style>
+body {font: 14px sans-serif; padding: 20px;}
+.dojoxGrid {width: 420px; height: 230px; margin: 12px 0;}
+.template .dojoxGrid-header {display: none;}
+.hiddenColumn {display: none;}
+#template .dojoxGrid-cell {white-space: normal;}
+.sample {padding: 8px; line-height: 20px;}
+pre {white-space: pre-wrap;}
+</style>
+<script src="../../dojo_libs/dojo_11/dojo/dojo/dojo.js"></script>
+<script>
+dojo.require('dojox.grid.VirtualGrid');
+window.gnr = {}; window.genro = {};
+</script>
+<script src="../gnr_d11/js/gnrlang.js"></script>
+<script src="../gnr_d11/js/gnrbag.js"></script>
+<script src="../gnr_d11/js/genro_dom.js"></script>
+<script src="../gnr_d11/js/genro_widgets.js"></script>
+<script src="../gnr_d11/js/genro_grid.js"></script>
+</head>
+<body class="_common_d11">
+<h1>Template grid width regression checks</h1>
+<button id="run">Run checks</button>
+<button id="few">Two rows</button>
+<button id="many">Eighty rows</button>
+<button id="resize">Toggle width</button>
+<pre id="result">Ready</pre>
+<details><summary>Measurements</summary><pre id="measurements"></pre></details>
+<h2>Template with hidden metadata and navigation</h2>
+<div id="template" class="fixture template"></div>
+<h2>Normal multicolumn grid</h2>
+<div id="normal" class="fixture"></div>
+<script>
+const prototype = gnr.widgets.DojoGrid.prototype;
+genro.dom = new gnr.GnrDomHandler(genro);
+const templateStructure = [{rows: [[
+    {name: 'Metadata', field: 'metadata', classes: 'hiddenColumn', width: '6em'},
+    {name: ' ', field: 'visit', rowTemplate: '<div>$title</div>', width: '100%',
+     get: index => '<div class="sample">Visit ' + (index + 1) + '<br>Template content wraps as the available width changes.</div>'},
+    {name: ' ', field: '_right_in_icon', width: '23px', get: () => '›'}
+]]}];
+const normalStructure = [{rows: [[
+    {name: 'Code', field: 'code', width: '100px', get: index => 'V' + index},
+    {name: 'Description', field: 'description', width: '500px', get: index => 'Ordinary row ' + index}
+]]}];
+function minimumStructure(style) {
+    const bag = new gnr.GnrBag();
+    bag.setItem('row', new gnr.GnrBag());
+    bag.getItem('row').setItem('visit', null, Object.assign({
+        name: 'Visit', width: '100%', rowTemplate: '<div>$title</div>'
+    }, style));
+    bag.setBackRef();
+    const cell = prototype.structFromBag_cell({attr: {}, currentFromDatasource: value => value},
+        bag.getNode('row.visit'), new gnr.GnrBag());
+    delete cell.formatter;
+    cell.get = index => 'Visit ' + (index + 1);
+    return [{rows: [[cell]]}];
+}
+function fixture(id, structure) {
+    const grid = new dojox.VirtualGrid({structure, rowCount: 2, rowsPerPage: 10}, document.getElementById(id));
+    if(id === 'template') dojo.addClass(grid.domNode, 'template');
+    grid.adaptTemplateGridWidth = prototype.mixin_adaptTemplateGridWidth;
+    grid.adaptFlexMinWidths = prototype.mixin_adaptFlexMinWidths;
+    grid._emPixels = prototype.mixin__emPixels;
+    dojo.connect(grid, 'adaptWidth', function(){
+        this.adaptTemplateGridWidth();
+        this.adaptFlexMinWidths();
+    });
+    grid.render();
+    return grid;
+}
+const template = fixture('template', templateStructure);
+const normal = fixture('normal', normalStructure);
+const wait = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+function rows(count) {template.updateRowCount(count); template.resize();}
+function width(value) {template.domNode.style.width = value + 'px'; template.resize();}
+function check(value, message) {if (!value) throw new Error(message);}
+function measure(grid) {
+    const view = grid.views.views[0], box = view.scrollboxNode;
+    return {client: box.clientWidth, gutter: box.offsetWidth - box.clientWidth,
+        content: view.contentNode.offsetWidth, vertical: box.scrollHeight > box.clientHeight,
+        horizontal: box.scrollWidth > box.clientWidth,
+        rows: [...view.contentNode.querySelectorAll('.dojoxGrid-row')].map(row => ({
+            width: row.offsetWidth, table: row.firstChild.offsetWidth,
+            color: getComputedStyle(row).backgroundColor
+        }))};
+}
+function checkTemplate(expectedScroll) {
+    const m = measure(template);
+    check(m.vertical === expectedScroll, 'Unexpected vertical overflow: ' + JSON.stringify(m));
+    check(!m.horizontal, 'Unexpected horizontal overflow');
+    check(m.content === m.client, 'Content does not fill client width');
+    check(m.rows.length && m.rows.every(row => row.width === m.client && row.table === m.client),
+          'A rendered row or table does not fill client width');
+    check(m.rows[0].color !== m.rows[1].color, 'Alternating row colors lost');
+    return m;
+}
+document.getElementById('few').onclick = () => {rows(2);};
+document.getElementById('many').onclick = () => {rows(80);};
+document.getElementById('resize').onclick = () => {width(template.domNode.offsetWidth > 350 ? 280 : 520);};
+document.getElementById('run').onclick = async function() {
+    this.disabled = true;
+    const result = document.getElementById('result'), evidence = [];
+    try {
+        width(420); rows(2); await wait();
+        evidence.push({state: 'two rows', ...checkTemplate(false)});
+        const initialNormal = measure(normal);
+        check(initialNormal.horizontal, 'Control must retain horizontal scrolling');
+        check(!dojo.hasClass(normal.views.views[0].domNode, 'gnrTemplateGridView'), 'Normal grid was changed');
+        for (const count of [80, 2]) {
+            rows(count);
+            for (const size of [280, 520]) {
+                width(size); await wait();
+                evidence.push({state: count + ' rows at ' + size + 'px', ...checkTemplate(count === 80)});
+            }
+        }
+        rows(80); template.setScrollTop(2200); await wait();
+        checkTemplate(true);
+        check(template.scroller.firstVisibleRow > 10, 'Virtual scrolling did not reach later rows');
+        const selected = template.scroller.firstVisibleRow + 1;
+        template.selection.select(selected);
+        check(template.selection.isSelected(selected), 'Row selection failed');
+        check(template.views.views[0].contentNode.querySelector('.dojoxGrid-row-selected'), 'Selection styling lost');
+        dojo.removeClass(template.domNode, 'template');
+        template.setStructure(normalStructure); template.render(); await wait();
+        check(!dojo.hasClass(template.views.views[0].domNode, 'gnrTemplateGridView'), 'Class survived structure replacement');
+        check(measure(template).horizontal, 'Multicolumn replacement lost horizontal scrolling');
+        dojo.addClass(template.domNode, 'template');
+        for (const style of [{min_width: '30em'}, {cellStyles: 'min-width:30em;'}]) {
+            template.setStructure(minimumStructure(style)); template.render(); rows(2); width(200); await wait();
+            check(!dojo.hasClass(template.views.views[0].domNode, 'gnrTemplateGridView'),
+                  'Explicit minimum width was overridden');
+            const minimum = measure(template);
+            check(minimum.horizontal && minimum.content >= 30 * template._emPixels(),
+                  'Explicit minimum width was not preserved');
+            evidence.push({state: 'explicit minimum ' + JSON.stringify(style), ...minimum});
+        }
+        template.setStructure(templateStructure); template.render(); rows(2); width(420); await wait();
+        checkTemplate(false);
+        check(JSON.stringify(measure(normal)) === JSON.stringify(initialNormal), 'Control dimensions changed');
+        const failedResources = performance.getEntriesByType('resource').filter(entry => entry.responseStatus >= 400);
+        check(!failedResources.length, 'Failed resource requests: ' + failedResources.map(entry => entry.name));
+        document.getElementById('measurements').textContent = JSON.stringify(evidence, null, 2);
+        result.textContent = 'PASS: widths, overflow transitions, resize, virtual pages, selection, structure replacement, explicit minimum widths and multicolumn control.';
+    } catch (error) {result.textContent = 'FAIL: ' + error.stack; console.error(error);}
+    this.disabled = false;
+};
+</script>
+</body>
+</html>

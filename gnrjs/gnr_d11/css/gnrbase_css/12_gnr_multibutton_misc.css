@@ -295,22 +295,25 @@
     width: 10px;
 }
 
-/*Mobile bar styles*/
+/*Mobile bar styles; the light look is shared with multiButton(minimal=True)*/
 .mobile_bar.slotbar_toolbar_standard{
     background:var(--surface-bg);
 }
 
-.mobile_bar .multibutton_container{
+.mobile_bar .multibutton_container,
+.multibutton_container.multibutton_minimal{
     color:var(--root-dark);
 }
 
-.mobile_bar .multibutton_selected.multibutton, .mobile_bar .multibutton:active{
+.mobile_bar .multibutton_selected.multibutton, .mobile_bar .multibutton:active,
+.multibutton_minimal .multibutton_selected.multibutton, .multibutton_minimal .multibutton:active{
     background: none;
     font-weight: bold;
     border-bottom:2px solid var(--root-dark);
 }
 
-.mobile_bar .multibutton {
+.mobile_bar .multibutton,
+.multibutton_minimal .multibutton {
     position: relative;
     font-variant: normal;
     font-size: 1em;
@@ -324,14 +327,16 @@
     background-color: transparent;
 }
 
-.mobile_bar .multibutton:first-child{
+.mobile_bar .multibutton:first-child,
+.multibutton_minimal .multibutton:first-child{
     border-top-left-radius: 0;
     border-bottom-left-radius: 0;
     border-left: 0px;
     margin-left:10px;
 }
 
-.mobile_bar .multibutton:last-child {
+.mobile_bar .multibutton:last-child,
+.multibutton_minimal .multibutton:last-child {
     border-top-right-radius: 0;
     border-bottom-right-radius: 0;
     border-left: 0px;

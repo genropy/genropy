@@ -14,7 +14,7 @@ ESCALATE_SECONDS = 3
 description = "Start the task worker service"
 
 def start_old(options):
-    w = gnrtask.GnrTaskWorker(sitename=options.sitename, interval=options.interval)
+    w = gnrtask.GnrTaskWorker(sitename=options.sitename, interval=options.interval, code=options.code)
     logger.info("Starting Task Worker for site: %s", options.sitename)
     w.start()
 

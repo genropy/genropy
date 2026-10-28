@@ -268,7 +268,7 @@ class Main(BaseResourceAction):
 
     def table_script_parameters_pane(self, pane, table=None,**kwargs):
         tblobj = self.db.table(table)
-        fb = pane.div(border_bottom='1px solid silver',padding='3px').formbuilder(datapath='.batch', cols=2, border_spacing='2px')
+        fb = pane.div(border_bottom='1px solid var(--border-color)',padding='3px').formbuilder(datapath='.batch', cols=2, border_spacing='2px')
         fb.numberTextBox('^.how_many', lbl='How many', width='5em', validate_notnull=True, default_value=10)
         fb.textbox('^.batch_prefix', lbl='Batch prefix', width='5em', validate_notnull=True)
         box_campi = pane.div(max_height='600px',overflow='auto')

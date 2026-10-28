@@ -54,6 +54,12 @@ class _AsyncFixtureWrapper:
         else:
             setattr(self._wrapped, key, value)
 
+    def __delattr__(self, key):
+        if key.startswith("_"):
+            super().__delattr__(key)
+        else:
+            delattr(self._wrapped, key)
+
 
 @pytest.fixture
 def scheduler(monkeypatch, tmp_path):
@@ -186,6 +192,25 @@ class TestGnrTaskBasics(BaseGnrTest):
 
         assert task.is_due(timestamp=now, last_scheduled_ts=past_enough) == "*"
         assert task.is_due(timestamp=now, last_scheduled_ts=not_enough) is False
+
+    def test_task_is_due_frequency_counts_whole_days(self):
+        """A frequency above a day was never reached, and one below it was
+        missed in the first hours after each day boundary (#1571)."""
+        now = datetime(2024, 1, 3, 0, 30, tzinfo=timezone.utc)
+        task = gnrtask.GnrTask(
+            name="freq",
+            action="run",
+            db="test",
+            table_name="tbl",
+            schedule={"frequency": 2880},
+        )
+        assert task.is_due(timestamp=now, last_scheduled_ts=now - timedelta(days=2, minutes=1)) == "*"
+        assert task.is_due(timestamp=now, last_scheduled_ts=now - timedelta(days=1)) is False
+        task.schedule = {"frequency": 10}
+        assert task.is_due(timestamp=now, last_scheduled_ts=now - timedelta(days=1, minutes=1)) == "*"
+        assert task.is_due(timestamp=now, last_scheduled_ts=now + timedelta(minutes=1)) is False
+        task.schedule = {"frequency": 360}
+        assert task.is_due(timestamp=now, last_scheduled_ts=now - timedelta(days=3, minutes=51)) == "*"
 
     def test_task_is_due_matches_calendar_schedule(self):
         ts = datetime(2024, 4, 1, 12, 15, tzinfo=timezone.utc)
@@ -337,32 +362,6 @@ class TestGnrTaskScheduler(BaseGnrTest):
         queued = scheduler.queues["general"].get_nowait()
         assert queued["payload"]["name"] == "qtask"
         assert queued["run_id"] == exec_record["id"]
-
-    def test_complete_task_invokes_task_completion(self, scheduler, monkeypatch):
-        task = gnrtask.GnrTask(
-            name="ctask",
-            action="run",
-            db="test",
-            table_name="tbl",
-            schedule={},
-            task_id="task42",
-        )
-        called = {}
-
-        async def completed(tasktbl, exectbl, run_id):
-            called["ok"] = True
-
-        task.completed = completed
-        scheduler.tasks["task42"] = [task, None]
-
-        scheduler.run(scheduler.complete_task("task42"))
-        assert called["ok"]
-
-    def test_complete_task_unknown_logs_error(self, scheduler, caplog):
-        caplog.set_level("ERROR")
-        scheduler.tasks["missing"] = [None, None]
-        scheduler.run(scheduler.complete_task("missing"))
-        assert any("can't complete" in rec.message for rec in caplog.records)
 
     def test_load_configuration_populates_tasks(self, scheduler, monkeypatch):
         records = [

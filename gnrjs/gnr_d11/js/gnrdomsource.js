@@ -209,7 +209,7 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         if(value instanceof gnr.GnrBag){
             value = value.toXml();
         }
-        navigator.clipboard.writeText(value);
+        genro.textToClipboard(value);
     },
     setDataNodeValue:function(nodeOrRunKwargs, kw, trigger_reason, subscription_args) {
         if(nodeOrRunKwargs===null){
@@ -980,16 +980,21 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
             this._registerInForm();
         }
         this._isBuilding = true;
-        var aux = '_bld_' + this.attr.tag.toLowerCase();
-        if (aux in this) {
-            this[aux].call(this);
-        }else{
-            var attributes = this.registerNodeDynAttr(true);
-            var tag=objectPop(attributes,'tag');
-            this._doBuildNode(tag, attributes, destination, ind);
-            this._setDynAttributes();
+        try{
+            var aux = '_bld_' + this.attr.tag.toLowerCase();
+            if (aux in this) {
+                this[aux].call(this);
+            }else{
+                var attributes = this.registerNodeDynAttr(true);
+                this._appliedClass = attributes._class;
+                var tag=objectPop(attributes,'tag');
+                this._doBuildNode(tag, attributes, destination, ind);
+                this._setDynAttributes();
+            }
+        }finally{
+            //left set, nodeTrigger would ignore this node from now on
+            this._isBuilding = false;
         }
-        this._isBuilding = false;
     },
     _buildChildren: function(destination) {
         if (this.attr.remote) {
@@ -1122,7 +1127,7 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         if (bld_attrs.tooltip) {
             genro.wdg.create('tooltip', null, {label:bld_attrs.tooltip,tooltip_type:'help'}).connectOneNode(newobj.domNode || newobj);
         }
-        if (genro.src._started && this.widget && (this.widget instanceof dijit.form.ValidationTextBox)){
+        if (genro.src._started && this.widget){
             var validations = objectExtract(this.attr, 'validate_*',true);
             if (this.validationsOnChange && objectNotEmpty(validations)){
                 this.resetValidationError();
@@ -1451,7 +1456,8 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
                 }
             }
         }
-        if (!(kw.evt == 'ins' || kw.evt == 'del')) {
+        // a row inserted or deleted under the bound path leaves that path in place
+        if (!(kw.evt == 'ins' || kw.evt == 'del') || trigger_reason == 'child') {
             value = this.getAttributeFromDatasource(attr, true);
         }
         //value = (value != null) ? value : '';
@@ -1487,7 +1493,10 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
             else {
                 domnode = this.domNode;
             }
-            if (oldvalue) {
+            if (this._appliedClass !== undefined) {
+                genro.dom.removeClass(domnode, this._appliedClass);
+            }
+            else if (oldvalue) {
                 var old_class;
                 if (oldvalue instanceof gnr.GnrBag) {
                     var q = kw.pathlist.length;
@@ -1499,6 +1508,7 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
                 genro.dom.removeClass(domnode, old_class);
             }
             genro.dom.addClass(domnode, value);
+            this._appliedClass = value;
         }
         else if (attr=='style'){
             genro.dom.style(this,value);
@@ -1700,10 +1710,21 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
 
     },
     
-    setHidden:function(hidden){
+    setHidden:function(hidden,_fromGroup){
         let labelWrapper = this.getLabelWrapper();
         if(labelWrapper){
             labelWrapper.setHidden(hidden);
+        }
+        // the table formbuilder collects the group cells in _hiddenTargets; a formlet
+        // has no cells, so the members are its siblings carrying the same hiddenGroup
+        if(!_fromGroup && this.attr.hiddenGroup && !this._hiddenTargets){
+            this._setHiddenGroup(hidden,labelWrapper);
+        }
+        var parent = this.widget && this.widget.parentBorderContainer;
+        var animatedRegion = parent && parent._drawerAnimations &&
+                parent._drawerAnimations[this.widget.region];
+        if (animatedRegion) {
+            parent._stopDrawerAnimation(this.widget.region, true);
         }
         var targets = this._hiddenTargets || [this.domNode || this.widget.domNode];
         var statusChanged = false;
@@ -1715,11 +1736,30 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
                 statusChanged = true;
             }
         });
+        if (animatedRegion) {
+            parent._layoutChildren(this.widget.region);
+        }
         if(statusChanged){
             genro.fakeResize()
         }
     },
     
+    _setHiddenGroup:function(hidden,labelWrapper){
+        let own = labelWrapper || this;
+        let container = own.getParentNode();
+        let siblings = container && container.getValue('static');
+        if(!(siblings instanceof gnr.GnrDomSource)){
+            return;
+        }
+        for(let node of siblings.getNodes()){
+            // a labeled member is hidden through its labledbox, which holds the whole cell
+            let memberAttr = (node._contentNode || node).attr;
+            if(node!==own && memberAttr.hiddenGroup===this.attr.hiddenGroup && (node.domNode || node.widget)){
+                node.setHidden(hidden,true);
+            }
+        }
+    },
+
     updateRemoteContent:function(forceUpdate,async) {
         var _onRemote = false;
         var currentValue = this.getValue('static');
@@ -1732,83 +1772,94 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
           this._pendingRemoteUpdate = true;
           return;
         }
-        
-        var remoteAttr = this.evaluateOnNode(objectExtract(this.attr,'remote_*',true));
-        async = objectPop(remoteAttr,'_async',async);
-        if(this._lastRemoteAttr && this.attr._cachedRemote && objectIsEqual(this._lastRemoteAttr,remoteAttr)){
-            return;
-        }
-        this._lastRemoteAttr = remoteAttr;
-        if(remoteAttr._if){
-            var condition = funcApply('return (' + remoteAttr._if + ')',remoteAttr,this);
-            if(!condition){
-                if ('_else' in remoteAttr){
-                    var elseval=remoteAttr._else;
-                    if (elseval && typeof(elseval)=='string'){
-                        elseval=funcCreate(elseval).call(this);
-                    }
-                    this.mergeRemoteContent(elseval);
-                }
-                return;
-            }
-        }
-        var kwargs = {};
-        for (var attrname in remoteAttr) {
-            var value = remoteAttr[attrname];
-            if (value instanceof Date) {
-                var abspath = this.absDatapath(this.attr['remote_'+attrname]);
-                var node = genro._data.getNode(abspath);
-                value = asTypedTxt(value, node.attr.dtype);
-            }
-            if (attrname.indexOf('_') != 0) {
-                kwargs[attrname] = value;
-            } else if (attrname == '_onRemote') {
-                _onRemote = funcCreate(value, attrname._onRemote, this);
-            }
-        }
-        var method = this.attr.remote;
-        var that = this;
-        kwargs.sync = !async;
-        if(objectPop(remoteAttr,'sendInheritedAttributes')){
-            kwargs._inheritedAttributes = this.getInheritedAttributes();
-        }
-        
-        if(remoteAttr._waitingMessage){
-            var waitingMessage = remoteAttr._waitingMessage===true?_T('Loading content'):remoteAttr._waitingMessage;
-            waitingMessage = '<div style="height:130px;opacity:.8;" class="waiting"></div>'+'<div style="font-size:13px">'+waitingMessage+'</div>'
-            this.setHiderLayer(true,{message:waitingMessage});
-            kwargs.sync = false;
-        }
+        //taken before anything that can re-enter: a sync rpc on the way
+        //(_T below) lets dojo deliver an async response whose triggers
+        //would otherwise start a second fetch racing this one
         this._remotebuilding = true;
-        return genro.rpc.remoteCall(method, kwargs, null, 'POST', null,
-            function(result) {
-                //that.setValue(result);
-                if(result.error){
-                    genro.dlg.alert('Error in remote '+result.error,'Error');
-                }else{
-                    that.watch('checkPendingRequirs',function(){
-                        return !objectNotEmpty(genro.dom.pendingHeaders);
-                    },function(){
-                        if(remoteAttr._waitingMessage){
-                            that.setHiderLayer(false);
+        try{
+            var remoteAttr = this.evaluateOnNode(objectExtract(this.attr,'remote_*',true));
+            async = objectPop(remoteAttr,'_async',async);
+            if(this._lastRemoteAttr && this.attr._cachedRemote && objectIsEqual(this._lastRemoteAttr,remoteAttr)){
+                return this._releaseRemoteUpdate(async);
+            }
+            this._lastRemoteAttr = remoteAttr;
+            if(remoteAttr._if){
+                var condition = funcApply('return (' + remoteAttr._if + ')',remoteAttr,this);
+                if(!condition){
+                    if ('_else' in remoteAttr){
+                        var elseval=remoteAttr._else;
+                        if (elseval && typeof(elseval)=='string'){
+                            elseval=funcCreate(elseval).call(this);
                         }
-                        var t0 = new Date();
-                        //console.log('before building dom');
-                        that.mergeRemoteContent(result);
-                        //console.log('after building dom stuck time',new Date()-t0);
-                        if (_onRemote) {
-                            _onRemote();
-                        }
-                        genro.fakeResize();
-                    });
+                        this.mergeRemoteContent(elseval);
+                    }
+                    return this._releaseRemoteUpdate(async);
                 }
-                delete that._remotebuilding;
-                if(that._pendingRemoteUpdate){
-                    delete that._pendingRemoteUpdate;
-                    that.updateRemoteContent(true,async);
+            }
+            var kwargs = {};
+            for (var attrname in remoteAttr) {
+                var value = remoteAttr[attrname];
+                if (value instanceof Date) {
+                    var abspath = this.absDatapath(this.attr['remote_'+attrname]);
+                    var node = genro._data.getNode(abspath);
+                    value = asTypedTxt(value, node.attr.dtype);
                 }
-                return result;
-            });
+                if (attrname.indexOf('_') != 0) {
+                    kwargs[attrname] = value;
+                } else if (attrname == '_onRemote') {
+                    _onRemote = funcCreate(value, attrname._onRemote, this);
+                }
+            }
+            var method = this.attr.remote;
+            var that = this;
+            kwargs.sync = !async;
+            if(objectPop(remoteAttr,'sendInheritedAttributes')){
+                kwargs._inheritedAttributes = this.getInheritedAttributes();
+            }
+        
+            if(remoteAttr._waitingMessage){
+                var waitingMessage = remoteAttr._waitingMessage===true?_T('Loading content'):remoteAttr._waitingMessage;
+                waitingMessage = '<div style="height:130px;opacity:.8;" class="waiting"></div>'+'<div style="font-size:13px">'+waitingMessage+'</div>'
+                this.setHiderLayer(true,{message:waitingMessage});
+                kwargs.sync = false;
+            }
+            return genro.rpc.remoteCall(method, kwargs, null, 'POST', null,
+                function(result) {
+                    //that.setValue(result);
+                    if(result.error){
+                        genro.dlg.alert('Error in remote '+result.error,'Error');
+                    }else{
+                        that.watch('checkPendingRequirs',function(){
+                            return !objectNotEmpty(genro.dom.pendingHeaders);
+                        },function(){
+                            if(remoteAttr._waitingMessage){
+                                that.setHiderLayer(false);
+                            }
+                            var t0 = new Date();
+                            //console.log('before building dom');
+                            that.mergeRemoteContent(result);
+                            //console.log('after building dom stuck time',new Date()-t0);
+                            if (_onRemote) {
+                                _onRemote();
+                            }
+                            genro.fakeResize();
+                        });
+                    }
+                    that._releaseRemoteUpdate(async);
+                    return result;
+                });
+        }catch(e){
+            this._releaseRemoteUpdate(async);
+            throw e;
+        }
+    },
+
+    _releaseRemoteUpdate:function(async){
+        delete this._remotebuilding;
+        if(this._pendingRemoteUpdate){
+            delete this._pendingRemoteUpdate;
+            this.updateRemoteContent(true,async);
+        }
     },
 
     getValidationError: function() {
@@ -1861,7 +1912,13 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         }
     },
     getElementLabel:function(){
-        var raw = this.attr.error_label || this.attr._valuelabel || this.attr.field_name_long || this.attr.name_long || stringCapitalize(this.label);
+        //a formlet lbl lives on the labledbox wrapper (buildLblWrapper); '&nbsp;' is its placeholder
+        var wrapper = this.getLabelWrapper();
+        var wrapperLabel = wrapper ? wrapper.getAttributeFromDatasource('label') : null;
+        if(wrapperLabel=='&nbsp;'){
+            wrapperLabel = null;
+        }
+        var raw = this.attr.error_label || this.attr._valuelabel || this.attr.field_name_long || this.attr.name_long || wrapperLabel || stringCapitalize(this.label);
         if(raw && raw.indexOf('<') >= 0){
             var tmp = document.createElement('div');
             tmp.innerHTML = raw;
@@ -1963,6 +2020,7 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         this._value = null;
         wrp_attr.helpcode = objectPop(attr,'helpcode');
         wrp_attr.helpcode_package = objectPop(attr,'helpcode_package')
+        wrp_attr.docAddress = objectPop(attr,'docAddress');
         wrp_attr.tag = 'labledbox'
         let gridbox_itemattr = objectExtract(attr,'grid_column,grid_row,colspan,rowspan');
         this.attr = {...wrp_attr,...box_kw,...label_attr,...box_l_kw,...box_c_kw,...gridbox_itemattr};
@@ -1995,6 +2053,11 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         }
         let side = this.getInheritedAttributes().lbl_side || 'top';
         if(side!='top' && side!='bottom'){
+            return false;
+        }
+        // a single column formlet has no sibling on the same row to line up with
+        let columns = parentNode.attr.grid_template_columns || parentNode.attr.columns || parentNode.attr.cols;
+        if(isNullOrBlank(columns) || /^\s*(1|1fr|repeat\(\s*1\s*,\s*1fr\s*\))\s*$/.test(String(columns))){
             return false;
         }
         let siblings = parentNode.getValue('static');
@@ -2056,19 +2119,37 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         if(domNode._gnrErrorTooltipBound){
             return;
         }
-        domNode.addEventListener('mouseenter', function(){
-            if(domNode._gnrErrorText){
-                dijit.showTooltip(
-                    '<span class="gnrErrorTooltip">' + domNode._gnrErrorText + '</span>',
-                    domNode
-                );
+        var that = this;
+        var showError = function(){
+            if(!domNode._gnrErrorText){
+                return;
             }
+            if(!dijit._masterTT){
+                dijit._masterTT = new dijit._MasterTooltip();
+            }
+            // the master tooltip is shared: only the error tooltip enters slower
+            var fadeIn = dijit._masterTT.fadeIn;
+            var duration = fadeIn.duration;
+            fadeIn.duration = that._errorTooltipFade;
+            dijit.showTooltip(
+                '<span class="gnrErrorTooltip">' + domNode._gnrErrorText + '</span>',
+                domNode
+            );
+            fadeIn.duration = duration;
+        };
+        domNode.addEventListener('mouseenter', function(){
+            clearTimeout(domNode._gnrErrorTooltipTimer);
+            domNode._gnrErrorTooltipTimer = setTimeout(showError, that._errorTooltipDelay);
         });
         domNode.addEventListener('mouseleave', function(){
+            clearTimeout(domNode._gnrErrorTooltipTimer);
             dijit.hideTooltip(domNode);
         });
         domNode._gnrErrorTooltipBound = true;
     },
+
+    _errorTooltipDelay: 1500,
+    _errorTooltipFade: 400,
 
     _errorFallbacks: {
         'notnull':  '!!Required field',

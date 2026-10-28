@@ -5,7 +5,8 @@ const {test} = require('node:test');
 const vm = require('node:vm');
 
 function createForm(draftMarker) {
-    const context = {console, File: function() {}, gnr: {}, genro: {}};
+    const warnings = [];
+    const context = {console: {...console, warn: (...args) => warnings.push(args.join(' '))}, File: function() {}, gnr: {}, genro: {}};
     context.dojo = {
         Deferred: function() {},
         eval,
@@ -50,7 +51,7 @@ function createForm(draftMarker) {
     if (arguments.length) {
         form.draftMarker = draftMarker;
     }
-    return {form, marks: () => Array.from(classes).sort()};
+    return {form, marks: () => Array.from(classes).sort(), warnings};
 }
 
 test('draftMarker false leaves a draft form unmarked', () => {
@@ -87,5 +88,24 @@ for (const draftMarker of [false, 'bar', 'tr', true, undefined]) {
         s.form.updateDraftMarker(true);
         s.form.updateDraftMarker(false);
         assert.deepEqual(s.marks(), []);
+    });
+}
+
+test("an unknown draftMarker warns once and falls back to 'bar'", () => {
+    const s = createForm('typo');
+    s.form.updateDraftMarker(true);
+    assert.deepEqual(s.marks(), ['form_draft']);
+    s.form.updateDraftMarker(false);
+    s.form.updateDraftMarker(true);
+    assert.deepEqual(s.marks(), ['form_draft']);
+    assert.equal(s.warnings.length, 1);
+    assert.match(s.warnings[0], /"typo"/);
+});
+
+for (const draftMarker of [false, 'bar', 'tr', 'tl', 'br', 'bl', true, undefined]) {
+    test(`draftMarker ${JSON.stringify(draftMarker)} does not warn`, () => {
+        const s = createForm(draftMarker);
+        s.form.updateDraftMarker(true);
+        assert.deepEqual(s.warnings, []);
     });
 }

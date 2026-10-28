@@ -238,7 +238,7 @@ class RecordUpdater:
         else:
             oldrecord = dict(self.record)
             for k, v in list(oldrecord.items()):
-                if v and isinstance(v, Bag):
+                if isinstance(v, Bag):
                     oldrecord[k] = v.deepcopy()
 
         self.oldrecord = oldrecord

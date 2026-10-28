@@ -1034,7 +1034,7 @@ class BagToHtml(object):
         if lastPage:
             self.lastPage = True
         self.fillBodyGrid()
-        totalizeFooterHeight = self.totalizeFooterHeight()
+        totalizeFooterHeight = self.totalizeFooterHeight() if lastPage or self.totalize_mode == 'page' else 0
         if totalizeFooterHeight:
             row = self.copyValue('body_grid').row(height=totalizeFooterHeight, _class='totalizer_row totalizer_footer')
             self.currColumn = 0
