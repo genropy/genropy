@@ -46,6 +46,46 @@ function stripJsFromHtml(str) {
     return str;
 }
 
+var _TEMPLATE_HANDLER_ATTR = _JS_EXEC_PATTERNS[1][0];
+
+// An on* attribute is HTML-decoded before it is parsed as JS, so entity escaping
+// (&#39;) would be undone: every char outside [A-Za-z0-9] becomes a JS escape.
+function jsStringEscape(value) {
+    return (value + '').replace(/[^A-Za-z0-9]/g, function(c) {
+        var code = c.charCodeAt(0);
+        return code < 256 ? '\\x' + ('0' + code.toString(16)).slice(-2)
+                          : '\\u' + ('000' + code.toString(16)).slice(-4);
+    });
+}
+
+function jsOpenQuote(code) {
+    var q = null;
+    for (var i = 0; i < code.length; i++) {
+        var c = code.charAt(i);
+        if (q) {
+            if (c == '\\') {
+                i++;
+            } else if (c == q) {
+                q = null;
+            }
+        } else if (c == '"' || c == "'" || c == '`') {
+            q = c;
+        }
+    }
+    return q;
+}
+
+function jsInertValue(codeBefore, value, attrQuote) {
+    if (jsOpenQuote(codeBefore)) {
+        return jsStringEscape(value);
+    }
+    if (typeof value == 'number' || typeof value == 'boolean' || /^-?\d+(\.\d+)?$/.test(value)) {
+        return value + '';
+    }
+    var q = attrQuote == "'" ? '"' : "'";
+    return q + jsStringEscape(value) + q;
+}
+
 
 function _px(v){
     v+='';
@@ -309,7 +349,11 @@ function dataTemplate(str, data, path, showAlways,kw) {
     var result;
     var is_empty = true;
     var has_field = false;
-    
+    var jsContext = false;
+    var attrQuote = null;
+    var handlers = null;
+    var nonce;
+
     if(str instanceof gnr.GnrBag){
          templates=str;
          var mainNode =templates.getNode('main');
@@ -347,12 +391,12 @@ function dataTemplate(str, data, path, showAlways,kw) {
         });
     }
  
+    var substitute;
     if (data instanceof gnr.GnrBag) {
         if (!data && !showAlways) {
             return '';
         }
-        result = str.replace(regexpr,
-                            function() {
+        substitute = function() {
                                 var l = arguments.length;
                                 has_field=true;
                                 var path=arguments[0].slice(1);
@@ -364,7 +408,7 @@ function dataTemplate(str, data, path, showAlways,kw) {
                                 attrname = attrname?attrname.slice(1):null;
                                 var valueattr = {};
                                 var dtype = dtypes[as_name];
-                                var editpars = editcols[as_name];
+                                var editpars = jsContext ? null : editcols[as_name];
                                 if(scopeSourceNode && stringStartsWith(path,'#')){
                                     valueNode = genro.getDataNode(scopeSourceNode.absDatapath(path));
                                 }else{
@@ -415,13 +459,18 @@ function dataTemplate(str, data, path, showAlways,kw) {
                                         }else if(valueattr._formattedValue){
                                             value = valueattr._formattedValue;
                                         }
-                                        value = genro.safeHtmlContent(value);
+                                        if(!jsContext){
+                                            value = genro.safeHtmlContent(value);
+                                        }
                                     }
                                 }
                                 if (value != null) {
                                     is_empty = false;
                                     if (value instanceof Date) {
                                         value = dojo.date.locale.format(value, {selector:dtype=='H'?'time':'date', format:'short'});
+                                    }
+                                    if(jsContext){
+                                        return jsInertValue(arguments[l-1].slice(0, arguments[l-2]), value, attrQuote);
                                     }
                                     return value;
                                 } else if(showAlways){
@@ -430,12 +479,12 @@ function dataTemplate(str, data, path, showAlways,kw) {
                                 }else{
                                     return '';
                                 }
-                            });
+                            };
     } else {
         data = data || {};
         var p,plist,sub;
-        result = str.replace(regexpr,
-                          function(path) {
+        substitute = function(path) {
+                              var l = arguments.length;
                               has_field=true;
                               plist = path.slice(1).split('.');
                               p = plist[0];
@@ -444,13 +493,59 @@ function dataTemplate(str, data, path, showAlways,kw) {
                                     is_empty = false;
                                     sub = plist.slice(1);
                                     if(sub.length && value instanceof gnr.GnrBag){
-                                        return genro.safeHtmlContent(gnrformatter.asText(value.getItem(sub)));
+                                        value = gnrformatter.asText(value.getItem(sub));
+                                    }else{
+                                        value = gnrformatter.asText(value,formats[p]);
                                     }
-                                    return genro.safeHtmlContent(gnrformatter.asText(value,formats[p]));
+                                    if(jsContext){
+                                        return jsInertValue(arguments[l-1].slice(0, arguments[l-2]), value, attrQuote);
+                                    }
+                                    return genro.safeHtmlContent(value);
                               }else{
                                     return '';
                               }
-                          });
+                          };
+    }
+    // The final pass must see the quote structure the browser will parse: each
+    // handler is interpolated first and stays in place, masked except for its quotes.
+    if(kw.trustedMarkup){
+        // \u0001 is reserved for the markers below: one left in a value would be removed only after the final pass.
+        var interpolate = substitute;
+        substitute = function() {
+            var value = interpolate.apply(this, arguments);
+            return typeof value == 'string' ? value.replace(/\u0001/g, '') : value;
+        };
+        nonce = '\u0001' + Math.random().toString(36).slice(2) + '_';
+        handlers = [];
+        jsContext = true;
+        str = str.replace(_TEMPLATE_HANDLER_ATTR, function(attr) {
+            var head = attr.match(/^on\w+\s*=\s*["']?/i)[0];
+            var quote = head.slice(-1);
+            var code = attr.slice(head.length);
+            var tail = '';
+            if (quote == '"' || quote == "'") {
+                if (code.slice(-1) == quote) {
+                    code = code.slice(0, -1);
+                    tail = quote;
+                }
+            } else {
+                quote = '';
+            }
+            attrQuote = quote;
+            var value = quote + code.replace(regexpr, substitute) + tail;
+            var masked = value.replace(/[^"']/g, '\u0001');
+            handlers.push({name: head.slice(0, head.length - quote.length), value: value, masked: masked});
+            return nonce + (handlers.length - 1) + '\u0001=' + masked;
+        });
+        jsContext = false;
+    }
+    result = str.replace(regexpr, substitute);
+    if (handlers) {
+        result = genro.safeHtmlContent(result);
+        result = result.replace(new RegExp(nonce + '(\\d+)\u0001=("[^"]*"|\'[^\']*\'|[^\\s>]*)', 'g'), function(m, i, masked) {
+            return masked == handlers[i].masked ? handlers[i].name + handlers[i].value : m;
+        });
+        result = result.replace(/\u0001/g, '');
     }
     if (has_field && is_empty && !showAlways) {
         return '';
@@ -845,8 +940,8 @@ function objectAsXmlAttributes(obj, sep) {
         if (typeof(val) != 'string') {
             val = asTypedTxt(val);
         }
-        val = val.replace(/\</g, '&lt;');
         val = val.replace(/\&/g, '&amp;');
+        val = val.replace(/\</g, '&lt;');
         val = val.replace(/\>/g, '&gt;');
         val = val.replace(/\"/g, '&quot;');
         val = val.replace(/\'/g, '&apos;');
@@ -1965,7 +2060,9 @@ function funcApply(fnc, parsobj, scope,argNames,argValues,showError) {
     argNames.push('_kwargs');
     argValues.push(parsobj);
     if(typeof(fnc)=='function'){
-        var signature = fnc.toString().match(/function *\(([\w \,]*)\)/)[1];
+        // an arrow function or a method has no `function(...)`: no named arguments
+        var signatureMatch = fnc.toString().match(/function *\(([\w \,]*)\)/);
+        var signature = signatureMatch && signatureMatch[1];
         var idx;
         if(signature){
             var argValuesCopy = copyArray(argValues);
@@ -2333,4 +2430,21 @@ function sessionNameSpaceKey(key,nameSpace){
         key = nameSpace+'_'+key;
     }
     return key;
+}
+
+var HTTP_REASON_PHRASES = {
+    200: 'OK', 201: 'Created', 202: 'Accepted', 204: 'No Content', 206: 'Partial Content',
+    301: 'Moved Permanently', 302: 'Found', 303: 'See Other', 304: 'Not Modified',
+    307: 'Temporary Redirect', 308: 'Permanent Redirect',
+    400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden', 404: 'Not Found',
+    405: 'Method Not Allowed', 408: 'Request Timeout', 409: 'Conflict', 410: 'Gone',
+    412: 'Precondition Failed', 413: 'Content Too Large', 415: 'Unsupported Media Type',
+    422: 'Unprocessable Content', 429: 'Too Many Requests',
+    500: 'Internal Server Error', 501: 'Not Implemented', 502: 'Bad Gateway',
+    503: 'Service Unavailable', 504: 'Gateway Timeout'
+};
+
+// HTTP/2 and HTTP/3 carry no reason phrase, so statusText is '' there: give back the HTTP/1.1 one
+function httpStatusText(status, statusText){
+    return statusText || HTTP_REASON_PHRASES[status] || '';
 }

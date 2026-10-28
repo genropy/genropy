@@ -423,6 +423,17 @@ class Service(StorageService):
         if url:
             return self.parent.redirect(environ, start_response, location=url,temporary=True)
 
+    def file_mtimes(self, *args):
+        """One paginated listing instead of a HEAD per file"""
+        if not self.bucket:
+            return {}
+        prefix = self.internal_path(*args)
+        prefix = prefix.strip('/') + '/' if prefix else ''
+        pages = self._client.get_paginator('list_objects_v2').paginate(Bucket=self.bucket, Prefix=prefix)
+        return {item['Key'][len(prefix):]: item['LastModified'].timestamp()
+                for item in pages.search('Contents')
+                if item and not item['Key'].endswith('.gnrdir')}
+
     def children(self, *args, **kwargs):
         if not self.bucket:
             return []
@@ -470,7 +481,7 @@ class ServiceParameters(BaseComponent):
         fb.textbox(value='^.public_base_url',lbl='!!Public Base Url')
         fb.checkbox(value='^.disable_cert_verify',lbl='Disable Certificate Verification')
         bc.storageTreeFrame(frameCode='bucketStorage',storagepath='^#FORM.record.service_name?=#v+":"',
-                                border='1px solid silver',margin='2px',rounded=4,
+                                border='1px solid var(--border-color)',margin='2px',rounded=4,
                                 region='center',preview_region='right',
                                 store__onBuilt=1,
-                                preview_border_left='1px solid silver',preview_width='50%')
+                                preview_border_left='1px solid var(--border-color)',preview_width='50%')

@@ -20,6 +20,7 @@ from werkzeug.exceptions import (HTTPException, InternalServerError,
                                   NotFound, Forbidden, PreconditionFailed,
                                   BadRequest, Unauthorized)
 from werkzeug.middleware.proxy_fix import ProxyFix
+from werkzeug.wsgi import ClosingIterator
 from gnr.web.compression import GzipMiddleware
 
 from gnr.core.gnrbag import Bag
@@ -36,10 +37,11 @@ from gnr.lib.services import ServiceHandler
 from gnr.app.pathresolver import PathResolver
 from gnr.app.gnrapp import GnrPackage
 from gnr.web import logger
+from gnr.web.gnrmanual import ManualCache
 from gnr.web.gnrwebapp import GnrWsgiWebApp
 from gnr.web.gnrwebpage import GnrUnsupportedBrowserException
 from gnr.web.gnrwsgisite_proxy.gnrresourceloader import ResourceLoader
-from gnr.web.gnrwsgisite_proxy.gnrstoragehandler import LegacyStorageHandler
+from gnr.web.gnrwsgisite_proxy.gnrstoragehandler import GenroStorageHandler, LegacyStorageHandler
 from gnr.web.gnrwsgisite_proxy.gnrstatichandler import StaticHandlerManager
 from gnr.web.gnrwsgisite_proxy.gnrpwahandler import PWAHandler
 from gnr.web.daemon.siteregister_client import SiteRegisterClient
@@ -84,6 +86,22 @@ class GnrWebServerError(Exception):
 
 class PrintHandlerError(Exception):
     pass
+
+
+class _RequestClosingIterator(ClosingIterator):
+    def __init__(self, iterable, request):
+        self._request = request
+        try:
+            super().__init__(iterable)
+        except BaseException:
+            request.close()
+            raise
+
+    def close(self):
+        try:
+            super().close()
+        finally:
+            self._request.close()
 
 
 class UrlInfo(object):
@@ -191,7 +209,13 @@ class GnrDomainProxy(object):
     @property
     def storage_handler(self):
         if self._storage_handler is None:
-            self._storage_handler = LegacyStorageHandler(self.parent.site, domain=self.domain)
+            site = self.parent.site
+            # The main instance, not site.gnrapp: that one follows the thread's
+            # current aux instance, and this handler is built once and cached.
+            if site._main_gnrapp.experimentalFlag('storage', 'use_genro_storage'):
+                self._storage_handler = GenroStorageHandler(site, domain=self.domain)
+            else:
+                self._storage_handler = LegacyStorageHandler(site, domain=self.domain)
         return self._storage_handler
 
 
@@ -413,6 +437,8 @@ class GnrWsgiSite(object):
         GNRSITE = self
         self.storageTypes = STORAGE_TYPES + STATIC_HANDLER_TYPES
         self.pathfile_cache = {}
+        self.doc_listings = {}
+        self.manual_cache = ManualCache()
         self._currentAuxInstanceNames = ThreadedDict()
         self._currentPages = ThreadedDict()
         self._currentRequests = ThreadedDict()
@@ -813,7 +839,7 @@ class GnrWsgiSite(object):
             storageType = self.storageType(path_list)
         if ':' in storageType:
             #site:image -> site
-            storage_name, path_list[0] = storageType.split(':')
+            storage_name, path_list[0] = storageType.split(':', 1)
         elif storageType == 'storage':
             #/_storage/site/pippo -> site
             storage_name, path_list = path_list[1], path_list[2:]
@@ -827,6 +853,8 @@ class GnrWsgiSite(object):
     
     def storageDispatcher(self,path_list,environ,start_response,storageType=None,**kwargs):
         storageNode = self.storageNodeFromPathList(path_list, storageType)
+        if storageNode and self.storage_handler.isPrivateStorage(storageNode.service.service_name):
+            return self.not_found_exception(environ, start_response)
         exists = storageNode and storageNode.exists
         if not exists and '_lazydoc' in kwargs:
             #fullpath = None ### QUI NON DOBBIAMO USARE I FULLPATH
@@ -1225,28 +1253,36 @@ class GnrWsgiSite(object):
         return page
 
     def dispatcher(self, environ, start_response):
-        self.currentRequest = Request(environ)
-        self.currentRequest.max_form_memory_size = 100_000_000
+        request = Request(environ)
+        self.currentRequest = request
+        request.max_form_memory_size = 100_000_000
         self.currentDomain = self.rootDomain
 
         try:
-            return self._dispatcher(environ, start_response)
-        except Exception as e:
-            self.raiseIfDeveloper()
-            self.errorHandler(exception=e, traceback=True)
-            exc = InternalServerError(
-                description='Internal server error; SCRIPT_NAME=%r; PATH_INFO=%r;'
-                % (environ.get('SCRIPT_NAME'), environ.get('PATH_INFO')))
-            return exc(environ, start_response)
-        finally:
-            self.cleanup()
-            # Do not re-set currentDomain here: cleanup() already reset it
-            # to None, which pops this thread's entry from the underlying
-            # ThreadedDict. Assigning rootDomain again would re-add a
-            # {tid: '_main_'} entry that is never removed, i.e. the same
-            # unbounded thread-local growth fixed for currentRequest/
-            # currentPage in #379. The currentDomain getter already falls
-            # back to rootDomain when unset, so no re-assignment is needed.
+            try:
+                result = self._dispatcher(environ, start_response)
+            except Exception as e:
+                self.raiseIfDeveloper()
+                self.errorHandler(exception=e, traceback=True)
+                exc = InternalServerError(
+                    description='Internal server error; SCRIPT_NAME=%r; PATH_INFO=%r;'
+                    % (environ.get('SCRIPT_NAME'), environ.get('PATH_INFO')))
+                result = exc(environ, start_response)
+            finally:
+                self.cleanup()
+                # Do not re-set currentDomain here: cleanup() already reset it
+                # to None, which pops this thread's entry from the underlying
+                # ThreadedDict. Assigning rootDomain again would re-add a
+                # {tid: '_main_'} entry that is never removed, i.e. the same
+                # unbounded thread-local growth fixed for currentRequest/
+                # currentPage in #379. The currentDomain getter already falls
+                # back to rootDomain when unset, so no re-assignment is needed.
+        except BaseException:
+            request.close()
+            raise
+        # Upload streams may back a streaming response; keep them alive
+        # until the server closes the response iterable.
+        return _RequestClosingIterator(result, request)
 
     def raiseIfDeveloper(self, exception=None):
         page = self.currentPage

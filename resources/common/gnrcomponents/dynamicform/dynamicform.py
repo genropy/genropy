@@ -312,7 +312,7 @@ class DynamicForm(BaseComponent):
         pane.contentPane(_workspace=True).remote(self.df_remoteDynamicForm,df_table=df_table,df_pkey=df_pkey,df_is_new=True,cachedRemote=True,**kwargs)
         
     @struct_method
-    def df_dynamicFieldsPane(self,pane,field=None,**kwargs):
+    def df_dynamicFieldsPane(self,pane,field=None,placeholder=None,**kwargs):
         column = self.db.model.column(field) if '.' in field else self.db.table(pane.getInheritedAttributes()['table']).column(field)
         df_field = column.attributes['subfields']
         df_column = column.table.column(df_field)
@@ -329,6 +329,7 @@ class DynamicForm(BaseComponent):
                             _fired='^#FORM.changed_df_type_%s' %field,
                             df_pkey='=#FORM.record.%s' %df_field,datapath='#FORM.record.%s' %field,
                             df_is_new='==!this.getRelativeData("#FORM.record.%s")' %field,
+                            df_placeholder=placeholder,
                             _onRemote="""
                             var frm = this.form;
                             this.delayedCall(
@@ -336,7 +337,7 @@ class DynamicForm(BaseComponent):
                                     frm.checkInvalidFields()
                                 },1,'buildingDynamicForm'
                             )""",**kwargs)
-  
+
     @struct_method
     def df_appendDynamicFields(self,pane,field=None,**kwargs):
         column = self.db.model.column(field) if '.' in field else self.db.table(pane.getInheritedAttributes()['table']).column(field)
@@ -407,12 +408,13 @@ class DynamicForm(BaseComponent):
 
     @public_method
     def df_remoteDynamicForm(self,pane,df_table=None,df_pkey=None,datapath=None,df_groups_cols=None,df_groups=None,
-                             df_formlet=None,**kwargs):
+                             df_formlet=None,df_placeholder=None,**kwargs):
         if not (df_pkey or df_groups):
-            pane.div()
+            self.df_placeholderBox(pane,df_placeholder)
             return
 
         pane.attributes.update(kwargs)
+        df_formlet = self.df_useFormlet(df_formlet)
         df_tblobj = self.db.table(df_table)
         pkeylist = df_groups.digest('#a.pkey') if df_groups else [df_pkey]
         global_fields = dict([(pkey,df_tblobj.df_getFieldsRows(pkey=pkey)) for pkey in pkeylist])
@@ -443,8 +445,17 @@ class DynamicForm(BaseComponent):
         else:
             ncol,colswidth = df_tblobj.readColumns(columns='$df_fbcolumns,$df_colswidth',pkey=df_pkey)
             fields = global_fields[df_pkey]
+            if not fields:
+                self.df_placeholderBox(pane,df_placeholder)
+                return
             pane.dynamicFormPage(fields=fields,ncol=ncol,colswidth=colswidth or None,datapath=datapath,df_formlet=df_formlet,**kwargs)
             
+    def df_placeholderBox(self,pane,placeholder=None):
+        if placeholder:
+            pane.div(placeholder,_class='df_placeholder')
+        else:
+            pane.div()
+
     @struct_method
     def df_dynamicFormPage(self,pane,fields=None,ncol=None,colswidth=None,datapath=None,**kwargs):
         group_kwargs = dictExtract(kwargs,'group_')
@@ -469,7 +480,7 @@ class DynamicForm(BaseComponent):
     @struct_method
     def df_dynamicFormGroup(self,pane,fields=None,ncol=None,colswidth=None,spacing=3,setInAttributes=False,df_formlet=None,**kwargs):
         box = pane.div(margin_right='10px')
-        if df_formlet:
+        if self.df_useFormlet(df_formlet):
             # lblpos='T': formbuilder_formlet defaults to the legacy left label,
             # the formlet norm is top and it is what the surrounding form uses.
             fb = box.formbuilder_formlet(cols=self.df_formletColumns(ncol,colswidth),lblpos='T')
@@ -477,6 +488,11 @@ class DynamicForm(BaseComponent):
             fb = box.formbuilder(cols=ncol or 1,keeplabel=True,colswidth=colswidth,width='100%',border_spacing='3px',
                                                             spacing=spacing,tdf_width='100%',lbl_white_space='nowrap',lbl=False)
         fb.addDynamicFields(fields=fields,setInAttributes=setInAttributes,**kwargs)
+
+    def df_useFormlet(self,df_formlet=None):
+        if df_formlet is None:
+            return self.application.experimentalFlag('gui','use_formlets_in_dynamicform')
+        return df_formlet
 
     def df_formletColumns(self,ncol=None,colswidth=None):
         """Translate the formbuilder df_colswidth (comma separated) into a
@@ -501,7 +517,7 @@ class DynamicForm(BaseComponent):
             r.pop('page',None)
         if fbattrs is not False:
             fbattrs = fbattrs or dict()
-            if df_formlet:
+            if self.df_useFormlet(df_formlet):
                 # a formlet has no rows: the formbuilder row_datapath scoping becomes
                 # the datapath of the grid container
                 fb = pane.formbuilder_formlet(cols=self.df_formletColumns(fbattrs.get('cols'),fbattrs.get('colswidth')),
@@ -535,6 +551,7 @@ class DynamicForm(BaseComponent):
 
     @customizable
     def df_makeDynamicField(self,fb,tag=None,wdg_attr=None,data_type=None,fields=None,dbstore_kwargs=None,fieldPrefix=None,df_is_new=None,**kwargs):
+        wdg_attr = dict(dictExtract(kwargs,'fld_'),**wdg_attr)
         mask = wdg_attr.pop('field_mask',None)
         if tag.endswith('_nopopup'):
             tag = tag.replace('_nopopup','')
@@ -545,8 +562,9 @@ class DynamicForm(BaseComponent):
         description = wdg_attr.pop('description',None) or code.title()
         fieldPrefix = fieldPrefix or '.'
         wdg_attr['value']='^%s%s' %(fieldPrefix,code)
-        if tag.lower() in ('checkbox' or 'radiobutton'):
-            wdg_attr['lbl'] = '&nbsp;'
+        if tag.lower() in ('checkbox', 'radiobutton'):
+            if getattr(fb, 'fbuilder', None):
+                wdg_attr['lbl'] = '&nbsp;'
             wdg_attr['label'] = description
         else:
             wdg_attr['lbl'] = description
@@ -578,8 +596,9 @@ class DynamicForm(BaseComponent):
         if customizer:
             customizer(wdg_attr,dbstore_kwargs=dbstore_kwargs)
         dictExtract(wdg_attr,'source_',pop=True)
+        calculated = bool(wdg_attr.get('formula'))
         self._df_handleFieldFormula(wdg_attr,fb=fb,fields=fields,**kwargs)
-        self._df_handleFieldValidation(wdg_attr,fields=fields)
+        self._df_handleFieldValidation(wdg_attr,fields=fields,calculated=calculated)
         code = wdg_attr.pop('code')
         getter = wdg_attr.pop('getter',None)
         default_value = wdg_attr.pop('default_value',None)
@@ -680,7 +699,7 @@ class DynamicForm(BaseComponent):
         if rec:
             return rec[column][innerpath] if innerpath else rec[column]
 
-    def _df_handleFieldValidation(self,attr,fields):
+    def _df_handleFieldValidation(self,attr,fields,calculated=False):
         if attr.get('validate_range'):
             r = attr.pop('validate_range')
             min_v,max_v = r.split(':')
@@ -706,10 +725,13 @@ class DynamicForm(BaseComponent):
             condition = attr.pop('field_visible')
 
             variables = ','.join([x['code'] for x in fields if x['code'] in condition])
-            tpv = (variables,"", "",attr['code'])
+            #a calculated field keeps the value of its formula when hidden: the formula and
+            #the hidden evaluation fire on the same trigger, and their order is not guaranteed
+            reset = "" if calculated else "if(!sourceNode._isBuilding){sourceNode.setRelativeData('.%s',null);}" %attr['code']
+            tpv = (variables,"", "",reset)
             if attr.get('validate_notnull'):
                 attr['validate_notnull']  = "^#WORKSPACE.%s.do_validations" %attr['code']
-                tpv = (variables,"sourceNode.setRelativeData('#WORKSPACE.%s.do_validations',true);" %attr['code'], "sourceNode.setRelativeData('#WORKSPACE.%s.do_validations',false);" %attr['code'],attr['code'])
+                tpv = (variables,"sourceNode.setRelativeData('#WORKSPACE.%s.do_validations',true);" %attr['code'], "sourceNode.setRelativeData('#WORKSPACE.%s.do_validations',false);" %attr['code'],reset)
             
             attr['_formulaVisibleIf'] = condition
             attr['hidden'] = """==function(sourceNode){
@@ -721,9 +743,7 @@ class DynamicForm(BaseComponent):
                                                 return false;
                                             }else{
                                                 %s
-                                                if(!sourceNode._isBuilding){
-                                                    sourceNode.setRelativeData('.%s',null);
-                                                }
+                                                %s
                                                 return true;
                                             }
                                         }catch(e){

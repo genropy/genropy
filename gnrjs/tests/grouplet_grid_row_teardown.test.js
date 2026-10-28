@@ -34,6 +34,8 @@ function createGrid({minRows = 0} = {}) {
         vm.runInContext(readFileSync(path.join(sourceDir, filename), 'utf8'), context, {filename});
     }
     const gridJs = path.join(__dirname, '../../resources/common/gnrcomponents/grouplet/grouplet_grid.js');
+    vm.runInContext(readFileSync(path.join(path.dirname(gridJs), 'grouplet_card.js'), 'utf8'), context,
+                    {filename: 'grouplet_card.js'});
     vm.runInContext(readFileSync(gridJs, 'utf8'), context, {filename: 'grouplet_grid.js'});
     context._T = str => str;
     const Bag = context.gnr.GnrBag;
@@ -88,6 +90,7 @@ function createGrid({minRows = 0} = {}) {
         minRows,
         addBtnDom: null,
         selectedPkey: null,
+        sourceNode: {getFormHandler: () => form},
         dataStore: {deleteRowAsk: pkey => asked.push(pkey)}
     });
     const tile = new context.gnr.GroupletGridTile(controller, 'r_1');

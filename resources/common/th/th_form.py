@@ -83,7 +83,8 @@ class TableHandlerForm(BaseComponent):
 
     def th_finalizeForm(self,form,table=None,options=None,frameCode=None,formCb=None):
         self._th_applyOnForm(form,options=options,mangler=frameCode)  
-        self._th_prepareFormDataHelper(form)
+        if not self.inlineDoc:
+            self._th_prepareFormDataHelper(form)
         if formCb:
             formCb(form)
         elif table == self.maintable and hasattr(self,'th_form'):
@@ -268,6 +269,9 @@ class TableHandlerForm(BaseComponent):
             default_slots = 'left_placeholder,*,right_placeholder,semaphore,5' if readOnly else 'left_placeholder,*,right_placeholder,form_archive,form_delete,form_add,form_revert,form_save,semaphore,locker'
             if annotations and not readOnly:
                 default_slots = default_slots.replace('right_placeholder','right_placeholder,annotationTool')
+            if self.inlineDoc and table != getattr(self, 'maintable', None):
+                # the page's own table has its "?" on the page top bar
+                default_slots = default_slots.replace('left_placeholder','left_placeholder,form_help')
             if form_add is False:
                 default_slots = default_slots.replace('form_add','')
             if form_delete is False:
@@ -335,7 +339,7 @@ class TableHandlerForm(BaseComponent):
             if fkeyfield and  'condition' not in tree_kwargs:
                 tree_kwargs['condition'] = '${fkeyfield}=:curr_{fkeyfield}'.format(fkeyfield=fkeyfield)
                 tree_kwargs['condition_curr_{fkeyfield}'.format(fkeyfield=fkeyfield)] = '^#FORM/parent/#FORM.pkey'
-            bar = form.left.slotBar('htreeSearchbar,htreeSlot,0',width=tree_kwargs.pop('width','200px'),border_right='1px solid silver',**leftkw)
+            bar = form.left.slotBar('htreeSearchbar,htreeSlot,0',width=tree_kwargs.pop('width','200px'),border_right='1px solid var(--border-color)',**leftkw)
             searchCode = form.attributes['frameCode']
             treeslots = '2,left_placeholder,searchOn,*,treeSortingTool,right_placeholder,2'
             hviewPicker = tree_kwargs.get('picker')
@@ -382,7 +386,7 @@ class TableHandlerForm(BaseComponent):
             if dismissTitle:
                 kwargs['dismissTitle_back_title'] = dismissTitle
             form.top.slotBar(slots,height=kwargs.pop('height','30px'),font_weight=kwargs.pop('font_weight','bold'),
-                             color=kwargs.pop('color','var(--mainWindow-color)'),border_bottom=kwargs.pop('border','1px solid silver'),
+                             color=kwargs.pop('color','var(--mainWindow-color)'),border_bottom=kwargs.pop('border','1px solid var(--border-color)'),
                             **kwargs)
         else:
             slots= '*,cancel' if mode=='confirm' else 'revertbtn,*,cancel,savebtn'
@@ -401,6 +405,10 @@ class TableHandlerForm(BaseComponent):
             pane.annotationTool(**kwargs)
         else:
             pane.div()
+
+    @struct_method
+    def th_slotbar_form_help(self,pane,**kwargs):
+        pane.docHelpButton(f"table:{pane.getInheritedAttributes()['table']}:")
 
     @struct_method          
     def th_slotbar_form_audit(self,pane,**kwargs):

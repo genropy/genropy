@@ -849,12 +849,10 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
                       :ref:`datapath` section
         """
         if lbl and not label and not getattr(self,'fbuilder',None):
+            # the client adds a placeholder label only where a sibling on the
+            # same row needs it (_formletNeedsPlaceholderLbl)
             label = lbl
-            lbl = '&nbsp;'
-            # Placeholder label: keeps the label height with top/bottom label
-            # side so the checkbox lines up with the sibling inputs
-            if 'box__class' not in kwargs:
-                kwargs['box__class'] = 'formlet_placeholder_label'
+            lbl = None
         return self.child('checkbox', value=value, label=label,lbl=lbl, **kwargs)
         
     def dropdownbutton(self, label=None, **kwargs):
@@ -959,9 +957,13 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
             excludeCols = formNode.attr.get('excludeCols') if formNode else None
             if excludeCols and fld in excludeCols.split(','):
                 wdgattr.setdefault('hidden', True)
-        wdgattr['helpcode'] =  fieldobj.fullname.replace('.','_')
-        if fieldobj.attributes.get('_owner_package'):
-            wdgattr['helpcode_package'] = fieldobj.attributes.get('_owner_package')
+        if self.page.inlineDoc:
+            doc_table, doc_column = fieldobj.fullname.rsplit('.', 1)
+            wdgattr['docAddress'] = f'field:{doc_table}:{doc_column}'
+        else:
+            wdgattr['helpcode'] =  fieldobj.fullname.replace('.','_')
+            if fieldobj.attributes.get('_owner_package'):
+                wdgattr['helpcode_package'] = fieldobj.attributes.get('_owner_package')
         if fieldobj.getTag() == 'virtual_column' or (('@' in fld ) and fld != tblobj.fullRelationPath(fld)):
             wdgattr.setdefault('readOnly', True)
             wdgattr['_virtual_column'] = fld

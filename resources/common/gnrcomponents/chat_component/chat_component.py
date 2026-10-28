@@ -122,7 +122,7 @@ class ChatComponent(BaseComponent):
             r.cell('user_name', dtype='T', name='Fullname', width='100%')
 
         bar = frame.top.slotToolbar('5,vtitle,*,searchOn',height='20px',font_size='.9em')
-        bottom = frame.bottom.slotBar('*,openchat,2',font_size='.9em',padding='2px',border_top='1px solid silver')
+        bottom = frame.bottom.slotBar('*,openchat,2',font_size='.9em',padding='2px',border_top='1px solid var(--border-color)')
         bottom.openchat.button('!!Start chat',action='FIRE #ct_connected_user_grid.open_chat; tp.widget.onCancel();',tp=tp,
                                 disabled='^#ct_connected_user_grid.selectedIndex?=(#v==null)')
         bar.vtitle.div('!!Users',color='#666')

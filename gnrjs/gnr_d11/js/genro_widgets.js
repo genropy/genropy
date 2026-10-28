@@ -855,6 +855,11 @@ dojo.declare("gnr.widgets.labledbox", gnr.widgets.baseHtml, {
     },
 
     onBuilding:function(sourceNode){
+        // a rebuild (e.g. an ancestor's unfreeze) finds the label and content boxes already in place
+        let builtLabelBox = sourceNode._labelNode && sourceNode._labelNode.getParentNode();
+        if(builtLabelBox && builtLabelBox.getParentNode()===sourceNode){
+            return;
+        }
         let label = sourceNode.attr.label;
         let default_side = sourceNode.getInheritedAttributes().label_side;
         let side = sourceNode.attr.side || default_side;
@@ -879,7 +884,10 @@ dojo.declare("gnr.widgets.labledbox", gnr.widgets.baseHtml, {
         }
         sourceNode._value = null;
         
+        // a field documents its column, a widget with helpcode its page
         let helpcode = sourceNode.attr.helpcode;
+        let docAddress = genro.startArgs.inlineDoc && (sourceNode.attr.docAddress || (helpcode
+            && `page:${genro.getData('gnr.package')}/${genro.getData('gnr.pagename')}:${helpcode}`));
         let labelBoxAttr = {_class:'labledBox_label',...box_l_kw};
         if (sourceNode.attr.moveable){
             labelBoxAttr.id='handle_'+sourceNode.getStringId()
@@ -888,10 +896,21 @@ dojo.declare("gnr.widgets.labledbox", gnr.widgets.baseHtml, {
         let labelBox = sourceNode._('div',labelBoxAttr,{'doTrigger':false});
         let labelSrc = labelBox._('div',objectUpdate({innerHTML:label},label_attr),{'doTrigger':false});
         sourceNode._labelNode = labelSrc.getParentNode();
-        if(helpcode){
+        if(docAddress){
+            labelBox._('div','spacer',{innerHTML:'&nbsp;',width:'100%','flex':'1'},{'doTrigger':false});
+            labelBox._('lightbutton','helper',{_class:'helperbutton iconbox innericonbox',
+                onCreated:function(){
+                    genro.dlg.docTrack(this.domNode, docAddress);
+                },
+                action:function(){
+                    genro.dlg.openDoc(this.domNode, docAddress,
+                                      {title: sourceNode._labelNode.domNode.innerHTML, tooltip: true});
+                },
+            },{'doTrigger':false});
+        }else if(helpcode){
             let helperEditor = genro.isDeveloper? ' helperEditor':'';
             labelBox._('div','spacer',{innerHTML:'&nbsp;',width:'100%','flex':'1'},{'doTrigger':false});
-            let btn = labelBox._('lightbutton','helper',{_class:'helperbutton iconbox innericonbox '+helperEditor,
+            labelBox._('lightbutton','helper',{_class:'helperbutton iconbox innericonbox '+helperEditor,
                 action:function(){
                     sourceNode.onHelperClick(this);
                 },
@@ -919,7 +938,9 @@ dojo.declare("gnr.widgets.labledbox", gnr.widgets.baseHtml, {
     },
 
     created:function(newobj, savedAttrs, sourceNode){
-        sourceNode.updateHelperClasses();
+        if(!genro.startArgs.inlineDoc){
+            sourceNode.updateHelperClasses();
+        }
     },
 
     setSide:function(domNode,value,kw){
@@ -1653,9 +1674,44 @@ dojo.declare("gnr.widgets.Dialog", gnr.widgets.baseDojo, {
     },
 
     mixin_autoSize:function(){
-        if(this.containerNode.firstChild.scrollWidth>this.containerNode.firstChild.clientWidth){
-            this.containerNode.firstChild.style.width = this.containerNode.firstChild.scrollWidth+'px';
+        var fc = this.containerNode.firstChild;
+        if(fc.scrollWidth>fc.clientWidth){
+            fc.style.width = (this._overflowWidth(fc)-dojo._getPadExtents(fc).w)+'px';
         }
+    },
+
+    mixin__overflowWidth:function(node){
+        // scrollWidth stops at the farthest box and drops the right padding and border
+        // of the boxes containing it: every box is measured with those added back
+        if(node.scrollWidth<=node.clientWidth){
+            return node.scrollWidth;
+        }
+        var left = node.getBoundingClientRect().left+node.clientLeft;
+        var width = node.scrollWidth;
+        var range = document.createRange();
+        var visit = function(parent,trailing){
+            dojo.forEach(parent.childNodes,function(n){
+                var isElement = n.nodeType==1;
+                if(!isElement && n.nodeType!=3){
+                    return;
+                }
+                if(!isElement){
+                    range.selectNodeContents(n);
+                }
+                var r = (isElement? n : range).getBoundingClientRect();
+                if(r.width){
+                    width = Math.max(width,Math.ceil(r.right-left+trailing));
+                }
+                if(isElement){
+                    var cs = dojo.getComputedStyle(n);
+                    if(cs.display!='none' && cs.overflowX=='visible'){
+                        visit(n,trailing+parseFloat(cs.paddingRight)+parseFloat(cs.borderRightWidth));
+                    }
+                }
+            });
+        };
+        visit(node,parseFloat(dojo.getComputedStyle(node).paddingRight));
+        return width;
     },
 
     mixin_fitToContent:function(){
@@ -1720,7 +1776,7 @@ dojo.declare("gnr.widgets.Dialog", gnr.widgets.baseDojo, {
         });
         centerNode.parentNode.appendChild(probe);
         var contentHeight = Math.ceil(probe.getBoundingClientRect().height);
-        var contentWidth = probe.scrollWidth;
+        var contentWidth = this._overflowWidth(probe);
         probe.parentNode.removeChild(probe);
         // summed from the parts, as containerNodeResize splits them: before the first
         // layout the frame is collapsed and the dialog height says nothing
@@ -2082,19 +2138,32 @@ dojo.declare("gnr.widgets.SimpleTextarea", gnr.widgets.baseDojo, {
             var speechAttrs = objectExtract(currAttr,'speech_*',false,true);
             sourceNode.attr = objectUpdate(objectUpdate({'tag':'div',_class:_class},wrapperAttrs),speechAttrs);
             var tKw = {overflow:'hidden',_class:'textAreaWrapperArea'};
-            if(editor){
-                tKw['border'] = '1px solid silver';
-                tKw['rounded'] = 4;
-            }
             var top = sourceNode._('div',tKw,notrigger);
             var bottom = sourceNode._('div',{_class:'textAreaWrapperButtons',transition:'1s all'},notrigger)
             if(editor){
-                bottom._('div',{_class:'TAeditorPalette',title:'Open in a floating editor',connect_onclick:function(){
+                bottom._('div',{_class:'TAeditorPalette',title:_T('Open in a floating editor'),connect_onclick:function(evt){
+                    var wrapper = evt.target.closest('.textAreaWrapper');
+                    if(wrapper && wrapper.querySelector('.jodit_disabled')){
+                        return;
+                    }
                     genro.dlg.floatingEditor(textarea,{});
                 }},{'doTrigger':false})
                 tag = 'joditEditor';
                 objectPop(areaAttr,'tag')
+                // the wrapper owns the size: the editor fills the area left above the buttons bar
+                objectPop(areaAttr,'width');
+                if(objectPop(areaAttr,'height')){
+                    areaAttr['height'] = '100%';
+                }
                 areaAttr['toolbar'] = false;
+                areaAttr = objectUpdate({enter: 'br', config_addNewLine: false}, areaAttr);
+                if(!('bodyStyle' in areaAttr)){
+                    // the editor body lives in an iframe, out of reach of the page's CSS variables:
+                    // give it the theme's field padding instead of jodit's default 10px
+                    var pageStyle = getComputedStyle(document.body);
+                    areaAttr['bodyStyle'] = 'padding:' + pageStyle.getPropertyValue('--formlet-field-padding-y').trim()
+                                            + ' ' + pageStyle.getPropertyValue('--formlet-field-padding-x').trim();
+                }
                 this._dojotag = null;
             }
             var textarea = top._(tag,areaAttr,notrigger).getParentNode();
@@ -5604,7 +5673,8 @@ dojo.declare("gnr.widgets.DynamicBaseCombo", gnr.widgets.BaseCombo, {
     created: function(widget, savedAttrs, sourceNode) {
         if (savedAttrs.auxColumns) {
             widget._popupWidget = new gnr.Gnr_ComboBoxMenu({onChange: dojo.hitch(widget, widget._selectOption),
-                                                            auxColumns_template:sourceNode.attr.auxColumns_template});
+                                                            auxColumns_template:sourceNode.attr.auxColumns_template,
+                                                            auxColumns_multiline:sourceNode.attr.auxColumns_multiline});
             dojo.connect(widget,'open',function(){
                 var popup = this._popupWidget.domNode.parentNode;
                 var popupcoords = dojo.coords(popup);
@@ -5615,6 +5685,11 @@ dojo.declare("gnr.widgets.DynamicBaseCombo", gnr.widgets.BaseCombo, {
                 }
                 var that = this;
                 setTimeout(function(){
+                    // the reopened list comes back through this handler and autoselects there
+                    if(that._popupWidget.adaptToField(that.domNode.offsetWidth)){
+                        that._showResultList();
+                        return;
+                    }
                     if(that.gnr._autoselectFirstOption){
                         that._popupWidget.highlightFirstOption();
                     }
@@ -6369,13 +6444,13 @@ dojo.declare("gnr.widgets.uploadable", gnr.widgets.baseHtml, {
         var preview = sc._('ContentPane',{pageName:'preview'});
         var cropPage = sc._('ContentPane',{pageName:'crop'});
         video._('video',{autoplay:true,margin:'10px',
-                            border:'1px solid silver',
+                            border:'1px solid var(--border-color)',
                             height:videoHeight+'px',
                             width:videoWidth+'px',
                             nodeId:videoNodeId,
                         selfsubscribe_takePicture:function(){
                             var preview_canvas = preview._('canvas','currentCanvas',{height:videoHeight+'px',nodeId:canvasNodeId,
-                                                border:'1px solid silver',
+                                                border:'1px solid var(--border-color)',
                                                 width:videoWidth+'px',display:'block',margin:'10px',hidden:false})     
                             preview_canvas.getParentNode().takePhoto(this);
                             let cropperBox = cropPage._('div',{height:videoHeight+'px',width:videoWidth+'px',nodeId:cropperNodeId});

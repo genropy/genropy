@@ -162,3 +162,40 @@ class GnrCustomWebPage(object):
         bottom.contentPane(region='bottom', height='60px').simpleTextarea(
             value='^.extended', readOnly=True, height='50px', width='95%',
             font_family='monospace', font_size='12px')
+
+    def test_13_textpath(self, pane):
+        "Plain text written to a second datapath when the editor loses focus"
+        pane.data('.html', SAMPLE_HTML)
+        pane.joditEditor(value='^.html', textpath='.text', height='200px', width='700px')
+        pane.div('Plain text (written on blur, never on load):', font_weight='bold', margin_top='12px')
+        pane.simpleTextarea(value='^.text', height='80px', width='700px',
+                            font_family='monospace', font_size='12px')
+
+    def test_14_maxlength(self, pane):
+        "maxLength blocks input at the limit and counts down in the statusbar"
+        pane.data('.html', '<p>Short abstract.</p>')
+        pane.joditEditor(value='^.html', maxLength=80, toolbar='minimal',
+                         height='200px', width='700px')
+
+    def test_15_placeholders(self, pane):
+        "The $ toolbar button inserts a placeholder at the caret"
+        pane.data('.html', '<p>Dear , your invoice  is ready.</p>')
+        pane.joditEditor(value='^.html', placeholders='name,surname,protocol',
+                         height='200px', width='700px')
+        pane.simpleTextarea(value='^.html', height='80px', width='700px',
+                            font_family='monospace', font_size='12px', margin_top='8px')
+
+    def test_16_image_data(self, pane):
+        "imageData embeds a pasted or dropped image in the markup as a data URI"
+        pane.joditEditor(value='^.html', imageData=True, toolbar='simple',
+                         height='250px', width='700px')
+        pane.simpleTextarea(value='^.html', height='80px', width='700px',
+                            font_family='monospace', font_size='12px', margin_top='8px')
+
+    def test_17_code_block(self, pane):
+        "The { } toolbar button inserts an empty pre/code block, alongside the $ one"
+        pane.data('.html', '<p>Run this:</p>')
+        pane.joditEditor(value='^.html', codeBlock=True, placeholders='name,protocol',
+                         height='220px', width='700px')
+        pane.simpleTextarea(value='^.html', height='80px', width='700px',
+                            font_family='monospace', font_size='12px', margin_top='8px')

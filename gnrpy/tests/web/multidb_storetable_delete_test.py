@@ -1,9 +1,11 @@
-"""Deleting a workspace stops its site register in gnrdaemon (#1567).
+"""Deleting a workspace stops its site register in gnrdaemon once committed (#1567, #1652).
 
 ``StoreTable.trigger_onDeleted_multidb`` runs unbound against a minimal
-fake table: a multidomain site needs a running instance and a daemon. The
-site keeps the real ``GnrWsgiSite.get_domainIdentifier`` and a real
-``GnrDomainHandler``; only the daemon proxy is replaced, by a recorder.
+table: a multidomain site needs a running instance and a daemon. The table
+holds a real ``GnrSqlDb`` on a throwaway SQLite, so the after-commit queue,
+``commit`` and ``rollbackAll`` are the framework's own. The site keeps the
+real ``GnrWsgiSite.get_domainIdentifier`` and a real ``GnrDomainHandler``;
+only the daemon proxy is replaced, by a recorder.
 """
 
 import importlib.util
@@ -13,6 +15,7 @@ import types
 
 import pytest
 
+from gnr.sql.gnrsql import GnrSqlDb
 from gnr.web.gnrwsgisite import GnrDomainHandler, GnrWsgiSite
 
 STORETABLE_PATH = os.path.join(os.path.dirname(__file__), '..', '..', '..',
@@ -52,12 +55,8 @@ class _FakeSite:
         self.register = types.SimpleNamespace(gnrdaemon_proxy=_DaemonProxy(failing=failing))
 
 
-def _fake_table(site):
-    db = types.SimpleNamespace(
-        stores_handler=types.SimpleNamespace(refresh_dbstores=lambda: None),
-        application=types.SimpleNamespace(site=site),
-    )
-    return types.SimpleNamespace(db=db)
+class _StoreDb(GnrSqlDb):
+    stores_handler = types.SimpleNamespace(refresh_dbstores=lambda: None)
 
 
 @pytest.fixture(scope='module')
@@ -65,29 +64,60 @@ def storetable():
     return load_storetable().StoreTable
 
 
-def test_workspace_delete_stops_its_register(storetable):
+@pytest.fixture
+def db(tmp_path):
+    db = _StoreDb(dbname=str(tmp_path / 'storetable'))
+    db.startup()
+    yield db
+    db.closeConnection()
+
+
+def _delete_workspace(storetable, db, site, dbstore='ws1'):
+    db.application = types.SimpleNamespace(site=site)
+    tbl = types.SimpleNamespace(db=db)
+    tbl.multidb_stopDomainRegister = types.MethodType(storetable.multidb_stopDomainRegister, tbl)
+    db.execute('SELECT 1')
+    storetable.trigger_onDeleted_multidb(tbl, {'dbstore': dbstore})
+
+
+def test_workspace_delete_stops_its_register_after_commit(storetable, db):
     site = _FakeSite()
 
-    storetable.trigger_onDeleted_multidb(_fake_table(site), {'dbstore': 'ws1'})
+    _delete_workspace(storetable, db, site)
 
     assert 'ws1' not in site.domains.domains
+    assert site.register.gnrdaemon_proxy.stopped == []
+    db.commit()
     assert site.register.gnrdaemon_proxy.stopped == ['teamset|ws1']
 
 
-def test_register_stop_failure_is_logged_not_raised(storetable, caplog):
+def test_rolled_back_delete_leaves_the_register(storetable, db):
+    site = _FakeSite()
+
+    _delete_workspace(storetable, db, site)
+    db.rollbackAll()
+    db.execute('SELECT 1')
+    db.commit()
+
+    assert site.register.gnrdaemon_proxy.stopped == []
+
+
+def test_register_stop_failure_is_logged_not_raised(storetable, db, caplog):
     site = _FakeSite(failing=True)
 
+    _delete_workspace(storetable, db, site)
     with caplog.at_level(logging.ERROR):
-        storetable.trigger_onDeleted_multidb(_fake_table(site), {'dbstore': 'ws1'})
+        db.commit()
 
-    assert 'ws1' not in site.domains.domains
+    assert site.register.gnrdaemon_proxy.stopped == ['teamset|ws1']
     assert any('teamset|ws1' in r.getMessage() for r in caplog.records)
 
 
-def test_store_delete_without_multidomain_leaves_the_site_register(storetable):
+def test_store_delete_without_multidomain_leaves_the_site_register(storetable, db):
     """Without multidomain the identifier of any store is the site itself."""
     site = _FakeSite(multidomain=False)
 
-    storetable.trigger_onDeleted_multidb(_fake_table(site), {'dbstore': 'ws1'})
+    _delete_workspace(storetable, db, site)
+    db.commit()
 
     assert site.register.gnrdaemon_proxy.stopped == []

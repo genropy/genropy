@@ -315,6 +315,7 @@ dojo.declare("gnr.GnrFrmHandler", null, {
     applyDisabledStatus:function(){
         var form_disabled = this.isDisabled();
         var disabled_status = this.disabledStatus();
+        var protectedPaths = this.getProtectedPaths();
         this.publish('onDisabledChange',{disabled:form_disabled,locked:this.locked});
         genro.dom.setClass(this.sourceNode,'lockedContainer',form_disabled);
         var node,disabled;
@@ -330,9 +331,33 @@ dojo.declare("gnr.GnrFrmHandler", null, {
                 if(disabled==false && 'unmodifiable' in node.attr){
                     disabled = !this.isNewRecord();
                 }
+                if(!disabled && protectedPaths.length && typeof(node.attr.value)=="string"){
+                    disabled = this.isProtectedPath(node.absDatapath(node.attr.value),protectedPaths);
+                }
             }
             node.setDisabled(disabled);
         }
+    },
+
+    getProtectedPaths:function(){
+        var recordPath = this.sourceNode.absDatapath(this.formDatapath);
+        var ownPaths = this.getDataNodeAttributes()._protected_paths;
+        var result = ownPaths?ownPaths.split(',').map(p => recordPath+'.'+p):[];
+        var locationpath = this.store?this.store.locationpath:null;
+        var parentForm = this.getParentForm();
+        if(locationpath && parentForm){
+            parentForm.getProtectedPaths().forEach(function(p){
+                if(p.indexOf(locationpath+'.')===0){
+                    result.push(recordPath+p.slice(locationpath.length));
+                }
+            });
+        }
+        return result;
+    },
+
+    isProtectedPath:function(path,protectedPaths){
+        protectedPaths = protectedPaths || this.getProtectedPaths();
+        return protectedPaths.some(p => path==p || path.indexOf(p+'.')===0);
     },
 
     _protectedNode:function(node){
@@ -405,6 +430,57 @@ dojo.declare("gnr.GnrFrmHandler", null, {
 
     registerGridEditor:function(nodeId,gridEditor){
         this.gridEditors[nodeId] = gridEditor;
+    },
+
+    // An editor holding typed values outside the record (a grid entry row)
+    // registers here: {isPending, hasPendingChanges, prepareCommit,
+    // commitPending, isDestroyed}. Its pending values count as a change, and
+    // save/dismiss commit them first, or stop if one refuses.
+    registerPendingEditor:function(key,editor){
+        this.pendingEditors = this.pendingEditors || {};
+        this.pendingEditors[key] = editor;
+    },
+
+    unregisterPendingEditor:function(key){
+        if(this.pendingEditors){
+            delete this.pendingEditors[key];
+        }
+    },
+
+    livePendingEditors:function(){
+        var editors = this.pendingEditors || {};
+        return Object.keys(editors).map(k => editors[k]).filter(e => !e.isDestroyed());
+    },
+
+    commitPendingEditors:function(action,editors){
+        // the action runs once its editors are committed: an entry row that
+        // keeps the focus is pending again, and must not commit in a loop
+        var busy = this._committingEditors ? [] : (editors || this.livePendingEditors()).filter(e => e.isPending());
+        if(!busy.length){
+            return action();
+        }
+        if(this._pendingCommit){
+            return this._pendingCommit;
+        }
+        var deferred = new dojo.Deferred();
+        this._pendingCommit = deferred;
+        busy.forEach(e => e.prepareCommit());
+        var that = this;
+        // a tick: a field blurred above writes its value before the commit
+        setTimeout(function(){
+            that._pendingCommit = null;
+            try{
+                var committed = busy.every(e => e.commitPending());
+                that.updateStatus();
+                that._committingEditors = committed;
+                deferred.callback(committed ? action() : false);
+            }catch(error){
+                deferred.errback(error);
+            }finally{
+                that._committingEditors = false;
+            }
+        },0);
+        return deferred;
     },
     
     unregisterChild:function(sourceNode){
@@ -537,7 +613,7 @@ dojo.declare("gnr.GnrFrmHandler", null, {
     },
 
     dismiss:function(modifiers){
-        this.publish('navigationEvent',{'command':'dismiss',modifiers:modifiers});
+        return this.commitPendingEditors(() => this.publish('navigationEvent',{'command':'dismiss',modifiers:modifiers}));
     },
     resetChanges: function() {
         var formData = this.getFormData();
@@ -1290,7 +1366,7 @@ dojo.declare("gnr.GnrFrmHandler", null, {
         local_clipboard = local_clipboard.deepCopy();
         let envelope = new gnr.GnrBag();
         envelope.addItem(genro.pageHash+'_'+this.formId,local_clipboard);
-        navigator.clipboard.writeText(envelope.toXml());
+        genro.textToClipboard(envelope.toXml());
     },
 
     updateFromClipboard:function(){
@@ -1444,6 +1520,9 @@ dojo.declare("gnr.GnrFrmHandler", null, {
                                     });
             return;
         }
+        if(!this._committingEditors && this.livePendingEditors().some(e => e.isPending())){
+            return this.commitPendingEditors(() => this.save(kw,modifiers));
+        }
         kw = kw || {};
         var always;
         if (typeof(kw)=='object'){
@@ -1592,6 +1671,11 @@ dojo.declare("gnr.GnrFrmHandler", null, {
 
     _triggerInvalidFields:function(invalidFields,recordData){
         for (var p in invalidFields){
+            if(!recordData.getNode(p)){
+                //setting a missing path would recreate it, a removed row first
+                delete invalidFields[p];
+                continue;
+            }
             if(this.currentFocused && this.currentFocused._focused && this.currentFocused.sourceNode.attr.value){
                 let valuepath = this.currentFocused.sourceNode.absDatapath(this.currentFocused.sourceNode.attr.value)
                 let invalidValuePath = this.sourceNode.absDatapath('.record.'+p);
@@ -2038,7 +2122,23 @@ dojo.declare("gnr.GnrFrmHandler", null, {
                 changes.popNode(n.label);
             }
         });
+        this.forgetRemovedInvalidFields(kw.node, kw.where);
         this.updateStatus();
+    },
+    forgetRemovedInvalidFields:function(node, where){
+        //the record keeps its invalid fields to save them anyway: a removed node takes its own away
+        var ownerNode = this.recordOwnerNode(node);
+        var invalidFields = ownerNode && ownerNode.attr._invalidFields;
+        if(!invalidFields){
+            return;
+        }
+        var parentPath = where.getFullpath('static', ownerNode.getValue('static'));
+        var removed = parentPath ? parentPath + '.' + node.label : node.label;
+        for(var fpath in invalidFields){
+            if(fpath == removed || fpath.indexOf(removed + '.') === 0){
+                delete invalidFields[fpath];
+            }
+        }
     },
     getChangeKey:function(changekey) {
         if (typeof(changekey) != 'string') {//changekey is a data node
@@ -2174,6 +2274,9 @@ dojo.declare("gnr.GnrFrmHandler", null, {
             }else if(gridstatus.indexOf('changed')>=0){
                 status = 'changed';
             }
+        }
+        if(!status && this.livePendingEditors().some(e => e.hasPendingChanges())){
+            status = 'changed';
         }
         return status;
     },

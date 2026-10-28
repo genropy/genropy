@@ -19,12 +19,12 @@ dojo.declare("gnr.widgets.MDEditor", gnr.widgets.baseExternalWidget, {
     },
 
     created:function(widget, savedAttrs, sourceNode){
-        const scriptUrl = "https://uicdn.toast.com/editor/latest/toastui-editor-all.min.js";
-        const cssUrl = "https://uicdn.toast.com/editor/latest/toastui-editor.min.css";
-        const pickerCss = "https://uicdn.toast.com/tui-color-picker/latest/tui-color-picker.min.css";
-        const pickerJs  = "https://uicdn.toast.com/tui-color-picker/latest/tui-color-picker.min.js";
-        const colorCss  = "https://uicdn.toast.com/editor-plugin-color-syntax/latest/toastui-editor-plugin-color-syntax.min.css";
-        const colorJs   = "https://uicdn.toast.com/editor-plugin-color-syntax/latest/toastui-editor-plugin-color-syntax.min.js";
+        const scriptUrl = "https://uicdn.toast.com/editor/3.2.2/toastui-editor-all.min.js";
+        const cssUrl = "https://uicdn.toast.com/editor/3.2.2/toastui-editor.min.css";
+        const pickerCss = "https://uicdn.toast.com/tui-color-picker/v2.2.8/tui-color-picker.min.css";
+        const pickerJs  = "https://uicdn.toast.com/tui-color-picker/v2.2.8/tui-color-picker.min.js";
+        const colorCss  = "https://uicdn.toast.com/editor-plugin-color-syntax/3.0.3/toastui-editor-plugin-color-syntax.min.css";
+        const colorJs   = "https://uicdn.toast.com/editor-plugin-color-syntax/3.0.3/toastui-editor-plugin-color-syntax.min.js";
         
         const loadResource = (url, type) => new Promise((resolve) => {
             if (type === 'js') { genro.dom.loadJs(url, resolve); }
@@ -1677,8 +1677,14 @@ dojo.declare("gnr.widgets.joditEditor", gnr.widgets.baseExternalWidget, {
     },
     creating: function(attributes, sourceNode) {
         objectPop(attributes, 'value');
+        // read back from sourceNode.attr when the text is written, as mode and _delay are
+        objectPop(attributes, 'textpath');
         var toolbar = objectPop(attributes, 'toolbar');
         var placeholder = objectPop(attributes, 'placeholder');
+        var placeholders = this.splitList(objectPop(attributes, 'placeholders'));
+        var codeBlock = objectPop(attributes, 'codeBlock');
+        var maxLength = Number(objectPop(attributes, 'maxLength')) || 0;
+        var imageData = objectPop(attributes, 'imageData');
         var options = {
             toolbar: toolbar !== false,
             buttons: this.resolveToolbar(toolbar),
@@ -1701,7 +1707,24 @@ dojo.declare("gnr.widgets.joditEditor", gnr.widgets.baseExternalWidget, {
             beautifyHTML: false,
             cleanHTML: objectUpdate({}, this.cleanHTML)
         };
+        if(maxLength){
+            // Jodit's own counters are on by default and would sit next to the
+            // remaining budget repeating it: the budget alone is shown. Without
+            // countTextSpaces the limit plugin counts the words joined, so it
+            // would block at a different number than the one on display.
+            objectUpdate(options, {limitChars: maxLength, countTextSpaces: true, statusbar: true,
+                                   showCharsCounter: false, showWordsCounter: false});
+        }
+        // with toolbar=False there is no bar to put them in: the buttons are dropped
+        var extraButtons = options.toolbar ? this.resolveExtraButtons(placeholders, codeBlock) : [];
+        if(extraButtons.length){
+            options.extraButtons = extraButtons;
+        }
         objectUpdate(options, objectExtract(attributes, 'config_*'));
+        if(imageData){
+            // merged after config_*, so an uploader passed by the caller survives and wins
+            options.uploader = objectUpdate({insertImageAsBase64URI: true}, options.uploader);
+        }
         return {joditAttrs: {options: options,
                              mode: objectPop(attributes, 'mode') || 'wysiwyg',
                              sourceEditor: objectPop(attributes, 'sourceEditor') || 'codemirror',
@@ -1741,6 +1764,42 @@ dojo.declare("gnr.widgets.joditEditor", gnr.widgets.baseExternalWidget, {
         }
         return value.map(function(item){ return item.trim(); }).filter(Boolean);
     },
+    // extraButtons is appended to the toolbar on its own: naming a control in the
+    // buttons list too renders it twice, the second time as its bare name.
+    resolveExtraButtons: function(placeholders, codeBlock) {
+        var buttons = [];
+        if(placeholders.length){
+            buttons.push(this.placeholdersButton(placeholders));
+        }
+        if(codeBlock){
+            buttons.push(this.codeBlockButton());
+        }
+        return buttons;
+    },
+    placeholdersButton: function(names) {
+        var list = {};
+        names.forEach(function(name){
+            list['$' + name] = '$' + name;
+        });
+        return {name: 'placeholders', text: '$', tooltip: _T('Insert field'), list: list,
+                exec: function(jodit, current, opts){
+                    jodit.s.insertHTML(opts.control.args[0]);
+                }};
+    },
+    // No vendored Jodit icon fits a code block, and the only near one, source, is the
+    // glyph of the Source button already in the toolbar: a text label instead.
+    codeBlockButton: function() {
+        var that = this;
+        return {name: 'codeBlock', text: '{ }', tooltip: _T('Code block'),
+                exec: function(jodit){ that.insertCodeBlock(jodit); }};
+    },
+    // The caret cannot sit in a truly empty element: setCursorIn leaves there the
+    // invisible space Jodit uses for it, which textLength and the drop code skip.
+    insertCodeBlock: function(editor) {
+        var code = editor.createInside.element('code');
+        editor.s.insertNode(editor.createInside.element('pre', [code]));
+        editor.s.setCursorIn(code);
+    },
     modeCode: function(name) {
         var code = this.modeNames.indexOf(name) + 1;
         if(!code){
@@ -1770,7 +1829,7 @@ dojo.declare("gnr.widgets.joditEditor", gnr.widgets.baseExternalWidget, {
         editor.e.on('keydown mousedown paste drop', markUserEdit)
                 .on(editor.container, 'mousedown keydown touchstart', markUserEdit)
                 .on('change', function(){ that.onEditorChange(editor); })
-                .on('blur', function(){ that.writeValue(editor); })
+                .on('blur', function(){ that.writeValue(editor, true); })
                 .on('afterSetMode', function(){ that.onModeChange(editor); });
         // Jodit sizes its workplace on window resize only: built in a hidden page it stays 150px high
         var parentWidget = dijit.getEnclosingWidget(widget);
@@ -1781,6 +1840,8 @@ dojo.declare("gnr.widgets.joditEditor", gnr.widgets.baseExternalWidget, {
             editor.gnr_contentStyles(joditAttrs.contentStyles);
             editor.gnr_bodyStyle(joditAttrs.bodyStyle);
             that.setupFieldDrop(editor);
+            that.releaseChangeLimit(editor);
+            that.setupCharCounter(editor);
         });
     },
     onSpeechEnd: function(sourceNode, text) {
@@ -1941,6 +2002,43 @@ dojo.declare("gnr.widgets.joditEditor", gnr.widgets.baseExternalWidget, {
             return false;
         });
     },
+    // What the limit plugin counts with countTextSpaces: editor.text is innerText,
+    // which adds a newline between blocks that the plugin strips before comparing.
+    textLength: function(editor) {
+        return (editor.text || '').replace(/[\uFEFF\r\n]/g, '').length;
+    },
+    // The limit plugin reverts the whole value on its change hook, and that hook fires on
+    // a programmatic assignment too: a value loaded over the limit would be refused, and
+    // an over-limit record would be frozen, the revert undoing a deletion as well. Only
+    // that listener goes: the key guard still blocks typing at the limit (its COMMAND_KEYS
+    // exemption is what lets an over-limit record be deleted back under it) and
+    // afterPaste.limit still refuses a paste that does not fit.
+    releaseChangeLimit: function(editor) {
+        if(editor.o.limitChars){
+            editor.e.off('change.limit');
+        }
+    },
+    // limitChars blocks typing at the limit without saying how much is left:
+    // the budget takes the place of the Jodit counters switched off with it.
+    setupCharCounter: function(editor) {
+        var limit = editor.o.limitChars;
+        if(!limit || !editor.statusbar){
+            return;
+        }
+        var that = this;
+        var counter = document.createElement('span');
+        counter.className = 'gnr-jodit-charcounter';
+        var label = _T('Remaining') + ': ';
+        var update = function(){
+            var left = limit - that.textLength(editor);
+            counter.textContent = label + left;
+            // typing cannot go past the limit: only a value loaded over it goes negative
+            counter.style.color = left < 0 ? 'red' : (left < limit * 0.1 ? 'orange' : '');
+        };
+        editor.statusbar.append(counter, true);
+        editor.e.on('change keyup', update);
+        update();
+    },
     setContentStyle: function(editor, id, css) {
         if(!editor.o.iframe || !editor.ed){
             return;
@@ -1962,7 +2060,7 @@ dojo.declare("gnr.widgets.joditEditor", gnr.widgets.baseExternalWidget, {
         sourceNode.delayedCall(function(){ that.writeValue(editor); },
                                sourceNode.attr._delay || 500, 'updatingContent');
     },
-    writeValue: function(editor) {
+    writeValue: function(editor, onBlur) {
         if(editor.isInDestruct){
             return;
         }
@@ -1976,6 +2074,11 @@ dojo.declare("gnr.widgets.joditEditor", gnr.widgets.baseExternalWidget, {
         var value = editor.value || null;
         if(value !== (sourceNode.getAttributeFromDatasource('value') || null)){
             sourceNode.setAttributeInDatasource('value', value);
+        }
+        // the plain text follows the markup only when the user leaves the editor,
+        // so loading a record never marks it as modified
+        if(onBlur && sourceNode.attr.textpath){
+            sourceNode.setRelativeData(sourceNode.attr.textpath, editor.text || null);
         }
     },
     onModeChange: function(editor) {

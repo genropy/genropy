@@ -128,6 +128,22 @@ gnr.columnFilterKey = function(value){
     return ''+value;
 };
 
+gnr.columnFilterDay = function(value){
+    if(value instanceof Date){
+        return new Date(value.getTime()-value.getTimezoneOffset()*60000).toISOString().slice(0,10);
+    }
+    return value? (''+value).slice(0,10):'';
+};
+
+gnr.columnFilterInRange = function(value,range){
+    var day = gnr.columnFilterDay(value);
+    return !!day && (!range.from || day>=range.from) && (!range.to || day<=range.to);
+};
+
+gnr.columnFilterActive = function(cell){
+    return !!((cell.filterValues && cell.filterValues.length) || cell.filterRange);
+};
+
 // ********* Grid ************
 dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
     constructor: function(application) {
@@ -151,27 +167,15 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
                     }
                 };
                 dojox.grid.headerBuilder.prototype.getCellX = function(e){
-                    var x = e.clientX - e.target.getBoundingClientRect().left;
-                    if(dojo.isMoz){
-                        var n = dojox.grid.ascendDom(e.target, dojox.grid.makeNotTagName("th"));
-                        x -= (n && n.offsetLeft) || 0;
-                        var t = e.sourceView.getScrollbarWidth();
-                        if(!dojo._isBodyLtr() && e.sourceView.headerNode.scrollLeft < t)
-                            x -= t;
-                        //x -= getProp(ascendDom(e.target, mkNotTagName("td")), "offsetLeft") || 0;
-                    }
-                    var n = dojox.grid.ascendDom(e.target, function(){
-                        if(!n || n == e.cellNode){
-                            return false;
-                        }
-                        // Mozilla 1.8 (FF 1.5) has a bug that makes offsetLeft = -parent border width
-                        // when parent has border, overflow: hidden, and is positioned
-                        // handle this problem here ... not a general solution!
-                        x += (n.offsetLeft < 0 ? 0 : n.offsetLeft);
-                        return true;
-                    });
-                    return x;
+                    return e.cellNode? e.clientX - e.cellNode.getBoundingClientRect().left : 0;
                 };
+                ['overLeftResizeArea','overRightResizeArea'].forEach(function(name){
+                    var overResizeArea = dojox.grid.headerBuilder.prototype[name];
+                    // the resize is armed before the grid sees the mousedown, and its end swallows the click
+                    dojox.grid.headerBuilder.prototype[name] = function(e){
+                        return !(e.target.closest && e.target.closest('.gridColumnFilter')) && overResizeArea.call(this,e);
+                    };
+                });
             }
 
         }
@@ -186,6 +190,15 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
             return;
         }
         return this.onHeaderCellClick_replaced(e);
+    },
+    patch_onHeaderCellMouseDown:function(e){
+        this._columnFilterPressed = Boolean(e.target.closest && e.target.closest('.gridColumnFilter'));
+        if(this._columnFilterPressed){
+            // a draggable header turns a click that moves a few pixels into a column drag, and the click never comes
+            e.preventDefault();
+            return;
+        }
+        return this.onHeaderCellMouseDown_replaced(e);
     },
     patch__textSizeChanged:function(){
         if(dojo.getComputedStyle(this.domNode)){
@@ -1156,7 +1169,7 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
             var box = sourceNode.getValue()._('div','dynamicSearch',{position:'absolute',
                                                 top:headerHeight+'px',right:'18px',font_size:'.9em',
                                                 background:'#ececec',padding:'1px',
-                                                rounded_left:4,border:'1px solid silver'})
+                                                rounded_left:4,border:'1px solid var(--border-color)'})
     
             box._('SearchBox', {nodeId:searchId,datapath:'.searchbox',parentForm:false,
                                search_kw:{font_size:'.9em'}});
@@ -1177,7 +1190,7 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
             rows.forEach(function(attrs){
                 b.setItem('#id',null,attrs);
             })
-            navigator.clipboard.writeText(b.toXml());
+            genro.textToClipboard(b.toXml());
         }
         menu.setItem('#id',null,{caption:_T('Copy selected rows'),action:copyrows});
     },
@@ -1761,7 +1774,7 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
         }
         var _skipSanitize = formatOptions.template || formatOptions.js || formatOptions.apply
             || formatOptions.isbutton || formatOptions.showlinks
-            || formatOptions._hasCustomGetter
+            || formatOptions._hasCustomGetter || formatOptions._trustedRowTemplate
             || formatOptions.dtype==='B' || formatOptions.dtype==='P';
         return function(v, inRowIndex) {
             var opt = objectUpdate({}, formatOptions);
@@ -1913,7 +1926,7 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
         var classes = 'cellHeaderContent';
         if(cell.filterField && this.columnFilterSupport && this.columnFilterAllowed(sourceNode)){
             classes += ' withColumnFilter';
-            var active = cell.filterValues && cell.filterValues.length;
+            var active = gnr.columnFilterActive(cell);
             content += '<span class="gridColumnFilter'+(active?' gridColumnFilterActive':'')+'" title="'+_T('Filter')+'">'+
                        '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h18l-7 8.5V19l-4 2v-7.5z"/></svg></span>';
         }
@@ -2009,6 +2022,7 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
                 }
             }
             if(cell.rowTemplate){
+                cell._trustedRowTemplate = typeof(cell.rowTemplate)=='string' && !sourceNode.isPointerPath(cell.rowTemplate);
                 cell.rowTemplate = sourceNode.currentFromDatasource(cell.rowTemplate);
             }
             cell.field = cell.field.replace(/\W/g, '_');
@@ -2087,6 +2101,9 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
             if(_customGetter){
                 cell._customGetter = funcCreate(_customGetter);
                 formats['_hasCustomGetter'] = true;
+            }
+            if(cell._trustedRowTemplate){
+                formats['_trustedRowTemplate'] = true;
             }
             if(dtype=='B'){
                 formats['trueclass']= formats['trueclass'] || "checkboxOn";
@@ -2383,6 +2400,10 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
         var widget = dragInfo.widget;
         var value = {};
         if (widget.gridEditor && widget.gnrediting){
+            return false;
+        }
+        if (dragmode == 'column' && widget._columnFilterPressed){
+            // a mousedown left undone does not stop the drag of a draggable header everywhere
             return false;
         }
 
@@ -2842,7 +2863,8 @@ dojo.declare("gnr.widgets.VirtualStaticGrid", gnr.widgets.DojoGrid, {
                 c = this.grid.cellmap[k];
                 formats[c.field] = {...c._formats};
             }
-            return dataTemplate(this.rowTemplate,new gnr.GnrBag(rowdata),null,null,{formats:formats});
+            return dataTemplate(this.rowTemplate,new gnr.GnrBag(rowdata),null,null,
+                                {formats:formats,trustedMarkup:this._trustedRowTemplate});
         }else{
             return rowdata[this.field_getter]; 
         }
@@ -4646,7 +4668,7 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
             return [];
         }
         return objectValues(this.cellmap).filter(function(cell){
-            return cell.filterField && cell.field!=skipField && cell.filterValues && cell.filterValues.length;
+            return cell.filterField && cell.field!=skipField && gnr.columnFilterActive(cell);
         });
     },
 
@@ -4656,20 +4678,24 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
 
     mixin_columnFilterSignature:function(){
         return this.columnFilterCells().map(function(cell){
-            return cell.field+'='+cell.filterValues.map(gnr.columnFilterKey).join('|');
+            var range = cell.filterRange;
+            return cell.field+'='+(range? (range.from || '')+'..'+(range.to || ''):'')+
+                   (cell.filterValues? '|'+cell.filterValues.map(gnr.columnFilterKey).join('|'):'');
         }).join(';');
     },
 
     mixin_columnFilterCb:function(skipField){
         var filters = this.columnFilterCells(skipField).map(function(cell){
-            return {key:cell.filterField_key,keys:new Set(cell.filterValues.map(gnr.columnFilterKey))};
+            return {key:cell.filterField_key,range:cell.filterRange,
+                    keys:cell.filterValues? new Set(cell.filterValues.map(gnr.columnFilterKey)):null};
         });
         if(!filters.length){
             return null;
         }
         return function(rowdata){
             return filters.every(function(f){
-                return f.keys.has(gnr.columnFilterKey(rowdata[f.key]));
+                return (!f.range || gnr.columnFilterInRange(rowdata[f.key],f.range)) &&
+                       (!f.keys || f.keys.has(gnr.columnFilterKey(rowdata[f.key])));
             });
         };
     },
@@ -4686,11 +4712,13 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
         return node instanceof gnr.GnrBagNode? node:null;
     },
 
-    mixin_setColumnFilter:function(cell,values){
-        cell.filterValues = values && values.length? values:null;
+    mixin_setColumnFilter:function(cell,values,range){
+        cell.filterRange = range && (range.from || range.to)? range:null;
+        // inside a period no value checked is a filter that keeps no row, not the absence of a filter
+        cell.filterValues = values && (values.length || cell.filterRange)? values:null;
         var cellNode = this.structCellNode(cell);
         if(cellNode){
-            cellNode.updAttributes({filterValues:cell.filterValues},false);
+            cellNode.updAttributes({filterValues:cell.filterValues,filterRange:cell.filterRange},false);
         }
         this.refreshColumnFilterHeaders();
         this.applyColumnFilters();
@@ -4763,9 +4791,26 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
             return;
         }
         var grid = this;
-        genro.dlg.quickTooltipPane({domNode:anchor,nodeId:'columnFilter_'+this.sourceNode.getStringId()},function(tp,kw){
+        var stringId = this.sourceNode.getStringId();
+        var rangePath = (cell.dtype=='D' || cell.dtype=='DH')? 'gnr.columnFilter.'+stringId:null;
+        var holder = {};
+        genro.dlg.quickTooltipPane({domNode:anchor,nodeId:'columnFilter_'+stringId,datapath:rangePath},function(tp,kw){
+            if(rangePath){
+                var range = cell.filterRange || {};
+                genro.setData(rangePath+'.from',convertFromText(range.from,'D'));
+                genro.setData(rangePath+'.to',convertFromText(range.to,'D'));
+                var box = tp._('div',{_class:'gcf_range',onCreated:function(domNode){holder.rangeNode = domNode;}});
+                var from = box._('div',{_class:'gcf_rangefield'});
+                from._('div',{_class:'gcf_rangecaption',innerHTML:_T('From')});
+                from._('dateTextBox',{value:'^.from',period_to:'.to',width:'100%'});
+                var to = box._('div',{_class:'gcf_rangefield'});
+                to._('div',{_class:'gcf_rangecaption',innerHTML:_T('To')});
+                to._('dateTextBox',{value:'^.to',width:'100%'});
+                tp._('dataController',{script:'if(holder.pane){holder.pane.setRange(from,to);}',
+                                       holder:holder,from:'^.from',to:'^.to',_delay:1});
+            }
             tp._('div',{onCreated:function(domNode){
-                new gnr.GridColumnFilterPane(grid,cell,domNode,kw.tooltipOpenerId);
+                holder.pane = new gnr.GridColumnFilterPane(grid,cell,domNode,kw.tooltipOpenerId,holder.rangeNode,rangePath);
             }});
         });
     },

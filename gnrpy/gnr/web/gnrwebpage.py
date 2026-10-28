@@ -41,6 +41,10 @@ from gnr.web.gnrwebpage_proxy.frontend.template_lookup import lookup_template_cl
 
 
 DEFAULT_CSS_THEME = os.environ.get('GNR_CSS_THEME', 'mimi')
+# the explicit variant of the palette a theme shows when no color variant is set
+DEFAULT_COLOR_VARIANT = 'gray'
+# a values= key cannot be empty: the select offers this one and the pane stores null for it
+UNSET_COLOR_VARIANT = '_default_'
 
 from gnr.core.gnrstring import toText, toJson, concat, jsquote,splitAndStrip,boolean,asDict
 from gnr.core.gnrdict import dictExtract
@@ -71,6 +75,7 @@ from gnr.web.gnrbaseclasses import BaseComponent # noqa: F401
 
 
 from gnr.app.gnrlocalization import GnrLocString
+from gnr.sql.gnrsqltable import EXCEPTIONS as SQL_EXCEPTIONS
 
 AUTH_OK = 0
 AUTH_NOT_LOGGED = 1
@@ -337,7 +342,14 @@ class GnrWebPage(GnrBaseWebPage):
             self.connection.create()
             
         self.page_id = page_id or getUuid()
+        files = self.request.files
+        kwargs = {k:v for k,v in kwargs.items() if k not in files}
+        if init_info:
+            init_info = dict(init_info, request_kwargs=kwargs)
+        if class_info:
+            class_info = dict(class_info, request_kwargs=kwargs)
         page_info = dict([(k,getattr(self,k,None)) for k in ATTRIBUTES_SIMPLEWEBPAGE])
+        page_info['_call_kwargs'] = {k:v for k,v in self._call_kwargs.items() if k not in files}
         data = Bag()
         data['rootenv'] = Bag()
         data['pageArgs'] = kwargs
@@ -1228,7 +1240,8 @@ class GnrWebPage(GnrBaseWebPage):
             handler = getattr(proxy_object,submethod)
             permissions = getattr(handler,'permissions',None)
             if not self.checkTablePermission(table=table_name,permissions=permissions):
-                raise self.exception('business_logic',message='Operation %s is not allowed' %submethod)
+                raise self.exception('business_logic', msg=self.localize('!!Operation %(operation)s is not allowed'),
+                                     operation=submethod)
         elif proxy_name == '_tblscript':
             table_pkg,table_name,table_respath,class_name,submethod = submethod.split('.')
             proxy_object = self.loadTableScript(table='.'.join((table_pkg,table_name)),respath=table_respath,class_name=class_name)
@@ -1342,9 +1355,12 @@ class GnrWebPage(GnrBaseWebPage):
         :param msg: TODO."""
         if isinstance(exception, str):
             name = exception
-            exception = EXCEPTIONS.get(name)
+            exception = EXCEPTIONS.get(name) or SQL_EXCEPTIONS.get(name)
             if not exception:
                 raise GnrException(f'Unknown exception name: {name}')
+            if name in SQL_EXCEPTIONS:
+                kwargs.setdefault('tablename', '')
+                kwargs.setdefault('rowcaption', '')
         return exception(user=self.user,localizer=self.application.localizer,**kwargs)
 
     def gnrjs_imports(self):
@@ -1382,6 +1398,8 @@ class GnrWebPage(GnrBaseWebPage):
         kwargs['websockets_endpoint'] = self.async_endpoint if self.wsk_enabled else None
         kwargs['dojoXhrPatch'] = self.application.experimentalValue(
             'page', 'dojo_xhr_patch') or ''
+        kwargs['useFormletsInJsFb'] = self.application.experimentalFlag('gui', 'use_formlets_in_js_fb')
+        kwargs['inlineDoc'] = self.application.experimentalFlag('gui', 'inlinedoc')
         self.getPwaIntegration(arg_dict)
         self.getSquareLogoUrl(arg_dict)
         self.getCoverLogoUrl(arg_dict)
@@ -1905,15 +1923,20 @@ class GnrWebPage(GnrBaseWebPage):
         return ','.join(sorted(variants))
 
     @public_method
-    def getAvailableColorVariants(self, theme=None, theme_variant=None):
+    def getAvailableColorVariants(self, theme=None, theme_variant=None, unset_option=None):
         """Discover available color variants by parsing .color_variant_* classes
-        from the active theme variant CSS file."""
+        from the theme CSS file and the active theme variant CSS file.
+
+        unset_option prepends an UNSET_COLOR_VARIANT entry: 'theme' labels it as the
+        theme default (merging DEFAULT_COLOR_VARIANT into it), 'application' as the
+        application default."""
         theme = theme or self.get_css_theme() or DEFAULT_CSS_THEME
         theme_variant = theme_variant or self.get_css_theme_variant() or 'base'
         color_variants = set()
-        css_path = 'themes/%s/%s' % (theme, theme_variant)
-        css_files = self.site.resource_loader.getResourceList(
-            self.resourceDirs, css_path, 'css')
+        css_files = []
+        for css_path in ('themes/%s' % theme, 'themes/%s/%s' % (theme, theme_variant)):
+            css_files.extend(self.site.resource_loader.getResourceList(
+                self.resourceDirs, css_path, 'css'))
         for fpath in css_files:
             snode = self.site.storageNode(fpath)
             if snode.exists:
@@ -1921,7 +1944,16 @@ class GnrWebPage(GnrBaseWebPage):
                     content = f.read()
                 for match in re.finditer(r'\.color_variant_([\w-]+)\s*\{', content):
                     color_variants.add(match.group(1))
-        return ','.join(sorted(color_variants))
+        color_variants = sorted(color_variants)
+        if unset_option == 'theme':
+            caption = '!![en]Default'
+            if DEFAULT_COLOR_VARIANT in color_variants:
+                color_variants.remove(DEFAULT_COLOR_VARIANT)
+                caption = '!![en]Gray (default)'
+            color_variants.insert(0, f'{UNSET_COLOR_VARIANT}:{self.localize(caption)}')
+        elif unset_option == 'application':
+            color_variants.insert(0, f"{UNSET_COLOR_VARIANT}:{self.localize('!![en]Application default')}")
+        return ','.join(color_variants)
 
     def get_css_icons(self):
         """Get the css_icons and return it. The css_icons get is the one defined the :ref:`siteconfig_gui`
@@ -2438,6 +2470,11 @@ class GnrWebPage(GnrBaseWebPage):
         page.dataController("""
                             genro.dom.setClass(document.body,'developerToolElementsVisible',developerToolsVisible)""",
                             developerToolsVisible='^gnr.developerToolsVisible')
+        if self.inlineDoc:
+            page.data('gnr.docModeVisible',False)
+            page.dataController("""genro.dom.setClass(document.body,'docModeVisible',docModeVisible);
+                                   genro.dlg.docApplyStates();""",
+                                docModeVisible='^gnr.docModeVisible')
         page.dataController("""genro.src.updatePageSource('_pageRoot')""",
                         subscribe_gnrIde_rebuildPage=True,_delay=100)
         page.dataController("PUBLISH setWindowTitle=windowTitle;",windowTitle="^gnr.windowTitle",_onStart=True)
@@ -3066,6 +3103,12 @@ class GnrWebPage(GnrBaseWebPage):
     def isDeveloper(self):
         """TODO"""
         return self.hasTag('_DEV_')
+
+    @property
+    def inlineDoc(self):
+        """The docs of the inlinedoc storage (sys/ep_doc) instead of helper.xml:
+        ``<experimental><gui inlinedoc="true"/></experimental>``"""
+        return self.application.experimentalFlag('gui', 'inlinedoc')
 
         
 

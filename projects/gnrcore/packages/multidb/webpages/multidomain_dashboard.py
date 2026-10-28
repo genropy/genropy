@@ -74,7 +74,7 @@ class GnrCustomWebPage(object):
         body = bc.borderContainer(region='center')
 
         # Primary pane (rootstore) — datapath = main.tables_alignment.th_primary
-        primary = body.framePane(margin='3px', border='1px solid silver',
+        primary = body.framePane(margin='3px', border='1px solid var(--border-color)',
                                  rounded=6, region='left', width='50%',
                                  datapath='.th_primary')
         primary.top.slotToolbar('5,store_lbl,*', height='23px') \
@@ -104,7 +104,7 @@ class GnrCustomWebPage(object):
 
         # Secondary pane — datapath = main.tables_alignment.th_secondary
         sec_store = '=main.tables_alignment.store_secondary'
-        secondary = body.framePane(margin='3px', border='1px solid silver',
+        secondary = body.framePane(margin='3px', border='1px solid var(--border-color)',
                                    rounded=6, region='center',
                                    datapath='.th_secondary')
         secondary.top.slotToolbar('5,store_lbl,*', height='23px') \
@@ -208,7 +208,7 @@ class GnrCustomWebPage(object):
         condition = '(CASE WHEN :c_tbl IS NOT NULL THEN $tbl=:c_tbl ELSE TRUE END) AND ($objtype=:c_objtype OR :c_objtype IS NULL)'
 
         # Primary pane (rootstore) — datapath = main.userobjects_alignment.th_primary
-        primary = body.framePane(margin='3px', border='1px solid silver',
+        primary = body.framePane(margin='3px', border='1px solid var(--border-color)',
                                  rounded=6, region='left', width='50%',
                                  datapath='.th_primary')
         primary.top.slotToolbar('5,store_lbl,*', height='23px') \
@@ -239,7 +239,7 @@ class GnrCustomWebPage(object):
 
         # Secondary pane — datapath = main.userobjects_alignment.th_secondary
         sec_store = '=main.userobjects_alignment.store_secondary'
-        secondary = body.framePane(margin='3px', border='1px solid silver',
+        secondary = body.framePane(margin='3px', border='1px solid var(--border-color)',
                                    rounded=6, region='center',
                                    datapath='.th_secondary')
         secondary.top.slotToolbar('5,store_lbl,*', height='23px') \

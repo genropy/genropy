@@ -7,6 +7,12 @@
 // `_namespaceFrameworkNodeIds`.
 const NAMESPACED_ATTRS = ['nodeId', 'dragCode'];
 
+// The printed rows live in a frame of their own, out of the page's CSS.
+const PRINT_CSS = 'body{font:10pt sans-serif;margin:0}'
+    + 'table{border-collapse:collapse;width:100%}'
+    + 'th,td{padding:2pt 4pt;border-bottom:0.5pt solid #999;text-align:left;vertical-align:top}'
+    + 'th{border-bottom-width:1pt}.num{text-align:right}tr{break-inside:avoid}';
+
 gnr.GroupletGridStructAdapter = class GroupletGridStructAdapter {
     constructor(struct, controllerPath) {
         this.struct = struct;
@@ -272,7 +278,9 @@ gnr.GroupletGridDnD = class GroupletGridDnD {
     // External contract (kept intentionally framework-compatible):
     //   - payload via `genro.dom.setInDataTransfer` with key
     //     `gg_tile_<dragCode>` and value `{rowKey, sourceNodeId}`
-    //   - drop = "insert-after" (`>target`, aligned with the tree).
+    //   - drop = where the slot opened: before or after the row the
+    //     pointer is over (`<target` / `>target`); without a slot (tabs)
+    //     "insert-after" (`>target`, aligned with the tree).
     //
     // Internals (this commit): all listeners are `addEventListener`s
     // wired on the rendered DOM — no sourceNode `dropTarget`/`onDrag_*`
@@ -289,11 +297,11 @@ gnr.GroupletGridDnD = class GroupletGridDnD {
         return 'gg_tile_' + this.controller.dragCode;
     }
 
-    _writePayload(dataTransfer, pkey) {
+    _writePayload(dataTransfer, pkey, rowKeys) {
         const c = this.controller;
         try {
             genro.dom.setInDataTransfer(dataTransfer, this.dropType(),
-                {rowKey: pkey, sourceNodeId: c.nodeId});
+                {rowKey: pkey, rowKeys: rowKeys, sourceNodeId: c.nodeId});
             dataTransfer.setData('text/plain', pkey);
             dataTransfer.effectAllowed = 'move';
         } catch (err) {}
@@ -306,7 +314,14 @@ gnr.GroupletGridDnD = class GroupletGridDnD {
             const clone = sourceDom.cloneNode(true);
             clone.classList.remove('draggedItem', 'canBeDropped',
                 'cannotBeDropped', 'grouplet_grid_just_dropped');
+            // offsetWidth counts paddings and borders: so does the clone;
+            // the image is taken at once, not halfway through the row fade-in
+            clone.style.boxSizing = 'border-box';
+            clone.style.animation = 'none';
             clone.style.width = sourceDom.offsetWidth + 'px';
+            // several rows dragged: the grabbed one shows how many
+            if (opts && opts.count > 1) clone.setAttribute('data-gg-count', opts.count);
+            let holder = clone;
             if (opts && opts.struct) {
                 // Struct chrome is on the container, the clone is not.
                 // Tag it so the cell rules still apply outside the tree.
@@ -316,14 +331,29 @@ gnr.GroupletGridDnD = class GroupletGridDnD {
                 const cols = containerDom.style.getPropertyValue(
                     '--gg-struct-columns');
                 if (cols) clone.style.setProperty('--gg-struct-columns', cols);
+            } else {
+                // a card is styled by the grid it sits in (paddings, band,
+                // tokens): the clone gets a copy of that chain, outside the tree
+                const containerDom = this.controller._containerDom();
+                holder = document.createElement('div');
+                holder.className = containerDom.className;
+                holder.style.cssText = containerDom.style.cssText;
+                const body = document.createElement('div');
+                body.className = 'grouplet_grid_body';
+                holder.appendChild(body);
+                body.appendChild(clone);
             }
-            aux.appendChild(clone);
+            // the browser takes the image from the screen where it lies: above
+            // everything for that instant, or the page covering it comes along
+            Object.assign(holder.style, {position: 'fixed', top: '0px', left: '0px',
+                                         zIndex: '2147483647', pointerEvents: 'none'});
+            aux.appendChild(holder);
             const rect = sourceDom.getBoundingClientRect();
             e.dataTransfer.setDragImage(clone,
                 e.clientX - rect.left,
                 e.clientY - rect.top);
             setTimeout(function() {
-                if (clone.parentNode) clone.parentNode.removeChild(clone);
+                if (holder.parentNode) holder.parentNode.removeChild(holder);
             }, 0);
         } catch (err) {}
     }
@@ -341,10 +371,12 @@ gnr.GroupletGridDnD = class GroupletGridDnD {
         // Drop = insert-after, like the tree (th_tree.py:152).
         const c = this.controller;
         if (!data || !data.rowKey) return;
-        if (data.sourceNodeId === c.nodeId && data.rowKey === targetPkey) return;
+        const rowKeys = data.rowKeys || [data.rowKey];
+        if (data.sourceNodeId === c.nodeId && rowKeys.includes(targetPkey)) return;
         genro.publish(c.actionTopic, {
             action: 'move',
             rowKey: data.rowKey,
+            rowKeys: rowKeys,
             sourceNodeId: data.sourceNodeId,
             position: '>' + targetPkey
         });
@@ -352,20 +384,26 @@ gnr.GroupletGridDnD = class GroupletGridDnD {
 
     _startDrag(e, dom, pkey, opts) {
         const c = this.controller;
-        if (!c._canMoveRowFrom(c, pkey)) {
+        const rowKeys = c._dragKeys(pkey);
+        if (!c._canMoveRowFrom(c, rowKeys)) {
             e.preventDefault();
             e.stopPropagation();
             return;
         }
         gnr.GroupletGridDnD.endDrag();
-        this._writePayload(e.dataTransfer, pkey);
-        this._setDragImage(e, dom, opts);
-        gnr.GroupletGridDnD.source = {controller: c, rowKey: pkey, dom: dom};
-        dom.classList.add('draggedItem');
+        this._writePayload(e.dataTransfer, pkey, rowKeys);
+        this._setDragImage(e, dom, objectUpdate({count: rowKeys.length}, opts || {}));
+        const doms = rowKeys.map((k) => (k === pkey) ? dom : (c.tiles[k] && c.tiles[k].domNode()))
+            .filter(Boolean);
+        gnr.GroupletGridDnD.source = {controller: c, rowKey: pkey, rowKeys: rowKeys, dom: dom, doms: doms};
+        doms.forEach((d) => d.classList.add('draggedItem'));
+        // lifted after dragstart: hiding the source now would cancel the drag
+        setTimeout(() => this._lift(doms), 0);
         document.body.classList.add('drag_started');
         document.addEventListener('dragend', gnr.GroupletGridDnD.endDrag, true);
         document.addEventListener('drop', gnr.GroupletGridDnD.endDrag, true);
         document.addEventListener('keydown', gnr.GroupletGridDnD.cancelDrag, true);
+        document.addEventListener('dragover', gnr.GroupletGridDnD.watchOutside, true);
         e.stopPropagation();
     }
 
@@ -376,12 +414,17 @@ gnr.GroupletGridDnD = class GroupletGridDnD {
     static endDrag() {
         const DnD = gnr.GroupletGridDnD;
         if (DnD.receiver) DnD.receiver.dnd.clearHighlight();
-        if (DnD.source) DnD.source.dom.classList.remove('draggedItem');
+        if (DnD.source) {
+            (DnD.source.doms || [DnD.source.dom]).forEach((d) => d.classList.remove('draggedItem'));
+        }
         DnD.source = null;
         document.body.classList.remove('drag_started');
         document.removeEventListener('dragend', DnD.endDrag, true);
         document.removeEventListener('drop', DnD.endDrag, true);
         document.removeEventListener('keydown', DnD.cancelDrag, true);
+        document.removeEventListener('dragover', DnD.watchOutside, true);
+        // the drop handlers run after this capture listener and still read the slot
+        setTimeout(DnD.settle, 0);
     }
 
     clearHighlight(dom) {
@@ -398,14 +441,22 @@ gnr.GroupletGridDnD = class GroupletGridDnD {
         gnr.GroupletGridDnD.receiver = {dnd: this, dom: dom};
     }
 
-    _dragOver(e, dom) {
+    _dragOver(e, dom, atEnd = false) {
         if (!this._dataTransferHasOurType(e.dataTransfer)) return;
         const source = gnr.GroupletGridDnD.source;
         const allowed = !!source && !dom.classList.contains('draggedItem')
-            && this.controller._canMoveRowFrom(source.controller, source.rowKey);
+            && this.controller._canMoveRowFrom(source.controller, source.rowKeys || source.rowKey);
         e.stopPropagation();
         e.dataTransfer.dropEffect = allowed ? 'move' : 'none';
-        this._highlight(dom, allowed);
+        const slotted = allowed && this._slotMode();
+        if (slotted && !atEnd && dom !== this._bodyDom()) {
+            // over a row the open slot is the feedback, the row stays as it is
+            const current = gnr.GroupletGridDnD.receiver;
+            if (current) current.dnd.clearHighlight();
+        } else {
+            this._highlight(dom, allowed);
+        }
+        if (slotted) this._trackSlot(e, atEnd);
         if (allowed) e.preventDefault();
     }
 
@@ -416,7 +467,7 @@ gnr.GroupletGridDnD = class GroupletGridDnD {
         const data = genro.dom.getFromDataTransfer(e.dataTransfer, this.dropType());
         const c = this.controller;
         const source = data && c._findSourceController(data.sourceNodeId);
-        return source && c._canMoveRowFrom(source, data.rowKey) ? data : null;
+        return source && c._canMoveRowFrom(source, data.rowKeys || data.rowKey) ? data : null;
     }
 
     tileDragStart(e, tileDom, pkey) {
@@ -439,6 +490,7 @@ gnr.GroupletGridDnD = class GroupletGridDnD {
 
     tileDrop(e, tileDom, pkey) {
         this.clearHighlight(tileDom);
+        if (this._dropAtSlot(e)) return;
         const data = this._dropData(e);
         if (data) this.onDrop(data, pkey);
     }
@@ -464,7 +516,9 @@ gnr.GroupletGridDnD = class GroupletGridDnD {
     }
 
     addBtnDragOver(e) {
-        this._dragOver(e, e.currentTarget);
+        // over the body the slot follows the nearest row, elsewhere (add
+        // button, blank row) it opens at the tail
+        this._dragOver(e, e.currentTarget, e.currentTarget !== this._bodyDom());
     }
 
     addBtnDragLeave(e) {
@@ -473,15 +527,20 @@ gnr.GroupletGridDnD = class GroupletGridDnD {
 
     addBtnDrop(e) {
         this.clearHighlight(e.currentTarget);
+        if (this._dropAtSlot(e)) return;
         const data = this._dropData(e);
         if (!data) return;
         const c = this.controller;
-        const nodes = c.dataStore.getNodes();
+        const rowKeys = data.rowKeys || [data.rowKey];
+        const own = data.sourceNodeId === c.nodeId;
+        // the tail is after the last row that is not moving
+        const nodes = c.dataStore.getNodes().filter((n) => !(own && rowKeys.includes(n.label)));
         const lastKey = nodes.length ? nodes[nodes.length - 1].label : null;
-        if (data.sourceNodeId === c.nodeId && data.rowKey === lastKey) return;
+        if (own && (!lastKey || c.dataStore.indexOfKey(lastKey) < c.dataStore.indexOfKey(rowKeys[0]))) return;
         genro.publish(c.actionTopic, {
             action: 'move',
             rowKey: data.rowKey,
+            rowKeys: rowKeys,
             sourceNodeId: data.sourceNodeId,
             position: lastKey ? ('>' + lastKey) : ''
         });
@@ -512,6 +571,254 @@ gnr.GroupletGridDnD = class GroupletGridDnD {
         this.appendTargets.delete(dom);
     }
 
+    // ====================================================================
+    //  The slot: while a row is dragged a gap opens where it would land,
+    //  before or after the row under the pointer; the rows around it slide
+    //  aside (FLIP). The dragged rows are lifted out, their home is the
+    //  slot's starting place. One slot for the page, across grids.
+    // ====================================================================
+
+    _bodyDom() {
+        const node = this.controller.bodyNode;
+        return (node && node.getDomNode) ? node.getDomNode() : null;
+    }
+
+    _slotMode() {
+        return !this.controller._isTabsLayout() && !!this._bodyDom();
+    }
+
+    _slotRows(body) {
+        // the visible rows of this grid, in their order
+        const c = this.controller;
+        const keys = new Map();
+        Object.keys(c.tiles).forEach((k) => {
+            const dom = c.tiles[k].domNode();
+            if (dom) keys.set(dom, k);
+        });
+        return Array.from(body.children)
+            .filter((dom) => keys.has(dom) && !dom.classList.contains('grouplet_grid_row--lifted'))
+            .map((dom) => ({dom: dom, key: keys.get(dom)}));
+    }
+
+    _trackSlot(e, atEnd) {
+        const DnD = gnr.GroupletGridDnD;
+        // while the rows slide their rects are in flight: placing the slot
+        // on them would bounce it
+        if (DnD.steadyAt && Date.now() < DnD.steadyAt) return;
+        const body = this._bodyDom();
+        const rows = this._slotRows(body);
+        let ref;
+        let position;
+        if (rows.length && !atEnd) {
+            const row = DnD.nearestRow(rows, e.clientX, e.clientY);
+            const before = DnD.dropsBefore(row.rect, e.clientX, e.clientY, body.clientWidth);
+            ref = before ? row.dom : row.dom.nextElementSibling;
+            position = (before ? '<' : '>') + row.key;
+        } else if (rows.length) {
+            const last = rows[rows.length - 1];
+            ref = last.dom.nextElementSibling;
+            position = '>' + last.key;
+        } else {
+            const blank = this.controller.phantomTile && this.controller.phantomTile.domNode();
+            ref = (blank && blank.parentNode === body) ? blank : null;
+            position = '';
+        }
+        this._placeSlot(body, ref, position);
+    }
+
+    _placeSlot(body, ref, position) {
+        const DnD = gnr.GroupletGridDnD;
+        const slot = DnD.slot;
+        if (slot && slot.dom.parentNode === body && (ref === slot.dom || slot.dom.nextElementSibling === ref)) {
+            slot.position = position;
+            slot.dnd = this;
+            return;
+        }
+        const dom = this._slotDom();
+        DnD.flip([body, slot && slot.body], () => {
+            if (slot) slot.dom.remove();
+            body.insertBefore(dom, (ref === (slot && slot.dom)) ? null : ref);
+            DnD.slot = {dnd: this, body: body, dom: dom, position: position};
+        });
+        DnD.open(dom, body);
+        if (gnr.GroupletCard.animates(dom)) DnD.steadyAt = Date.now() + DnD.SLIDE_MS;
+    }
+
+    _slotDom() {
+        // as tall as the lifted row, and a drop target of its own
+        const DnD = gnr.GroupletGridDnD;
+        const dom = document.createElement('div');
+        dom.className = 'grouplet_grid_drop_slot';
+        if (DnD.lift && DnD.lift.height) dom.style.height = DnD.lift.height + 'px';
+        dom.addEventListener('dragover', (e) => {
+            if (!this._dataTransferHasOurType(e.dataTransfer)) return;
+            e.stopPropagation();
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+        });
+        dom.addEventListener('drop', (e) => {
+            const slot = DnD.slot;
+            if (slot && slot.dom === dom) slot.dnd._dropAtSlot(e);
+        });
+        return dom;
+    }
+
+    _lift(doms) {
+        const DnD = gnr.GroupletGridDnD;
+        const source = DnD.source;
+        if (!source || source.controller !== this.controller || !this._slotMode()) return;
+        const body = this._bodyDom();
+        const home = doms.find((d) => d.parentNode === body);
+        if (!home) return;
+        DnD.lift = {body: body, doms: doms, home: home, height: home.offsetHeight};
+        const dom = this._slotDom();
+        DnD.flip([body], () => {
+            body.insertBefore(dom, home);
+            doms.forEach((d) => d.classList.add('grouplet_grid_row--lifted'));
+            // at home a drop moves nothing
+            DnD.slot = {dnd: this, body: body, dom: dom, position: null};
+        });
+    }
+
+    _dropAtSlot(e) {
+        // false: no slot of ours, the caller drops the old way
+        const DnD = gnr.GroupletGridDnD;
+        const slot = DnD.slot;
+        if (!slot || slot.dnd !== this) return false;
+        const data = this._dropData(e);
+        const lift = DnD.lift;
+        const c = this.controller;
+        const rowKeys = data ? (data.rowKeys || [data.rowKey]) : [];
+        const own = !!data && data.sourceNodeId === c.nodeId;
+        const moves = !!data && slot.position !== null
+            && !(own && rowKeys.includes(slot.position.slice(1)));
+        const from = new Map();
+        if (lift) {
+            const rect = slot.dom.getBoundingClientRect();
+            lift.doms.forEach((d) => from.set(d, rect));
+        }
+        DnD.flip([slot.body, lift && lift.body], () => {
+            slot.dom.remove();
+            if (lift) lift.doms.forEach((d) => d.classList.remove('grouplet_grid_row--lifted'));
+            DnD.slot = null;
+            DnD.lift = null;
+            if (moves) {
+                genro.publish(c.actionTopic, {
+                    action: 'move',
+                    rowKey: data.rowKey,
+                    rowKeys: rowKeys,
+                    sourceNodeId: data.sourceNodeId,
+                    position: slot.position
+                });
+            }
+        }, from);
+        return true;
+    }
+
+    static nearestRow(rows, x, y) {
+        // the row under the pointer, else the closest one (the gaps of a grid)
+        let best = null;
+        let bestDistance = Infinity;
+        rows.forEach((row) => {
+            const r = row.dom.getBoundingClientRect();
+            const dx = Math.max(r.left - x, 0, x - r.right);
+            const dy = Math.max(r.top - y, 0, y - r.bottom);
+            const distance = dx * dx + dy * dy;
+            if (distance < bestDistance) {
+                bestDistance = distance;
+                best = {dom: row.dom, key: row.key, rect: r};
+            }
+        });
+        return best;
+    }
+
+    static dropsBefore(rect, x, y, flowWidth) {
+        // cards side by side read left to right, rows top to bottom
+        if (rect.width < flowWidth * 0.66) return x < rect.left + rect.width / 2;
+        return y < rect.top + rect.height / 2;
+    }
+
+    static flip(bodies, mutate, from) {
+        // the rows keep their place on screen across `mutate`, then slide
+        // to the new one; `from` gives the start of rows that were hidden
+        const items = [];
+        bodies.filter(Boolean).forEach((body) => {
+            Array.from(body.children).forEach((el) => {
+                if (!el.classList.contains('grouplet_grid_drop_slot')) items.push(el);
+            });
+        });
+        const before = new Map();
+        items.forEach((el) => {
+            before.set(el, (from && from.get(el)) || el.getBoundingClientRect());
+        });
+        mutate();
+        if (!items.length || !gnr.GroupletCard.animates(items[0])) return;
+        items.forEach((el) => {
+            const a = before.get(el);
+            const b = el.getBoundingClientRect();
+            if (!b.width && !b.height) return;
+            const dx = a.left - b.left;
+            const dy = a.top - b.top;
+            if (!dx && !dy) return;
+            el.animate([{transform: `translate(${dx}px, ${dy}px)`}, {transform: 'none'}],
+                       {duration: gnr.GroupletGridDnD.SLIDE_MS, easing: 'ease-out'});
+        });
+    }
+
+    static open(dom, body) {
+        // a full-width slot grows in height, one among cards fades in
+        if (!gnr.GroupletCard.animates(dom)) return;
+        const frames = (dom.offsetWidth >= body.clientWidth * 0.66)
+            ? [{height: '0px', opacity: 0}, {height: dom.offsetHeight + 'px', opacity: 1}]
+            : [{opacity: 0, transform: 'scale(0.92)'}, {opacity: 1, transform: 'none'}];
+        dom.animate(frames, {duration: gnr.GroupletGridDnD.SLIDE_MS, easing: 'ease-out'});
+    }
+
+    static watchOutside(e) {
+        // the pointer over no grid (dragleave cannot tell: its relatedTarget
+        // is often null): the slot goes back where the rows came from
+        const target = e.target;
+        const inGrid = target && target.closest && target.closest('.grouplet_grid_container');
+        if (!inGrid) gnr.GroupletGridDnD.slotHome();
+    }
+
+    static slotHome() {
+        const DnD = gnr.GroupletGridDnD;
+        const slot = DnD.slot;
+        const lift = DnD.lift;
+        if (!slot) return;
+        if (!lift) {
+            DnD.flip([slot.body], () => slot.dom.remove());
+            DnD.slot = null;
+            return;
+        }
+        if (slot.position === null) return;
+        DnD.flip([slot.body, lift.body], () => {
+            lift.body.insertBefore(slot.dom, lift.home);
+            slot.body = lift.body;
+            slot.position = null;
+        });
+    }
+
+    static settle() {
+        // after a drag that dropped nowhere: the slot closes, the rows come back
+        const DnD = gnr.GroupletGridDnD;
+        const slot = DnD.slot;
+        const lift = DnD.lift;
+        if (!slot && !lift) return;
+        const from = new Map();
+        if (slot && lift) {
+            const rect = slot.dom.getBoundingClientRect();
+            lift.doms.forEach((d) => from.set(d, rect));
+        }
+        DnD.flip([slot && slot.body, lift && lift.body], () => {
+            if (slot) slot.dom.remove();
+            if (lift) lift.doms.forEach((d) => d.classList.remove('grouplet_grid_row--lifted'));
+        }, from);
+        DnD.slot = null;
+        DnD.lift = null;
+    }
+
     destroy() {
         this.appendTargets.forEach((handlers, dom) => this.unwireAppendTarget(dom));
         this.clearHighlight();
@@ -520,6 +827,9 @@ gnr.GroupletGridDnD = class GroupletGridDnD {
     }
 
 };
+
+
+gnr.GroupletGridDnD.SLIDE_MS = 180;
 
 
 // ============================================================================
@@ -690,13 +1000,46 @@ gnr.GroupletDataStore = class GroupletDataStore {
         return this.indexOfKey(pkey);
     }
 
-    // Phase 2 stubs — silent no-ops. Filter/sort will route through
-    // `_visualOrder()` (CSS on top of the store's `_filtered` array),
-    // never mutating the underlying Bag.
+    // Filter stubs — silent no-ops: a filter will hide tiles on top of
+    // the store, never mutating the underlying Bag.
     setFilter(_cb) {}
     clearFilter() {}
-    setSort(_spec) {}
-    clearSort() {}
+
+    // Sort: an order on top of the Bag ({field, store}); the Bag itself is
+    // reordered only with `store`, through applySortToStore.
+    setSort(spec) {
+        this._sortedBy = (typeof spec === 'string') ? {field: spec} : (spec || null);
+    }
+
+    clearSort() {
+        this._sortedBy = null;
+    }
+
+    sortedKeys() {
+        const data = this.getData();
+        const nodes = (data instanceof gnr.GnrBag) ? data.getNodes() : [];
+        if (!this._sortedBy) return nodes.map((n) => n.label);
+        const field = this._sortedBy.field;
+        const compare = gnr.GroupletGridController.naturalCompare;
+        return nodes.map((n, i) => {
+            const v = n.getValue();
+            return {key: n.label, idx: i, value: (v instanceof gnr.GnrBag) ? v.getItem(field) : null};
+        }).sort((a, b) => compare(a.value, b.value) || a.idx - b.idx).map((e) => e.key);
+    }
+
+    applySortToStore() {
+        // In place, as moveRow: no del/ins triggers, nested datapaths stay valid.
+        if (!this._sortedBy || !this._sortedBy.store) return false;
+        const data = this.getData();
+        if (!(data instanceof gnr.GnrBag)) return false;
+        const order = this.sortedKeys();
+        const nodes = data._nodes;
+        if (order.every((k, i) => nodes[i].label === k)) return false;
+        const byKey = {};
+        nodes.forEach((n) => { byKey[n.label] = n; });
+        nodes.splice(0, nodes.length, ...order.map((k) => byKey[k]));
+        return true;
+    }
 
     isFiltered() {
         return this.store().isFiltered();
@@ -756,10 +1099,14 @@ gnr.GroupletGridController = class GroupletGridController {
         this.minWidth = kw.min_width || null;
         this.gap = kw.gap || '12px';
         this.additem = (kw.additem !== false);
-        this.delitem = (kw.delitem === true);
+        // True, False, or '^path' / '=path' / '==expr' (over the row's fields)
+        // read as the row's menu opens
+        this.delitem = kw.delitem || false;
+        this.copyitem = kw.copyitem || false;
         this.editmenu = (kw.editmenu === undefined) ? false : kw.editmenu;
         this.additemKw = kw.additem_kw || {};
         this.delitemKw = kw.delitem_kw || {};
+        this.copyitemKw = kw.copyitem_kw || {};
         this.editmenuKw = kw.editmenu_kw || {};
         this.defaultRow = kw.defaultRow;
         this.minRows = kw.minRows || 0;
@@ -807,8 +1154,13 @@ gnr.GroupletGridController = class GroupletGridController {
         this._selAnchor = null;
         this.selectionNode = kw.selectionNode || null;
         this.selectionmenu = kw.selectionmenu || {};
-        // rowCheckbox: a checkbox per row and one for all, as in a mail list
-        this.rowCheckbox = !!(kw.rowCheckbox && this.rowTemplate);
+        // rowCheckbox: a checkbox per row and one for all, as in a mail list;
+        // on cards it is the only way to select them
+        this.rowCheckbox = !!(kw.rowCheckbox && Object.keys(this.selectionmenu).length);
+        // Grids sharing a selectionGroup act on their selections together:
+        // one count, one delete, `selection` = [{grid, rowKeys}] to actions.
+        this.selectionGroup = kw.selectionGroup || null;
+        if (this.selectionGroup) gnr.GroupletGridController._groupSet(this.selectionGroup).add(this);
         this.phantomPath = this.controllerPath + '.phantom';
         this.phantomTile = null;
         const storeNode = sourceNode._('dataController', {
@@ -833,6 +1185,25 @@ gnr.GroupletGridController = class GroupletGridController {
         // Only meaningful for tab layouts; cards are all visible at once.
         this.lazyTabs = (kw.lazyTabs === true) && this._isTabsLayout();
         this.titleField = kw.titleField || null;
+        this.titleTemplate = gnr.GroupletCard.compileTemplate(kw.titleTemplate);
+        this.sortField = kw.sortField || null;
+        if (this.sortField) {
+            this.dataStore.setSort({field: this.sortField, store: !!kw.sortStore});
+        }
+        this._dirtyRows = new Set();
+        // collapsible cards: True starts them open, 'closed' collapsed; a
+        // collapsed card shows one summary line (collapsedTemplate, else the
+        // tab title). With chromeSide that line is the band's title, always
+        // shown, and a collapsed card is its band.
+        this.collapsible = kw.collapsible || false;
+        this.chromeSide = kw.chromeSide || null;
+        // the card profile (tools, doc, title): the resource's, then the
+        // caller's; with resourceField each row's resource adds its own
+        this.card = kw.card || {};
+        this.templateCards = {};
+        this._cardProfiles = {};
+        this.collapsedTemplate = gnr.GroupletCard.compileTemplate(kw.collapsedTemplate)
+            || this.titleTemplate;
         this.emptyTitle = kw.emptyTitle || _T('!!Untitled');
         this.activePkey = null;
         this._tabsByPkey = {};
@@ -857,8 +1228,12 @@ gnr.GroupletGridController = class GroupletGridController {
         genro.src.onBuiltCall(function() {
             if (that._destroyed) return;
             that._wireBodyDnD();
+            that._refreshRowMenu(null);
             that._initChangeManager();
             that.newDataStore();
+            that._mountSelectionBar();
+            that._wireChromeClicks();
+            that._wireClipboard();
             that._updateAddBtnState();
         });
     }
@@ -866,10 +1241,17 @@ gnr.GroupletGridController = class GroupletGridController {
     destroy() {
         if (this._destroyed) return;
         this._destroyed = true;
+        if (gnr.GroupletGridController._lastSelected === this) gnr.GroupletGridController._lastSelected = null;
         this.sourceNode.unregisterSubscription(this.actionTopic);
+        if (this.selectionGroup) {
+            gnr.GroupletGridController._groupSet(this.selectionGroup).delete(this);
+            this._refreshGroupBars();
+        }
         Object.keys(this.tiles).forEach((pkey) => this._destroyTile(pkey));
         this._unmountPhantom();
         this._unmountEntry();
+        if (this._pendingForm) this._pendingForm.unregisterPendingEditor(this.nodeId);
+        gnr.GroupletGridController._entryGrids.delete(this);
         const phantomBag = genro.getData(this.phantomPath);
         if (phantomBag instanceof gnr.GnrBag) {
             phantomBag.unsubscribe(this._phantomSubscriberId());
@@ -879,6 +1261,7 @@ gnr.GroupletGridController = class GroupletGridController {
             entryBag.unsubscribe(this._entrySubscriberId());
         }
         this._teardownLayoutAffordances();
+        this._unwireClipboard();
         if (this.dnd) this.dnd.destroy();
         if (this._structResizeObserver) {
             this._structResizeObserver.disconnect();
@@ -1449,6 +1832,7 @@ gnr.GroupletGridController = class GroupletGridController {
             return;
         }
         this._clearBody();
+        this.dataStore.applySortToStore();
         this.updateCounterColumn();
         this._ensureTemplate(() => {
             this._fullSync();
@@ -1485,9 +1869,7 @@ gnr.GroupletGridController = class GroupletGridController {
             return;
         }
         if (parent_lv > 1) {
-            if (this._isTabsLayout() && this.titleField) {
-                this._maybeRefreshTabLabel(kw.node, storeNode);
-            }
+            this._onRowContentChanged(kw.node, storeNode);
             return;
         }
         const pkey = kw.node.label;
@@ -1504,31 +1886,176 @@ gnr.GroupletGridController = class GroupletGridController {
         }
     }
 
-    _maybeRefreshTabLabel(changedNode, storeNode) {
-        // Walk up to the row-level node, then check the mutated leaf
-        // path equals exactly `titleField` (filter out nested noise).
+    _rowChangeOf(changedNode, storeNode) {
+        // {pkey, path}: the row a nested change belongs to, and the path
+        // from that row to the changed node.
         let cur = changedNode;
-        let leafLabel = null;
+        let path = null;
         while (cur) {
             const parent = cur.getParentNode && cur.getParentNode();
-            if (!parent) break;
-            if (parent === storeNode) {
-                // `cur` is the row node; the path from row to changed
-                // leaf must be exactly `<titleField>`.
-                if (leafLabel !== this.titleField) return;
-                const chip = this._tabsByPkey[cur.label];
-                const titleDom = chip && chip.querySelector(
-                    ':scope > .grouplet_grid_tab_title');
-                if (titleDom) {
-                    titleDom.textContent = this._readTabLabel(cur.label);
-                }
-                return;
-            }
-            leafLabel = (leafLabel === null)
-                ? cur.label
-                : (cur.label + '.' + leafLabel);
+            if (!parent) return null;
+            if (parent === storeNode) return {pkey: cur.label, path: path};
+            path = (path === null) ? cur.label : (cur.label + '.' + path);
             cur = parent;
         }
+        return null;
+    }
+
+    _onRowContentChanged(changedNode, storeNode) {
+        const change = this._rowChangeOf(changedNode, storeNode);
+        if (!change || !change.pkey) return;
+        if (this._isTabsLayout()) {
+            if (this.titleTemplate) {
+                this._scheduleRowRefresh(change.pkey);
+            } else if (this.titleField && change.path === this.titleField) {
+                this._refreshTabTitle(change.pkey);
+            }
+            if (this.sortField && change.path === this.sortField) {
+                this._scheduleRowRefresh(null);
+            }
+        } else if (this._showsRowTitle(change.pkey)) {
+            this._scheduleRowRefresh(change.pkey);
+        }
+    }
+
+    _showsRowTitle(pkey) {
+        // a band shows its title open or folded, a corner card only folded
+        const card = this.tiles[pkey] && this.tiles[pkey].card;
+        if (card) return !!card.titleDom;
+        return this.collapsible && this.isCollapsed(pkey);
+    }
+
+    _scheduleRowRefresh(pkey) {
+        // A template total reads the whole row: a burst of nested changes
+        // (a pasted block, a moved subtree) is drawn once. null = re-sort.
+        this._dirtyRows.add(pkey);
+        if (this._rowRefreshScheduled) return;
+        this._rowRefreshScheduled = true;
+        setTimeout(() => {
+            this._rowRefreshScheduled = false;
+            const dirty = Array.from(this._dirtyRows);
+            this._dirtyRows.clear();
+            if (this._destroyed) return;
+            dirty.forEach((k) => {
+                if (k === null) return;
+                if (this._isTabsLayout()) this._refreshTabTitle(k);
+                else this._refreshRowTitle(k);
+            });
+            if (dirty.includes(null)) this._sortTabs();
+        }, 0);
+    }
+
+    _refreshTabTitle(pkey) {
+        const chip = this._tabsByPkey[pkey];
+        const titleDom = chip && chip.querySelector(':scope > .grouplet_grid_tab_title');
+        if (titleDom) this._renderTabTitle(titleDom, pkey);
+    }
+
+    _renderTabTitle(titleDom, pkey) {
+        this._renderTitle(titleDom, this.titleTemplate, pkey);
+    }
+
+    _renderTitle(dom, compiled, pkey) {
+        gnr.GroupletCard.renderTitle(dom, compiled, this.dataStore.rowValue(pkey),
+                                     () => this._readTabLabel(pkey));
+    }
+
+    _tabOrder() {
+        return this.dataStore.sortedKeys();
+    }
+
+    // ====================================================================
+    //  Collapsible cards — collapsible=True|'closed': a card folds to one
+    //  summary line, or to its band; the state is kept by row path, across
+    //  re-renders
+    // ====================================================================
+
+    _collapseKey(pkey) {
+        return this.storepath + '.' + pkey;
+    }
+
+    isCollapsed(pkey) {
+        if (!this.collapsible) return false;
+        const state = gnr.GroupletGridController._collapsedState[this._collapseKey(pkey)];
+        return (state === undefined) ? this.collapsible === 'closed' : state;
+    }
+
+    setCollapsed(pkey, collapsed) {
+        if (!this.collapsible || !this.dataStore.rowNode(pkey)) return;
+        gnr.GroupletGridController._collapsedState[this._collapseKey(pkey)] = !!collapsed;
+        this._applyCollapsed(pkey, true);
+    }
+
+    toggleCollapsed(pkey) {
+        this.setCollapsed(pkey, !this.isCollapsed(pkey));
+    }
+
+    collapseAll(collapsed = true) {
+        this.dataStore.getNodes().forEach((n) => this.setCollapsed(n.label, collapsed));
+    }
+
+    _applyCollapsed(pkey, animate = false) {
+        const tile = this.tiles[pkey];
+        const dom = tile && tile.domNode();
+        if (!dom) return;
+        const collapsed = this.isCollapsed(pkey);
+        if (tile.card) {
+            tile.card.applyCollapsed(collapsed, animate);
+            return;
+        }
+        const toggle = dom.querySelector(':scope > .grouplet_grid_row_collapse');
+        if (toggle) gnr.GroupletCard.syncToggle(toggle, collapsed);
+        if (collapsed) this._refreshRowTitle(pkey);
+        gnr.GroupletCard.fold(dom, collapsed, ['grouplet_grid_row--collapsed'], tile, animate);
+    }
+
+    _refreshRowTitle(pkey) {
+        const tile = this.tiles[pkey];
+        if (tile && tile.card) {
+            tile.card.refreshTitle();
+            return;
+        }
+        if (!this.collapsible || !this.isCollapsed(pkey)) return;
+        const dom = tile && tile.domNode();
+        const line = dom && dom.querySelector(':scope > .grouplet_grid_row_summaryline');
+        if (!line) return;
+        this._renderTitle(line, this.collapsedTemplate, pkey);
+    }
+
+    _sortTabs() {
+        if (!this.sortField) return;
+        if (this.dataStore.applySortToStore()) {
+            this.updateCounterColumn();
+            this._mirrorTileOrder();
+        }
+        const strip = this.tabstripDom;
+        if (!strip) return;
+        const chips = this._tabOrder().map((k) => this._tabsByPkey[k]).filter(Boolean);
+        if (chips.every((chip, i) => strip.children[i] === chip)) return;
+        chips.forEach((chip) => strip.appendChild(chip));
+    }
+
+    _mirrorTileOrder() {
+        let prev = null;
+        this.dataStore.getNodes().forEach((n) => {
+            const dom = this.tiles[n.label] && this.tiles[n.label].domNode();
+            if (!dom || !dom.parentNode) return;
+            const ref = prev ? prev.nextSibling : dom.parentNode.firstChild;
+            if (dom !== ref) dom.parentNode.insertBefore(dom, ref);
+            prev = dom;
+        });
+    }
+
+    renderTemplate(compiled, pkey, withSums = true) {
+        return gnr.GroupletCard.renderTemplate(compiled, this.dataStore.rowValue(pkey), withSums);
+    }
+
+    static naturalCompare(a, b) {
+        // Codes as people read them: 2 before 10, blanks last.
+        const blank = (v) => v === null || v === undefined || v === '';
+        if (blank(a) || blank(b)) return blank(a) - blank(b);
+        if (typeof a === 'number' && typeof b === 'number') return a - b;
+        return String(a).localeCompare(String(b), undefined, {numeric: true, sensitivity: 'base'});
     }
 
     // ====================================================================
@@ -1573,9 +2100,9 @@ gnr.GroupletGridController = class GroupletGridController {
             Object.keys(this.tiles).forEach((pkey) => {
                 this._addTabChip(pkey);
             });
-            const allKeys = Object.keys(this.tiles);
-            if (allKeys.length > 0 && !this.activePkey) {
-                this._activateTab(allKeys[0]);
+            const first = this._tabOrder().find((k) => this.tiles[k]);
+            if (first && !this.activePkey) {
+                this._activateTab(first);
             } else if (this.activePkey && this.tiles[this.activePkey]) {
                 this._setActiveTabClasses(this.activePkey);
                 // Defensive: ensure the active tile's body exists (e.g. a
@@ -1620,6 +2147,11 @@ gnr.GroupletGridController = class GroupletGridController {
     }
 
     setLayout(newLayout) {
+        if (newLayout === this.layout) return;
+        return this.withPendingEntries(() => this._setLayout(newLayout));
+    }
+
+    _setLayout(newLayout) {
         if (newLayout !== 'cards'
             && newLayout !== 'tabs'
             && newLayout !== 'vtabs') {
@@ -1771,7 +2303,7 @@ gnr.GroupletGridController = class GroupletGridController {
         chip.setAttribute('data-rowkey', pkey);
         const title = document.createElement('div');
         title.className = 'grouplet_grid_tab_title';
-        title.textContent = this._readTabLabel(pkey);
+        this._renderTabTitle(title, pkey);
         chip.appendChild(title);
         if (this.delitem) {
             const closeBtn = document.createElement('div');
@@ -1786,11 +2318,11 @@ gnr.GroupletGridController = class GroupletGridController {
             chip.appendChild(closeBtn);
         }
         chip.addEventListener('click', function() {
-            that._activateTab(pkey);
+            that.activateTab(pkey);
         });
-        // Insert before the next mounted sibling chip (Bag order).
+        // Insert before the next mounted sibling chip (tab order).
         let inserted = false;
-        const allKeys = this.dataStore.getNodes().map((n) => n.label);
+        const allKeys = this._tabOrder();
         const idx = allKeys.indexOf(pkey);
         for (let j = idx + 1; j < allKeys.length; j++) {
             if (this._tabsByPkey[allKeys[j]]) {
@@ -1823,6 +2355,12 @@ gnr.GroupletGridController = class GroupletGridController {
             return _T(this.emptyTitle);
         }
         return String(v);
+    }
+
+    activateTab(pkey) {
+        // leaving a tab first commits the entry rows inside it
+        if (pkey === this.activePkey) return this._activateTab(pkey);
+        return this.withPendingEntries(() => this._activateTab(pkey));
     }
 
     _activateTab(pkey) {
@@ -1949,20 +2487,40 @@ gnr.GroupletGridController = class GroupletGridController {
             case 'delete': {
                 // Toolbar '−' buttons omit rowKey; fall back to selection.
                 const pkey = payload.rowKey || this.selectedPkey;
+                if (pkey && this._multiKeys && this._multiKeys.includes(pkey)) {
+                    this._deleteSelected();
+                    break;
+                }
                 if (!pkey) return;
                 this._askAndDeleteItem(pkey);
                 break;
             }
+            case 'copy':
+                this._copyFromRow(payload.rowKey);
+                break;
             case 'move': {
+                // several rows land in block, in their order, after the target
                 const src = payload.sourceNodeId;
+                const rowKeys = payload.rowKeys || [payload.rowKey];
+                let position = payload.position;
                 if (src && src !== this.nodeId) {
                     const sourceCtrl = this._findSourceController(src);
-                    if (sourceCtrl) {
-                        this._doMoveTileFrom(sourceCtrl, payload.rowKey,
-                                             payload.position);
-                    }
+                    if (!sourceCtrl || !this._canMoveRowFrom(sourceCtrl, rowKeys)) break;
+                    const movedKeys = [];
+                    rowKeys.forEach((k) => {
+                        const moved = this._doMoveTileFrom(sourceCtrl, k, position);
+                        if (moved) {
+                            position = '>' + moved;
+                            movedKeys.push(moved);
+                        }
+                    });
+                    // as in a file manager the moved rows stay selected
+                    if (rowKeys.length > 1) this._selectRows(movedKeys);
                 } else {
-                    this._doMoveTile(payload.rowKey, payload.position);
+                    rowKeys.forEach((k) => {
+                        this._doMoveTile(k, position);
+                        position = '>' + k;
+                    });
                 }
                 break;
             }
@@ -1978,18 +2536,25 @@ gnr.GroupletGridController = class GroupletGridController {
         if (disabled && this.dnd) this.dnd.clearHighlight();
     }
 
-    _canMoveRowFrom(source, rowKey) {
+    _dragKeys(pkey) {
+        // a selected row drags the whole selection of its grid, in order
+        if (!(this._multiKeys && this._multiKeys.includes(pkey))) return [pkey];
+        return this.dataStore.getData().keys().filter((k) => this._multiKeys.includes(k));
+    }
+
+    _canMoveRowFrom(source, rowKeys) {
+        const keys = [].concat(rowKeys || []);
         if (!source || this._destroyed || source._destroyed
                 || !this.dragCode || this.dragCode !== source.dragCode
-                || !rowKey || !source.dataStore.rowNode(rowKey)) return false;
+                || !keys.length || keys.some((k) => !k || !source.dataStore.rowNode(k))) return false;
         for (const c of [this, source]) {
             const form = c.sourceNode.getFormHandler();
             if ((form && form.isDisabled()) || c.sourceNode.disabled
                     || c.sourceNode.getAttributeFromDatasource('disabled')) return false;
         }
         return source === this || (this.additem
-            && (!this.maxRows || this.dataStore.getNodes().length < this.maxRows)
-            && source.dataStore.getNodes().length > source.minRows);
+            && (!this.maxRows || this.dataStore.getNodes().length + keys.length <= this.maxRows)
+            && source.dataStore.getNodes().length - keys.length >= source.minRows);
     }
 
     _doMoveTile(pkey, position) {
@@ -2024,6 +2589,7 @@ gnr.GroupletGridController = class GroupletGridController {
             movedChip.parentNode.insertBefore(movedChip, ref);
         }
         this.updateCounterColumn();
+        this._sortTabs();
         if (this.tiles[pkey]) this.tiles[pkey].flash();
     }
 
@@ -2043,7 +2609,7 @@ gnr.GroupletGridController = class GroupletGridController {
             ? genro.time36Id() : sourceRowKey;
         this._pendingFlash = this._pendingFlash || {};
         this._pendingFlash[targetRowKey] = true;
-        this.dataStore.moveRowFrom(
+        return this.dataStore.moveRowFrom(
             sourceCtrl.dataStore, sourceRowKey, targetPosition, targetRowKey);
     }
 
@@ -2083,7 +2649,7 @@ gnr.GroupletGridController = class GroupletGridController {
         // tabs would build their body subtree while detached from layout
         // and miscalculate their geometry.
         if (this._isTabsLayout() && !this.activePkey && toAdd.length > 0) {
-            this.activePkey = toAdd[0];
+            this.activePkey = this._tabOrder().find((k) => toAdd.includes(k));
         }
         this.bodyNode.freeze();
         toAdd.forEach((pkey) => this._renderTile(pkey));
@@ -2158,8 +2724,10 @@ gnr.GroupletGridController = class GroupletGridController {
         if (this._pendingFocus === pkey) {
             this._pendingFocus = null;
             const editorIndex = this._pendingFocusEditor;
+            const field = this._pendingFocusField;
             this._pendingFocusEditor = null;
-            this._focusFirstEditor(tile, editorIndex);
+            this._pendingFocusField = null;
+            this._focusFirstEditor(tile, editorIndex, field);
         }
         if (this._pendingReveal === pkey) {
             this._pendingReveal = null;
@@ -2172,22 +2740,35 @@ gnr.GroupletGridController = class GroupletGridController {
         if (this.structAdapter) this._scheduleStructSync();
     }
 
-    _focusFirstEditor(tile, editorIndex) {
-        const dom = tile && tile.domNode();
-        if (!dom) return;
-        // One tick: the widgets of a just-grafted tile are instantiated when
-        // the framework drains its afterBuildCalls, after this mount returns.
-        setTimeout(function() {
-            if (!dom.isConnected) return;
+    _focusFirstEditor(tile, editorIndex, field) {
+        // The editor at editorIndex, else the one bound to `^.<field>`
+        // (additem_focus), else the first one.
+        if (!tile || !tile.domNode()) return;
+        const focus = function() {
+            // read at focus time: mounting a lazy body renders the wrapper anew
+            const dom = tile.domNode();
+            if (!dom || !dom.isConnected) return;
             const editors = gnr.GroupletGridController._editors(dom);
-            const target = (editorIndex === null || editorIndex === undefined)
-                ? null : editors[editorIndex];
+            const node = field && tile.tileContent && tile.tileContent.walk((n) => (
+                (n.widget && n.attr.value === '^.' + field) ? n : undefined
+            ), 'static');
+            const named = node && node.widget.focusNode;
+            const target = ((editorIndex === null || editorIndex === undefined)
+                ? null : editors[editorIndex]) || (editors.indexOf(named) >= 0 ? named : null);
             const el = target || editors[0];
             if (!el) return;
-            el.focus();
+            gnr.GroupletGridController.focusNode(el);
             // As a native Tab would: typing replaces the default in the field.
             if (target && el.select) el.select();
-        }, 0);
+        };
+        // a lazy tab mounts its body in the next frame: the focus waits for it
+        if (!tile.bodyMounted) {
+            tile._afterBodyMount = focus;
+            return;
+        }
+        // One tick: the widgets of a just-grafted tile are instantiated when
+        // the framework drains its afterBuildCalls, after this mount returns.
+        setTimeout(focus, 0);
     }
 
     static _editors(tileDom) {
@@ -2245,7 +2826,9 @@ gnr.GroupletGridController = class GroupletGridController {
             // Pre-compute next active before removing the current chip.
             let nextActive = null;
             if (this.activePkey === pkey) {
-                const chipKeys = Object.keys(this._tabsByPkey);
+                const chipKeys = this.tabstripDom
+                    ? Array.from(this.tabstripDom.children).map((c) => c.getAttribute('data-rowkey'))
+                    : Object.keys(this._tabsByPkey);
                 const idx = chipKeys.indexOf(pkey);
                 if (idx > 0) nextActive = chipKeys[idx - 1];
                 else if (chipKeys.length > 1) nextActive = chipKeys[idx + 1];
@@ -2309,27 +2892,99 @@ gnr.GroupletGridController = class GroupletGridController {
         // trigger below; _afterTileMounted clears _pendingActivate.
         if (this._isTabsLayout()) this._pendingActivate = newKey;
         this._pendingFocus = newKey;
-        if (this.phantom) this._freshRows[newKey] = true;
-        const merged = objectUpdate({}, this.defaultRow || {});
+        this._pendingFocusField = (this.additemKw || {}).focus || null;
+        const merged = this.defaultRowValues();
         objectUpdate(merged, defaults || {});
+        if (this.phantom) this._freshRows[newKey] = objectUpdate({}, merged);
         this.dataStore.addRow(newKey, merged, position);
+        this._selectRows([newKey]);
+    }
+
+    defaultRowValues() {
+        // A `=path` value is read when the row is made, from the grid's
+        // datapath (`=#FORM.common_values.mainProducer`), not frozen at build;
+        // a `==expression` is worked out then, with `this` the grid's node,
+        // over `rows` (the grid's Bag) and `grid`: `==nextCode(rows)`.
+        const raw = this.defaultRow || {};
+        const out = {};
+        Object.keys(raw).forEach((k) => {
+            let v = raw[k];
+            if (typeof v === 'string' && v.indexOf('==') === 0) {
+                v = funcCreate('return ' + v.slice(2), 'rows,grid').apply(this.sourceNode,
+                                                                          [this.dataStore.getData(), this]);
+            } else if (typeof v === 'string' && v.charAt(0) === '=') {
+                v = this.sourceNode.getRelativeData(v.slice(1));
+                if (v instanceof gnr.GnrBag) v = v.deepCopy();
+            }
+            out[k] = v;
+        });
+        return out;
     }
 
     _askAndDeleteItem(pkey) {
-        if (this._rowCount() <= this.minRows) return;
+        if (this._deleteLocked(pkey)) {
+            if (!this._delitemAllows(pkey)) {
+                genro.dlg.floatingMessage(this.sourceNode, {
+                    message: _T('!!This row cannot be deleted'), messageType: 'warning'});
+            }
+            return;
+        }
         this.dataStore.deleteRowAsk(pkey);
+    }
+
+    _deleteLocked(pkey) {
+        const form = this.sourceNode.getFormHandler();
+        return !!(form && form.isDisabled()) || this._rowCount() <= this.minRows
+            || (pkey !== undefined && !this._delitemAllows(pkey));
+    }
+
+    _delitemAllows(pkey) {
+        // a dynamic delitem is read on the row's own node, when asked; a
+        // static one only decides whether the row shows a delete at all
+        const tile = this.tiles[pkey];
+        const delitem = tile ? tile.delitem : this.delitem;
+        if (typeof delitem !== 'string') return true;
+        return !!(tile && tile.tileNode
+                  && gnr.GroupletCard.evaluateOn(tile.tileNode, delitem, this.dataStore.rowValue(pkey)));
+    }
+
+    _cardProfile(templateKey) {
+        if (!this._cardProfiles[templateKey]) {
+            const profile = objectUpdate(objectUpdate({}, this.templateCards[templateKey] || {}), this.card);
+            const Card = gnr.GroupletCard;
+            profile.title = this.collapsedTemplate || Card.compileTemplate(profile.titleTemplate)
+                || Card.compileTemplate(profile.template);
+            this._cardProfiles[templateKey] = profile;
+        }
+        return this._cardProfiles[templateKey];
+    }
+
+    _refreshRowMenu(pkey) {
+        // the kebab of a selected row acts on the whole selection, and says so
+        const inSelection = !!(this._multiKeys && this._multiKeys.includes(pkey));
+        const count = inSelection ? this.groupSelection().reduce((n, e) => n + e.rowKeys.length, 0) : 1;
+        const path = this.controllerPath + '.row_menu.';
+        genro.setData(path + 'copy_label', count > 1
+            ? _T('!!Copy $count rows').replace('$count', count) : _T('!!Copy'));
+        genro.setData(path + 'delete_label', count > 1
+            ? _T('!!Delete $count rows').replace('$count', count) : _T('!!Delete row'));
+        genro.setData(path + 'delete_locked', inSelection ? this._selectionDeleteLocked() : this._deleteLocked(pkey));
     }
 
     selectTile(pkey) {
         // Tabs/vtabs use the active state; .selected is a cards-only
         // UX class that conflicts with the panel chrome here.
-        if (this._isTabsLayout()) return;
+        if (this._isTabsLayout() || this._multiKeys) return;
         if (this.selectedPkey === pkey) return;
         if (this.selectedPkey && this.tiles[this.selectedPkey]) {
             const prevDom = this.tiles[this.selectedPkey].domNode();
             if (prevDom) prevDom.classList.remove('selected');
         }
         this.selectedPkey = pkey;
+        if (pkey) {
+            this._selAnchor = pkey;
+            gnr.GroupletGridController._lastSelected = this;
+        }
         const dom = this.tiles[pkey] && this.tiles[pkey].domNode();
         if (dom) dom.classList.add('selected');
     }
@@ -2393,7 +3048,8 @@ gnr.GroupletGridController = class GroupletGridController {
             genro.setData(path, new gnr.GnrBag());
             bag = genro.getData(path);
         }
-        const defaults = this.defaultRow || {};
+        const defaults = this.defaultRowValues();
+        this._blankDefaults = objectUpdate(this._blankDefaults || {}, {[path]: defaults});
         const fields = bag.getNodes().map((n) => n.label);
         Object.keys(defaults).forEach((k) => {
             if (fields.indexOf(k) < 0) fields.push(k);
@@ -2432,14 +3088,15 @@ gnr.GroupletGridController = class GroupletGridController {
     }
 
     _phantomHasValues() {
-        return this._hasEnteredValues(genro.getData(this.phantomPath));
+        return this._hasEnteredValues(genro.getData(this.phantomPath),
+                                      (this._blankDefaults || {})[this.phantomPath]);
     }
 
     _hasEnteredValues(rowBag, baseline) {
         // Computed columns are not an entry: in struct mode only the editable
         // cells count, in card mode every field but formulas and the counter.
         if (!(rowBag instanceof gnr.GnrBag)) return false;
-        const defaults = baseline || this.defaultRow || {};
+        const defaults = baseline || this.defaultRowValues();
         const editable = this.structAdapter
             ? this.structAdapter.cells.filter((c) => c.edit).map((c) => c.field)
             : null;
@@ -2492,7 +3149,7 @@ gnr.GroupletGridController = class GroupletGridController {
             this._pendingFocus = newKey;
             this._pendingFocusEditor = editorIndex;
         }
-        this._freshRows[newKey] = true;
+        this._freshRows[newKey] = objectUpdate({}, (this._blankDefaults || {})[this.phantomPath] || {});
         this._pendingFlash = this._pendingFlash || {};
         this._pendingFlash[newKey] = true;
         this._resetPhantom();
@@ -2502,12 +3159,15 @@ gnr.GroupletGridController = class GroupletGridController {
     _dropIfEmpty(pkey) {
         // The reverse of the promotion, for rows added since the rows were
         // loaded: one left with no entry goes away, without the dialog. A
-        // loaded row emptied stays, it is deleted with its `×`.
-        if (this._destroyed || !this.tiles[pkey] || !this._freshRows[pkey]) return;
+        // loaded row emptied stays, it is deleted with its `×`. No entry is
+        // measured on the defaults the row was given: a `==` default worked
+        // out again may differ (the next code).
+        const given = this._freshRows[pkey];
+        if (this._destroyed || !this.tiles[pkey] || !given) return;
         if (this._rowCount() <= this.minRows) return;
         const form = this.sourceNode.getFormHandler();
         if (form && form.isDisabled()) return;
-        if (this._hasEnteredValues(this.dataStore.rowValue(pkey))) return;
+        if (this._hasEnteredValues(this.dataStore.rowValue(pkey), (typeof given === 'object') ? given : null)) return;
         delete this._freshRows[pkey];
         this.dataStore.removeRow(pkey);
     }
@@ -2533,28 +3193,32 @@ gnr.GroupletGridController = class GroupletGridController {
         if (this.entryTile) return;
         this.entryTile = new gnr.GroupletGridEntryTile(this);
         this.entryTile.mount();
+        this._registerPendingEditor();
         this._mountSelectionBar();
         this._syncChecks();
-        if (!this._chromeClicksWired) {
-            // header pins and select-all boxes are rebuilt with their slot
-            this._chromeClicksWired = true;
-            const container = this._containerDom();
-            // a header pin leaves the focus in the entry row
-            container.addEventListener('mousedown', (e) => {
-                if (e.target.closest('.grouplet_grid__struct_keep')) e.preventDefault();
-            });
-            container.addEventListener('click', (e) => {
-                if (e.target.closest('.grouplet_grid') !== container) return;
-                const pin = e.target.closest('.grouplet_grid__struct_keep');
-                if (pin) this._toggleKeep(pin.dataset.field);
-                else if (e.target.closest('.grouplet_grid_check_all')) this._onCheckAll();
-            });
-        }
+        this._wireChromeClicks();
         // a row grafted while the page builds gets its widgets a tick later
         setTimeout(() => this._destroyed || this._syncKept(), 0);
         this._validateEntryRequired();
         this._updateAddBtnState();
         this._scheduleStructSync();
+    }
+
+    _wireChromeClicks() {
+        // header pins and select-all boxes are rebuilt with their slot
+        if (this._chromeClicksWired) return;
+        this._chromeClicksWired = true;
+        const container = this._containerDom();
+        // a header pin leaves the focus in the entry row
+        container.addEventListener('mousedown', (e) => {
+            if (e.target.closest('.grouplet_grid__struct_keep')) e.preventDefault();
+        });
+        container.addEventListener('click', (e) => {
+            if (e.target.closest('.grouplet_grid') !== container) return;
+            const pin = e.target.closest('.grouplet_grid__struct_keep');
+            if (pin) this._toggleKeep(pin.dataset.field);
+            else if (e.target.closest('.grouplet_grid_check_all')) this._onCheckAll();
+        });
     }
 
     _unmountEntry() {
@@ -2567,9 +3231,11 @@ gnr.GroupletGridController = class GroupletGridController {
         // Kept fields survive (Enter, Esc, record load alike) and act as
         // defaults for the next row: alone, they are no entry.
         const bag = this._resetBlankRow(this.entryPath, true);
-        bag.subscribe(this._entrySubscriberId(),
-                      {any: () => this._calcEntryFormulas()});
-        this._entryBaseline = objectUpdate({}, this.defaultRow || {});
+        bag.subscribe(this._entrySubscriberId(), {any: () => {
+            this._calcEntryFormulas();
+            if (!this._phantomResetting) this._updateFormStatus();
+        }});
+        this._entryBaseline = objectUpdate({}, (this._blankDefaults || {})[this.entryPath]);
         const kept = gnr.GroupletGridController._keptValues(bag);
         Object.keys(kept).forEach((path) => {
             const parts = path.split('.');
@@ -2587,6 +3253,154 @@ gnr.GroupletGridController = class GroupletGridController {
         }
         this._syncKept();
         this._validateEntryRequired();
+        this._updateFormStatus();
+    }
+
+    // ====================================================================
+    //  Entry row and its form — a pending entry is a change of the form;
+    //  save, dismiss and switching tab or layout commit it first
+    // ====================================================================
+
+    _registerPendingEditor() {
+        gnr.GroupletGridController._entryGrids.add(this);
+        const form = this.sourceNode.getFormHandler();
+        if (!form || !form.registerPendingEditor || this._pendingForm === form) return;
+        this._pendingForm = form;
+        form.registerPendingEditor(this.nodeId, this);
+    }
+
+    _updateFormStatus() {
+        // once per burst: loading a row in the entry row sets every field
+        if (!this._pendingForm || this._formStatusScheduled) return;
+        this._formStatusScheduled = true;
+        setTimeout(() => {
+            this._formStatusScheduled = false;
+            const form = this._pendingForm;
+            if (!this._destroyed && form.opStatus !== 'loading') form.updateStatus();
+        }, 0);
+    }
+
+    hasPendingEntry() {
+        // values typed in the entry row and not added yet; while a row is
+        // edited there, its changes or the new row set aside meanwhile
+        if (!this.entryTile || this._destroyed) return false;
+        if (this._editingKey) {
+            return this._entryChanged() || this._hasEnteredValues(this._entryDraft, this._entryBaseline);
+        }
+        return this._hasEnteredValues(genro.getData(this.entryPath), this._entryBaseline);
+    }
+
+    commitPendingEntry() {
+        // true when nothing is left pending; false when a value stopped it,
+        // the field flagged and focused
+        if (this._editingKey && !this._entryChanged()) this._finishEntryEdit();
+        // at most the edited row, then the new row set aside meanwhile
+        for (let i = 0; i < 3 && this.hasPendingEntry(); i++) {
+            if (!this._addEntry()) return false;
+        }
+        return !this.hasPendingEntry();
+    }
+
+    _entryFocusedWidget() {
+        // The field with the focus in the entry row or in a popup of its
+        // fields; or the one the focus has just left, which dijit blurs (and
+        // so writes) up to 100ms later when a click elsewhere swallowed the
+        // mousedown.
+        const active = document.activeElement;
+        const dom = this.entryTile && this.entryTile.domNode();
+        const widget = active && dijit.getEnclosingWidget(active);
+        if (dom && active && dom.contains(active)) return widget;
+        const owner = widget && widget.sourceNode && widget.sourceNode.attributeOwnerNode('_gg_root');
+        if (owner && owner.gridController === this) return widget;
+        const last = this._entryWidget;
+        return (last && last._focused && dom && last.domNode && dom.contains(last.domNode)) ? last : null;
+    }
+
+    // the form's pending editor protocol (genro_frm registerPendingEditor)
+    isDestroyed() {
+        return this._destroyed;
+    }
+
+    isPending() {
+        return !!this._editingKey || this.hasPendingEntry() || !!this._entryFocusedWidget();
+    }
+
+    hasPendingChanges() {
+        return this.hasPendingEntry();
+    }
+
+    prepareCommit() {
+        // a field writes its value on blur
+        const widget = this._entryFocusedWidget();
+        if (widget && widget._onBlur) widget._onBlur();
+    }
+
+    commitPending() {
+        return this.commitPendingEntry();
+    }
+
+    withPendingEntries(action) {
+        // Runs action once the entry rows of this grid and of the grids
+        // nested in it are committed; not at all if one refuses.
+        const form = this.sourceNode.getFormHandler();
+        if (form && form.opStatus === 'loading') return action();
+        const dom = this._containerDom();
+        const grids = Array.from(gnr.GroupletGridController._entryGrids).filter((g) => (
+            !g._destroyed && (g === this || dom.contains(g._containerDom()))));
+        if (form && form.commitPendingEditors) return form.commitPendingEditors(action, grids);
+        const busy = grids.filter((g) => g.isPending());
+        if (!busy.length) return action();
+        busy.forEach((g) => g.prepareCommit());
+        setTimeout(() => {
+            if (busy.every((g) => g.commitPendingEntry())) action();
+        }, 0);
+    }
+
+    focusEntry() {
+        this._focusEntry();
+    }
+
+    commitEntry() {
+        this._commitEntry();
+    }
+
+    wireEntryDropTarget(dom) {
+        // a popup of the entry row's fields takes a drop as the row does
+        if (this.dnd && dom) this.dnd.wireAppendTarget(dom);
+    }
+
+    attachEntryPopup(dom) {
+        // A popup of entry fields (a tooltipPane): drop target, Enter adds
+        // the row and Esc goes back to it, closing the popup in both cases.
+        if (!dom) return;
+        this.wireEntryDropTarget(dom);
+        dom.addEventListener('keydown', (e) => {
+            const field = dijit.getEnclosingWidget(e.target);
+            if (field && field._isShowingNow) return;
+            if (e.key !== 'Escape' && (e.key !== 'Enter' || e.shiftKey || e.isComposing
+                    || e.target.tagName === 'TEXTAREA')) return;
+            e.preventDefault();
+            e.stopPropagation();
+            if (field && field._onBlur) field._onBlur();
+            const dialog = dom.closest('.dijitTooltipDialog');
+            const dialogWidget = dialog && dijit.getEnclosingWidget(dialog);
+            if (dialogWidget && dialogWidget.onCancel) dialogWidget.onCancel();
+            if (e.key === 'Enter') this._commitEntry();
+            else this._focusEntry();
+        }, true);
+    }
+
+    _refreshEntryDefaults() {
+        // A blank entry row picks up a `=path` default changed since it was
+        // cleared; one being typed in or edited keeps what it shows.
+        if (this._editingKey || this._phantomResetting) return;
+        const bag = genro.getData(this.entryPath);
+        const shown = (this._blankDefaults || {})[this.entryPath] || {};
+        if (this._hasEnteredValues(bag, this._entryBaseline)) return;
+        const now = this.defaultRowValues();
+        if (Object.keys(now).some((k) => !(now[k] instanceof gnr.GnrBag) && now[k] !== shown[k])) {
+            this._resetEntry();
+        }
     }
 
     _validateEntryRequired() {
@@ -2693,7 +3507,7 @@ gnr.GroupletGridController = class GroupletGridController {
         // cleared row. The first field keeps the focus and writes it here.
         const widget = this._entryWidget;
         const first = this._entryFocusTarget(dom);
-        if (first) first.focus();
+        if (first) gnr.GroupletGridController.focusNode(first);
         if (widget && widget._focused && widget._onBlur && widget.domNode
                 && dom.contains(widget.domNode)) {
             widget._onBlur();
@@ -2717,6 +3531,11 @@ gnr.GroupletGridController = class GroupletGridController {
         const missing = this._entryMissingField();
         if (missing) {
             this._flagMissingField(missing);
+            return false;
+        }
+        const invalid = this._entryInvalidField();
+        if (invalid) {
+            this._flagInvalidField(invalid);
             return false;
         }
         if (editing) {
@@ -2775,6 +3594,7 @@ gnr.GroupletGridController = class GroupletGridController {
     _onTemplateRowClick(pkey, e) {
         if (!(e && (e.metaKey || e.ctrlKey || e.shiftKey))) {
             this._selAnchor = pkey;
+            this._clearOtherGrids();
             this._applySelection([pkey]);
             return;
         }
@@ -2802,8 +3622,59 @@ gnr.GroupletGridController = class GroupletGridController {
         return this.rowCheckbox ? 1 : 2;
     }
 
-    _onRowCheck(pkey, e) {
-        const current = this._multiKeys ? this._multiKeys.slice() : [];
+    _clickSelects(e) {
+        // Cmd/Ctrl-click toggles a row, Shift-click selects a range
+        return !!(e && !e._groupletSelected && (e.metaKey || e.ctrlKey || e.shiftKey)
+                  && Object.keys(this.selectionmenu || {}).length);
+    }
+
+    _clickClearsSelection(e) {
+        return !!(e && !e._groupletSelected && this.groupSelection().length);
+    }
+
+    _onRowClickSelect(pkey, e) {
+        // As in a file list: Cmd/Ctrl toggles the row and moves the anchor,
+        // Shift selects the range from the anchor in place of the selection,
+        // Cmd+Shift adds the range; a row selected by a plain click counts
+        const single = this.selectedPkey && this.dataStore.rowNode(this.selectedPkey) ? [this.selectedPkey] : [];
+        const current = this._multiKeys ? this._multiKeys.slice() : single;
+        const toggle = e.metaKey || e.ctrlKey;
+        let keys;
+        if (e.shiftKey && this._selAnchor && this.tiles[this._selAnchor]) {
+            const range = this._keysBetween(this._selAnchor, pkey);
+            keys = toggle ? current.concat(range.filter((k) => !current.includes(k))) : range;
+        } else {
+            keys = current.includes(pkey) ? current.filter((k) => k !== pkey) : current.concat(pkey);
+            this._selAnchor = pkey;
+        }
+        this._clearOtherGrids();
+        this._applyChecks(keys, true);
+    }
+
+    _clearOtherGrids() {
+        if (!this.selectionGroup) return;
+        gnr.GroupletGridController.groupMembers(this.selectionGroup)
+            .filter((g) => g !== this && g._multiKeys).forEach((g) => g._applySelection([]));
+    }
+
+    _selectRows(keys) {
+        // rows just made (pasted, added, moved here) become the selection:
+        // one is the current row, several are ticked
+        const present = keys.filter((k) => this.dataStore.rowNode(k));
+        if (!present.length) return;
+        this.clearSelection(true);
+        if (present.length === 1) {
+            this.selectTile(present[0]);
+        } else {
+            this._selAnchor = present[0];
+            this._applyChecks(present);
+        }
+    }
+
+    _onRowCheck(pkey, e, focusBar = false) {
+        // a row selected by a plain click is where a Cmd/Shift-click starts from
+        const single = this.selectedPkey && this.dataStore.rowNode(this.selectedPkey) ? [this.selectedPkey] : [];
+        const current = this._multiKeys ? this._multiKeys.slice() : single;
         let keys;
         if (e.shiftKey && this._selAnchor && this.tiles[this._selAnchor]) {
             const range = this._keysBetween(this._selAnchor, pkey);
@@ -2813,7 +3684,7 @@ gnr.GroupletGridController = class GroupletGridController {
                 ? current.filter((k) => k !== pkey) : current.concat(pkey);
         }
         this._selAnchor = pkey;
-        this._applyChecks(keys);
+        this._applyChecks(keys, focusBar);
     }
 
     _onCheckAll() {
@@ -2822,14 +3693,14 @@ gnr.GroupletGridController = class GroupletGridController {
         this._applyChecks(current.length === all.length ? [] : all);
     }
 
-    _applyChecks(keys) {
+    _applyChecks(keys, focusBar = false) {
         if (!keys.length) {
             this._setMulti(null);
             return;
         }
         const enter = () => {
             this._finishEntryEdit();
-            this._setMulti(keys, false);
+            this._setMulti(keys, focusBar);
         };
         if (this._entryChanged()) this._commitEntry(enter);
         else enter();
@@ -2839,7 +3710,12 @@ gnr.GroupletGridController = class GroupletGridController {
         if (!this.rowCheckbox) return;
         const keys = this._multiKeys || [];
         Object.keys(this.tiles).forEach((k) => {
-            const dom = this.tiles[k].domNode();
+            const tile = this.tiles[k];
+            if (tile.card) {
+                tile.card.setChecked(keys.includes(k));
+                return;
+            }
+            const dom = tile.domNode();
             const box = dom && dom.querySelector(':scope > .grouplet_grid_row_check');
             if (box) box.checked = keys.includes(k);
         });
@@ -2882,6 +3758,7 @@ gnr.GroupletGridController = class GroupletGridController {
     _setMulti(keys, focusBar = true) {
         const entering = !!keys && !this._multiKeys;
         this._multiKeys = keys;
+        if (keys) gnr.GroupletGridController._lastSelected = this;
         this._containerDom().classList.toggle('grouplet_grid--multi', !!keys);
         if (keys) this.selectedPkey = null;
         Object.keys(this.tiles).forEach((k) => {
@@ -2889,16 +3766,9 @@ gnr.GroupletGridController = class GroupletGridController {
             if (dom) dom.classList.toggle('selected', !!keys && keys.includes(k));
         });
         this._syncChecks();
+        this._refreshGroupBars();
         const bar = this.selectionNode && this.selectionNode.getDomNode();
         if (!bar || !keys) return;
-        const one = keys.length === 1;
-        bar.querySelector('.grouplet_grid_selection_count').textContent =
-            (one ? _T('!!1 row selected') : _T('!!$count rows selected')).replace('$count', keys.length);
-        const label = bar.querySelector('.grouplet_grid_selection_delete_label');
-        if (label) {
-            label.textContent = (one ? _T('!!Delete 1 row') : _T('!!Delete $count rows'))
-                .replace('$count', keys.length);
-        }
         if (entering && focusBar) {
             setTimeout(() => {
                 const first = bar.querySelector('[tabindex]');
@@ -2907,10 +3777,76 @@ gnr.GroupletGridController = class GroupletGridController {
         }
     }
 
+    _updateSelectionBar() {
+        // The count is the group's: every bar of a group acts on all of it.
+        const bar = this.selectionNode && this.selectionNode.getDomNode();
+        if (!bar || !this._multiKeys) return;
+        const count = this.groupSelection().reduce((n, e) => n + e.rowKeys.length, 0);
+        const one = count === 1;
+        const countDom = bar.querySelector('.grouplet_grid_selection_count');
+        if (countDom) {
+            countDom.textContent = (one ? _T('!!1 row selected') : _T('!!$count rows selected'))
+                .replace('$count', count);
+        }
+        genro.setData(this.controllerPath + '.selection_menu.delete_label',
+                      (one ? _T('!!Delete 1 row') : _T('!!Delete $count rows')).replace('$count', count));
+        genro.setData(this.controllerPath + '.selection_menu.delete_locked', this._selectionDeleteLocked());
+    }
+
+    _selectionDeleteLocked() {
+        return this.groupSelection().some(({grid, rowKeys}) => {
+            const form = grid.sourceNode.getFormHandler();
+            return !!(form && form.isDisabled()) || grid._rowCount() - rowKeys.length < grid.minRows
+                || rowKeys.some((k) => !grid._delitemAllows(k));
+        });
+    }
+
+    _refreshGroupBars() {
+        const grids = this.selectionGroup
+            ? gnr.GroupletGridController.groupMembers(this.selectionGroup) : [this];
+        // every grid of the group is marked while the group holds a selection
+        const selecting = grids.some((g) => g._multiKeys && g._multiKeys.length);
+        grids.forEach((g) => {
+            const dom = g._containerDom();
+            if (dom) dom.classList.toggle('grouplet_grid--selecting', selecting);
+            g._updateSelectionBar();
+        });
+    }
+
+    static _groupSet(code) {
+        const groups = gnr.GroupletGridController._selectionGroups;
+        if (!groups[code]) groups[code] = new Set();
+        return groups[code];
+    }
+
+    static groupMembers(code) {
+        return Array.from(gnr.GroupletGridController._groupSet(code)).filter((g) => !g._destroyed);
+    }
+
+    getSelectedKeys() {
+        return this._selectedKeys();
+    }
+
+    groupSelection() {
+        // [{grid, rowKeys}] of the grids in the group with a selection
+        const grids = this.selectionGroup
+            ? gnr.GroupletGridController.groupMembers(this.selectionGroup) : [this];
+        // another grid's row edited in its entry row is no selection
+        return grids.map((g) => ({grid: g, rowKeys: (g === this) ? g._selectedKeys()
+                                                                  : (g._multiKeys || []).slice()}))
+            .filter((e) => e.rowKeys.length);
+    }
+
+    clearSelection(wholeGroup) {
+        const grids = (wholeGroup && this.selectionGroup)
+            ? gnr.GroupletGridController.groupMembers(this.selectionGroup) : [this];
+        grids.forEach((g) => g._applySelection([]));
+    }
+
     _mountSelectionBar() {
-        // The bar below the rows for several selected rows: the count, the
-        // delete preset as a button, the other `selectionmenu` entries in a
-        // kebab. An entry's `action` runs with `rowKeys` and `grid`.
+        // The bar below the rows for several selected rows: the count and a
+        // kebab with the `selectionmenu` entries, the delete last and apart.
+        // An entry's `action` runs with `rowKeys` and `grid`.
         const specs = this._selectionSpecs();
         if (!this.selectionNode || this._selectionBarMounted || !specs.length) return;
         this._selectionBarMounted = true;
@@ -2926,39 +3862,43 @@ gnr.GroupletGridController = class GroupletGridController {
         bar._('span', {_class: 'grouplet_grid_selection_count'});
         bar._('span', {_class: 'grouplet_grid_selection_hint',
                        innerHTML: _T('!!Esc to clear')});
+        const kebab = bar._('div', {
+            _class: 'grouplet_grid_selection_kebab',
+            tabindex: 0,
+            tip: _T('!!Actions on the selected rows'),
+            // the form may have been locked or unlocked since the selection
+            connect_onmousedown: function() { c._updateSelectionBar(); }
+        });
+        kebab._('span', {_class: 'grouplet_grid_kebab_icon', innerHTML: '⋮'});
+        const menu = kebab._('menu', {
+            modifiers: '*',
+            _class: 'smallmenu grouplet_grid_row_menu'
+        });
         const others = specs.filter((spec) => spec.key !== 'delete');
-        if (specs.length > others.length) {
-            const del = bar._('div', {
-                _class: 'grouplet_grid_selection_delete',
-                tabindex: 0,
-                connect_onclick: function() { c._deleteSelected(); }
-            });
-            del._('span', {_class: 'grouplet_grid_trash_glyph'});
-            del._('span', {_class: 'grouplet_grid_selection_delete_label'});
-        }
-        if (others.length) {
-            const kebab = bar._('div', {
-                _class: 'grouplet_grid_selection_kebab',
-                tabindex: 0,
-                tip: _T('!!Actions on the selected rows')
-            });
-            kebab._('span', {_class: 'grouplet_grid_kebab_icon', innerHTML: '⋮'});
-            const menu = kebab._('menu', {
-                modifiers: '*',
-                _class: 'smallmenu grouplet_grid_row_menu'
-            });
-            others.forEach((spec) => {
-                menu._('menuline', {
-                    label: _T(spec.label),
-                    action: function() { c._runSelectionAction(spec); }
-                });
+        others.forEach((spec) => {
+            const kw = {label: _T(spec.label), action: function() { c._runSelectionAction(spec); }};
+            // dijit's MenuItem template takes no undefined iconClass
+            if (spec.iconClass) kw.iconClass = spec.iconClass;
+            menu._('menuline', kw);
+        });
+        if (others.length < specs.length) {
+            if (others.length) menu._('menuline', {label: '-'});
+            menu._('menuline', {
+                label: '^' + this.controllerPath + '.selection_menu.delete_label',
+                iconClass: 'iconbox trash',
+                _class: 'grouplet_grid_menu_danger',
+                disabled: '^' + this.controllerPath + '.selection_menu.delete_locked',
+                action: function() { c._deleteSelected(); }
             });
         }
     }
 
     _selectionSpecs() {
         // selectionmenu = {key: true | 'label' | {label, action}}, as editmenu
-        const presets = {'delete': {label: '!!Delete'}};
+        const presets = {'delete': {label: '!!Delete'},
+                         copy: {label: '!!Copy', iconClass: 'iconbox copy duplicate_record'},
+                         exportXls: {label: '!!Export Excel', iconClass: 'iconbox export'},
+                         print: {label: '!!Print', iconClass: 'iconbox print'}};
         return Object.keys(this.selectionmenu).map((key) => {
             const raw = this.selectionmenu[key];
             let spec = null;
@@ -2970,41 +3910,62 @@ gnr.GroupletGridController = class GroupletGridController {
     }
 
     _runSelectionAction(spec) {
-        const keys = this._selectedKeys();
-        if (!keys.length) return;
+        const selection = this.groupSelection();
+        if (!selection.length) return;
         if (spec.key === 'delete') {
             this._deleteSelected();
             return;
         }
-        if (spec.action) funcApply(spec.action, {rowKeys: keys, grid: this}, this.sourceNode);
+        const preset = {copy: 'copyRows', exportXls: 'exportRows', print: 'printRows'}[spec.key];
+        if (preset && !spec.action) {
+            this[preset](null, selection);
+            return;
+        }
+        if (spec.action) {
+            funcApply(spec.action, {rowKeys: this._selectedKeys(), grid: this, selection: selection},
+                      this.sourceNode);
+        }
     }
 
     _onMultiKeydown(e) {
-        const onDelete = !!e.target.closest('.grouplet_grid_selection_delete');
         if (e.key === 'Escape') {
             e.preventDefault();
-            this._applySelection([]);
+            this.clearSelection(true);
             this._focusEntry();
-        } else if ((e.key === 'Enter' && onDelete)
-                   || ((e.key === 'Delete' || e.key === 'Backspace') && this.selectionmenu['delete'])) {
+        } else if ((e.key === 'Delete' || e.key === 'Backspace') && this.selectionmenu['delete']) {
             e.preventDefault();
             this._deleteSelected();
         }
     }
 
     _deleteSelected() {
-        const keys = this._selectedKeys();
-        if (!keys.length) return;
-        const form = this.sourceNode.getFormHandler();
-        if (form && form.isDisabled()) return;
-        if (this._rowCount() - keys.length < this.minRows) {
-            genro.dlg.floatingMessage(this.sourceNode, {
-                message: _T('!!At least $count rows are required').replace('$count', this.minRows),
-                messageType: 'warning'
-            });
+        const selection = this.groupSelection();
+        if (!selection.length) return;
+        for (const {grid, rowKeys} of selection) {
+            const form = grid.sourceNode.getFormHandler();
+            if (form && form.isDisabled()) return;
+            if (grid._rowCount() - rowKeys.length < grid.minRows) {
+                genro.dlg.floatingMessage(grid.sourceNode, {
+                    message: _T('!!At least $count rows are required').replace('$count', grid.minRows),
+                    messageType: 'warning'
+                });
+                return;
+            }
+            if (rowKeys.some((k) => !grid._delitemAllows(k))) {
+                genro.dlg.floatingMessage(grid.sourceNode, {
+                    message: _T('!!Some of these rows cannot be deleted'), messageType: 'warning'});
+                return;
+            }
+        }
+        if (selection.length === 1) {
+            selection[0].grid.dataStore.deleteRowsAsk(selection[0].rowKeys);
             return;
         }
-        this.dataStore.deleteRowsAsk(keys);
+        // one question for the whole group, each grid deletes its own rows
+        const all = [].concat(...selection.map((e) => e.rowKeys));
+        this.store.deleteAsk(all, null, () => {
+            selection.forEach((e) => e.grid.store.deleteRows(e.rowKeys));
+        });
     }
 
     _loadRowInEntry(pkey) {
@@ -3059,6 +4020,21 @@ gnr.GroupletGridController = class GroupletGridController {
         }, 'static');
     }
 
+    _entryInvalidField() {
+        return this.entryTile.tileContent.walk((n) => (
+            (n.widget && n.hasValidationError && n.hasValidationError()) ? n : undefined
+        ), 'static');
+    }
+
+    _flagInvalidField(node) {
+        const error = node.getValidationError();
+        genro.publish('floating_message', {
+            message: (node.getElementLabel() || '').trim() + ': '
+                + (error ? node._resolveErrorMessage(error) : _T('!!Correct the invalid field')),
+            sound: '$onerror', messageType: 'error'});
+        node.widget.focus();
+    }
+
     _flagMissingField(node) {
         // a blank field shows no tooltip: the error is published
         const result = this._validateEntryField(node);
@@ -3077,9 +4053,37 @@ gnr.GroupletGridController = class GroupletGridController {
         setTimeout(() => {
             const el = this._entryFocusTarget(dom);
             if (!el) return;
-            el.focus();
-            if (el.select) el.select();
+            gnr.GroupletGridController.focusNode(el);
+            if (el.select) {
+                el.select();
+                gnr.GroupletGridController._markAutoSelected(el);
+            }
         }, 0);
+    }
+
+    static _markAutoSelected(el) {
+        // text the grid selected itself, not the user: Cmd/Ctrl+C there
+        // still copies the row, until the field is touched
+        el._ggAutoSelected = true;
+        const clear = () => { el._ggAutoSelected = false; };
+        el.addEventListener('mousedown', clear, {once: true});
+        el.addEventListener('keydown', clear, {once: true});
+    }
+
+    static focusNode(el) {
+        // A field focused again while it has the DOM focus (the entry row just
+        // added) gets no focus event: dijit's focus, which a closing popup
+        // hands back to its opener, is not corrected, and the field's onfocus
+        // check does not run, the one that lets genro write a value typed
+        // over a validation error. Without both the next value is dropped on
+        // blur. dijit.focus and _refreshState do what that event would do.
+        if (!dijit.focus) {
+            el.focus();
+            return;
+        }
+        dijit.focus(el);
+        const widget = dijit.getEnclosingWidget(el);
+        if (widget && widget._refreshState) widget._refreshState();
     }
 
     _entryFocusTarget(dom) {
@@ -3106,80 +4110,222 @@ gnr.GroupletGridController = class GroupletGridController {
 
     // ====================================================================
     //  Paste — rows of CSV/TSV pasted into the phantom or the entry row go
-    //  to the tail, one row each, columns in the order of its fields
+    //  to the tail, pasted into a row's field they follow that row; one
+    //  row each, columns by a header naming them, else in field order
     // ====================================================================
 
     _onBlankPaste(e, tile) {
-        if (tile === this.entryTile && this._editingKey) return;
-        const form = this.sourceNode.getFormHandler();
-        if (form && form.isDisabled()) return;
-        const text = e.clipboardData && e.clipboardData.getData('text');
-        // one plain value pastes as usual: only several lines or tabs split
-        if (!text || !(/\t/.test(text) || /\n./.test(text.trim()))) return;
+        this._onRowsPaste(e, tile);
+    }
+
+    _onRowsPaste(e, tile) {
+        // an inner grid's row took it already
+        if (e.defaultPrevented) return;
+        const text = this._pastedRowsText(e);
+        if (text === null) return;
         e.preventDefault();
         this._pasteRows(text, tile, e.target);
     }
 
+    _onDocumentPaste(e) {
+        // Cmd/Ctrl+V with rows selected and no field focused adds the rows
+        // at the tail of the grid last selected in
+        const Ctrl = gnr.GroupletGridController;
+        if (e.defaultPrevented || Ctrl._lastSelected !== this) return;
+        if (Ctrl._textField(document.activeElement)) return;
+        if (!this.selectedPkey && !(this._multiKeys && this._multiKeys.length)) return;
+        const text = this._pastedRowsText(e);
+        if (text === null) return;
+        e.preventDefault();
+        const fields = this._firstRowFields();
+        this._insertPastedRows(this._rowsFromText(text, fields, 0), null);
+    }
+
+    _pastedRowsText(e) {
+        const form = this.sourceNode.getFormHandler();
+        if (form && form.isDisabled()) return null;
+        const text = e.clipboardData && e.clipboardData.getData('text');
+        // one plain value pastes as usual: only several lines or tabs split
+        return (text && (/\t/.test(text) || /\n./.test(text.trim()))) ? text : null;
+    }
+
     _pasteRows(text, tile, target) {
-        const fields = this._blankRowFields(tile);
+        // in a field of a row the first pasted row replaces it, the others
+        // follow it; the entry row editing a row counts as that row; the
+        // blank rows add them all at the tail
+        const fields = this._rowFields(tile);
         let start = fields.findIndex((f) => f.node.widget.domNode
             && f.node.widget.domNode.contains(target));
         if (start < 0) start = 0;
+        const rows = this._rowsFromText(text, fields, start);
+        let replaced = null;
+        if (tile === this.entryTile) {
+            replaced = this._editingKey || null;
+            if (replaced) this._finishEntryEdit();
+            else this._resetEntry();
+        } else if (tile === this.phantomTile) {
+            this._resetPhantom();
+        } else {
+            replaced = tile.pkey;
+        }
+        this._insertPastedRows(rows, replaced);
+    }
+
+    _insertPastedRows(rows, replaced) {
         let last = null;
-        let added = 0;
-        this._rowsFromText(text, fields, start).forEach((values) => {
+        const pastedKeys = [];
+        if (replaced && rows.length && this.dataStore.rowNode(replaced)) {
+            this.dataStore.updateRow(replaced, this._nestedKeys(rows[0], this.dataStore.rowValue(replaced)));
+            rows = rows.slice(1);
+            last = replaced;
+            pastedKeys.push(replaced);
+        }
+        rows.forEach((values) => {
             if (this.maxRows && this._rowCount() >= this.maxRows) return;
             const key = 'r_' + genro.time36Id();
             if (this.phantom) this._freshRows[key] = true;
-            this.dataStore.addRow(key, objectUpdate(
-                objectUpdate({}, this.defaultRow || {}), values));
+            this.dataStore.addRow(key, objectUpdate(this.defaultRowValues(), this._nestedKeys(values, null)),
+                                  last ? '>' + last : undefined);
             last = key;
-            added += 1;
+            pastedKeys.push(key);
         });
-        if (tile === this.phantomTile) this._resetPhantom();
-        else this._resetEntry();
+        const pasted = pastedKeys.length;
+        this._selectRows(pastedKeys);
         const lastTile = last && this.tiles[last];
         if (lastTile) {
             lastTile.flash();
             const dom = lastTile.domNode();
             if (dom) dom.scrollIntoView({block: 'nearest'});
         }
-        if (added) this._announce(_T('!!Rows added') + ': ' + added);
+        if (pasted) this._announce(_T('!!Rows pasted') + ': ' + pasted);
     }
 
-    _blankRowFields(tile) {
-        // The editable fields of a blank row, in template order, as paths
+    _nestedKeys(values, row) {
+        // `#n` in a path is the n-th row of a nested grid: the row `row`
+        // has there, else a new one, made in order of position and only
+        // for a value: a nested row of empty cells is not added. A new one
+        // goes in `row` at once, so that its grid draws it: updateRow
+        // makes a missing path silently
+        const resolved = {};
+        const made = {};
+        const resolve = (p, create) => {
+            let prefix = '';
+            for (const part of p.split('.')) {
+                let seg = part;
+                if (/^#\d+$/.test(seg)) {
+                    const at = prefix + seg;
+                    if (!(at in made)) {
+                        const node = (row instanceof gnr.GnrBag) ? row.getNode(at) : null;
+                        if (!node && !create) return null;
+                        made[at] = node ? node.label : 'r_' + genro.time36Id();
+                        if (!node && row instanceof gnr.GnrBag) row.setItem(prefix + made[at], new gnr.GnrBag());
+                    }
+                    seg = made[at];
+                }
+                prefix += seg + '.';
+            }
+            return prefix.slice(0, -1);
+        };
+        const positional = Object.keys(values).filter((p) => gnr.GroupletGridController._anyPosition(p))
+            .sort((a, b) => a.localeCompare(b, undefined, {numeric: true}));
+        Object.keys(values).forEach((p) => {
+            if (positional.indexOf(p) < 0) resolved[p] = values[p];
+        });
+        [true, false].forEach((filled) => positional.forEach((p) => {
+            if ((values[p] !== null) !== filled) return;
+            const path = resolve(p, filled);
+            if (path) resolved[path] = values[p];
+        }));
+        return resolved;
+    }
+
+    _rowFields(tile) {
+        // The editable fields of a row, in template order, as paths
         // relative to the row (a template may write into `.extra_data.*`).
-        const base = (tile === this.entryTile ? this.entryPath : this.phantomPath) + '.';
+        // A field in a row of a nested grid goes by position, `Details.#2.qty`,
+        // and by that path alone: its label repeats on every nested row and
+        // its row key differs from one row to another.
+        let base = this.storepath + '.' + tile.pkey;
+        if (tile === this.entryTile) base = this.entryPath;
+        else if (tile === this.phantomTile) base = this.phantomPath;
+        base += '.';
         const names = {};
         if (this.structAdapter) {
             this.structAdapter.cells.forEach((c) => { names[c.field] = c.name; });
         }
-        const fields = [];
+        const found = [];
+        const stores = [];
+        if (!tile.tileContent) return [];
         tile.tileContent.walk((n) => {
+            if (n.gridController && n.gridController !== this) stores.push(n.gridController.storepath + '.');
             const attr = n.attr || {};
             if (!n.widget || typeof attr.value !== 'string' || attr.value[0] !== '^') return;
             const abs = n.absDatapath(attr.value.slice(1));
             if (abs.indexOf(base) !== 0) return;
-            const path = abs.slice(base.length);
-            fields.push({
-                path: path,
-                node: n,
-                labels: [path, names[path], attr.lbl].filter(Boolean)
-                    .map((l) => String(l).trim().toLowerCase())
-            });
+            // a formlet moves `lbl` onto the field's label wrapper
+            const wrapper = n.getLabelWrapper && n.getLabelWrapper();
+            found.push({abs: abs, node: n, lbl: attr.lbl || (wrapper && wrapper.attr.label) || attr.label});
         }, 'static');
-        return fields;
+        // the innermost grid first, while the outer row keys are still there
+        stores.sort((a, b) => b.length - a.length);
+        return found.map(({abs, node, lbl}) => {
+            let full = abs;
+            stores.forEach((store) => {
+                if (full.indexOf(store) !== 0) return;
+                const rest = full.slice(store.length).split('.');
+                const rows = genro.getData(store.slice(0, -1));
+                const idx = (rows instanceof gnr.GnrBag) ? rows.index(rest[0]) : -1;
+                if (idx >= 0) full = store + ['#' + idx].concat(rest.slice(1)).join('.');
+            });
+            const path = full.slice(base.length);
+            const nested = full !== abs;
+            return {
+                path: path,
+                node: node,
+                label: nested ? path : lbl,
+                labels: gnr.GroupletGridController._labelKeys(nested ? [path] : [path, names[path], lbl])
+            };
+        });
+    }
+
+    static _anyPosition(path) {
+        // the path with every nested row position as `#*`; null without one
+        return /(^|\.)#\d+(\.|$)/.test(path) ? path.replace(/#\d+(?=\.|$)/g, '#*') : null;
+    }
+
+    static _uniqueFields(lists) {
+        const seen = {};
+        return [].concat(...lists).filter((f) => !seen[f.path] && (seen[f.path] = true));
+    }
+
+    static _labelKeys(labels) {
+        return labels.filter(Boolean).map((l) => String(l).trim().toLowerCase())
+            .concat(labels.filter(Boolean).map((l) => String(_T(l)).trim().toLowerCase()))
+            .filter((l, i, all) => l && all.indexOf(l) === i);
     }
 
     _rowsFromText(text, fields, start) {
         const Ctrl = gnr.GroupletGridController;
-        const cols = fields.slice(start);
+        let cols = fields.slice(start);
         let rows = Ctrl.parseDelimited(text);
-        // a first line naming the columns is a header
+        // a first line naming the columns is a header: the columns go by
+        // name, wherever it was pasted; a column no field takes is skipped
         const first = rows.length ? rows[0].map((v) => v.trim().toLowerCase()) : [];
-        if (first.some((v) => v) && first.every((v, i) => !v
-                || (cols[i] && cols[i].labels.indexOf(v) >= 0))) {
+        const known = [].concat(...this._copyColumns(fields).map((c) => c.labels));
+        if (first.some((v) => v) && first.every((v) => !v || known.indexOf(v) >= 0 || Ctrl._anyPosition(v))) {
+            let pool = null;
+            cols = first.map((v) => {
+                const field = v && fields.find((f) => f.labels.indexOf(v) >= 0);
+                if (field || !v || !Ctrl._anyPosition(v)) return field;
+                // a nested row the target lacks: the same field of another
+                // row reads the value, written at the copied position
+                pool = pool || this._gridFields();
+                const like = pool.find((f) => Ctrl._anyPosition(f.path.toLowerCase()) === Ctrl._anyPosition(v));
+                if (!like) return null;
+                const positions = v.match(/#\d+/g);
+                let i = 0;
+                return {path: like.path.replace(/#\d+/g, () => positions[i++]), node: like.node};
+            });
             rows = rows.slice(1);
         }
         return rows.filter((r) => r.some((v) => v.trim() !== '')).map((r) => {
@@ -3258,6 +4404,264 @@ gnr.GroupletGridController = class GroupletGridController {
             return iso ? new Date(+iso[1], +iso[2] - 1, +iso[3]) : null;
         }
         return t;
+    }
+
+    // ====================================================================
+    //  Copy — rows to the clipboard as tab-separated text under a header
+    //  naming the columns: the shape the paste above reads back, and a
+    //  spreadsheet splits into its columns
+    // ====================================================================
+
+    copyRows(rowKeys, selection) {
+        const entries = selection || [{grid: this, rowKeys: rowKeys || this._selectedKeys()}];
+        const text = this._rowsAsText(entries);
+        if (text === null) return;
+        genro.textToClipboard(text, gnr.GroupletGridController._copiedMessage(entries));
+    }
+
+    static _copiedMessage(selection) {
+        const count = selection.reduce((n, e) => n + e.rowKeys.length, 0);
+        return (count === 1 ? _T('!!1 row copied') : _T('!!$count rows copied')).replace('$count', count);
+    }
+
+    _onCopy(e) {
+        // Cmd/Ctrl+C copies the selected rows of the grid last selected in,
+        // through the event's own clipboard, which needs no permission. A
+        // field counts only in that grid, with no text selected and outside
+        // its blank row; text selected on the page stays a text copy
+        const Ctrl = gnr.GroupletGridController;
+        if (e.defaultPrevented || !e.clipboardData || Ctrl._lastSelected !== this) return;
+        // a field counts while it has the focus: the page selection may
+        // linger in one the user has left
+        const field = Ctrl._textField(e.target);
+        if (field && typeof document !== 'undefined' && field === document.activeElement) {
+            const container = this._containerDom();
+            if (!container.contains(field) || Ctrl._hasTextSelection(field) || this._inBlankRow(field)) return;
+        } else if (typeof window !== 'undefined' && window.getSelection && String(window.getSelection())) {
+            return;
+        }
+        let selection = this.groupSelection();
+        // a row selected by a plain click is copied alone
+        if (!selection.length && this.selectedPkey && this.dataStore.rowNode(this.selectedPkey)) {
+            selection = [{grid: this, rowKeys: [this.selectedPkey]}];
+        }
+        const text = selection.length ? this._rowsAsText(selection) : null;
+        if (text === null) return;
+        e.clipboardData.setData('text/plain', text);
+        e.preventDefault();
+        genro.dlg.floatingMessage(genro.nodeById('_gnrRoot'), {message: Ctrl._copiedMessage(selection)});
+    }
+
+    _wireClipboard() {
+        // a copy starts where the page selection is, maybe in another grid,
+        // a paste in a field takes its row: each grid listens on the
+        // document, the last selected answers
+        this._clipboardHandlers = {copy: (e) => this._onCopy(e), paste: (e) => this._onDocumentPaste(e)};
+        Object.keys(this._clipboardHandlers).forEach((name) => {
+            document.addEventListener(name, this._clipboardHandlers[name]);
+        });
+    }
+
+    _unwireClipboard() {
+        if (!this._clipboardHandlers) return;
+        Object.keys(this._clipboardHandlers).forEach((name) => {
+            document.removeEventListener(name, this._clipboardHandlers[name]);
+        });
+        this._clipboardHandlers = null;
+    }
+
+    static _textField(el) {
+        return (el && el.closest && el.closest('input:not([type=checkbox]):not([type=radio]),'
+            + 'textarea,[contenteditable=""],[contenteditable="true"]')) || null;
+    }
+
+    static _hasTextSelection(field) {
+        if (field._ggAutoSelected) return false;
+        if (typeof field.selectionStart === 'number') return field.selectionStart !== field.selectionEnd;
+        return !!(typeof window !== 'undefined' && window.getSelection && String(window.getSelection()));
+    }
+
+    _inBlankRow(el) {
+        const dom = (tile) => tile && tile.domNode && tile.domNode();
+        const phantom = dom(this.phantomTile);
+        const entry = !this._editingKey && dom(this.entryTile);
+        return !!el && [phantom, entry].some((d) => d && d.contains && d.contains(el));
+    }
+
+    _copyFromRow(pkey) {
+        // the kebab of a selected row copies the whole selection
+        const selection = this.groupSelection();
+        if (selection.some((e) => e.grid === this && e.rowKeys.includes(pkey))) {
+            this.copyRows(null, selection);
+        } else {
+            this.copyRows([pkey]);
+        }
+    }
+
+    _rowsAsText(selection) {
+        const Ctrl = gnr.GroupletGridController;
+        const {cols, rows} = this._selectionTable(selection);
+        if (!cols.length || !rows.length) return null;
+        return [cols.map((c) => c.label)].concat(rows)
+            .map((l) => l.map((v) => Ctrl.copyCell(v)).join('\t')).join('\n') + '\n';
+    }
+
+    _selectionTable(selection) {
+        // the copied columns, each with its dtype, and the raw values of
+        // the selected rows in store order
+        const Ctrl = gnr.GroupletGridController;
+        const cols = this._copyColumns(this._copyFields(selection));
+        const rows = [];
+        selection.forEach(({grid, rowKeys}) => {
+            grid.dataStore.getData().keys().filter((k) => rowKeys.includes(k)).forEach((k) => {
+                const row = grid.dataStore.rowValue(k);
+                rows.push(cols.map((c) => (row instanceof gnr.GnrBag) ? row.getItem(c.path) : null));
+            });
+        });
+        cols.forEach((c, i) => {
+            if (!c.dtype || c.dtype === 'T') c.dtype = Ctrl._dtypeOf(rows.map((r) => r[i]), c.format);
+        });
+        return {cols, rows};
+    }
+
+    static _dtypeOf(values, format) {
+        // a column with no declared type takes it from its values, so that
+        // numbers and dates stay numbers and dates in the export; a format
+        // keeps whole amounts decimal
+        const known = values.filter((v) => v !== null && v !== undefined && v !== '');
+        if (!known.length) return null;
+        if (known.every((v) => v instanceof Date)) return 'D';
+        if (known.every((v) => typeof v === 'boolean')) return 'B';
+        if (known.every((v) => typeof v === 'number')) {
+            return (known.every(Number.isInteger) && !format) ? 'L' : 'N';
+        }
+        return null;
+    }
+
+    _selectionOrAll(rowKeys, selection) {
+        selection = selection || [{grid: this, rowKeys: rowKeys || this._selectedKeys()}];
+        return selection.some((e) => e.rowKeys.length)
+            ? selection : [{grid: this, rowKeys: this.dataStore.getData().keys()}];
+    }
+
+    // ====================================================================
+    //  Export and print — the selected rows, or all of them, with the
+    //  copied columns: an Excel file through the framework's grid export,
+    //  a table printed from a hidden frame
+    // ====================================================================
+
+    exportRows(rowKeys, selection) {
+        const {cols, rows} = this._selectionTable(this._selectionOrAll(rowKeys, selection));
+        if (!cols.length || !rows.length) return;
+        const struct = new gnr.GnrBag();
+        cols.forEach((c, i) => {
+            const attr = {field: 'c_' + i, name: c.label};
+            if (c.dtype) attr.dtype = c.dtype;
+            struct.setItem('view_0.rows_0.cell_' + i, null, attr);
+        });
+        const data = new gnr.GnrBag();
+        rows.forEach((r, n) => {
+            const attr = {};
+            r.forEach((v, i) => { attr['c_' + i] = v; });
+            data.setItem('r_' + n, null, attr);
+        });
+        genro.serverCall('app.includedViewAction',
+                         {action: 'export', export_mode: 'xls', struct: struct, data: data, datamode: 'attr',
+                          localized_data: true, downloadAs: this.nodeId + '_export'},
+                         (url) => genro.download(url));
+    }
+
+    printRows(rowKeys, selection) {
+        const Ctrl = gnr.GroupletGridController;
+        const {cols, rows} = this._selectionTable(this._selectionOrAll(rowKeys, selection));
+        if (!cols.length || !rows.length) return;
+        const frame = document.createElement('iframe');
+        frame.style.display = 'none';
+        document.body.appendChild(frame);
+        const doc = frame.contentDocument;
+        doc.title = document.title;
+        doc.head.appendChild(doc.createElement('style')).textContent = PRINT_CSS;
+        const table = doc.body.appendChild(doc.createElement('table'));
+        const line = (section, tag, values) => {
+            const tr = section.appendChild(doc.createElement('tr'));
+            values.forEach((v, i) => {
+                const cell = tr.appendChild(doc.createElement(tag));
+                cell.textContent = v;
+                if (['N', 'L', 'I', 'R', 'F'].includes(cols[i].dtype)) cell.className = 'num';
+            });
+        };
+        line(table.appendChild(doc.createElement('thead')), 'th', cols.map((c) => c.label));
+        const body = table.appendChild(doc.createElement('tbody'));
+        rows.forEach((r) => line(body, 'td', r.map((v, i) => Ctrl.printCell(v, cols[i]))));
+        frame.contentWindow.addEventListener('afterprint', () => frame.remove());
+        genro.dom.iFramePrint(frame);
+    }
+
+    static printCell(value, col) {
+        if (value === null || value === undefined) return '';
+        if (typeof value === 'boolean') return value ? '✓' : '';
+        if (value instanceof Date || typeof value === 'number') {
+            return String(genro.format(value, {dtype: col.dtype, format: col.format}));
+        }
+        return String(value);
+    }
+
+    _copyFields(selection) {
+        // the fields of every copied row: their nested rows differ
+        if (this.structAdapter) return [];
+        const Ctrl = gnr.GroupletGridController;
+        const fields = Ctrl._uniqueFields([].concat(...selection.map(({grid, rowKeys}) => rowKeys.map(
+            (k) => (grid.tiles && grid.tiles[k]) ? grid._rowFields(grid.tiles[k]) : []))));
+        return fields.length ? fields : this._firstRowFields();
+    }
+
+    _gridFields() {
+        const tiles = [this.phantomTile, this.entryTile].concat(Object.values(this.tiles || {}));
+        return gnr.GroupletGridController._uniqueFields(tiles.map((t) => t ? this._rowFields(t) : []));
+    }
+
+    _firstRowFields() {
+        const tiles = [this.phantomTile, this.entryTile].concat(Object.values(this.tiles || {}));
+        for (const tile of tiles) {
+            const fields = tile ? this._rowFields(tile) : [];
+            if (fields.length) return fields;
+        }
+        return [];
+    }
+
+    _copyColumns(fields) {
+        // struct: every column, computed ones too; else the row's fields
+        const Ctrl = gnr.GroupletGridController;
+        if (this.structAdapter) {
+            return this.structAdapter.cells.map((c) => ({
+                path: c.field,
+                label: String(_T((c.name || '').trim() || c.field)),
+                labels: Ctrl._labelKeys([c.field, c.name]),
+                dtype: c.dtype,
+                format: c.format
+            }));
+        }
+        return fields.map((f) => ({
+            path: f.path,
+            label: f.label ? String(_T(f.label)) : f.path,
+            labels: f.labels,
+            dtype: f.node && f.node.attr.dtype,
+            format: f.node && f.node.attr.format
+        }));
+    }
+
+    static copyCell(value) {
+        // Read back by pasteValue: booleans as 1/0, dates ISO, numbers in
+        // the locale without grouping.
+        let t;
+        if (value === null || value === undefined) t = '';
+        else if (typeof value === 'boolean') t = value ? '1' : '0';
+        else if (value instanceof Date) {
+            t = [value.getFullYear(), value.getMonth() + 1, value.getDate()]
+                .map((n, i) => String(n).padStart(i ? 2 : 4, '0')).join('-');
+        } else if (typeof value === 'number') t = dojo.number.format(value, {pattern: '#0.##########'});
+        else t = String(value);
+        return /[\t\n\r"]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;
     }
 
     _wirePhantomDnD(phantomDom) {
@@ -3393,6 +4797,10 @@ gnr.GroupletGridController = class GroupletGridController {
                     if (origResource) {
                         this.templateSources[origResource] = source;
                     }
+                    if (node.attr && node.attr.card) {
+                        this.templateCards[node.label] = node.attr.card;
+                        if (origResource) this.templateCards[origResource] = node.attr.card;
+                    }
                 });
                 flush();
             });
@@ -3422,6 +4830,11 @@ gnr.GroupletGridController = class GroupletGridController {
         return root;
     }
 };
+
+gnr.GroupletGridController._selectionGroups = {};
+gnr.GroupletGridController._lastSelected = null;
+gnr.GroupletGridController._collapsedState = {};
+gnr.GroupletGridController._entryGrids = new Set();
 
 gnr.GroupletGridController._FORMULA_WORDS = new Set([
     'Math', 'Number', 'String', 'Date', 'JSON', 'parseInt', 'parseFloat',
@@ -3455,11 +4868,14 @@ gnr.GroupletGridTile = class GroupletGridTile {
         this.isActive = false;
         this.isDragging = false;
         this.hasDelete = false;
+        this.hasCopy = false;
         this.editmenuSpec = null;
         this.dragEnabled = false;
         this.position = null;
         this._tileDnDHandlers = null;
         this._handleDnDHandlers = null;
+        // the chrome band with chromeSide, a gnr.GroupletCard
+        this.card = null;
     }
 
     mount(position) {
@@ -3476,7 +4892,8 @@ gnr.GroupletGridTile = class GroupletGridTile {
         this._resolveDecorations();
         this._mountWrapper();
         this.tileNode.freeze();
-        this._mountDragHandle();
+        if (this._usesBand()) this._mountBand();
+        else this._mountDragHandle();
         this.tileNode.unfreeze();
         this.mounted = true;
     }
@@ -3500,6 +4917,9 @@ gnr.GroupletGridTile = class GroupletGridTile {
         // cache this.form and get cleanly unregistered on teardown.
         this.controller._reproxyForm(this.tileContent);
         this.bodyMounted = true;
+        const focus = this._afterBodyMount;
+        this._afterBodyMount = null;
+        if (focus) setTimeout(focus, 0);
     }
 
     rebuild() {
@@ -3535,6 +4955,8 @@ gnr.GroupletGridTile = class GroupletGridTile {
         if (this.controller.dnd) this.controller.dnd.unwireAppendTarget(this.tileDom);
         this._unwireTileDnD();
         this._unwireHandleDnD();
+        if (this.card) this.card.destroy();
+        this.card = null;
         // popNode does not propagate form de-registration to the grafted
         // widgets, so unregister them explicitly (symmetric with the
         // _reproxyForm done at mount). Otherwise they linger in the form
@@ -3591,8 +5013,11 @@ gnr.GroupletGridTile = class GroupletGridTile {
 
     _resolveDecorations() {
         const c = this.controller;
+        this.profile = c._cardProfile(this.templateKey);
+        this.delitem = ('delitem' in this.profile) ? this.profile.delitem : c.delitem;
         // template rows are deleted from the entry row
-        this.hasDelete = !!c.delitem && !c.rowTemplate;
+        this.hasDelete = !!this.delitem && !c.rowTemplate;
+        this.hasCopy = !!c.copyitem && !c.rowTemplate;
         this.dragEnabled = !!c.dragCode;
         const editmenu = c.editmenu;
         this.editmenuSpec = (editmenu && typeof editmenu === 'object'
@@ -3619,6 +5044,8 @@ gnr.GroupletGridTile = class GroupletGridTile {
         const pkey = this.pkey;
         const tile = this;
         let tileClass = 'grouplet_grid_row';
+        if (this._usesBand()) tileClass += ' grouplet_card grouplet_card--chrome-' + c.chromeSide;
+        if (this.profile && this.profile.wide) tileClass += ' grouplet_grid_row--wide';
         if (c._isTabsLayout() && c.activePkey === pkey) {
             tileClass += ' grouplet_grid_tab_active';
             this.isActive = true;
@@ -3629,11 +5056,25 @@ gnr.GroupletGridTile = class GroupletGridTile {
             nodeId: this.tileNodeId,
             connect_onclick: function(evt) {
                 const onChrome = evt && evt.target && evt.target.closest
-                    && evt.target.closest('.grouplet_grid_row_delete,'
+                    && evt.target.closest('.grouplet_grid_row_delete,.grouplet_grid_row_copy,'
                         + '.grouplet_grid_row_kebab,.grouplet_grid_row_drag,'
-                        + '.grouplet_grid_row_check');
-                if (c.rowTemplate && !onChrome) c._onTemplateRowClick(pkey, evt);
-                else c.selectTile(pkey);
+                        + '.grouplet_grid_row_check,.grouplet_grid_row_collapse,'
+                        + '.grouplet_card_chevron,.grouplet_card_doc,'
+                        + '.grouplet_card_kebab,.grouplet_card_check');
+                if (c.rowTemplate && !onChrome) {
+                    c._onTemplateRowClick(pkey, evt);
+                } else if (!onChrome && c._clickSelects(evt)) {
+                    // the innermost row takes the click: the rows around it keep theirs
+                    evt._groupletSelected = true;
+                    c._onRowClickSelect(pkey, evt);
+                } else if (!onChrome && c._clickClearsSelection(evt)) {
+                    // a plain click leaves the selection for this row alone, unticked
+                    evt._groupletSelected = true;
+                    c.clearSelection(true);
+                    c.selectTile(pkey);
+                } else {
+                    c.selectTile(pkey);
+                }
             }
         };
         tileKw.onCreated = function(domnode) {
@@ -3648,9 +5089,71 @@ gnr.GroupletGridTile = class GroupletGridTile {
                 tile._wireTileDnD(tile.tileDom);
             }
             if (c.phantom && tile.tileDom) tile._wireDropIfEmpty(tile.tileDom);
+            if (tile.tileDom && !tile._usesRowTemplate()) {
+                tile.tileDom.addEventListener('paste', (e) => c._onRowsPaste(e, tile));
+            }
+            // with a band, its own onCreated places them
+            if (tile._usesBand()) return;
             if (c.rowCheckbox && tile.tileDom) tile._mountCheckbox(tile.tileDom);
+            if (c.collapsible && !c.rowTemplate && !c.structAdapter && tile.tileDom) {
+                tile._mountCollapse(tile.tileDom);
+            }
         };
         return tileKw;
+    }
+
+    _usesBand() {
+        // cards gather their chrome in one band along a side, the band
+        // being the drag source; line rows keep a gutter
+        const c = this.controller;
+        return !!c.chromeSide && !c.structAdapter && !c._isTabsLayout()
+            && !this._usesRowTemplate();
+    }
+
+    _mountBand() {
+        const c = this.controller;
+        const pkey = this.pkey;
+        const tile = this;
+        const profile = this.profile;
+        this.card = new gnr.GroupletCard({
+            tools: profile.tools,
+            rootDom: () => tile.domNode(),
+            // the summary line's title, shown in the band open or folded
+            title: (profile.title || c.titleField)
+                ? (dom) => c._renderTitle(dom, profile.title, pkey) : null,
+            doc: gnr.GroupletCard.docSpec(profile.doc, () => c.dataStore.rowValue(pkey), profile.doc_kw),
+            collapsedClasses: ['grouplet_grid_row--collapsed', 'grouplet_card--collapsed'],
+            collapse: c.collapsible ? {
+                isCollapsed: () => c.isCollapsed(pkey),
+                toggle: () => c.toggleCollapsed(pkey),
+                expand: () => c.setCollapsed(pkey, false)
+            } : null,
+            checkbox: c.rowCheckbox ? {
+                isChecked: () => !!(c._multiKeys && c._multiKeys.includes(pkey)),
+                onClick: (e) => c._onRowCheck(pkey, e),
+                onKeydown: (e) => { if (e.key === 'Escape') c._onMultiKeydown(e); }
+            } : null,
+            drag: this.dragEnabled ? {
+                start: (e) => c.dnd.tileDragStart(e, tile.tileDom, pkey),
+                end: () => c.dnd.tileDragEnd(tile.tileDom)
+            } : null
+        });
+        this.card.mount(this.tileContent, '_grtile_band_' + pkey);
+    }
+
+    _chromeContent() {
+        return this.card ? this.card.bandContent : this.tileContent;
+    }
+
+    _bandMenuSpec() {
+        // the band's kebab: the editmenu entries, then Copy, then Delete
+        // when rows can be deleted (it takes the place of the trash)
+        const spec = objectUpdate({}, this.editmenuSpec || {});
+        const del = spec['delete'];
+        delete spec['delete'];
+        if (!('copy' in spec)) spec.copy = true;
+        if (this.hasDelete) spec['delete'] = (del && del !== true) ? del : true;
+        return spec;
     }
 
     _mountCheckbox(tileDom) {
@@ -3664,7 +5167,36 @@ gnr.GroupletGridTile = class GroupletGridTile {
         box.setAttribute('aria-label', _T('!!Select row'));
         box.checked = !!(c._multiKeys && c._multiKeys.includes(pkey));
         box.addEventListener('click', (e) => c._onRowCheck(pkey, e));
+        box.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') c._onMultiKeydown(e);
+        });
         tileDom.insertBefore(box, tileDom.firstChild);
+    }
+
+    _mountCollapse(tileDom) {
+        // Plain DOM like the checkbox: the toggle and the summary line shown
+        // while folded; the controller holds the state.
+        const c = this.controller;
+        const pkey = this.pkey;
+        const toggle = document.createElement('div');
+        toggle.className = 'grouplet_grid_row_collapse';
+        toggle.setAttribute('role', 'button');
+        toggle.tabIndex = 0;
+        toggle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            c.toggleCollapsed(pkey);
+        });
+        toggle.addEventListener('keydown', (e) => {
+            if (e.key !== 'Enter' && e.key !== ' ') return;
+            e.preventDefault();
+            c.toggleCollapsed(pkey);
+        });
+        const line = document.createElement('div');
+        line.className = 'grouplet_grid_row_summaryline';
+        line.addEventListener('click', () => c.setCollapsed(pkey, false));
+        tileDom.insertBefore(line, tileDom.firstChild);
+        tileDom.insertBefore(toggle, tileDom.firstChild);
+        c._applyCollapsed(pkey);
     }
 
     _wireDropIfEmpty(tileDom) {
@@ -3753,19 +5285,38 @@ gnr.GroupletGridTile = class GroupletGridTile {
     }
 
     _mountChrome() {
-        this._mountDelete();
+        if (!this.card) {
+            this._mountDelete();
+            this._mountCopy();
+        }
         this._mountKebab();
     }
 
+    _toolClass(baseClass, tool) {
+        // the right-hand tools sit side by side, slot 0 at the edge; a
+        // card's kebab stays apart, halfway down the card
+        const tools = [];
+        if (this.controller.structAdapter && this.editmenuSpec) tools.push('kebab');
+        if (this.hasDelete) tools.push('delete');
+        if (this.hasCopy) tools.push('copy');
+        const slot = tools.indexOf(tool);
+        return slot > 0 ? baseClass + ' grouplet_grid_tool_slot_' + slot : baseClass;
+    }
+
     _destroyChrome() {
-        if (!this.tileContent) return;
+        const content = this.tileContent && this._chromeContent();
+        if (!content) return;
         const delLabel = '_grtile_del_' + this.pkey;
+        const copyLabel = '_grtile_copy_' + this.pkey;
         const kebabLabel = '_grtile_kebab_' + this.pkey;
-        if (this.tileContent.getNode(delLabel, 'static')) {
-            this.tileContent.popNode(delLabel);
+        if (content.getNode(delLabel, 'static')) {
+            content.popNode(delLabel);
         }
-        if (this.tileContent.getNode(kebabLabel, 'static')) {
-            this.tileContent.popNode(kebabLabel);
+        if (content.getNode(copyLabel, 'static')) {
+            content.popNode(copyLabel);
+        }
+        if (content.getNode(kebabLabel, 'static')) {
+            content.popNode(kebabLabel);
         }
     }
 
@@ -3774,24 +5325,39 @@ gnr.GroupletGridTile = class GroupletGridTile {
         const c = this.controller;
         const pkey = this.pkey;
         const topic = c.actionTopic;
+        const delClass = this._toolClass('grouplet_grid_row_delete', 'delete');
         const delKw = objectUpdate({
-            _class: 'grouplet_grid_row_delete',
+            _class: delClass,
             tip: _T('!!Delete row'),
             connect_onclick: "genro.publish('" + topic + "',"
                             + "{action:'delete',rowKey:'" + pkey + "'});"
         }, c.delitemKw || {});
         if (c.delitemKw && c.delitemKw._class) {
-            delKw._class = 'grouplet_grid_row_delete '
-                         + c.delitemKw._class;
+            delKw._class = delClass + ' ' + c.delitemKw._class;
         }
         this.tileContent._('div', '_grtile_del_' + pkey, delKw);
     }
 
+    _mountCopy() {
+        if (!this.hasCopy) return;
+        const c = this.controller;
+        const pkey = this.pkey;
+        const topic = c.actionTopic;
+        const copyClass = this._toolClass('grouplet_grid_row_copy', 'copy');
+        const copyKw = objectUpdate({
+            _class: copyClass,
+            tip: _T('!!Copy row'),
+            connect_onclick: "genro.publish('" + topic + "',"
+                            + "{action:'copy',rowKey:'" + pkey + "'});"
+        }, c.copyitemKw || {});
+        if (c.copyitemKw && c.copyitemKw._class) {
+            copyKw._class = copyClass + ' ' + c.copyitemKw._class;
+        }
+        this.tileContent._('div', '_grtile_copy_' + pkey, copyKw);
+    }
+
     _mountKebab() {
-        // editmenu = {entryKey: True | 'label' | {label,action,...}}.
-        // True = preset (addPrev/addNext/delete), string overrides the
-        // label, dict shallow-merges over the preset.
-        const editmenu = this.editmenuSpec;
+        const editmenu = this.card ? this._bandMenuSpec() : this.editmenuSpec;
         if (!editmenu) return;
         const c = this.controller;
         const pkey = this.pkey;
@@ -3807,51 +5373,35 @@ gnr.GroupletGridTile = class GroupletGridTile {
                 action: "genro.publish('" + topic + "',"
                       + "{action:'add',position:'>" + pkey + "'});"
             },
+            copy: {
+                label: '^' + c.controllerPath + '.row_menu.copy_label',
+                iconClass: 'iconbox copy duplicate_record',
+                action: "genro.publish('" + topic + "',"
+                      + "{action:'copy',rowKey:'" + pkey + "'});"
+            },
             'delete': {
-                label: _T('!!Delete'),
+                label: '^' + c.controllerPath + '.row_menu.delete_label',
+                iconClass: 'iconbox trash',
+                _class: 'grouplet_grid_menu_danger',
+                // set as the menu opens: locked form, or minRows reached
+                disabled: '^' + c.controllerPath + '.row_menu.delete_locked',
                 action: "genro.publish('" + topic + "',"
                       + "{action:'delete',rowKey:'" + pkey + "'});"
             }
         };
-        const kebabId = '__grpgridtilemenu__' + c.nodeId + '__' + pkey;
+        const kebabClass = this.card ? 'grouplet_card_kebab'
+                                     : this._toolClass('grouplet_grid_row_kebab', 'kebab');
         const kebabKw = objectUpdate({
-            _class: 'grouplet_grid_row_kebab',
+            _class: kebabClass,
             tip: _T('!!Row actions'),
-            nodeId: kebabId
+            nodeId: '__grpgridtilemenu__' + c.nodeId + '__' + pkey,
+            connect_onmousedown: function() { c._refreshRowMenu(pkey); }
         }, c.editmenuKw || {});
         if (c.editmenuKw && c.editmenuKw._class) {
-            kebabKw._class = 'grouplet_grid_row_kebab '
-                           + c.editmenuKw._class;
+            kebabKw._class = kebabClass + ' ' + c.editmenuKw._class;
         }
-        this.tileContent._('div', '_grtile_kebab_' + pkey, kebabKw);
-        const kebabNode = this.tileContent.getNode('_grtile_kebab_' + pkey);
-        const kebabContent = kebabNode.getValue();
-        kebabContent._('div', 'glyph', {
-            _class: 'grouplet_grid_kebab_icon',
-            innerHTML: '⋮'
-        });
-        const menu = kebabContent._('menu', {
-            modifiers: '*',
-            _class: 'smallmenu grouplet_grid_row_menu'
-        });
-        Object.keys(editmenu).forEach((entryKey) => {
-            const raw = editmenu[entryKey];
-            if (raw === false || raw === null || raw === undefined) return;
-            const preset = presets[entryKey] || null;
-            let spec;
-            if (raw === true) {
-                if (!preset) return;
-                spec = preset;
-            } else if (typeof raw === 'string') {
-                spec = objectUpdate({}, preset || {});
-                spec.label = raw;
-            } else if (typeof raw === 'object') {
-                spec = objectUpdate({}, preset || {});
-                objectUpdate(spec, raw);
-            }
-            if (!spec || !spec.label) return;
-            menu._('menuline', spec);
-        });
+        gnr.GroupletCard.buildKebab(this._chromeContent(), '_grtile_kebab_' + pkey, editmenu, presets, kebabKw,
+                                    this.card ? 'grouplet_card_kebab_icon' : 'grouplet_grid_kebab_icon');
     }
 
     _mountBody() {
@@ -3902,9 +5452,10 @@ gnr.GroupletGridTile = class GroupletGridTile {
         if (!this.tileContent) return;
         const delLabel = '_grtile_del_' + this.pkey;
         const kebabLabel = '_grtile_kebab_' + this.pkey;
+        const bandLabel = '_grtile_band_' + this.pkey;
         const labelsToRemove = [];
         this.tileContent.getNodes().forEach((n) => {
-            if (n.label === delLabel || n.label === kebabLabel) return;
+            if (n.label === delLabel || n.label === kebabLabel || n.label === bandLabel) return;
             labelsToRemove.push(n.label);
         });
         labelsToRemove.forEach((lbl) => this.tileContent.popNode(lbl));
@@ -3934,8 +5485,13 @@ gnr.GroupletGridPhantomTile = class GroupletGridPhantomTile extends gnr.Grouplet
 
     _resolveDecorations() {
         this.hasDelete = false;
+        this.hasCopy = false;
         this.dragEnabled = false;
         this.editmenuSpec = null;
+    }
+
+    _usesBand() {
+        return false;
     }
 
     _mountWrapper() {
@@ -4039,6 +5595,7 @@ gnr.GroupletGridEntryTile = class GroupletGridEntryTile extends gnr.GroupletGrid
                         (e) => c._onEntryKeydown(e), true);
                     tile.tileDom.addEventListener('focusin', (e) => {
                         c._entryWidget = dijit.getEnclosingWidget(e.target);
+                        c._refreshEntryDefaults();
                     });
                     tile.tileDom.addEventListener('paste', (e) => c._onBlankPaste(e, tile));
                 }

@@ -508,6 +508,7 @@
     --gg-entry-btn-bg: var(--entry-btn-bg, rgba(0, 0, 0, 0.07));
     --gg-entry-btn-hover-bg: var(--entry-btn-hover-bg, rgba(0, 0, 0, 0.13));
     --gg-trash-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M6 1h4l.5 1H14v1.5H2V2h3.5zM3 5h10l-.8 9.2a1 1 0 0 1-1 .8H4.8a1 1 0 0 1-1-.8zm3 2v6h1.2V7zm2.8 0v6H10V7z'/%3E%3C/svg%3E");
+    --gg-copy-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill-rule='evenodd' d='M5 4h8a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1zm.5 1.5v8h7v-8zM3 1h8v1.5H3.5V11H2V2a1 1 0 0 1 1-1z'/%3E%3C/svg%3E");
     --gg-pin-icon: var(--icon-pin);
     --gg-text-muted: var(--text-secondary, #6b7280);
     /* struct= chrome (Item 12): dark header strip + spreadsheet-style
@@ -663,6 +664,18 @@
     max-width: calc(var(--gg-cols, 1) * var(--gg-min-width, 280px)
                     + (var(--gg-cols, 1) - 1) * var(--gg-gap, 12px));
 }
+/* fillRow: the cards share the whole row, up to --gg-cols of them, so a
+   lone card takes it all; a track is never narrower than a cols-th of the
+   row, which keeps the cap, and auto-fit drops the empty ones. */
+.grouplet_grid_container.grouplet_grid_responsive.grouplet_grid--fillrow > .grouplet_grid_body {
+    grid-template-columns: repeat(auto-fit, minmax(max(var(--gg-min-width, 280px),
+        calc((100% - (var(--gg-cols, 1) - 1) * var(--gg-gap, 12px)) / var(--gg-cols, 1))), 1fr));
+    max-width: none;
+}
+/* a card whose grouplet declares card=dict(wide=True) takes the whole row */
+.grouplet_grid_responsive > .grouplet_grid_body > .grouplet_grid_row--wide {
+    grid-column: 1 / -1;
+}
 
 /* --- Row blocchetto card ---
    Layout: position:relative + padding orizzontale per kebab (dx) e drag
@@ -787,11 +800,20 @@
     user-select: none;
 }
 
+/* a card's handle sits by its first line, not halfway down a tall card */
+.grouplet_grid:not(.grouplet_grid--templated, .grouplet_grid--struct, .grouplet_grid--tabs)
+    > .grouplet_grid_body > .grouplet_grid_row > .grouplet_grid_row_drag {
+    top: 0.6em;
+    transform: none;
+}
+
 /* Per-row delete button — opt-in via `delitem=True`: a light trash at
    the top-right corner of the card, red on hover. Always visible (no
    hover gate). Click publishes {action:'delete', rowKey} on the action
-   topic. The icon is a mask over `--x-color`, centred on the box. */
-.grouplet_grid_row_delete {
+   topic. The icon is a mask over `--x-color`, centred on the box.
+   `copyitem=True` adds its twin, publishing {action:'copy', rowKey}. */
+.grouplet_grid_row_delete,
+.grouplet_grid_row_copy {
     position: absolute;
     top: 6px;
     right: 6px;
@@ -808,7 +830,8 @@
     --x-color: var(--gg-text-muted, #9ca3af);
 }
 
-.grouplet_grid_row_delete::before {
+.grouplet_grid_row_delete::before,
+.grouplet_grid_row_copy::before {
     content: '';
     position: absolute;
     top: 50%;
@@ -821,20 +844,52 @@
     mask: var(--gg-trash-icon) center / contain no-repeat;
 }
 
+.grouplet_grid_row_copy::before {
+    -webkit-mask-image: var(--gg-copy-icon);
+    mask-image: var(--gg-copy-icon);
+}
+
 .grouplet_grid_row_delete:hover {
     background: var(--gg-danger-soft);
     --x-color: var(--gg-danger, #dc2626);
 }
 
-.gg-flat-rows .grouplet_grid_row_delete {
+.grouplet_grid_row_copy:hover {
+    background: var(--gg-accent-soft);
+    --x-color: var(--gg-accent);
+}
+
+.gg-flat-rows .grouplet_grid_row_delete,
+.gg-flat-rows .grouplet_grid_row_copy {
     display: none;
 }
 
-/* Struct-mode rows are flat / one-line tall — the default top:6px
-   anchor reads too high. Vertically centre the delete on the row instead. */
-.grouplet_grid--struct .grouplet_grid_row_delete {
+/* A card's top-right corner holds the trash, then the copy on its left */
+.grouplet_grid_row_copy.grouplet_grid_tool_slot_1 {
+    right: 30px;
+}
+
+/* Struct-mode rows are flat / one-line tall: the kebab, the trash and
+   the copy line up vertically centred, side by side from the right edge
+   (slot classes set by the tile); the row, header and footer reserve
+   the room of every tool so their columns keep aligned. Offsets in px:
+   the trash and the copy have font-size 0. */
+.grouplet_grid--struct .grouplet_grid_row_delete,
+.grouplet_grid--struct .grouplet_grid_row_copy,
+.grouplet_grid--struct .grouplet_grid_row_kebab {
     top: 50%;
+    right: 4px;
+    width: 20px;
+    height: 20px;
     transform: translateY(-50%);
+}
+
+.grouplet_grid--struct .grouplet_grid_tool_slot_1 {
+    right: 26px;
+}
+
+.grouplet_grid--struct .grouplet_grid_tool_slot_2 {
+    right: 48px;
 }
 
 /* Subtle delete — opt-in via `delitem_class='grouplet_grid_row_delete--subtle'`.
@@ -883,6 +938,26 @@
     transform: scale(0.98);
     transition: transform 160ms ease, opacity 160ms ease;
 }
+/* While dragged, the rows leave their place to the slot that opens where
+   they would land. Lifted is a transient drag state: it must win over any
+   display an application gives its rows. */
+.grouplet_grid_row.grouplet_grid_row--lifted {
+    display: none !important;
+}
+/* the open slot shows where the rows land: the grid under the pointer is
+   not tinted nor outlined (the framework's .canBeDropped would) */
+.grouplet_grid_body.canBeDropped:has(> .grouplet_grid_drop_slot) {
+    outline: none !important;
+    background-color: transparent !important;
+}
+.grouplet_grid_drop_slot {
+    box-sizing: border-box;
+    min-height: 2.4em;
+    border: 2px dashed var(--gg-accent);
+    border-radius: var(--radius-md);
+    background: var(--gg-accent-soft);
+    overflow: hidden;
+}
 
 /* Container-level cursor while a drag is active. The framework toggles
    `body.drag_started` on dragstart/dragend (genro_dom.js:1304/1095); we
@@ -916,6 +991,23 @@ body.drag_started .grouplet_grid_container {
     box-shadow: var(--shadow-lg, 0 4px 12px rgba(0,0,0,0.2));
 }
 
+/* several rows dragged: a count on the grabbed one */
+#auxDragImage > [data-gg-count]::after {
+    content: attr(data-gg-count);
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    z-index: 3;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    box-sizing: border-box;
+    border-radius: 10px;
+    background: var(--accent-color, #007AFF);
+    color: #fff;
+    font: 600 11px/20px system-ui, sans-serif;
+    text-align: center;
+}
 /* Struct-mode rows are stripped (no per-row border / radius / bg)
    so they integrate with the container card. The drag-image clone
    lives outside that container — restore enough chrome for the
@@ -1742,6 +1834,18 @@ body.drag_started .grouplet_grid_container {
     padding: 0 2em 0 1.8em;
 }
 
+.grouplet_grid--struct.grouplet_grid--tools-2 .grouplet_grid__struct_row,
+.grouplet_grid--struct.grouplet_grid--tools-2 > .grouplet_grid_slot_top > .grouplet_grid__struct_header,
+.grouplet_grid--struct.grouplet_grid--tools-2 > .grouplet_grid_slot_bottom > .grouplet_grid__struct_footer {
+    padding-right: 52px;
+}
+
+.grouplet_grid--struct.grouplet_grid--tools-3 .grouplet_grid__struct_row,
+.grouplet_grid--struct.grouplet_grid--tools-3 > .grouplet_grid_slot_top > .grouplet_grid__struct_header,
+.grouplet_grid--struct.grouplet_grid--tools-3 > .grouplet_grid_slot_bottom > .grouplet_grid__struct_footer {
+    padding-right: 74px;
+}
+
 /* Totalize footer: emitted by the adapter only when at least one cell
    declares `totalize=`. Each footer cell sits in the same grid column
    as its row counterpart (empty for non-totalize columns). Padding
@@ -1869,6 +1973,8 @@ body.drag_started .grouplet_grid_container {
 }
 /* body > row: outranks the formlet field rule (.gnrgridbox.formlet .dijitTextBox) */
 .grouplet_grid_body > .grouplet_grid_row--phantom .dijitTextBox,
+.grouplet_grid_body > .grouplet_grid_row--phantom .dijitComboBox,
+.grouplet_grid_body > .grouplet_grid_row--phantom .dijitSpinner,
 .grouplet_grid_body > .grouplet_grid_row--phantom .dijitTextArea,
 .grouplet_grid_body > .grouplet_grid_row--phantom textarea {
     border-style: dashed;
@@ -1937,6 +2043,7 @@ body.drag_started .grouplet_grid_container {
    sits under the header as a data row and keeps the normal look. */
 .grouplet_grid:not(.grouplet_grid--struct):not(.grouplet_grid--editing) > .grouplet_grid_slot_top > .grouplet_grid_entry > .grouplet_grid_row--entry:not(:focus-within) .dijitTextBox,
 .grouplet_grid:not(.grouplet_grid--struct):not(.grouplet_grid--editing) > .grouplet_grid_slot_top > .grouplet_grid_entry > .grouplet_grid_row--entry:not(:focus-within) .dijitComboBox,
+.grouplet_grid:not(.grouplet_grid--struct):not(.grouplet_grid--editing) > .grouplet_grid_slot_top > .grouplet_grid_entry > .grouplet_grid_row--entry:not(:focus-within) .dijitSpinner,
 .grouplet_grid:not(.grouplet_grid--struct):not(.grouplet_grid--editing) > .grouplet_grid_slot_top > .grouplet_grid_entry > .grouplet_grid_row--entry:not(:focus-within) .dijitTextArea,
 .grouplet_grid:not(.grouplet_grid--struct):not(.grouplet_grid--editing) > .grouplet_grid_slot_top > .grouplet_grid_entry > .grouplet_grid_row--entry:not(:focus-within) textarea {
     border-style: dashed;
@@ -2034,8 +2141,7 @@ body.drag_started .grouplet_grid_container {
 .grouplet_grid--entry:not(.grouplet_grid--struct) .grouplet_grid_row_trash {
     bottom: calc(var(--gg-entry-action-height) + 2 * var(--gg-entry-action-gap));
 }
-.grouplet_grid_row_trash::before,
-.grouplet_grid_trash_glyph {
+.grouplet_grid_row_trash::before {
     content: '';
     display: block;
     width: 12px;
@@ -2044,13 +2150,16 @@ body.drag_started .grouplet_grid_container {
     -webkit-mask: var(--gg-trash-icon) center / contain no-repeat;
     mask: var(--gg-trash-icon) center / contain no-repeat;
 }
-/* rowCheckbox: a checkbox before each row's drag handle; the one for all
-   in the struct header's gutter, or at the head of the selection bar. */
-.grouplet_grid--checkbox:not(.grouplet_grid--struct) > .grouplet_grid_body > .grouplet_grid_row,
+/* rowCheckbox: on line rows (struct, template) a checkbox before each
+   row's drag handle, the one for all in the struct header's gutter or at
+   the head of the selection bar; on cards in the chrome band. Always
+   shown, the drag handle too: a touch screen has no hover. */
+.grouplet_grid--checkbox.grouplet_grid--templated:not(.grouplet_grid--struct)
+    > .grouplet_grid_body > .grouplet_grid_row,
 .grouplet_grid--checkbox.grouplet_grid--struct .grouplet_grid__struct_row {
     padding-left: calc(1.8em + 20px);
 }
-.grouplet_grid--checkbox .grouplet_grid_row_drag {
+.grouplet_grid--checkbox:is(.grouplet_grid--templated, .grouplet_grid--struct) .grouplet_grid_row_drag {
     left: calc(0.4em + 20px);
 }
 .grouplet_grid_row_check,
@@ -2069,12 +2178,38 @@ body.drag_started .grouplet_grid_container {
     transform: translateY(-50%);
     z-index: 2;
 }
+/* corner chrome (chromeSide=False): a card's box by its first line, its
+   drag handle under it in one gutter */
+.grouplet_grid--checkbox:not(.grouplet_grid--templated, .grouplet_grid--struct)
+    > .grouplet_grid_body > .grouplet_grid_row {
+    padding-left: calc(1.2em + 13px);
+}
+.grouplet_grid--checkbox:not(.grouplet_grid--templated, .grouplet_grid--struct)
+    > .grouplet_grid_body > .grouplet_grid_row > .grouplet_grid_row_check {
+    top: 1.1em;
+    transform: none;
+}
+.grouplet_grid--checkbox:not(.grouplet_grid--templated, .grouplet_grid--struct)
+    > .grouplet_grid_body > .grouplet_grid_row > .grouplet_grid_row_drag {
+    top: calc(1.1em + 17px);
+    left: calc(0.6em + 6.5px - 0.75em);
+    transform: none;
+}
+.grouplet_grid_menu_danger,
+.grouplet_grid_menu_danger .dijitMenuItemLabel {
+    color: var(--gg-danger, #dc2626);
+}
+.grouplet_grid_menu_danger.dijitMenuItemDisabled,
+.grouplet_grid_menu_danger.dijitMenuItemDisabled .dijitMenuItemLabel {
+    color: var(--gg-text-muted, #9ca3af);
+}
 /* Several selected rows (`selectionmenu`): a bar below the rows, above
    the totals, with the delete as a button and the other actions in a kebab. */
 .grouplet_grid_selection {
     display: none;
 }
-.grouplet_grid--multi .grouplet_grid_selection {
+/* the grid's own bar: a grid nested in a selected row keeps its bar hidden */
+.grouplet_grid--multi > .grouplet_grid_slot_bottom > .grouplet_grid_selection {
     display: block;
 }
 /* above the body, or the rows would paint over the bar's shadow */
@@ -2104,7 +2239,6 @@ body.drag_started .grouplet_grid_container {
 .grouplet_grid_selection_hint::before {
     content: '· ';
 }
-.grouplet_grid_selection_delete,
 .grouplet_grid_selection_kebab {
     display: flex;
     align-items: center;
@@ -2116,9 +2250,6 @@ body.drag_started .grouplet_grid_container {
     background: var(--gg-entry-btn-bg);
     transition: background 160ms ease;
 }
-.grouplet_grid_selection_delete {
-    color: var(--gg-danger);
-}
 .grouplet_grid_selection_kebab {
     padding: 0;
     width: 26px;
@@ -2126,11 +2257,9 @@ body.drag_started .grouplet_grid_container {
     color: var(--gg-text, #374151);
 }
 .grouplet_grid_row_trash:hover,
-.grouplet_grid_selection_delete:hover,
 .grouplet_grid_selection_kebab:hover {
     background: var(--gg-entry-btn-hover-bg);
 }
-.grouplet_grid_selection_delete:focus-visible,
 .grouplet_grid_selection_kebab:focus-visible {
     outline: none;
     box-shadow: 0 0 0 1px var(--btn-filled-bg, #406b9b), 0 0 0 3px rgba(124, 92, 191, 0.2);
@@ -2220,3 +2349,357 @@ body.drag_started .grouplet_grid_container {
     overflow: hidden;
 }
 
+
+/* Collapsible cards (`collapsible=True|'closed'`): a chevron left of the
+   delete folds the card to its summary line; a click on the line opens it. */
+.grouplet_grid_row_collapse {
+    position: absolute;
+    top: 6px;
+    right: 30px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    cursor: pointer;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--gg-text-muted, #9ca3af);
+    transition: background 160ms ease;
+    user-select: none;
+}
+/* the glyph turns, not the box: a turned box would carry the glyph's
+   optical offset sideways */
+:is(.grouplet_grid_row_collapse, .grouplet_card_chevron)::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-right: 1.5px solid currentColor;
+    border-bottom: 1.5px solid currentColor;
+    transform: translateY(-1.5px) rotate(45deg);
+    transition: transform 180ms ease-out;
+}
+.grouplet_grid_row_collapse:hover {
+    background: var(--gg-surface-alt);
+    color: var(--gg-text, #374151);
+}
+.grouplet_grid_row_collapse:focus-visible {
+    outline: 2px solid var(--accent-color);
+    outline-offset: 1px;
+}
+/* like a tree: ▾ open, ▸ folded */
+.grouplet_grid_row--collapsed > .grouplet_grid_row_collapse::before,
+.grouplet_card--collapsed > .grouplet_card_band > .grouplet_card_chevron::before {
+    transform: translateX(-1.5px) rotate(-45deg);
+}
+.grouplet_grid_row_summaryline {
+    display: none;
+    min-height: 1.4em;
+    line-height: 1.4em;
+    padding-right: 2.6em;
+    cursor: pointer;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    color: var(--gg-text, #374151);
+}
+.grouplet_grid:not(.grouplet_grid--tabs) > .grouplet_grid_body > .grouplet_grid_row--collapsed {
+    padding-top: 0.45em;
+    padding-bottom: 0.45em;
+}
+/* among taller cards of its grid row a folded card keeps its own height */
+.grouplet_grid_responsive > .grouplet_grid_body > .grouplet_grid_row--collapsed {
+    align-self: start;
+}
+.grouplet_grid:not(.grouplet_grid--tabs) > .grouplet_grid_body > .grouplet_grid_row--collapsed
+    > .grouplet_grid_row_summaryline {
+    display: block;
+}
+/* on the one line, the chevron, the delete and the box sit on its middle */
+.grouplet_grid:not(.grouplet_grid--tabs) > .grouplet_grid_body > .grouplet_grid_row.grouplet_grid_row--collapsed
+    > :is(.grouplet_grid_row_collapse, .grouplet_grid_row_delete, .grouplet_grid_row_check) {
+    top: 50%;
+    transform: translateY(-50%);
+}
+.grouplet_grid:not(.grouplet_grid--tabs, .grouplet_grid--checkbox) > .grouplet_grid_body
+    > .grouplet_grid_row.grouplet_grid_row--collapsed > .grouplet_grid_row_drag {
+    top: 50%;
+    transform: translateY(-50%);
+}
+.grouplet_grid:not(.grouplet_grid--tabs) > .grouplet_grid_body > .grouplet_grid_row--collapsed
+    > :not(.grouplet_grid_row_summaryline, .grouplet_grid_row_collapse, .grouplet_grid_row_drag,
+           .grouplet_grid_row_delete, .grouplet_grid_row_check, .grouplet_grid_row_kebab,
+           .grouplet_card_band) {
+    display: none;
+}
+.grouplet_grid--tabs > .grouplet_grid_body > .grouplet_grid_row > .grouplet_grid_row_collapse {
+    display: none;
+}
+
+
+/* --- Card (`groupletCard`, and groupletGrid cards with `chromeSide`) ---
+   A chrome band along the top, left or right side: chevron, title and doc
+   first, then the kebab and the checkbox; the band is the drag source.
+   Larger on touch screens. A card alone (`grouplet_card--box`) looks like a
+   roundedGroup, so it can take one's place in a form. */
+.grouplet_card {
+    --gc-band: 28px;
+    --gc-band-icon: 20px;
+    --gc-band-check: 14px;
+    --gc-accent: var(--accent-color, #007AFF);
+    --gc-danger: var(--status-error, #E53935);
+    --gc-border: var(--border-color, #e5e7eb);
+    --gc-text: var(--text-color, #374151);
+    --gc-text-muted: var(--text-secondary, #6b7280);
+    --gc-hover-bg: var(--surface-alt, #f9fafb);
+    /* a field in error: a hint on the band that never reads as a selection */
+    --gc-invalid-bg: var(--status-error-faint, color-mix(in srgb, var(--gc-danger) 10%, transparent));
+    position: relative;
+}
+@media (pointer: coarse) {
+    .grouplet_card {
+        --gc-band: 44px;
+        --gc-band-icon: 32px;
+        --gc-band-check: 20px;
+    }
+}
+.grouplet_card_band {
+    position: absolute;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    box-sizing: border-box;
+    border: 0 solid var(--gc-border);
+}
+.grouplet_card_band[draggable='true'] {
+    cursor: grab;
+}
+.grouplet_card_band[draggable='true']:active {
+    cursor: grabbing;
+}
+.grouplet_card--chrome-top > .grouplet_card_band {
+    top: 0;
+    left: 0;
+    right: 0;
+    height: var(--gc-band);
+    padding: 0 10px 0 6px;
+    border-bottom-width: 1px;
+}
+.grouplet_card--chrome-left > .grouplet_card_band,
+.grouplet_card--chrome-right > .grouplet_card_band {
+    top: 0;
+    bottom: 0;
+    width: var(--gc-band);
+    flex-direction: column;
+    padding: 8px 0;
+}
+.grouplet_card--chrome-left > .grouplet_card_band {
+    left: 0;
+    border-right-width: 1px;
+}
+.grouplet_card--chrome-right > .grouplet_card_band {
+    right: 0;
+    border-left-width: 1px;
+}
+.grouplet_card--chrome-top {
+    padding-top: var(--gc-band);
+}
+.grouplet_card--chrome-left {
+    padding-left: var(--gc-band);
+}
+.grouplet_card--chrome-right {
+    padding-right: var(--gc-band);
+}
+.grouplet_card--invalid > .grouplet_card_band {
+    background: var(--gc-invalid-bg);
+}
+
+/* band order: chevron, title, doc | spacer | kebab, checkbox */
+.grouplet_card_band > .grouplet_card_chevron { order: -3; }
+.grouplet_card_band > .grouplet_card_title { order: -2; }
+.grouplet_card_band > .grouplet_card_doc { order: -1; }
+.grouplet_card_band > .grouplet_card_spacer { order: 1; flex: 1; }
+.grouplet_card_band > .grouplet_card_kebab { order: 3; }
+.grouplet_card_band > .grouplet_card_check { order: 4; }
+
+.grouplet_card_chevron,
+.grouplet_card_kebab {
+    flex: none;
+    width: var(--gc-band-icon);
+    height: var(--gc-band-icon);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    cursor: pointer;
+    user-select: none;
+    color: var(--gc-text-muted);
+    transition: background 160ms ease, color 160ms ease;
+}
+.grouplet_card_chevron:hover,
+.grouplet_card_kebab:hover {
+    background: var(--gc-hover-bg);
+    color: var(--gc-text);
+}
+.grouplet_card_chevron:focus-visible,
+.grouplet_card_doc:focus-visible {
+    outline: 2px solid var(--gc-accent);
+    outline-offset: 1px;
+}
+.grouplet_card_kebab_icon {
+    font-size: 1.4em;
+    font-weight: 700;
+    line-height: 1;
+}
+.grouplet_card_title {
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    font-weight: 600;
+    font-size: 0.9em;
+    color: var(--gc-text);
+}
+/* a side band has no room for a title: it shows on the folded card */
+:is(.grouplet_card--chrome-left, .grouplet_card--chrome-right):not(.grouplet_card--collapsed)
+    > .grouplet_card_band > .grouplet_card_title {
+    display: none;
+}
+.grouplet_card_doc {
+    flex: none;
+    width: 18px;
+    height: 18px;
+    margin-left: 4px;
+    border-radius: 50%;
+    display: flex;
+    cursor: pointer;
+    user-select: none;
+    color: var(--gc-text-muted);
+    transition: color 160ms ease;
+}
+/* the mask on the pseudo element: on the icon itself it would clip the focus ring */
+.grouplet_card_doc::before {
+    content: '';
+    flex: 1;
+    background: currentColor;
+    -webkit-mask: url('/_rsrc/common/css_icons/google_icons/info_light.svg') center / contain no-repeat;
+    mask: url('/_rsrc/common/css_icons/google_icons/info_light.svg') center / contain no-repeat;
+}
+.grouplet_card_doc:hover {
+    color: var(--gc-accent);
+}
+.grouplet_card_check {
+    flex: none;
+    margin: 0;
+    width: var(--gc-band-check);
+    height: var(--gc-band-check);
+    cursor: pointer;
+    accent-color: var(--btn-filled-bg, #406b9b);
+}
+
+/* folded: the card is its band */
+.grouplet_card--collapsed > :not(.grouplet_card_band) {
+    display: none;
+}
+.grouplet_card--collapsed {
+    padding: var(--gc-band) 0 0 0;
+}
+.grouplet_card--collapsed:is(.grouplet_card--chrome-left, .grouplet_card--chrome-right)
+    > .grouplet_card_band {
+    flex-direction: row;
+    bottom: auto;
+    left: 0;
+    right: 0;
+    width: auto;
+    height: var(--gc-band);
+    padding: 0 10px 0 6px;
+    border-width: 0;
+}
+
+/* in a groupletGrid: the tile keeps its card box; the selectors outweigh
+   the grid's row paddings (checkbox gutter, folded summary line) */
+.grouplet_grid > .grouplet_grid_body > .grouplet_grid_row.grouplet_card {
+    padding: 0.8em 0.9em;
+}
+.grouplet_grid > .grouplet_grid_body > .grouplet_grid_row.grouplet_card--chrome-top {
+    padding-top: calc(var(--gc-band) + 0.6em);
+}
+.grouplet_grid > .grouplet_grid_body > .grouplet_grid_row.grouplet_card--chrome-left {
+    padding-left: calc(var(--gc-band) + 0.8em);
+}
+.grouplet_grid > .grouplet_grid_body > .grouplet_grid_row.grouplet_card--chrome-right {
+    padding-right: calc(var(--gc-band) + 0.8em);
+}
+.grouplet_grid:not(.grouplet_grid--tabs) > .grouplet_grid_body > .grouplet_grid_row.grouplet_card--collapsed {
+    padding: var(--gc-band) 0 0 0;
+}
+.grouplet_grid_row.selected.grouplet_card {
+    background: var(--gg-accent-soft);
+}
+
+/* a card alone: a roundedGroup's box, its top band the group's label bar */
+.grouplet_card--box {
+    border: 1px solid var(--roundedgroup-border, var(--border-strong));
+    background: var(--roundedgroup-surface);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+}
+.grouplet_card--box > .grouplet_card_band {
+    background: var(--roundedgroup-bar);
+    color: var(--roundedgroup-bar-color);
+    border-color: var(--roundedgroup-border, var(--border-strong));
+}
+.grouplet_card--box.grouplet_card--chrome-top > .grouplet_card_band {
+    border-radius: calc(var(--radius-md) - 1px) calc(var(--radius-md) - 1px) 0 0;
+}
+.grouplet_card--box.grouplet_card--chrome-left > .grouplet_card_band {
+    border-radius: calc(var(--radius-md) - 1px) 0 0 calc(var(--radius-md) - 1px);
+}
+.grouplet_card--box.grouplet_card--chrome-right > .grouplet_card_band {
+    border-radius: 0 calc(var(--radius-md) - 1px) calc(var(--radius-md) - 1px) 0;
+}
+.grouplet_card--box.grouplet_card--collapsed > .grouplet_card_band {
+    border-radius: calc(var(--radius-md) - 1px);
+    border-width: 0;
+}
+.grouplet_card--box > .grouplet_card_band > .grouplet_card_title {
+    color: inherit;
+    font-weight: bold;
+}
+.grouplet_card--box.grouplet_card--invalid > .grouplet_card_band {
+    background: linear-gradient(var(--gc-invalid-bg), var(--gc-invalid-bg)), var(--roundedgroup-bar);
+}
+.grouplet_card_body {
+    padding: 0.6em 0.8em;
+}
+
+/* the doc popup, one for the page */
+.grouplet_card_doc_box {
+    padding: 10px 12px;
+}
+.grouplet_card_doc_title {
+    font-weight: 600;
+    margin-bottom: 0.4em;
+}
+.grouplet_card_doc_body {
+    max-width: 32em;
+    max-height: 60vh;
+    overflow: auto;
+    line-height: 1.45;
+    font-size: 0.92em;
+}
+.grouplet_card_doc_body img {
+    max-width: 100%;
+    height: auto;
+}
+.grouplet_card_doc_body :is(p, ul, ol) {
+    margin: 0.4em 0;
+}
+.grouplet_card_doc_body code {
+    padding: 0 0.25em;
+    border-radius: 3px;
+    background: var(--surface-alt, #f3f4f6);
+    font-size: 0.95em;
+}

@@ -37,6 +37,10 @@
                             ✓ instead of +), Enter saves it in place, Esc
                             gives up; a new contact being typed is set
                             aside meanwhile and comes back.
+  test_08_phantom_cards_in_form — phantom cards inside a memory form whose
+                            record is loaded with one row: the blank card
+                            has one label per field, like the stored card
+                            built from the same lbl'd formlet.
 """
 import datetime
 
@@ -262,6 +266,39 @@ class GnrCustomWebPage(object):
                             rowTemplate=self.CONTACT_TEMPLATE,
                             delitem=True,
                             defaultRow=dict(role='Sales'))
+
+    def test_08_phantom_cards_in_form(self, pane):
+        """Phantom card in a loaded form: one label per field, as in the stored card"""
+        drugs = Bag()
+        drugs.setItem('d_001', Bag(dict(drug='Amoxicillin', dose='1 g',
+                                        duration='6 days', as_needed=False,
+                                        notes='After meals')))
+        pane.data('.therapy', Bag(dict(title='Therapy', drugs=drugs)))
+        form = pane.frameForm(frameCode='phantom_cards_form',
+                              height='420px', width='100%',
+                              datapath='.phantomcardsform',
+                              border='1px solid silver')
+        form.formStore(storeType='Item', handler='memory',
+                       locationpath='.#parent.therapy')
+        form.top.slotToolbar('5,*,semaphore,locker,formcommands,5')
+        center = form.center.contentPane(datapath='.record', padding='10px')
+        center.groupletGrid(storepath='.drugs',
+                            handler=self.drug_card,
+                            nodeId='grpgrid_phantom_cards_form',
+                            cols=2, min_width='min(100%, 22em)',
+                            additem='phantom',
+                            additem_label='!!New drug',
+                            delitem=True)
+        center.dataController('this.form.load()', _onStart=True)
+
+    @public_method
+    def drug_card(self, pane, **kwargs):
+        fb = pane.formlet(cols='2fr 1fr')
+        fb.textbox(value='^.drug', lbl='Drug', validate_notnull=True)
+        fb.textbox(value='^.dose', lbl='Dose')
+        fb.textbox(value='^.duration', lbl='Duration')
+        fb.checkbox(value='^.as_needed', label='As needed')
+        fb.simpleTextArea(value='^.notes', lbl='Notes', colspan=2)
 
     @public_method
     def contact_line(self, pane, **kwargs):

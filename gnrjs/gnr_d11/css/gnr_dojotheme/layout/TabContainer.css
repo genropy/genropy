@@ -47,7 +47,7 @@
     background: var(--card-surface, #F2F2F7);
     color: var(--primary-color, #1E3055);
     font-weight: 400;
-    border: 1px solid var(--border-strong, #aab4c4);
+    border: 1px solid var(--roundedgroup-border, var(--border-strong, #aab4c4));
     border-bottom: none;
     border-radius: var(--radius-md) var(--radius-md) 0 0;
     box-shadow: none;
@@ -58,7 +58,7 @@
     background: var(--card-surface, #F2F2F7);
     color: var(--primary-color, #1E3055);
     font-weight: 400;
-    border: 1px solid var(--border-strong, #aab4c4);
+    border: 1px solid var(--roundedgroup-border, var(--border-strong, #aab4c4));
     border-bottom: none;
     border-radius: var(--radius-md) var(--radius-md) 0 0;
     box-shadow: none;
@@ -74,7 +74,7 @@
 
 /* --- Tab pane wrapper --- */
 .gnr_dojotheme .dijitTabPaneWrapper {
-    border: 1px solid var(--border-strong, #aab4c4);
+    border: 1px solid var(--roundedgroup-border, var(--border-strong, #aab4c4));
     border-radius: 0 var(--radius-md) var(--radius-md) var(--radius-md);
     background: var(--card-surface, #F2F2F7);
 }

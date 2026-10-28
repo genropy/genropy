@@ -126,18 +126,15 @@ class _SaxImporter(sax.handler.ContentHandler):
         self.currType = None
         self.currArray = None
 
-    def getValue(self, dtype=None):
+    def getValue(self):
         if self.valueList:
             if self.valueList[0] == '\n': self.valueList[:] = self.valueList[1:]
             if self.valueList:
                 if(self.valueList[-1] == '\n'): self.valueList.pop()
-        value = ''.join(self.valueList)
-        if dtype!='BAG':
-            value = saxutils.unescape(value)
-        return value
+        return ''.join(self.valueList)
 
     def startElement(self, tagLabel, attributes):
-        attributes = dict([(str(k), self.catalog.fromTypedText(saxutils.unescape(v))) for k, v in list(attributes.items())])
+        attributes = dict([(str(k), self.catalog.fromTypedText(v)) for k, v in list(attributes.items())])
         if  len(self.bags) == 1:
             if tagLabel.lower() == 'genrobag': self.format = 'GenRoBag'
             else: self.format = 'xml'
@@ -174,7 +171,7 @@ class _SaxImporter(sax.handler.ContentHandler):
        #if s != '': self.valueList.append(s)
 
     def endElement(self, tagLabel):
-        value = self.getValue(dtype = self.currType)
+        value = self.getValue()
         self.valueList = []
         dest = self.bags[-1][0]
         if (self.format == 'GenRoBag'):
@@ -486,7 +483,7 @@ class BagToXml(object):
         if tagName[0].isdigit(): tagName = '_' + tagName
 
         if tagName != originalTag:
-            result = '<%s _tag=%s' % (tagName, saxutils.quoteattr(saxutils.escape(originalTag)))
+            result = '<%s _tag=%s' % (tagName, saxutils.quoteattr(originalTag))
         else:
             result = '<%s' % tagName;
 
