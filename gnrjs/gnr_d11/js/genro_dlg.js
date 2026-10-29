@@ -913,19 +913,29 @@ dojo.declare("gnr.GnrDlgHandler", null, {
     docTrack: function(domNode, address) {
         // an icon of a doc address: shown when the doc exists, and red where it
         // is empty to a documenter in documentation mode. The addresses of the
-        // page go to sys/ep_doc in one request
+        // page go to sys/ep_doc in one request, its answers serve every page of
+        // the session for _docStateTtl
         domNode.setAttribute('data-doc-address', address);
         domNode.classList.add('doc_icon');
-        const states = this._docStates = this._docStates || {};
-        if (address in states) {
+        const state = this._docStateCache()[address];
+        const asked = this._docAsked = this._docAsked || new Set();
+        if ((state && state.expires > Date.now()) || asked.has(address)) {
             this.docApplyState(domNode);
             return;
         }
-        states[address] = null;
+        asked.add(address);
         (this._docPending = this._docPending || new Set()).add(address);
         if (!this._docPendingTimer) {
             this._docPendingTimer = setTimeout(() => this._docIndex(), 0);
         }
+    },
+
+    _docStateTtl: 300000,
+
+    _docStateCache: function() {
+        // the states of the doc addresses, kept by the main window for its iframes
+        const owner = genro.mainGenroWindow ? genro.mainGenroWindow.genro.dlg : this;
+        return owner._docStates = owner._docStates || {};
     },
 
     _docIndex: function() {
@@ -936,11 +946,17 @@ dojo.declare("gnr.GnrDlgHandler", null, {
             .then((response) => response.ok ? response.json() : null)
             .catch(() => null)
             .then((result) => {
-                result = result || {docs: {}, editable: []};
+                const states = this._docStateCache();
+                const expires = Date.now() + this._docStateTtl;
                 addresses.forEach((address) => {
-                    this._docStates[address] = {exists: address in result.docs,
-                                                editable: result.editable.indexOf(address) >= 0,
-                                                manual: (result.manual || []).indexOf(address) >= 0};
+                    this._docAsked.delete(address);
+                    // a failed request is asked again by the next page
+                    if (result) {
+                        states[address] = {exists: address in result.docs,
+                                           editable: result.editable.indexOf(address) >= 0,
+                                           manual: (result.manual || []).indexOf(address) >= 0,
+                                           expires: expires};
+                    }
                 });
                 this.docApplyStates();
             });
@@ -951,7 +967,7 @@ dojo.declare("gnr.GnrDlgHandler", null, {
     },
 
     docApplyState: function(domNode) {
-        const state = (this._docStates || {})[domNode.getAttribute('data-doc-address')] || {};
+        const state = this._docStateCache()[domNode.getAttribute('data-doc-address')] || {};
         const docMode = !!genro.getData('gnr.docModeVisible');
         const documented = !!state.exists || !!state.manual;
         domNode.classList.toggle('doc_icon--shown', documented || (!!state.editable && docMode));
@@ -1231,8 +1247,10 @@ dojo.declare("gnr.GnrDlgHandler", null, {
                     return;
                 }
                 delete this._docSources[address];
-                const state = this._docStates[address] || {};
-                this._docStates[address] = {exists: !!markdown.trim(), editable: true, manual: !!state.manual};
+                const states = this._docStateCache();
+                const state = states[address] || {};
+                states[address] = {exists: !!markdown.trim(), editable: true, manual: !!state.manual,
+                                   expires: Date.now() + this._docStateTtl};
                 this.docApplyStates();
                 dlg.close_action();
                 if (this._helpPanelAddress === address) {
