@@ -85,7 +85,7 @@ def localize_date(obj, locale, format=None, **kwargs):
     :param locale: the current locale (e.g: en, en_us, it)
     :param format: TODO"""
     format = format or 'short'
-    return dates.format_date(obj, format=format, locale=locale)
+    return dates.format_date(obj, format=format, locale=currentLocale(locale))
     
 def localize_boolean(obj, locale='en', format=None, **kwargs):
     format = format or 'tf'
@@ -104,7 +104,7 @@ def localize_datetime(obj, locale, format=None, **kwargs):
     :param locale: the current locale (e.g: en, en_us, it)
     :param format: TODO"""
     format = format or 'short'
-    return dates.format_datetime(obj, format=format, locale=locale)
+    return dates.format_datetime(obj, format=format, locale=currentLocale(locale))
     
 def localize_time(obj, locale, format=None, **kwargs):
     """TODO
@@ -114,7 +114,7 @@ def localize_time(obj, locale, format=None, **kwargs):
     :param format: TODO"""
     format = format or 'short'
     dt = datetime.datetime(1970, 1, 1, obj.hour, obj.minute, obj.second, obj.microsecond, obj.tzinfo)
-    return dates.format_time(obj, format=format, locale=locale)
+    return dates.format_time(obj, format=format, locale=currentLocale(locale))
     
 
 def localize_img(value, locale, format=None, **kwargs):
