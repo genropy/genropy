@@ -1,0 +1,91 @@
+<h2>Why grouplets</h2>
+<p class="lede">Grouplets are the GenroPy answer to forms that have to look different depending on what they are editing right now.</p>
+
+<h3>The problem</h3>
+<p>Real business forms are rarely uniform. A contact record needs different fields when the contact is a person, a company, or a supplier. An invoice row has one shape for goods, another for services, another for discounts. A configuration panel exposes different settings per module. The data in the record decides what the user should see, and the developer has to keep up.</p>
+<p>The first instinct is to pile everything into one giant form and gate each section with <code>if/else</code> on the record type. That works for two cases and collapses by the fifth: every new variant adds branches, every change to a shared field has to be hunted down across the cascade, and the form turns into a switchboard nobody wants to touch. The second instinct is partial templates loaded by hand — a snippet here, an included page there — but those fragments do not compose: each one assumes its own datapath, its own context, its own lifecycle, and stitching them together becomes the real work.</p>
+<p>What is missing is a unit small enough to be swapped at runtime, attached to a specific datapath, and ignorant of where it lives. That unit is the grouplet.</p>
+
+<h3>The shape of a grouplet</h3>
+<p>A grouplet is a modular UI fragment. You define it either as a Python <code>@public_method</code> handler living inside the webpage, or as a resource file under <code>resources/grouplets/</code> (page-scoped) or <code>resources/tables/&lt;table&gt;/grouplets/</code> (table-scoped). Either way, the fragment receives a <code>pane</code> and fills it with widgets. The whole engine is in <code>resources/common/gnrcomponents/grouplet/grouplet.py</code> — <code>gr_loadGrouplet</code> picks the source, mixes it in, and hands you the box.</p>
+<p>Every grouplet binds to a datapath through the <code>value=</code> parameter, and inside the fragment widgets reference fields with relative paths like <code>^.street</code> or <code>^.email</code>. That single rule is what makes grouplets compose: two grouplets on the same page get two different subtrees of the Bag, so their <code>^.name</code> never collide. Swap the resource and the new fragment lights up against the same subtree, picking up whatever the previous one left behind.</p>
+
+<h3>The family</h3>
+<div class="cards">
+  <div class="card">
+    <h4>grouplet</h4>
+    <p>The base widget. Loads one fragment at a datapath, by handler or by resource. Reach for it whenever a single chunk of UI has to vary with the data underneath.</p>
+  </div>
+  <div class="card">
+    <h4>groupletChunk</h4>
+    <p>An inline summary rendered through a template plus an edit button that pops a <code>memoryDataEditor</code>. Use it inside grids and dashboards where a compact preview opens a focused editor.</p>
+  </div>
+  <div class="card">
+    <h4>groupletForm</h4>
+    <p>A grouplet wrapped in a form with its own status, save lifecycle, and validation. Use it when the fragment edits a record and you want save/load semantics rather than raw Bag mutation.</p>
+  </div>
+  <div class="card">
+    <h4>groupletPanel</h4>
+    <p>A two-region layout — tree or multibutton on one side, the selected grouplet on the other. Use it for settings screens, admin consoles, or any place where the user picks a section and edits it.</p>
+  </div>
+  <div class="card">
+    <h4>groupletWizard</h4>
+    <p>A linear sequence of grouplets walked step by step, with optional summary page. Use it for onboarding flows, multi-step configurations, or any process the user has to complete in order.</p>
+  </div>
+  <div class="card">
+    <h4>groupletGrid</h4>
+    <p>A repeating grouplet, one row per record, with reactive cells bound to the Bag. The newest member of the family — reach for it when you would have used a tablehandler grid but the row needs to be a real form layout, not just columns.</p>
+  </div>
+  <div class="card">
+    <h4>Topic Grid</h4>
+    <p>A topic folder (a subdirectory of grouplets sharing a theme) rendered as a grid of expandable cells, one per child grouplet. Use it when a configuration screen has a fixed set of independent sections that should all be visible at once.</p>
+  </div>
+</div>
+
+<h3>Reactive flow</h3>
+<div class="diagram">
+<svg viewBox="0 0 600 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Reactive flow of a grouplet: Bag at datapath, trigger, handler, widgets, user edit, refresh.">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#6c9eff"/>
+    </marker>
+  </defs>
+  <rect x="0" y="0" width="600" height="300" fill="#0f1117"/>
+
+  <rect x="20" y="40" width="130" height="60" rx="6" fill="#1a1d27" stroke="#2e3340"/>
+  <text x="85" y="68" text-anchor="middle" fill="#d8dae5" font-family="sans-serif" font-size="13">Bag</text>
+  <text x="85" y="86" text-anchor="middle" fill="#9aa0b0" font-family="sans-serif" font-size="11">at datapath</text>
+
+  <rect x="180" y="40" width="120" height="60" rx="6" fill="#1a1d27" stroke="#2e3340"/>
+  <text x="240" y="68" text-anchor="middle" fill="#d8dae5" font-family="sans-serif" font-size="13">Trigger</text>
+  <text x="240" y="86" text-anchor="middle" fill="#9aa0b0" font-family="sans-serif" font-size="11">resource / handler</text>
+
+  <rect x="330" y="40" width="120" height="60" rx="6" fill="#1a1d27" stroke="#2e3340"/>
+  <text x="390" y="68" text-anchor="middle" fill="#d8dae5" font-family="sans-serif" font-size="13">Grouplet</text>
+  <text x="390" y="86" text-anchor="middle" fill="#9aa0b0" font-family="sans-serif" font-size="11">handler runs</text>
+
+  <rect x="470" y="40" width="120" height="60" rx="6" fill="#1a1d27" stroke="#2e3340"/>
+  <text x="530" y="68" text-anchor="middle" fill="#d8dae5" font-family="sans-serif" font-size="13">Widgets</text>
+  <text x="530" y="86" text-anchor="middle" fill="#9aa0b0" font-family="sans-serif" font-size="11">bound to ^.field</text>
+
+  <rect x="330" y="200" width="120" height="60" rx="6" fill="#1a1d27" stroke="#2e3340"/>
+  <text x="390" y="228" text-anchor="middle" fill="#d8dae5" font-family="sans-serif" font-size="13">User edits</text>
+  <text x="390" y="246" text-anchor="middle" fill="#9aa0b0" font-family="sans-serif" font-size="11">Bag mutates</text>
+
+  <line x1="150" y1="70" x2="178" y2="70" stroke="#6c9eff" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line x1="300" y1="70" x2="328" y2="70" stroke="#6c9eff" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line x1="450" y1="70" x2="468" y2="70" stroke="#6c9eff" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <line x1="530" y1="100" x2="530" y2="230" stroke="#6c9eff" stroke-width="1.5"/>
+  <line x1="530" y1="230" x2="452" y2="230" stroke="#6c9eff" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <line x1="330" y1="230" x2="85" y2="230" stroke="#6c9eff" stroke-width="1.5"/>
+  <line x1="85" y1="230" x2="85" y2="102" stroke="#6c9eff" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <text x="300" y="280" text-anchor="middle" fill="#9aa0b0" font-family="sans-serif" font-size="11">relevant widgets refresh on their own paths</text>
+</svg>
+</div>
+<p>The loop is the whole point. Once the grouplet is mounted, the Bag at the datapath is the source of truth: every widget inside the fragment subscribes to its own relative path, every edit writes back to that subtree, and only the widgets whose path actually changed re-render. Swap the resource and the same Bag is handed to a different fragment without losing state.</p>
+
+<h3>What this site covers</h3>
+<p>Each tab is a deep dive on one widget in the family — its real use cases, a copy-pasteable example, the parameters that matter, and the gotchas that bite. Jump straight to the widget you need; the Cheat Sheet tab is there for quick lookup once you know your way around.</p>
