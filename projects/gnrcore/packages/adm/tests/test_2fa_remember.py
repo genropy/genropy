@@ -4,6 +4,8 @@ The cookie must be signed, bound to the user and to the user's 2fa secret, and
 expire after ``expiry_days`` days. The service is loaded by path: ``projects/``
 is not importable. Request and response are the real werkzeug objects the site
 uses, so the cookie goes through the same serialization a browser would see.
+The database is the one of a throwaway instance with the adm package, so the
+service's own dependencies (``pyotp``) are the package's, not the framework's.
 """
 import importlib.util
 import pathlib
@@ -17,11 +19,11 @@ from werkzeug.wrappers import Request, Response
 
 from core.common import BaseGnrTest
 
+from gnr.app.gnrapp import GnrApp
 from gnr.web._gnrbasewebpage import GnrBaseWebPage
 from gnr.web.gnrwebreqresp import GnrWebRequest, GnrWebResponse
 
-SERVICE = (pathlib.Path(__file__).parents[3] / 'projects' / 'gnrcore' / 'packages'
-           / 'adm' / 'resources' / 'services' / '2fa' / 'service.py')
+SERVICE = pathlib.Path(__file__).parents[1] / 'resources' / 'services' / '2fa' / 'service.py'
 
 
 def _service_class():
@@ -62,15 +64,24 @@ def teardown_module(module):
 
 
 @pytest.fixture(scope='module')
-def users(db_sqlite):
-    tbl = db_sqlite.table('adm.user')
+def db():
+    app = GnrApp(BaseGnrTest.test_instance_name)
+    app.db.model.check(applyChanges=True)
+    app.db.commit()
+    yield app.db
+    app.db.closeConnection()
+
+
+@pytest.fixture(scope='module')
+def users(db):
+    tbl = db.table('adm.user')
     ids = {}
     for username in ('tfa_alice', 'tfa_bob'):
         rec = tbl.newrecord(username=username, email=f'{username}@test.local', status='conf',
                             md5pwd='secret', avatar_secret_2fa=f'{username}-2fa')
         tbl.insert(rec)
         ids[username] = rec['id']
-    db_sqlite.commit()
+    db.commit()
     return ids
 
 
@@ -90,42 +101,42 @@ def _saved(db, user_id, cookies):
     return _service(db, _Page(cookies)).saved2fa(user_id)
 
 
-def test_remembered_client_skips_the_code(db_sqlite, users):
+def test_remembered_client_skips_the_code(db, users):
     user_id = users['tfa_alice']
-    morsels = _remember(db_sqlite, user_id)
+    morsels = _remember(db, user_id)
     cookies = {name: morsel.value for name, morsel in morsels.items()}
-    assert _saved(db_sqlite, user_id, cookies) is True
+    assert _saved(db, user_id, cookies) is True
 
 
-def test_cookie_lasts_expiry_days(db_sqlite, users):
-    morsel = next(iter(_remember(db_sqlite, users['tfa_alice']).values()))
+def test_cookie_lasts_expiry_days(db, users):
+    morsel = next(iter(_remember(db, users['tfa_alice']).values()))
     expires = time.mktime(time.strptime(morsel['expires'], '%a, %d %b %Y %H:%M:%S GMT')) - time.timezone
     assert 29 * 86400 < expires - time.time() <= 30 * 86400
 
 
-def test_unsigned_cookie_is_refused(db_sqlite, users):
+def test_unsigned_cookie_is_refused(db, users):
     user_id = users['tfa_alice']
-    assert _saved(db_sqlite, user_id, {f'testsite_{user_id}_otp': user_id}) is False
+    assert _saved(db, user_id, {f'testsite_{user_id}_otp': user_id}) is False
 
 
-def test_cookie_of_another_user_is_refused(db_sqlite, users):
+def test_cookie_of_another_user_is_refused(db, users):
     alice, bob = users['tfa_alice'], users['tfa_bob']
-    value = next(iter(_remember(db_sqlite, alice).values())).value
-    assert _saved(db_sqlite, bob, {f'testsite_{bob}_otp': value}) is False
+    value = next(iter(_remember(db, alice).values())).value
+    assert _saved(db, bob, {f'testsite_{bob}_otp': value}) is False
 
 
-def test_expired_cookie_is_refused(db_sqlite, users, monkeypatch):
+def test_expired_cookie_is_refused(db, users, monkeypatch):
     user_id = users['tfa_alice']
-    cookies = {name: m.value for name, m in _remember(db_sqlite, user_id).items()}
+    cookies = {name: m.value for name, m in _remember(db, user_id).items()}
     later = time.time() + 31 * 86400
     monkeypatch.setattr('gnr.web.gnrcookie.time', lambda: later)
-    assert _saved(db_sqlite, user_id, cookies) is False
+    assert _saved(db, user_id, cookies) is False
 
 
-def test_new_2fa_secret_revokes_remembered_clients(db_sqlite, users):
+def test_new_2fa_secret_revokes_remembered_clients(db, users):
     user_id = users['tfa_bob']
-    cookies = {name: m.value for name, m in _remember(db_sqlite, user_id).items()}
-    with db_sqlite.table('adm.user').recordToUpdate(user_id) as user:
+    cookies = {name: m.value for name, m in _remember(db, user_id).items()}
+    with db.table('adm.user').recordToUpdate(user_id) as user:
         user['avatar_secret_2fa'] = 'tfa_bob-new-2fa'
-    db_sqlite.commit()
-    assert _saved(db_sqlite, user_id, cookies) is False
+    db.commit()
+    assert _saved(db, user_id, cookies) is False
