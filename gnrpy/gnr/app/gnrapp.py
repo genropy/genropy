@@ -213,6 +213,8 @@ class DbStoresHandler(object):
         result = {}
         if self.db.storetable:    
             dbdict = self.get_dbdict()
+            if not dbdict:
+                return result
             dbstores = self.db.table(self.db.storetable).query(
                 where='$dbstore IN :databases',
                 databases=list(dbdict.keys()),columns="$dbstore").fetch()

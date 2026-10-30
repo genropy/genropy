@@ -1,8 +1,43 @@
 import tempfile
 
+import pytest
+
 from gnr.core.gnrbag import Bag
-from gnr.app.gnrapp import GnrSqlAppDb, DbStoresHandler
-from sql.common import MockApplication
+from gnr.app.gnrapp import GnrApp, GnrSqlAppDb, DbStoresHandler
+from core.common import BaseGnrTest
+from sql.common import MockApplication, get_pg_config
+
+
+@pytest.fixture
+def fresh_pg_app():
+    """An application on an empty postgres database, dropped afterwards.
+
+    Same lifecycle as _db_pg in tests/sql/conftest.py, without model.check:
+    the main database exists but holds no table yet.
+    """
+    BaseGnrTest.setup_class()
+    dbname = 'test_gnrsqlappdb_fresh'
+    pg_instance = None
+    app = None
+    try:
+        pg_conf, pg_instance = get_pg_config()
+        pg_conf.pop('database', None)
+        app = GnrApp('test_invoice', db_attrs=dict(
+            implementation='postgres',
+            dbname=dbname,
+            **pg_conf,
+        ))
+        app.db.createDb(dbname)
+        yield app
+    finally:
+        try:
+            if app is not None:
+                app.db.closeConnection()
+                app.db.dropDb(dbname)
+        finally:
+            if pg_instance is not None:
+                pg_instance.stop()
+            BaseGnrTest.teardown_class()
 
 
 class TestGnrSqlAppDb:
@@ -219,3 +254,12 @@ class TestDbStoresHandler:
             assert 'store2' in handler.auxstores
             assert handler.auxstores['store1']['database'] == 'db1'
             assert handler.auxstores['store1']['host'] == 'host1'
+
+    def test_dbstores_on_fresh_database(self, fresh_pg_app):
+        """No store database yet: dbstores is empty and the storetable,
+        not created yet, is never queried"""
+        # sys.dbchange has a dbstore column, so the storetable query compiles
+        fresh_pg_app.config['packages'].getNode('invc').attr['storetable'] = 'sys.dbchange'
+        db = fresh_pg_app.db
+        assert db.storetable == 'sys.dbchange'
+        assert db.dbstores == {}
