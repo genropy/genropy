@@ -449,7 +449,7 @@ class SqlSelection(object):
             On read (``'r'``), returns the list of pkeys.  On write returns
             ``None``.
         """
-        if not self.dbtable.pkey:
+        if not self.dbtable.pkey or 'pkey' not in self._index:
             return
         pik_path = '%s_pkeys.pik' % self.freezepath
         if readwrite == 'w':

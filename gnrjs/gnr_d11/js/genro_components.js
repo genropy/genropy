@@ -8213,6 +8213,7 @@ dojo.declare("gnr.stores.Selection",gnr.stores.AttributesBagRows,{
 
     onLoaded:function(result){
         delete this.pendingLoading;
+        this.selectionName = result && result.attr? result.attr.selectionName:null;
         this.storeNode.setRelativeData(this.storepath,result,null,null,'loadData');
         return result;
     }
