@@ -10,16 +10,17 @@ Uses both PostgreSQL and SQLite instances of the test_invoice project.
 
 import pytest
 
-from core.common import BaseGnrTest
 from gnr.core.gnrbag import Bag
 from gnr.sql.gnrsql_exceptions import GnrSqlMissingField
 
+from core.common import BaseGnrTest
 from .common import next_sql_compiler_flag
 
 def setup_module(module):
     BaseGnrTest.setup_class()
 def teardown_module(module):
     BaseGnrTest.teardown_class()
+
 
 
 CUSTOMER_COUNT = 3200
