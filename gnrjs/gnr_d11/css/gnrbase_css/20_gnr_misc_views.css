@@ -724,6 +724,4 @@
     border-radius: var(--radius-sm);
     padding: 2px 6px;
     overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
 }
