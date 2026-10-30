@@ -5443,6 +5443,8 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
             kwargs.struct =  this.getExportStruct();
         }
         var store = this.collectionStore();
+        var groupedRows = store.selectionName && store.storeNode.attr.groupByStore && !kwargs.columns?
+                            this.currentData(allRows?'all':null,true,true).getNodes():null;
         if (store.storeType=='VirtualSelection'){
             kwargs['selectionName'] = store.selectionName;
             kwargs['selectedRowidx'] = allRows?[]:this.getSelectedRowidx();
@@ -5450,6 +5452,11 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
                 kwargs.limit = 0;
                 kwargs.sortBy = store.sortedBy;
             }
+        }else if(groupedRows && groupedRows.length){
+            //the grouped rows are frozen on the server: send their rowidx, not the rows
+            kwargs['selectionName'] = store.selectionName;
+            kwargs['selectedRowidx'] = groupedRows.length==store.len()?[]:groupedRows.map(function(n){return n.attr.rowidx;});
+            kwargs.sortBy = store.sortedBy;
         }else if(!kwargs.columns){
             kwargs['data'] = this.currentData(allRows?'all':null , useRawData,true);
         }

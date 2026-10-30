@@ -98,6 +98,31 @@ class BaseDb(BaseGnrSqlTest):
             os.remove(os.path.join(freeze_dir, f))
         os.rmdir(freeze_dir)
 
+    def test_freeze_pkeys(self):
+        freeze_dir = tempfile.mkdtemp(prefix='gnr_test_freeze_')
+        freeze_fname = os.path.join(freeze_dir, 'myselection')
+        self.mysel.freeze(freeze_fname, freezePkeys=True)
+        assert self.db.freezedPkeys(freeze_fname) == self.mysel.output('pkeylist')
+        for f in os.listdir(freeze_dir):
+            os.remove(os.path.join(freeze_dir, f))
+        os.rmdir(freeze_dir)
+
+    def test_freeze_pkeys_of_a_group_by_selection(self):
+        # a GROUP BY selection has no pkey column (#1773): freezing it with
+        # freezePkeys must keep the rows and write no pkey list
+        grouped = self.db.query('video.cast', columns='@movie_id.title AS movie,count(*) AS n_roles',
+                                group_by='@movie_id.title', order_by='@movie_id.title').selection()
+        assert 'pkey' not in grouped.allColumns
+        freeze_dir = tempfile.mkdtemp(prefix='gnr_test_freeze_')
+        freeze_fname = os.path.join(freeze_dir, 'groupedselection')
+        grouped.freeze(freeze_fname, freezePkeys=True)
+        sel = self.db.table('video.cast').frozenSelection(freeze_fname)
+        assert sel.data == grouped.data
+        assert self.db.freezedPkeys(freeze_fname) == []
+        for f in os.listdir(freeze_dir):
+            os.remove(os.path.join(freeze_dir, f))
+        os.rmdir(freeze_dir)
+
     def xtest_formatSelection(self):
         sel = self.db.query('video.dvd', columns='$purchasedate, @movie_id.title AS title').selection()
         assert sel.output('list')[0][1] == 'Match point'

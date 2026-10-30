@@ -194,6 +194,7 @@ class TableHandlerGroupBy(BaseComponent):
         store_kwargs['_forcedReload'] = '^.reloadMain'
         frame.grid.selectionStore(table=table,where=where,selectmethod=self._thg_selectgroupby,
                                 childname='store',struct='=.grid.struct',
+                                selectionName='*%s' %frame.attributes['frameCode'],
                                 groupByStore=True,liveUpdate='PAGE',
                                 sortedBy='=.grid.sorted',
                                 _linkedTo=linkedTo,
