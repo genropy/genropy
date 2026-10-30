@@ -304,6 +304,37 @@ test('a mousedown on the filter icon cannot start a column drag, elsewhere it go
     assert.deepEqual(forwarded, [onTitle]);
 });
 
+test('the filter icon is never a resize area, the rest of the header edge still is', () => {
+    const context = createContext();
+    const headerBuilder = function() {};
+    headerBuilder.prototype.overLeftResizeArea = () => true;
+    headerBuilder.prototype.overRightResizeArea = () => true;
+    context.dojo_version = '1.1';
+    context.dojox = {grid: {Builder: function() {}, headerBuilder}};
+    new context.gnr.widgets.DojoGrid();
+    const builder = new headerBuilder();
+    const target = onIcon => ({target: {closest: selector => (onIcon && selector === '.gridColumnFilter' ? {} : null)}});
+    assert.equal(builder.overLeftResizeArea(target(true)), false);
+    assert.equal(builder.overRightResizeArea(target(true)), false);
+    assert.equal(builder.overLeftResizeArea(target(false)), true);
+    assert.equal(builder.overRightResizeArea(target(false)), true);
+});
+
+test('a column drag that starts on the filter icon is refused, a press on the title clears the mark', () => {
+    const {gnr} = createContext();
+    const grid = {onHeaderCellMouseDown_replaced: () => {}};
+    const mousedown = gnr.widgets.DojoGrid.prototype.patch_onHeaderCellMouseDown;
+    const press = onIcon => mousedown.call(grid, {
+        preventDefault() {},
+        target: {closest: selector => (onIcon && selector === '.gridColumnFilter' ? {} : null)}
+    });
+    const dragStart = gnr.widgets.DojoGrid.prototype.onDragStart;
+    press(true);
+    assert.equal(dragStart({dragmode: 'column', widget: grid}), false);
+    press(false);
+    assert.equal(grid._columnFilterPressed, false);
+});
+
 test('a period on a date column keeps the rows whose day falls in it, bounds included', () => {
     const g = createGrid();
     const date = (y, m, d, h = 0) => vm.runInContext(`new Date(${y}, ${m}, ${d}, ${h})`, g.context);

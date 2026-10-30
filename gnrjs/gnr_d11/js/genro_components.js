@@ -114,6 +114,7 @@ dojo.declare("gnr.widgets.TooltipPane", gnr.widgets.gnrwdg, {
             onClosing = funcCreate(onClosing,'e,sourceNode,dialogNode,kwargs',sourceNode);
         }
         var evt = objectPop(kw,'evt') || 'onclick';
+        var that = this;
         var parentDomNode;
         var sn = sourceNode;
         var placingId = objectPop(kw,'placingId'); 
@@ -133,6 +134,9 @@ dojo.declare("gnr.widgets.TooltipPane", gnr.widgets.gnrwdg, {
                                     if(!onClosing || onClosing(kw.evt,kw.evt.target.sourceNode,this._value.getNode('ttd'),kw)!==false){
                                         this.widget._closeDropDown();
                                     }
+                                },
+                                onOpenedPopup:function(openKw){
+                                    that.followAnchor(openKw,ddbId);
                                 }};
         if(placingId || placingNode){
             //placingId (a dom id) or placingNode (a dom node) anchor the popup to another
@@ -171,9 +175,76 @@ dojo.declare("gnr.widgets.TooltipPane", gnr.widgets.gnrwdg, {
         dojo.connect(parentDomNode,evt,function(e){
             if(genro.wdg.filterEvent(e,modifiers)){
                 genro.publish(ddbId+'_open',{'evt':e,'domNode':e.target});
-            } 
+            }
         });
         return tdialog;
+    },
+
+    followAnchor:function(openKw,ddbId){
+        //dijit.popup places the wrapper once, at page coordinates: ancestor scrolls
+        //would leave it behind its anchor
+        var popup = openKw.popup;
+        if(popup._stopFollowingAnchor){
+            popup._stopFollowingAnchor();
+        }
+        var anchor = openKw.around;
+        var wrapper = popup.domNode.parentNode;
+        if(!anchor || !wrapper || !anchor.getClientRects().length){
+            return;
+        }
+        var clippers = [];
+        for(var node=anchor.parentNode; node && node.nodeType===1; node=node.parentNode){
+            var style = window.getComputedStyle(node);
+            if(style.overflowX!='visible' || style.overflowY!='visible'){
+                clippers.push(node);
+            }
+        }
+        var outOfView = function(){
+            var rect = anchor.getBoundingClientRect();
+            var clip = {top:0,left:0,bottom:window.innerHeight,right:window.innerWidth};
+            clippers.forEach(function(clipper){
+                var crect = clipper.getBoundingClientRect();
+                clip = {top:Math.max(clip.top,crect.top),left:Math.max(clip.left,crect.left),
+                        bottom:Math.min(clip.bottom,crect.bottom),right:Math.min(clip.right,crect.right)};
+            });
+            return rect.bottom<=clip.top || rect.top>=clip.bottom || rect.right<=clip.left || rect.left>=clip.right;
+        };
+        var pageOrigin = function(){
+            var rect = anchor.getBoundingClientRect();
+            return {x:rect.left+window.pageXOffset,y:rect.top+window.pageYOffset};
+        };
+        var origin = pageOrigin();
+        var left = parseFloat(wrapper.style.left) || 0;
+        var top = parseFloat(wrapper.style.top) || 0;
+        var onScroll = function(e){
+            if(!anchor.isConnected){
+                genro.publish({topic:'close',nodeId:ddbId},{evt:e});
+                return;
+            }
+            var scroller = e.target;
+            if(scroller.getBoundingClientRect && !scroller.contains(anchor)){
+                return;
+            }
+            if(outOfView()){
+                //onClosing may veto the close: the pane keeps following
+                genro.publish({topic:'close',nodeId:ddbId},{evt:e});
+            }
+            var current = pageOrigin();
+            wrapper.style.left = (left+current.x-origin.x)+'px';
+            wrapper.style.top = (top+current.y-origin.y)+'px';
+        };
+        var handles = [];
+        var stop = function(){
+            document.removeEventListener('scroll',onScroll,true);
+            dojo.forEach(handles,dojo.disconnect);
+            handles = [];
+            if(popup._stopFollowingAnchor===stop){
+                delete popup._stopFollowingAnchor;
+            }
+        };
+        document.addEventListener('scroll',onScroll,true);
+        handles = [dojo.connect(popup,'onClose',stop),dojo.connect(popup,'destroy',stop)];
+        popup._stopFollowingAnchor = stop;
     }
 });
 
@@ -7742,21 +7813,56 @@ dojo.declare("gnr.stores.Selection",gnr.stores.AttributesBagRows,{
             });
             return;
         }
-        this.loadingDataDo(runKwargs);
+        return this.loadingDataDo(runKwargs);
     },
 
     loadingDataDo:function(runKwargs){
         var that = this;
+        if(this.loadingData){
+            // a query of this store is already in flight: one more run when it lands, with the latest kwargs
+            var queuedLoad = this._queuedLoad || {deferred:new dojo.Deferred()};
+            queuedLoad.runKwargs = runKwargs;
+            this._queuedLoad = queuedLoad;
+            return queuedLoad.deferred;
+        }
         this.loadingData = true;
         this.gridBroadcast(function(grid){
             grid.sourceNode.publish('loadingData',{loading:true});
         });
+        var hasLanded = false;
+        var landed = function(){
+            if(hasLanded){
+                return;
+            }
+            hasLanded = true;
+            that.loadingData = false;
+            that._inflightLoad = null;
+            that.gridBroadcast(function(grid){
+                grid.sourceNode.publish('loadingData',{loading:false});
+            });
+            var queued = that._queuedLoad;
+            that._queuedLoad = null;
+            if(queued){
+                var queuedResult = that.loadData(queued.runKwargs);
+                if(queuedResult instanceof dojo.Deferred){
+                    queuedResult.addCallback(function(r){
+                        queued.deferred.callback(r);
+                        return r;
+                    });
+                    queuedResult.addErrback(function(err){
+                        queued.deferred.errback(err);
+                        return err;
+                    });
+                }else{
+                    queued.deferred.callback(queuedResult);
+                }
+            }
+        };
         var cb = function(result){
             that.resetFilter();
             that.onLoaded(result);
-            that.loadingData = false;
+            landed();
             that.gridBroadcast(function(grid){
-                grid.sourceNode.publish('loadingData',{loading:false});
                 if(result && result.attr){
                     //result as bagNode;
                     grid.updateShowCount(result.attr.totalrows)
@@ -7764,7 +7870,15 @@ dojo.declare("gnr.stores.Selection",gnr.stores.AttributesBagRows,{
             });
         };
         this.onLoading();
-        return this.runQuery(cb,runKwargs);
+        var result = this.runQuery(cb,runKwargs);
+        if(result instanceof dojo.Deferred){
+            this._inflightLoad = result;
+            result.addErrback(function(err){
+                landed();
+                return err;
+            });
+        }
+        return result;
     },
 
     cleanColumns:function(cols){

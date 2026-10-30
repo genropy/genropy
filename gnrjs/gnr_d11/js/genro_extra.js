@@ -257,12 +257,12 @@ dojo.declare("gnr.widgets.MDEditor", gnr.widgets.baseExternalWidget, {
     },
 
     created:function(widget, savedAttrs, sourceNode){
-        const scriptUrl = "https://uicdn.toast.com/editor/latest/toastui-editor-all.min.js";
-        const cssUrl = "https://uicdn.toast.com/editor/latest/toastui-editor.min.css";
-        const pickerCss = "https://uicdn.toast.com/tui-color-picker/latest/tui-color-picker.min.css";
-        const pickerJs  = "https://uicdn.toast.com/tui-color-picker/latest/tui-color-picker.min.js";
-        const colorCss  = "https://uicdn.toast.com/editor-plugin-color-syntax/latest/toastui-editor-plugin-color-syntax.min.css";
-        const colorJs   = "https://uicdn.toast.com/editor-plugin-color-syntax/latest/toastui-editor-plugin-color-syntax.min.js";
+        const scriptUrl = "https://uicdn.toast.com/editor/3.2.2/toastui-editor-all.min.js";
+        const cssUrl = "https://uicdn.toast.com/editor/3.2.2/toastui-editor.min.css";
+        const pickerCss = "https://uicdn.toast.com/tui-color-picker/v2.2.8/tui-color-picker.min.css";
+        const pickerJs  = "https://uicdn.toast.com/tui-color-picker/v2.2.8/tui-color-picker.min.js";
+        const colorCss  = "https://uicdn.toast.com/editor-plugin-color-syntax/3.0.3/toastui-editor-plugin-color-syntax.min.css";
+        const colorJs   = "https://uicdn.toast.com/editor-plugin-color-syntax/3.0.3/toastui-editor-plugin-color-syntax.min.js";
         
         const loadResource = (url, type) => new Promise((resolve) => {
             if (type === 'js') { genro.dom.loadJs(url, resolve); }

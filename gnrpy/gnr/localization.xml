@@ -282,7 +282,25 @@
 <en_upload_files base="Upload files" en="Upload files" it="Caricare files"></en_upload_files>
 <en_close base="Close" de="Schließen" en="Close" fr="Près" it="Chiudi"></en_close>
 <en_change_file base="Change file"></en_change_file>
-<en_confirm fr="Confirmer" en="Confirm" de="Bestätigen" it="Conferma" base="Confirm" zh="确认"></en_confirm></genro_dlg>
+<en_confirm fr="Confirmer" en="Confirm" de="Bestätigen" it="Conferma" base="Confirm" zh="确认"></en_confirm>
+<en_help base="Help" en="Help" it="Aiuto"></en_help>
+<en_drag_to_resize base="Drag to resize" en="Drag to resize" it="Trascina per ridimensionare"></en_drag_to_resize>
+<en_back_to_the_help base="Back to the help" en="Back to the help" it="Torna all'aiuto"></en_back_to_the_help>
+<en_open_in_a_new_window base="Open in a new window" en="Open in a new window" it="Apri in una nuova finestra"></en_open_in_a_new_window>
+<en_narrow base="Narrow" en="Narrow" it="Restringi"></en_narrow>
+<en_widen base="Widen" en="Widen" it="Allarga"></en_widen>
+<en_open_in_the_manual base="Open in the manual" en="Open in the manual" it="Apri nel manuale"></en_open_in_the_manual>
+<en_notes base="Notes" en="Notes" it="Note"></en_notes>
+<en_no_documentation_available base="No documentation available" en="No documentation available" it="Nessuna documentazione disponibile"></en_no_documentation_available>
+<en_edit_the_note base="Edit the note" en="Edit the note" it="Modifica la nota"></en_edit_the_note>
+<en_add_a_note base="Add a note" en="Add a note" it="Aggiungi una nota"></en_add_a_note>
+<en_documentation base="Documentation" en="Documentation" it="Documentazione"></en_documentation>
+<en_variables base="Variables" en="Variables" it="Variabili"></en_variables>
+<en_somebody_saved_this_doc_while_you_were_editing_it base="Somebody saved this doc while you were editing it" en="Somebody saved this doc while you were editing it" it="Qualcuno ha salvato questo documento mentre lo modificavi"></en_somebody_saved_this_doc_while_you_were_editing_it>
+<en_overwrite base="Overwrite" en="Overwrite" it="Sovrascrivi"></en_overwrite>
+<en_cancel base="Cancel" en="Cancel" it="Annulla"></en_cancel>
+<en_the_doc_was_not_saved base="The doc was not saved" en="The doc was not saved" it="Il documento non è stato salvato"></en_the_doc_was_not_saved>
+<en_save base="Save" en="Save" it="Salva"></en_save></genro_dlg>
 <genro_dom path="gnrjs/gnr_d11/js/genro_dom.js" ext="js"><en_height base="Height" de="Höhe" en="Height" fr="Hauteur" it="Altezza"></en_height>
 <en_width base="Width" de="Breite" en="Width" fr="Largeur" it="Larghezza"></en_width>
 <en_border base="Border" it="Bordo"></en_border>

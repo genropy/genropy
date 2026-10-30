@@ -8,7 +8,7 @@ gnr.GroupletCard = class GroupletCard {
 
     // kw: {tools, rootDom: () => dom,
     //      collapse: {isCollapsed, toggle, expand}, collapsedClasses,
-    //      title: (dom) => void, doc: {html: (cb) => void},
+    //      title: (dom) => void, doc: docSpec(),
     //      checkbox: {isChecked, onClick(e), onKeydown(e)},
     //      drag: {start(e), end()}}
     constructor(kw) {
@@ -157,6 +157,7 @@ gnr.GroupletCard = class GroupletCard {
             e.preventDefault();
             open(e);
         });
+        if (this.doc.address) genro.dlg.docTrack(icon, this.doc.address);
         return icon;
     }
 
@@ -184,6 +185,12 @@ gnr.GroupletCard = class GroupletCard {
 
     openDoc(domNode) {
         const title = this.titleDom ? this.titleDom.innerHTML : '';
+        if (this.doc.address) {
+            genro.dlg.openDoc(domNode, this.doc.address, {title: title, fill: this.doc.fill,
+                                                          placeholders: this.doc.placeholders,
+                                                          tooltip: true});
+            return;
+        }
         this.doc.html((html) => gnr.GroupletCard.showDoc(domNode, title, html));
     }
 
@@ -259,6 +266,29 @@ gnr.GroupletCard = class GroupletCard {
             genro.publish('grouplet_card_doc_opener_close', {evt: e});
         };
         document.addEventListener('keydown', Card._docEscape, true);
+    }
+
+    static docSpec(doc, row, docKw) {
+        // the doc of a card. With the inlinedoc experimental flag it is an
+        // address of sys/ep_doc: its html filled with the card's data, and
+        // docKw for what is not there, the same names the editor's variables;
+        // else the inline template, rendered as it is opened
+        if (!doc) return null;
+        const Card = gnr.GroupletCard;
+        if (!genro.startArgs.inlineDoc) {
+            const template = Card.compileTemplate(doc);
+            return template ? {html: (cb) => cb(Card.renderDoc(template, row(), docKw))} : null;
+        }
+        return {
+            address: doc,
+            fill: (html) => Card.renderDoc(Card.compileTemplate(html), row(), docKw),
+            placeholders: () => {
+                const data = row();
+                const names = data instanceof gnr.GnrBag
+                    ? data.getNodes().filter((n) => !(n.getValue() instanceof gnr.GnrBag)).map((n) => n.label) : [];
+                return names.concat(Object.keys(docKw || {}));
+            }
+        };
     }
 
     static buildKebab(host, label, editmenu, presets, kebabKw, iconClass) {
@@ -403,7 +433,6 @@ gnr.GroupletCardHost = class GroupletCardHost {
         this.checkboxPath = kw.checkboxPath ? callerNode.absDatapath(kw.checkboxPath) : null;
         const Card = gnr.GroupletCard;
         this.titleTemplate = Card.compileTemplate(kw.titleTemplate) || Card.compileTemplate(kw.template);
-        this.docTemplate = Card.compileTemplate(kw.doc);
         const host = this;
         this.card = new gnr.GroupletCard({
             tools: kw.tools,
@@ -414,9 +443,7 @@ gnr.GroupletCardHost = class GroupletCardHost {
                 expand: () => host.setCollapsed(false)
             } : null,
             title: (dom) => host.renderTitle(dom),
-            doc: this.docTemplate ? {
-                html: (cb) => cb(Card.renderDoc(host.docTemplate, host.data(), kw.doc_kw))
-            } : null,
+            doc: Card.docSpec(kw.doc, () => host.data(), kw.doc_kw),
             checkbox: this.checkboxPath ? {
                 isChecked: () => !!genro.getData(host.checkboxPath),
                 onClick: (e) => genro.setData(host.checkboxPath, !!e.target.checked)

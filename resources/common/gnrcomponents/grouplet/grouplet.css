@@ -664,6 +664,18 @@
     max-width: calc(var(--gg-cols, 1) * var(--gg-min-width, 280px)
                     + (var(--gg-cols, 1) - 1) * var(--gg-gap, 12px));
 }
+/* fillRow: the cards share the whole row, up to --gg-cols of them, so a
+   lone card takes it all; a track is never narrower than a cols-th of the
+   row, which keeps the cap, and auto-fit drops the empty ones. */
+.grouplet_grid_container.grouplet_grid_responsive.grouplet_grid--fillrow > .grouplet_grid_body {
+    grid-template-columns: repeat(auto-fit, minmax(max(var(--gg-min-width, 280px),
+        calc((100% - (var(--gg-cols, 1) - 1) * var(--gg-gap, 12px)) / var(--gg-cols, 1))), 1fr));
+    max-width: none;
+}
+/* a card whose grouplet declares card=dict(wide=True) takes the whole row */
+.grouplet_grid_responsive > .grouplet_grid_body > .grouplet_grid_row--wide {
+    grid-column: 1 / -1;
+}
 
 /* --- Row blocchetto card ---
    Layout: position:relative + padding orizzontale per kebab (dx) e drag
@@ -1961,6 +1973,8 @@ body.drag_started .grouplet_grid_container {
 }
 /* body > row: outranks the formlet field rule (.gnrgridbox.formlet .dijitTextBox) */
 .grouplet_grid_body > .grouplet_grid_row--phantom .dijitTextBox,
+.grouplet_grid_body > .grouplet_grid_row--phantom .dijitComboBox,
+.grouplet_grid_body > .grouplet_grid_row--phantom .dijitSpinner,
 .grouplet_grid_body > .grouplet_grid_row--phantom .dijitTextArea,
 .grouplet_grid_body > .grouplet_grid_row--phantom textarea {
     border-style: dashed;
@@ -2029,6 +2043,7 @@ body.drag_started .grouplet_grid_container {
    sits under the header as a data row and keeps the normal look. */
 .grouplet_grid:not(.grouplet_grid--struct):not(.grouplet_grid--editing) > .grouplet_grid_slot_top > .grouplet_grid_entry > .grouplet_grid_row--entry:not(:focus-within) .dijitTextBox,
 .grouplet_grid:not(.grouplet_grid--struct):not(.grouplet_grid--editing) > .grouplet_grid_slot_top > .grouplet_grid_entry > .grouplet_grid_row--entry:not(:focus-within) .dijitComboBox,
+.grouplet_grid:not(.grouplet_grid--struct):not(.grouplet_grid--editing) > .grouplet_grid_slot_top > .grouplet_grid_entry > .grouplet_grid_row--entry:not(:focus-within) .dijitSpinner,
 .grouplet_grid:not(.grouplet_grid--struct):not(.grouplet_grid--editing) > .grouplet_grid_slot_top > .grouplet_grid_entry > .grouplet_grid_row--entry:not(:focus-within) .dijitTextArea,
 .grouplet_grid:not(.grouplet_grid--struct):not(.grouplet_grid--editing) > .grouplet_grid_slot_top > .grouplet_grid_entry > .grouplet_grid_row--entry:not(:focus-within) textarea {
     border-style: dashed;
@@ -2554,22 +2569,23 @@ body.drag_started .grouplet_grid_container {
 }
 .grouplet_card_doc {
     flex: none;
-    width: 15px;
-    height: 15px;
-    box-sizing: border-box;
-    border: 1.5px solid currentColor;
+    width: 18px;
+    height: 18px;
+    margin-left: 4px;
     border-radius: 50%;
     display: flex;
-    align-items: center;
-    justify-content: center;
     cursor: pointer;
     user-select: none;
     color: var(--gc-text-muted);
     transition: color 160ms ease;
 }
+/* the mask on the pseudo element: on the icon itself it would clip the focus ring */
 .grouplet_card_doc::before {
-    content: 'i';
-    font: italic 700 10px/1 Georgia, 'Times New Roman', serif;
+    content: '';
+    flex: 1;
+    background: currentColor;
+    -webkit-mask: url('/_rsrc/common/css_icons/google_icons/info_light.svg') center / contain no-repeat;
+    mask: url('/_rsrc/common/css_icons/google_icons/info_light.svg') center / contain no-repeat;
 }
 .grouplet_card_doc:hover {
     color: var(--gc-accent);

@@ -9,6 +9,7 @@ from gnr.core.gnrbag import Bag
 from gnr.core.gnrdecorator import customizable
 from gnr.core.gnrconfig import getRmsOptions
 from gnr.core.gnrdict import dictExtract
+from gnr.web.gnrmanual import is_storage_path
 from gnr.web.gnrwebpage import BaseComponent
 from gnr.web.gnrwebstruct import struct_method
 
@@ -71,6 +72,11 @@ class FrameIndex(BaseComponent):
                     genro.pageReload()}})""",msg='!!Invalid Access',_onStart=True)
             return 
         root.attributes['overflow'] = 'hidden'
+        root.dataController("""if(window.location.search){
+                                var urlParsed = parseURL(window.location.href);
+                                objectExtract(urlParsed.params,'_no_cache_');
+                                window.history.replaceState({},document.title,serializeURL(urlParsed));
+                            }""",_onStart=True)
         if menucode:
             menucode_kwargs = dictExtract(kwargs,f'{menucode}_')
             menucode_kwargs['menucode'] = menucode
@@ -302,9 +308,16 @@ class FrameIndex(BaseComponent):
         logomenu.menuline("!![en]Theme Editor",_tags='_DEV_').dataController('genro.dev.openThemeEditor();')
         logomenu.menuline("!![en]Application info").dataController("genro.publish('application_info')")
         
-        logomenu.menuline('!![en]Open helper editor in root',_tags='_DEV_').dataController('genro.dev.openHelperEditor();') 
-        logomenu.menuline('!![en]Open helper editor in current',_tags='_DEV_').dataController(
-                                                        'genro._lastFocusedWindow.genro.dev.openHelperEditor();')
+        if self.inlineDoc:
+            logomenu.menuline('!![en]Toggle documentation mode in root',_tags='_DOC_').dataController(
+                                                            "genro.setData('gnr.docModeVisible',!genro.getData('gnr.docModeVisible'));")
+            logomenu.menuline('!![en]Toggle documentation mode in current',_tags='_DOC_').dataController(
+                                                            """let cg = genro._lastFocusedWindow.genro;
+                                                               cg.setData('gnr.docModeVisible',!cg.getData('gnr.docModeVisible'));""")
+        else:
+            logomenu.menuline('!![en]Open helper editor in root',_tags='_DEV_').dataController('genro.dev.openHelperEditor();')
+            logomenu.menuline('!![en]Open helper editor in current',_tags='_DEV_').dataController(
+                                                            'genro._lastFocusedWindow.genro.dev.openHelperEditor();')
         
         logomenu.menuline('!![en]Toggle dev items in root',_tags='_DEV_').dataController("""let current = genro.getData('gnr.developerToolsVisible');
                                                                                          genro.setData('gnr.developerToolsVisible',!current);""") 
@@ -376,11 +389,15 @@ class FrameIndex(BaseComponent):
     def helpdesk_userGroupDocumentation(self):
         if not self.avatar.group_code:
             return
-        return self.db.table('adm.group_helpdoc').query(
+        rows = self.db.table('adm.group_helpdoc').query(
             columns='$url,@helpdoc_id.title AS title',
             where='$group_code=:gc',
             gc = self.avatar.group_code,
         ).fetch()
+        # a manual the instance serves itself is a storage path (sys/ep_doc reads it as well)
+        return [dict(title=r['title'],
+                     url=self.site.storageNode(r['url']).url() if is_storage_path(r['url']) else r['url'])
+                for r in rows]
 
     def helpdesk_documentation(self):
         return

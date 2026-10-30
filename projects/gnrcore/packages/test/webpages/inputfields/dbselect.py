@@ -29,10 +29,10 @@ class GnrCustomWebPage(object):
 
     def test_5_selected(self,pane):
         "Use of selected:"
-        fb = pane.formbuilder(cols=2, border_spacing='4px')
+        fb = pane.formlet(cols=2)
         fb.dbSelect(table='glbl.provincia',value='^.sigla',
-                        lbl='Sigla',width='25em', selected_regione='.regione')
-        fb.dbSelect(table='glbl.regione',value='^.regione',lbl='Regione',width='25em',selected_nome='.nome_regione')
+                        lbl='Sigla', selected_regione='.regione')
+        fb.dbSelect(table='glbl.regione',value='^.regione',lbl='Regione',selected_nome='.nome_regione')
         fb.textbox(value='^.nome_regione',lbl='Nome regione')
 
 
@@ -189,3 +189,39 @@ class GnrCustomWebPage(object):
                     caption_field='hierarchical_description',connectedMenu='htag_menu')
         fb.hdbSelect(value='^.tag_id_2',dbtable='adm.htag',lbl='Tag (old spelling)',width='25em',
                     caption_field='hierarchical_description',connectedMenu='htag_menu')
+
+    def test_12_multiline_auxcolumns(self,pane):
+        """Wide auxColumns in a narrow field: the menu switches to one cell per option
+        when the table exceeds max(field, min(2 x field, 30em)). auxColumns_multiline
+        forces it (True), disables it (False) or sets a fixed ratio (a number);
+        auxColumns_template still wins"""
+        fb = pane.formlet(cols=5)
+        kw = dict(callback=self.wideOptionsCallback(),auxColumns='opened,notes',
+                  hasDownArrow=True)
+        fb.callbackSelect(value='^.auto',lbl='Automatic',**kw)
+        fb.callbackSelect(value='^.forced',lbl='Forced',auxColumns_multiline=True,**kw)
+        fb.callbackSelect(value='^.disabled',lbl='Disabled',auxColumns_multiline=False,**kw)
+        fb.callbackSelect(value='^.ratio',lbl='Ratio 10',auxColumns_multiline=10,**kw)
+        fb.callbackSelect(value='^.template',lbl='Template',
+                          auxColumns_template='<b>$code</b> $notes',**kw)
+        fb.callbackSelect(value='^.wide',lbl='Automatic, wide field: the table fits',colspan=5,**kw)
+
+    def wideOptionsCallback(self):
+        return """function(kw){
+                var data = [{code:'2026/0012',opened:'12/01/2026',_pkey:'c12',caption:'2026/0012',
+                             notes:'First visit, contraception counselling, follow-up booked in three months'},
+                            {code:'2026/0047',opened:'03/03/2026',_pkey:'c47',caption:'2026/0047',
+                             notes:''},
+                            {code:'2026/0101',opened:'21/05/2026',_pkey:'c101',caption:'2026/0101',
+                             notes:'Referred by the family doctor for a pregnancy test and a social worker interview'},
+                            {code:'',caption:'',_pkey:null}];
+                var querystring = kw._querystring;
+                var cbfilter = function(n){return true};
+                if(querystring){
+                    querystring = querystring.slice(0,-1).toLowerCase();
+                    cbfilter = function(n){return n.code.toLowerCase().indexOf(querystring)>=0;};
+                }else if(kw._id){
+                    cbfilter = function(n){return n._pkey==kw._id;};
+                }
+                return {headers:'code:Case,opened:Opened,notes:Notes',data:data.filter(cbfilter)};
+            }"""

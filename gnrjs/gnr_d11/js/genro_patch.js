@@ -123,7 +123,7 @@ genropatches.dojoXhr = function(transport){
             }).then(function(response){
                 if(finished){ return; }
                 xhr.status = response.status;
-                xhr.statusText = response.statusText;
+                xhr.statusText = httpStatusText(response.status, response.statusText);
                 xhr.readyState = 2;
                 responseHeaders = response.headers;
                 return response.text().then(function(text){
@@ -502,21 +502,30 @@ genropatches.comboBox = function() {
                 + "<li class='dijitMenuItem dijitMenuNextButton' dojoAttachPoint='nextButton'></li>"
                 + "</ul>",
         createOptions:function(results, dataObject, labelFunc) {
-            var lfa = dataObject.store.lastFetchAttrs;
+            this._results = results;
+            this._lastFetchAttrs = dataObject.store.lastFetchAttrs;
+            this.renderOptions();
+        },
+        renderOptions:function() {
+            var results = this._results;
+            var lfa = this._lastFetchAttrs;
             var columns = lfa.columns.split(',');
             var headers = lfa.headers.split(',');
             var tblclass = 'multiColumnSelect' + ' ' + lfa.resultClass;
             var tplRow = this.params.auxColumns_template;
             var max_height = null;
-            if(tplRow){
+            var multiline = !tplRow && (this._multiline || this.params.auxColumns_multiline===true);
+            if(tplRow || multiline){
                 results.forEach(n=>{
-                    n.attr._template_value = dataTemplate(tplRow,n.attr);
+                    n.attr._template_value = tplRow? dataTemplate(tplRow,n.attr) : this.multilineValue(n.attr,columns,headers);
                 });
+                if(multiline){
+                    tblclass += ' multilineAuxColumns';
+                }
                 columns = ['_template_value']
                 headers = ['*']
                 tblclass += ' templateAuxColumns'
                 max_height = '400px'
-
             }
             genro.dom.scrollableTable(this.domNode, results[0].getParentBag(), {'columns':columns,'headers':headers,'tblclass':tblclass,
                                                                                 max_height:max_height});
@@ -524,6 +533,45 @@ genropatches.comboBox = function() {
             // this.nextButton.style.display='none';
             //  this.previousButton.style.display='none';
             //genro.debug("this.domNode.innerHTML=tbl.join('\n');");
+        },
+        multilineValue:function(row, columns, headers) {
+            var caption = row[columns[0]];
+            if(isNullOrBlank(caption)){
+                caption = row.caption;
+            }
+            var lines = [`<div class="auxColumns_caption">${isNullOrBlank(caption)?'&nbsp;':_F(caption)}</div>`];
+            for(var i = 1; i < columns.length; i++){
+                var v = row[columns[i]];
+                if(!isNullOrBlank(v)){
+                    lines.push(`<div class="auxColumns_line">${headers[i]}: ${_F(v)}</div>`);
+                }
+            }
+            return lines.join('');
+        },
+        adaptToField:function(fieldWidth) {
+            this.domNode.style.setProperty('--auxColumns-field-width', fieldWidth+'px');
+            var mode = this.params.auxColumns_multiline;
+            if(this._multiline || mode===true || mode===false || this.params.auxColumns_template || !this._results){
+                return false;
+            }
+            var wrapper = this.domNode.firstChild;
+            var table = wrapper && dojo.query('table', wrapper)[0];
+            if(!table){
+                return false;
+            }
+            var allowedWidth;
+            if(typeof(mode)=='number'){
+                allowedWidth = fieldWidth*mode;
+            }else{
+                var em = parseFloat(window.getComputedStyle(this.domNode).fontSize);
+                allowedWidth = Math.max(fieldWidth, Math.min(2*fieldWidth, 30*em));
+            }
+            if(wrapper.scrollWidth<=wrapper.clientWidth && table.offsetWidth<=allowedWidth){
+                return false;
+            }
+            this._multiline = true;
+            this.renderOptions();
+            return true;
         },
         tblrows:function() {
             return dojo.query('tbody tr', this.domNode);
@@ -558,15 +606,10 @@ genropatches.comboBox = function() {
             if (evt.target === this.domNode) {
                 return;
             }
-            var tgt = evt.target;
-            if (tgt) {
-                if (tgt.getAttribute('id')) {
-                    this._focusOptionNode(tgt);
-                } else if (tgt.parentNode.getAttribute('id')) {
-                    this._focusOptionNode(tgt.parentNode);
-                }
+            var tgt = evt.target.closest && evt.target.closest('tbody tr[id]');
+            if (tgt && this.domNode.contains(tgt)) {
+                this._focusOptionNode(tgt);
             }
-            ;
 
         },
         _page:function(/*Boolean*/ up) {

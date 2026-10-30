@@ -75,6 +75,7 @@ from gnr.web.gnrbaseclasses import BaseComponent # noqa: F401
 
 
 from gnr.app.gnrlocalization import GnrLocString
+from gnr.sql.gnrsqltable import EXCEPTIONS as SQL_EXCEPTIONS
 
 AUTH_OK = 0
 AUTH_NOT_LOGGED = 1
@@ -1239,7 +1240,8 @@ class GnrWebPage(GnrBaseWebPage):
             handler = getattr(proxy_object,submethod)
             permissions = getattr(handler,'permissions',None)
             if not self.checkTablePermission(table=table_name,permissions=permissions):
-                raise self.exception('business_logic',message='Operation %s is not allowed' %submethod)
+                raise self.exception('business_logic', msg=self.localize('!!Operation %(operation)s is not allowed'),
+                                     operation=submethod)
         elif proxy_name == '_tblscript':
             table_pkg,table_name,table_respath,class_name,submethod = submethod.split('.')
             proxy_object = self.loadTableScript(table='.'.join((table_pkg,table_name)),respath=table_respath,class_name=class_name)
@@ -1353,9 +1355,12 @@ class GnrWebPage(GnrBaseWebPage):
         :param msg: TODO."""
         if isinstance(exception, str):
             name = exception
-            exception = EXCEPTIONS.get(name)
+            exception = EXCEPTIONS.get(name) or SQL_EXCEPTIONS.get(name)
             if not exception:
                 raise GnrException(f'Unknown exception name: {name}')
+            if name in SQL_EXCEPTIONS:
+                kwargs.setdefault('tablename', '')
+                kwargs.setdefault('rowcaption', '')
         return exception(user=self.user,localizer=self.application.localizer,**kwargs)
 
     def gnrjs_imports(self):
@@ -1394,6 +1399,7 @@ class GnrWebPage(GnrBaseWebPage):
         kwargs['dojoXhrPatch'] = self.application.experimentalValue(
             'page', 'dojo_xhr_patch') or ''
         kwargs['useFormletsInJsFb'] = self.application.experimentalFlag('gui', 'use_formlets_in_js_fb')
+        kwargs['inlineDoc'] = self.application.experimentalFlag('gui', 'inlinedoc')
         self.getPwaIntegration(arg_dict)
         self.getSquareLogoUrl(arg_dict)
         self.getCoverLogoUrl(arg_dict)
@@ -2464,6 +2470,11 @@ class GnrWebPage(GnrBaseWebPage):
         page.dataController("""
                             genro.dom.setClass(document.body,'developerToolElementsVisible',developerToolsVisible)""",
                             developerToolsVisible='^gnr.developerToolsVisible')
+        if self.inlineDoc:
+            page.data('gnr.docModeVisible',False)
+            page.dataController("""genro.dom.setClass(document.body,'docModeVisible',docModeVisible);
+                                   genro.dlg.docApplyStates();""",
+                                docModeVisible='^gnr.docModeVisible')
         page.dataController("""genro.src.updatePageSource('_pageRoot')""",
                         subscribe_gnrIde_rebuildPage=True,_delay=100)
         page.dataController("PUBLISH setWindowTitle=windowTitle;",windowTitle="^gnr.windowTitle",_onStart=True)
@@ -3092,6 +3103,12 @@ class GnrWebPage(GnrBaseWebPage):
     def isDeveloper(self):
         """TODO"""
         return self.hasTag('_DEV_')
+
+    @property
+    def inlineDoc(self):
+        """The docs of the inlinedoc storage (sys/ep_doc) instead of helper.xml:
+        ``<experimental><gui inlinedoc="true"/></experimental>``"""
+        return self.application.experimentalFlag('gui', 'inlinedoc')
 
         
 

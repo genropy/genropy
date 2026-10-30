@@ -83,7 +83,8 @@ class TableHandlerForm(BaseComponent):
 
     def th_finalizeForm(self,form,table=None,options=None,frameCode=None,formCb=None):
         self._th_applyOnForm(form,options=options,mangler=frameCode)  
-        self._th_prepareFormDataHelper(form)
+        if not self.inlineDoc:
+            self._th_prepareFormDataHelper(form)
         if formCb:
             formCb(form)
         elif table == self.maintable and hasattr(self,'th_form'):
@@ -268,6 +269,9 @@ class TableHandlerForm(BaseComponent):
             default_slots = 'left_placeholder,*,right_placeholder,semaphore,5' if readOnly else 'left_placeholder,*,right_placeholder,form_archive,form_delete,form_add,form_revert,form_save,semaphore,locker'
             if annotations and not readOnly:
                 default_slots = default_slots.replace('right_placeholder','right_placeholder,annotationTool')
+            if self.inlineDoc and table != getattr(self, 'maintable', None):
+                # the page's own table has its "?" on the page top bar
+                default_slots = default_slots.replace('left_placeholder','left_placeholder,form_help')
             if form_add is False:
                 default_slots = default_slots.replace('form_add','')
             if form_delete is False:
@@ -401,6 +405,10 @@ class TableHandlerForm(BaseComponent):
             pane.annotationTool(**kwargs)
         else:
             pane.div()
+
+    @struct_method
+    def th_slotbar_form_help(self,pane,**kwargs):
+        pane.docHelpButton(f"table:{pane.getInheritedAttributes()['table']}:")
 
     @struct_method          
     def th_slotbar_form_audit(self,pane,**kwargs):

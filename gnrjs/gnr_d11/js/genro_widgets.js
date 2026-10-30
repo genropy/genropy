@@ -855,6 +855,11 @@ dojo.declare("gnr.widgets.labledbox", gnr.widgets.baseHtml, {
     },
 
     onBuilding:function(sourceNode){
+        // a rebuild (e.g. an ancestor's unfreeze) finds the label and content boxes already in place
+        let builtLabelBox = sourceNode._labelNode && sourceNode._labelNode.getParentNode();
+        if(builtLabelBox && builtLabelBox.getParentNode()===sourceNode){
+            return;
+        }
         let label = sourceNode.attr.label;
         let default_side = sourceNode.getInheritedAttributes().label_side;
         let side = sourceNode.attr.side || default_side;
@@ -879,7 +884,10 @@ dojo.declare("gnr.widgets.labledbox", gnr.widgets.baseHtml, {
         }
         sourceNode._value = null;
         
+        // a field documents its column, a widget with helpcode its page
         let helpcode = sourceNode.attr.helpcode;
+        let docAddress = genro.startArgs.inlineDoc && (sourceNode.attr.docAddress || (helpcode
+            && `page:${genro.getData('gnr.package')}/${genro.getData('gnr.pagename')}:${helpcode}`));
         let labelBoxAttr = {_class:'labledBox_label',...box_l_kw};
         if (sourceNode.attr.moveable){
             labelBoxAttr.id='handle_'+sourceNode.getStringId()
@@ -888,10 +896,21 @@ dojo.declare("gnr.widgets.labledbox", gnr.widgets.baseHtml, {
         let labelBox = sourceNode._('div',labelBoxAttr,{'doTrigger':false});
         let labelSrc = labelBox._('div',objectUpdate({innerHTML:label},label_attr),{'doTrigger':false});
         sourceNode._labelNode = labelSrc.getParentNode();
-        if(helpcode){
+        if(docAddress){
+            labelBox._('div','spacer',{innerHTML:'&nbsp;',width:'100%','flex':'1'},{'doTrigger':false});
+            labelBox._('lightbutton','helper',{_class:'helperbutton iconbox innericonbox',
+                onCreated:function(){
+                    genro.dlg.docTrack(this.domNode, docAddress);
+                },
+                action:function(){
+                    genro.dlg.openDoc(this.domNode, docAddress,
+                                      {title: sourceNode._labelNode.domNode.innerHTML, tooltip: true});
+                },
+            },{'doTrigger':false});
+        }else if(helpcode){
             let helperEditor = genro.isDeveloper? ' helperEditor':'';
             labelBox._('div','spacer',{innerHTML:'&nbsp;',width:'100%','flex':'1'},{'doTrigger':false});
-            let btn = labelBox._('lightbutton','helper',{_class:'helperbutton iconbox innericonbox '+helperEditor,
+            labelBox._('lightbutton','helper',{_class:'helperbutton iconbox innericonbox '+helperEditor,
                 action:function(){
                     sourceNode.onHelperClick(this);
                 },
@@ -919,7 +938,9 @@ dojo.declare("gnr.widgets.labledbox", gnr.widgets.baseHtml, {
     },
 
     created:function(newobj, savedAttrs, sourceNode){
-        sourceNode.updateHelperClasses();
+        if(!genro.startArgs.inlineDoc){
+            sourceNode.updateHelperClasses();
+        }
     },
 
     setSide:function(domNode,value,kw){
@@ -5652,7 +5673,8 @@ dojo.declare("gnr.widgets.DynamicBaseCombo", gnr.widgets.BaseCombo, {
     created: function(widget, savedAttrs, sourceNode) {
         if (savedAttrs.auxColumns) {
             widget._popupWidget = new gnr.Gnr_ComboBoxMenu({onChange: dojo.hitch(widget, widget._selectOption),
-                                                            auxColumns_template:sourceNode.attr.auxColumns_template});
+                                                            auxColumns_template:sourceNode.attr.auxColumns_template,
+                                                            auxColumns_multiline:sourceNode.attr.auxColumns_multiline});
             dojo.connect(widget,'open',function(){
                 var popup = this._popupWidget.domNode.parentNode;
                 var popupcoords = dojo.coords(popup);
@@ -5663,6 +5685,11 @@ dojo.declare("gnr.widgets.DynamicBaseCombo", gnr.widgets.BaseCombo, {
                 }
                 var that = this;
                 setTimeout(function(){
+                    // the reopened list comes back through this handler and autoselects there
+                    if(that._popupWidget.adaptToField(that.domNode.offsetWidth)){
+                        that._showResultList();
+                        return;
+                    }
                     if(that.gnr._autoselectFirstOption){
                         that._popupWidget.highlightFirstOption();
                     }

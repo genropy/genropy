@@ -2954,7 +2954,6 @@ gnr.GroupletGridController = class GroupletGridController {
             const Card = gnr.GroupletCard;
             profile.title = this.collapsedTemplate || Card.compileTemplate(profile.titleTemplate)
                 || Card.compileTemplate(profile.template);
-            profile.docTemplate = Card.compileTemplate(profile.doc);
             this._cardProfiles[templateKey] = profile;
         }
         return this._cardProfiles[templateKey];
@@ -5046,6 +5045,7 @@ gnr.GroupletGridTile = class GroupletGridTile {
         const tile = this;
         let tileClass = 'grouplet_grid_row';
         if (this._usesBand()) tileClass += ' grouplet_card grouplet_card--chrome-' + c.chromeSide;
+        if (this.profile && this.profile.wide) tileClass += ' grouplet_grid_row--wide';
         if (c._isTabsLayout() && c.activePkey === pkey) {
             tileClass += ' grouplet_grid_tab_active';
             this.isActive = true;
@@ -5121,10 +5121,7 @@ gnr.GroupletGridTile = class GroupletGridTile {
             // the summary line's title, shown in the band open or folded
             title: (profile.title || c.titleField)
                 ? (dom) => c._renderTitle(dom, profile.title, pkey) : null,
-            doc: profile.docTemplate ? {
-                html: (cb) => cb(gnr.GroupletCard.renderDoc(profile.docTemplate,
-                                                             c.dataStore.rowValue(pkey), profile.doc_kw))
-            } : null,
+            doc: gnr.GroupletCard.docSpec(profile.doc, () => c.dataStore.rowValue(pkey), profile.doc_kw),
             collapsedClasses: ['grouplet_grid_row--collapsed', 'grouplet_card--collapsed'],
             collapse: c.collapsible ? {
                 isCollapsed: () => c.isCollapsed(pkey),

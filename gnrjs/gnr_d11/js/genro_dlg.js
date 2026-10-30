@@ -894,6 +894,388 @@ dojo.declare("gnr.GnrDlgHandler", null, {
         return tp;
     },
 
+    docUrl: function(address, kw) {
+        // the page of a doc address (sys/ep_doc), asked by this page
+        return genro.addParamsToUrl('/sys/ep_doc', objectUpdate({address: address,
+            language: genro.getData('gnr.language'), _calling_page_id: genro.page_id}, kw || {}));
+    },
+
+    docAssetUrl: function(address, name) {
+        return this.docUrl(address) + '&asset=' + (name || '');
+    },
+
+    _docPost: function(params) {
+        const body = new URLSearchParams(objectUpdate({language: genro.getData('gnr.language'),
+                                                       _calling_page_id: genro.page_id}, params));
+        return fetch('/sys/ep_doc', {method: 'POST', body: body, credentials: 'same-origin'});
+    },
+
+    docTrack: function(domNode, address) {
+        // an icon of a doc address: shown when the doc exists, and red where it
+        // is empty to a documenter in documentation mode. The addresses of the
+        // page go to sys/ep_doc in one request, its answers serve every page of
+        // the session for _docStateTtl
+        domNode.setAttribute('data-doc-address', address);
+        domNode.classList.add('doc_icon');
+        const state = this._docStateCache()[address];
+        const asked = this._docAsked = this._docAsked || new Set();
+        if ((state && state.expires > Date.now()) || asked.has(address)) {
+            this.docApplyState(domNode);
+            return;
+        }
+        asked.add(address);
+        (this._docPending = this._docPending || new Set()).add(address);
+        if (!this._docPendingTimer) {
+            this._docPendingTimer = setTimeout(() => this._docIndex(), 0);
+        }
+    },
+
+    _docStateTtl: 300000,
+
+    _docStateCache: function() {
+        // the states of the doc addresses, kept by the main window for its iframes
+        const owner = genro.mainGenroWindow ? genro.mainGenroWindow.genro.dlg : this;
+        return owner._docStates = owner._docStates || {};
+    },
+
+    _docIndex: function() {
+        const addresses = [...this._docPending];
+        this._docPending = new Set();
+        this._docPendingTimer = null;
+        return this._docPost({_index: 1, addresses: addresses.join(',')})
+            .then((response) => response.ok ? response.json() : null)
+            .catch(() => null)
+            .then((result) => {
+                const states = this._docStateCache();
+                const expires = Date.now() + this._docStateTtl;
+                addresses.forEach((address) => {
+                    this._docAsked.delete(address);
+                    // a failed request is asked again by the next page
+                    if (result) {
+                        states[address] = {exists: address in result.docs,
+                                           editable: result.editable.indexOf(address) >= 0,
+                                           manual: (result.manual || []).indexOf(address) >= 0,
+                                           expires: expires};
+                    }
+                });
+                this.docApplyStates();
+            });
+    },
+
+    docApplyStates: function() {
+        document.querySelectorAll('[data-doc-address]').forEach((domNode) => this.docApplyState(domNode));
+    },
+
+    docApplyState: function(domNode) {
+        const state = this._docStateCache()[domNode.getAttribute('data-doc-address')] || {};
+        const docMode = !!genro.getData('gnr.docModeVisible');
+        const documented = !!state.exists || !!state.manual;
+        domNode.classList.toggle('doc_icon--shown', documented || (!!state.editable && docMode));
+        domNode.classList.toggle('doc_icon--empty', !documented);
+    },
+
+    docSource: function(address, cb) {
+        // {exists, editable, title, html, markdown, language, mtime, manual} of a
+        // doc address, fetched once per page; null when it is not for this user
+        const sources = this._docSources = this._docSources || {};
+        if (!(address in sources)) {
+            sources[address] = fetch(this.docUrl(address, {_fragment: 1}), {credentials: 'same-origin'})
+                .then((response) => response.ok ? response.json() : null)
+                .catch(() => null);
+        }
+        return sources[address].then(cb);
+    },
+
+    helpPanel: function(address, kw, source) {
+        // the help of an address, on the right of the page (a help panel): the
+        // manual's section with a link to it, then the customer's note, with
+        // Edit for a documenter. One panel per page, its topic changes on the
+        // next click; the close button or Esc closes it. Its left edge drags
+        // its width, kept in the browser; ⤢ widens it
+        this._helpPanelArgs = [address, kw || {}, source || {}];
+        this._helpPanelManualUrl = null;
+        this._renderHelpPanel();
+    },
+
+    showManual: function(address, kw, source, url) {
+        // the manual's page in the help panel, widened: the page is never left,
+        // whatever the browser makes of a new window
+        this._helpPanelArgs = [address, kw || {}, source || {}];
+        this._helpPanelManualUrl = url;
+        this._helpPanelWide = true;
+        this._renderHelpPanel();
+    },
+
+    _renderHelpPanel: function() {
+        const [address, kw, source] = this._helpPanelArgs;
+        const manualUrl = this._helpPanelManualUrl;
+        const width = this._helpPanelWidth || this._storedHelpPanelWidth();
+        genro.src.getNode()._('div', '_doc_help_panel_');
+        const node = genro.src.getNode('_doc_help_panel_').clearValue();
+        node.freeze();
+        const panel = node._('div', {_class: 'doc_help_panel' + (this._helpPanelWide ? ' doc_help_panel--wide' : ''),
+                                     width: !this._helpPanelWide && width ? width + 'px' : null,
+                                     role: 'complementary', 'aria_label': _T('!!Help')});
+        panel._('div', {_class: 'doc_help_panel_resize', title: _T('!!Drag to resize'),
+                        connect_onpointerdown: (e) => this._resizeHelpPanel(e)});
+        const head = panel._('div', {_class: 'doc_help_panel_head'});
+        if (manualUrl) {
+            head._('div', {_class: 'doc_help_panel_tool', innerHTML: '&#8592; ' + _T('!!Help'),
+                           title: _T('!!Back to the help'), connect_onclick: () => {
+                               this._helpPanelManualUrl = null;
+                               this._renderHelpPanel();
+                           }});
+        }
+        head._('div', {_class: 'doc_help_panel_title', innerHTML: this._docHelpTitle(kw, source)});
+        if (manualUrl) {
+            head._('a', {_class: 'doc_help_panel_tool', href: manualUrl, target: '_blank', rel: 'noopener',
+                         innerHTML: '&#8599;', title: _T('!!Open in a new window')});
+        }
+        head._('div', {_class: 'doc_help_panel_tool', innerHTML: this._helpPanelWide ? '&#8690;' : '&#10530;',
+                       title: this._helpPanelWide ? _T('!!Narrow') : _T('!!Widen'), connect_onclick: () => {
+                           this._helpPanelWide = !this._helpPanelWide;
+                           this._renderHelpPanel();
+                       }});
+        head._('div', {_class: 'doc_help_panel_close', innerHTML: '&times;', title: _T('!!Close'),
+                       connect_onclick: () => this.closeHelpPanel()});
+        if (manualUrl) {
+            // no same-origin and no top navigation: the manual can neither
+            // reach this page nor replace it; externalSite keeps the page id
+            // off its url, where it would also break the section's anchor
+            panel._('iframe', {_class: 'doc_help_panel_frame', src: manualUrl, externalSite: true,
+                               sandbox: 'allow-scripts allow-popups allow-popups-to-escape-sandbox'});
+        } else {
+            this._docHelpBody(panel._('div', {_class: 'doc_help_panel_body'}), address, kw, source);
+        }
+        node.unfreeze();
+        this._helpPanelAddress = address;
+        if (this._helpEscape) return;
+        // Esc closes the panel and nothing else: a dialog above the page (the
+        // note's editor among them) keeps its own Esc
+        this._helpEscape = (e) => {
+            if (e.key !== 'Escape' || (e.target && e.target.closest && e.target.closest('.dijitDialog'))) return;
+            e.stopPropagation();
+            e.preventDefault();
+            this.closeHelpPanel();
+        };
+        document.addEventListener('keydown', this._helpEscape, true);
+    },
+
+    _resizeHelpPanel: function(e) {
+        const panel = e.currentTarget.parentNode;
+        const handle = e.currentTarget;
+        e.preventDefault();
+        handle.setPointerCapture(e.pointerId);
+        panel.classList.add('doc_help_panel--resizing');
+        const move = (evt) => {
+            const width = Math.round(Math.min(Math.max(window.innerWidth - evt.clientX, 320), window.innerWidth * 0.9));
+            panel.classList.remove('doc_help_panel--wide');
+            panel.style.width = width + 'px';
+            this._helpPanelWide = false;
+            this._helpPanelWidth = width;
+        };
+        const up = () => {
+            handle.removeEventListener('pointermove', move);
+            handle.removeEventListener('pointerup', up);
+            panel.classList.remove('doc_help_panel--resizing');
+            try {
+                genro.setInStorage('local', 'docHelpPanelWidth', this._helpPanelWidth);
+            } catch (error) {
+                // a browser with no storage keeps the width for this page only
+            }
+        };
+        handle.addEventListener('pointermove', move);
+        handle.addEventListener('pointerup', up);
+    },
+
+    _storedHelpPanelWidth: function() {
+        try {
+            return genro.getFromStorage('local', 'docHelpPanelWidth') || null;
+        } catch (error) {
+            return null;
+        }
+    },
+
+    helpTooltip: function(domNode, address, kw, source) {
+        // the help of an address in a popup at its icon, for a field or a part
+        // of a page: what the help panel shows. One popup for the page, moved to
+        // the icon clicked; a click outside or Esc closes it
+        kw = kw || {};
+        source = source || {};
+        this.quickTooltipPane({nodeId: 'doc_help_tooltip', domNode: domNode, _class: 'doc_help_tooltip'}, (pane) => {
+            const box = pane._('div', {_class: 'doc_help_tooltip_box'});
+            box._('div', {_class: 'doc_help_tooltip_title', innerHTML: this._docHelpTitle(kw, source)});
+            this._docHelpBody(box._('div', {_class: 'doc_help_tooltip_body'}), address, kw, source);
+        });
+        if (this._tooltipEscape) return;
+        // the focus is in the popup: Esc is heard on the document while it is open
+        this._tooltipEscape = (e) => {
+            if (e.key !== 'Escape') return;
+            this.closeHelpTooltip();
+        };
+        document.addEventListener('keydown', this._tooltipEscape, true);
+    },
+
+    closeHelpTooltip: function() {
+        if (!this._tooltipEscape) return;
+        document.removeEventListener('keydown', this._tooltipEscape, true);
+        this._tooltipEscape = null;
+        genro.publish('doc_help_tooltip_opener_close');
+    },
+
+    _docHelpTitle: function(kw, source) {
+        return this._docTitleHtml(kw, {title: (source.manual && source.manual.title) || source.title});
+    },
+
+    _docHelpBody: function(body, address, kw, source) {
+        // the manual's section with a link to it, then the customer's note, with
+        // Edit for a documenter: the content of the help panel and of the popup
+        const manual = source.manual;
+        // the server sends only http(s) urls under the manual's site: a url of any
+        // other shape is not followed
+        const manualUrl = manual && /^(https?:\/\/|\/(?!\/))/i.test(manual.url || '') ? manual.url : null;
+        if (manual) {
+            body._('div', {_class: 'doc_help_manual', innerHTML: manual.html});
+        }
+        if (manualUrl) {
+            // the manual's page in the help panel: the page stays where it is
+            body._('a', {_class: 'doc_help_link', href: manualUrl, target: '_blank', rel: 'noopener',
+                         innerHTML: _T('!!Open in the manual') + ' &#8599;',
+                         connect_onclick: (e) => {
+                             e.preventDefault();
+                             this.closeHelpTooltip();
+                             this.showManual(address, kw, source, manualUrl);
+                         }});
+        }
+        if (source.exists) {
+            const note = body._('div', {_class: 'doc_help_note'});
+            if (manual) note._('div', {_class: 'doc_help_note_title', innerHTML: _T('!!Notes')});
+            note._('div', {_class: 'doc_help_note_body',
+                           innerHTML: kw.fill ? kw.fill(source.html) : source.html});
+        } else if (!manual) {
+            body._('div', {_class: 'doc_help_empty', innerHTML: _T('!!No documentation available')});
+        }
+        if (source.editable) {
+            body._('a', {_class: 'doc_help_edit', href: '#',
+                         innerHTML: source.exists ? _T('!!Edit the note') : _T('!!Add a note'),
+                         connect_onclick: (e) => {
+                             e.preventDefault();
+                             this.closeHelpTooltip();
+                             this.docEdit(address, kw, source);
+                         }});
+        }
+    },
+
+    closeHelpPanel: function() {
+        const node = genro.src.getNode('_doc_help_panel_');
+        if (node) node.clearValue();
+        this._helpPanelAddress = null;
+        this._helpPanelManualUrl = null;
+        if (this._helpEscape) {
+            document.removeEventListener('keydown', this._helpEscape, true);
+            this._helpEscape = null;
+        }
+    },
+
+    _docTitleHtml: function(kw, source) {
+        // kw.title is the caller's markup (a label, a card title); the doc's
+        // own title is text a documenter wrote, never markup
+        if (kw.title) return kw.title;
+        return String((source && source.title) || '').replace(/&/g, '&amp;').replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    },
+
+    openDoc: function(domNode, address, kw) {
+        // the "?" of an address. kw: title, fill (a note's html filled with the
+        // caller's data), placeholders (the variables the editor offers),
+        // tooltip (a popup at the icon instead of the help panel). An address
+        // with neither manual nor note opens the editor to a documenter
+        kw = kw || {};
+        return this.docSource(address, (source) => {
+            if (source && !source.exists && !source.manual && source.editable) {
+                this.docEdit(address, kw, source);
+                return;
+            }
+            if (kw.tooltip) {
+                this.helpTooltip(domNode, address, kw, source);
+                return;
+            }
+            this.helpPanel(address, kw, source);
+        });
+    },
+
+    docEdit: function(address, kw, source) {
+        // the doc in the user's language: another language's text is the
+        // starting point of a translation, saved as a new file
+        const language = genro.getData('gnr.language');
+        const assets = this.docAssetUrl(address);
+        const title = kw.title || source.title;
+        genro.setData('gnr.docEditor.markdown', (source.markdown || '').split('](assets/').join('](' + assets));
+        const dlg = this.quickDialog(_T('!!Documentation') + ' · ' + this._docTitleHtml(kw, source) + ' (' + language + ')',
+                                     {width: '760px', closable: true});
+        const placeholders = kw.placeholders ? kw.placeholders() : [];
+        dlg.center._('MDEditor', {nodeId: 'doc_editor_md', value: '^gnr.docEditor.markdown',
+            height: '440px', width: '740px',
+            initialEditType: 'wysiwyg', usageStatistics: false,
+            hooks: {addImageBlobHook: (blob, callback) => {
+                this.docUploadImage(address, blob).then((link) => {
+                    if (link) callback(assets + link.slice('assets/'.length), '');
+                });
+            }}});
+        if (placeholders.length) {
+            dlg.center._('div', {_class: 'doc_editor_placeholders',
+                                 innerHTML: _T('!!Variables') + ': ' + placeholders.map((p) => '$' + p).join(' ')});
+        }
+        const save = (force) => {
+            // the editor writes its datapath on blur, which a click on Save may precede
+            const editorNode = genro.nodeById('doc_editor_md');
+            const current = editorNode && editorNode.externalWidget
+                ? editorNode.externalWidget.getMarkdown() : genro.getData('gnr.docEditor.markdown');
+            const markdown = (current || '').split(assets).join('assets/');
+            const params = {_save: 1, address: address, markdown: markdown, title: title};
+            if (source.exists && source.language === language) params.base_mtime = source.mtime;
+            if (force) params.force = 1;
+            this._docPost(params).then((response) => {
+                if (response.status === 409) {
+                    this.ask(_T('!!Documentation'), _T('!!Somebody saved this doc while you were editing it'),
+                             {overwrite: _T('!!Overwrite'), cancel: _T('!!Cancel')},
+                             {overwrite: () => save(true)});
+                    return;
+                }
+                if (!response.ok) {
+                    genro.publish('floating_message', {message: _T('!!The doc was not saved'), messageType: 'error'});
+                    return;
+                }
+                delete this._docSources[address];
+                const states = this._docStateCache();
+                const state = states[address] || {};
+                states[address] = {exists: !!markdown.trim(), editable: true, manual: !!state.manual,
+                                   expires: Date.now() + this._docStateTtl};
+                this.docApplyStates();
+                dlg.close_action();
+                if (this._helpPanelAddress === address) {
+                    this.docSource(address, (fresh) => this.helpPanel(address, kw, fresh));
+                }
+            });
+        };
+        dlg.bottom._('button', 'save', {float: 'right', label: _T('!!Save'), action: () => save(false)});
+        dlg.bottom._('button', 'cancel', {float: 'right', label: _T('!!Cancel'), action: () => dlg.close_action()});
+        dlg.show_action();
+        return dlg;
+    },
+
+    docUploadImage: function(address, blob) {
+        // an image pasted or dropped in the editor, stored next to the doc
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = () => resolve(null);
+            reader.readAsDataURL(blob);
+        }).then((dataUrl) => dataUrl ? this._docPost({_asset: 1, address: address, dataUrl: dataUrl}) : null)
+          .then((response) => response && response.ok ? response.json() : null)
+          .then((result) => result && result.link);
+    },
+
     quickDialog: function(title,kw,rootNode) {
         kw = objectUpdate({_class:'dlg_prompt'},kw);
         var quickRoot = '_dlg_quick_'+genro.getCounter();

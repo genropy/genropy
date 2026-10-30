@@ -108,16 +108,28 @@ class TestGnrLang():
                 return v.replace("goober", "foobar")
             
         localizer = FakeLocalizer()
-        # FIXME: this should be fixed in implementation
         e = gl.GnrException(localizer=localizer)
-        assert e.localizer is None
-        
+        assert e.localizer is localizer
+
         e.setLocalizer(localizer)
         assert e.localizer is localizer
         assert e.localize("goober") == "foobar"
 
         r = e.localizedMsg("goober %(a)s", dict(a="!!Hello"))
         assert r == "foobar !!Hello"
+
+    def test_GnrException_str_localizes_with_its_localizer(self):
+        class MarkerLocalizer(object):
+            def translate(self, v):
+                for marker in ('!![it]', '!!'):
+                    if v.startswith(marker):
+                        v = v[len(marker):]
+                        break
+                return v.replace('Error code', 'Codice errore')
+
+        e = gl.GnrException(description='!![it]Il conto %(n)s compare due volte',
+                            localizer=MarkerLocalizer(), n='10% ALLOWANCE')
+        assert str(e) == 'Codice errore GNR-001 : Il conto 10% ALLOWANCE compare due volte.'
 
     def test_GnrSilentException(self):
         e = gl.GnrSilentException(topic=1)
