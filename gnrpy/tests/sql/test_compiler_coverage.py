@@ -13,7 +13,7 @@ import pytest
 from gnr.core.gnrbag import Bag
 from gnr.sql.gnrsql_exceptions import GnrSqlMissingField
 
-
+from core.common import BaseGnrTest
 from .common import next_sql_compiler_flag
 
 def setup_module(module):
