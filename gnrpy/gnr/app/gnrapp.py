@@ -1046,8 +1046,6 @@ class GnrApp(object):
         # load the packages
         for pkgid,pkgattrs,pkgcontent in self.config['packages'].digest('#k,#a,#v'):
             self.addPackage(pkgid,pkgattrs=pkgattrs,pkgcontent=pkgcontent)
-        if self.undeclared_packages:
-            logger.warning(self.undeclared_packages_report())
 
         dbattrs = dict(self.config.getAttr('db') or {})
         dbattrs['implementation'] = dbattrs.get('implementation') or 'sqlite'

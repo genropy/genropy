@@ -2,11 +2,11 @@
 
 ``required_packages()`` is how a package carries its own dependencies, and what
 instance flavours rely on: an instance declares ``biz`` and gets ``adm`` and
-``sys`` with it. The boot keeps loading that way and reports, once and in a
-pasteable form, what the packages section does not declare. ``checkdep`` walks
-the same closure, reading ``required_packages()`` from the source when
-``main.py`` cannot be imported, so an image build installs every requirement;
-``--strict`` turns the report into a failure where a refusal costs nothing.
+``sys`` with it. The boot keeps loading that way without reporting anything.
+``checkdep`` walks the same closure, reading ``required_packages()`` from the
+source when ``main.py`` cannot be imported, so an image build installs every
+requirement; it reports, in a pasteable form, what the packages section does
+not declare, and ``--strict`` turns that report into a failure.
 
 ``gnrcore:biz`` requires ``gnrcore:adm``, which requires ``gnrcore:sys``: two
 levels, enough to exercise the transitive case.
@@ -99,18 +99,18 @@ class TestRequiredPackagesDeclared(BaseGnrTest):
         return '    <%s pkgcode="%s" path="%s"/>' % (name, name, root)
 
     def test_undeclared_required_packages_still_boot(self, caplog):
-        """biz alone declared: adm and sys load through required_packages(), and
-        the packages section gets the lines to paste."""
+        """biz alone declared: adm and sys load through required_packages() with
+        no warning, and the report checkdep prints has the lines to paste."""
         with caplog.at_level(logging.WARNING, logger='gnr.app'):
             app = self._app('biz')
         assert set(['biz', 'adm', 'sys']).issubset(set(app.packages.keys()))
+        assert 'required_packages()' not in caplog.text
         assert [e['code'] for e in app.undeclared_packages] == ['gnrcore:adm', 'gnrcore:sys']
         report = app.undeclared_packages_report()
         assert '<gnrcore_adm pkgcode="gnrcore:adm"/>' in report
         assert '<gnrcore_sys pkgcode="gnrcore:sys"/>' in report
         assert 'gnrcore:adm (required by biz)' in report
         assert 'gnrcore:sys (required by adm)' in report
-        assert report in caplog.text
 
     def test_complete_declaration_reports_nothing(self, caplog):
         with caplog.at_level(logging.WARNING, logger='gnr.app'):
