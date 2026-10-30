@@ -2609,7 +2609,10 @@ dojo.declare("gnr.widgets.TreeGrid", gnr.widgets.gnrwdg, {
         this.footersHeadersHandler('header');
         this.footersHeadersHandler('footer');
         this.centerNode.domNode.style.top = this.headerNode? this.headerNode.domNode.clientHeight+1+'px':'0px';
-        this.centerNode.domNode.style.bottom = this.footerNode?this.footerNode.domNode.clientHeight+1+'px':'0px';
+        const footerOffset = this.footerNode? this.footerNode.domNode.clientHeight+1 : 0;
+        // the scroller paints over the center: reserve its strip or it swallows clicks on the bottom row
+        this.scrollerNode.domNode.style.bottom = footerOffset+'px';
+        this.centerNode.domNode.style.bottom = footerOffset+this.scrollerNode.domNode.offsetHeight+'px';
         this.currentScroll = 0;
         this.setScroller();
         setTimeout(function(){
