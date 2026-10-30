@@ -291,8 +291,14 @@ class TableHandlerView(BaseComponent):
         """,queryBySample='^.queryBySample',currentQuery='^.query.currentQuery',
                             _if='currentQuery=="__querybysample__"')
         tray = bar.fb.div(_class='th_querysample_tray')
-        fb = tray.formbuilder(onEnter='genro.nodeById(this.getInheritedAttributes().target).publish("runbtn",{"modifiers":null});',
-                                **pars)
+        onEnter = 'genro.nodeById(this.getInheritedAttributes().target).publish("runbtn",{"modifiers":null});'
+        if pars.get('wrap') or pars.get('col_min_width'):
+            # a responsive sample flows onto more rows as the view narrows: only a formlet can
+            pars.pop('border_spacing', None)
+            pars.setdefault('item_lbl_side', 'left')
+            fb = tray.formlet(onEnter=onEnter, **pars)
+        else:
+            fb = tray.formbuilder(onEnter=onEnter, **pars)
         bar.dataController("""genro.dom.toggleVisible(bar,currentQuery=="__querybysample__");
                             view.widget.resize();""", currentQuery='^.query.currentQuery',
                             view=view, bar=bar,_onBuilt=True)
