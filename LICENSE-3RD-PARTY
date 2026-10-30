@@ -6,3 +6,5 @@ This software package contains third party software, with the following licenses
 * resources/js_libs/codemirror6/codemirror6.bundle.js - Distributed under MIT license. Bundled distribution of @codemirror/* packages and thememirror (https://codemirror.net/). Build configuration in tools/codemirror6-build/.
 
 * resources/js_libs/prosemirror/prosemirror.bundle.js - Distributed under MIT license. Bundled distribution of prosemirror-* packages including state, view, model, transform, commands, keymap, history, inputrules, schema-basic, schema-list, dropcursor, gapcursor, menu, example-setup, tables, trailing-node, collab, changeset (https://prosemirror.net/). Build configuration in tools/prosemirror-build/.
+
+* resources/js_libs/jodit/jodit.min.js, resources/js_libs/jodit/jodit.min.css - Distributed under MIT license. Jodit WYSIWYG editor 4.15.13 (https://xdsoft.net/jodit/). Build configuration in tools/jodit-build/.

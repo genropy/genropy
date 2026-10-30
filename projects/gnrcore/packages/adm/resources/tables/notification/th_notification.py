@@ -121,7 +121,7 @@ class Form(BaseComponent):
         dlg = pane.dialog(title='!![en]Linked query',closable=True,datapath=datapath)
         frame = dlg.framePane(frameCode='notification_linked_query',height='400px',width='500px')
         frame.center.contentPane(datapath='.store').div(nodeId='notification_query_pane_root')
-        footer = frame.bottom.slotBar('*,confirm,5',border='1px solid silver',height='23px')
+        footer = frame.bottom.slotBar('*,confirm,5',border='1px solid var(--border-color)',height='23px')
         footer.confirm.button(label='!!Confirm',action="""
                             let newdata = store.deepCopy();
                             SET #FORM.record.linked_query = newdata;

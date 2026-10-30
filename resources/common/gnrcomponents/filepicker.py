@@ -119,7 +119,7 @@ class FilePicker(BaseComponent):
                                     apply_currentFolder='=.currentFolder',
                                     sortedBy='^.grid.sorted')
         bc.contentPane(region='bottom',height='50%',closable='close',overflow='hidden',
-                        border_top='1px solid silver',splitter=True).iframe(src='^.view.grid.selected_url',height='100%',width='100%',border=0)
+                        border_top='1px solid var(--border-color)',splitter=True).iframe(src='^.view.grid.selected_url',height='100%',width='100%',border=0)
         return pane
 
     def _fp_img_grid_struct(self,struct=None):

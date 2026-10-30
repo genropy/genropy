@@ -28,11 +28,23 @@ class Package(GnrDboPackage):
         store_record = self.db.table(self.db.storetable).record(dbstore=storename).output('record')
         return store_record['preferences'] or Bag()
 
-    def setStorePreference(self,pkg=None,value=None):
-        storename = self.db.currentEnv.get('storename')
+    def getHostingPreference(self,storename=None):
+        storename = storename or self.db.currentEnv.get('storename')
+        if not self.db.storetable or not storename or storename==self.db.rootstore:
+            return Bag()
+        with self.db.tempEnv(connectionName='system',storename=self.db.rootstore):
+            store_record = self.db.table(self.db.storetable).record(dbstore=storename,
+                                                                    ignoreMissing=True).output('record')
+            self.db.rollback()
+        return store_record['preferences'] or Bag()
+
+    def setStorePreference(self,pkg=None,value=None,path=None,storename=None,_attributes=None):
+        storename = storename or self.db.currentEnv.get('storename')
         with self.db.tempEnv(connectionName='system',storename=self.db.rootstore):
             with self.db.table(self.db.storetable).recordToUpdate(dbstore=storename) as rec:
-                rec['preferences'][pkg] = value
+                if rec['preferences'] is None:
+                    rec['preferences'] = Bag()
+                rec['preferences'].setItem(f'{pkg}.{path}' if path else pkg,value,_attributes=_attributes)
             self.db.commit()
 
     def onApplicationInited(self):
@@ -118,17 +130,21 @@ class Package(GnrDboPackage):
 
     def checkFullSyncTables_do(self,errorlog_folder=None,dbstores=None,packages=None,tbllist=None):
         errors = Bag()
-        master_index = self.db.tablesMasterIndex(filterPackages=packages)['_index_'] 
+        master_index = self.db.tablesMasterIndex(filterPackages=packages)['_index_']
+        tables = []
         for tbl in master_index.digest('#a.tbl'):
             if tbllist and tbl not in tbllist:
                 continue
             pkg,tblname = tbl.split('.')
             if packages and pkg not in packages:
                 continue
-            tbl = self.db.table(tbl)
-            multidb = tbl.multidb
+            multidb = self.db.table(tbl).multidb
             if not multidb or multidb=='one' or multidb=='parent':
                 continue
+            tables.append(tbl)
+        for tbl in self.syncTablesOrder(tables):
+            tbl = self.db.table(tbl)
+            multidb = tbl.multidb
             main_f = tbl.query(addPkeyColumn=False,bagFields=True,subtable='*',
                                 excludeLogicalDeleted=False,ignorePartition=True,
                                 excludeDraft=False).fetch()
@@ -144,6 +160,21 @@ class Package(GnrDboPackage):
                     v.toXml(p,autocreate=True)
                 else:
                     os.remove(p)
+
+    def syncTablesOrder(self,tables):
+        #tablesMasterIndex ignores deferred relations, but each table is committed
+        #in the stores as soon as it is synced: a deferred foreign key is checked
+        #at that commit, so its target table must already be synced
+        dependencies = dict((tbl,set(d for d,_ in self.db.model.table(tbl).dependencies))
+                            for tbl in tables)
+        pending = list(tables)
+        result = []
+        while pending:
+            ready = [tbl for tbl in pending if not dependencies[tbl].intersection(pending)]
+            tbl = ready[0] if ready else pending[0]
+            pending.remove(tbl)
+            result.append(tbl)
+        return result
 
 
     def onAuthentication(self,avatar):
@@ -328,6 +359,8 @@ class MultidbTable(object):
     def trigger_onUpdated_multidb(self, record,old_record=None,**kwargs):
         if self.db.usingRootstore():  
             self.onSubscriberTrigger(record,old_record=old_record,event='U')
+            if self.fullname==self.db.storetable and self.fieldsChanged('preferences',record,old_record):
+                self.db.table('adm.preference').invalidateStorePreference(record['dbstore'])
 
     def onLoading_multidb(self,record,newrecord,loadingParameters,recInfo):
         if loadingParameters.get('_eager_record_stack') or newrecord:
@@ -574,14 +607,11 @@ class MultidbTable(object):
         #through trigger_onInserted_multidb/trigger_onUpdated_multidb
         GnrDboTable.createSysRecords(self,do_update=do_update)
 
-    def sysRecord(self,syscode):
+    def sysRecord(self,syscode,currentConnection=False):
         if not self.db.usingRootstore():
             with self.db.tempEnv(storename=self.db.rootstore):
-                return self.sysRecord(syscode)
-
-        def createCb(key):
-            extra_fields = dict()
-            if not self.multidb=='*':
-                extra_fields['__multidb_default_subscribed'] = True
-            return self._sysRecordCreateCb(key,**extra_fields)
-        return self.cachedRecord(syscode,keyField='__syscode',createCb=createCb)
+                return self.sysRecord(syscode,currentConnection=currentConnection)
+        extra_fields = dict()
+        if not self.multidb=='*':
+            extra_fields['__multidb_default_subscribed'] = True
+        return self._sysRecord(syscode,currentConnection=currentConnection,**extra_fields)

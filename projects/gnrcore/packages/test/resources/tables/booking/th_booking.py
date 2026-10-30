@@ -35,6 +35,24 @@ class Form(BaseComponent):
         return dict(dialog_height='300px',dialog_width='500px',showtoolbar=False)
 
 
+class FormSaveStep(BaseComponent):
+    """A wizard that registers the booking on leaving Charge only, and
+    reopens it read-only on the last step: booking has no draftField, so
+    every saved record counts as confirmed."""
+    py_requires = 'gnrcomponents/grouplet/grouplet:GroupletHandler'
+
+    def th_form(self, form):
+        form.groupletWizardForm(
+            frameCode='booking_save_step',
+            grouplets_root='save_step_grouplets',
+            saveOnNext='charge', saveLabel='!![en]Register',
+            confirmedReadOnly=True, stepperPosition='left',
+            completeLabel='!![en]Close')
+
+    def th_options(self):
+        return dict(dialog_height='360px', dialog_width='720px')
+
+
 class ViewStack(BaseComponent):
     """View for the redtopic wizard probe: same shape as a ratio-sized
     dialog view (windowRatio + max_width instead of fixed dialog sizes)."""

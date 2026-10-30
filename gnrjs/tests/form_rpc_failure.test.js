@@ -195,13 +195,13 @@ function assertLoadRecovered(s, {alerts = 0} = {}) {
     assert.equal(s.form.opStatus, 'loading');
 }
 
-test('a load whose rpc fails at http level aborts the form instead of showing a stale record', () => {
+test('a load whose rpc fails at http level is announced, then aborts the form instead of showing a stale record', () => {
     const s = createScenario();
     s.form.load({destPkey: 'A'});
     assert.equal(s.lastRpc().method, 'loadRecordCluster');
     assert.equal(s.form.opStatus, 'loading');
     s.lastRpc().deferred.callback(undefined);
-    assertLoadRecovered(s);
+    assertLoadRecovered(s, {alerts: 1});
 });
 
 test('a load answered with an envelope error aborts the form', () => {
@@ -211,11 +211,11 @@ test('a load answered with an envelope error aborts the form', () => {
     assertLoadRecovered(s);
 });
 
-test('a load whose deferred fails does not leave the form locked in loading', () => {
+test('a load whose deferred fails is announced and does not leave the form locked in loading', () => {
     const s = createScenario();
     s.form.load({destPkey: 'A'});
     s.lastRpc().deferred.errback(new Error('boom'));
-    assertLoadRecovered(s);
+    assertLoadRecovered(s, {alerts: 1});
 });
 
 test('a load answered with an error nobody else reports is the one the form announces', () => {
@@ -238,6 +238,34 @@ test('a silent load failure restores the state without dismissing the form', () 
     assert.ok(!s.topics().includes('onDismissed'));
     assert.equal(s.form.getCurrentPkey(), 'A');
     assert.equal(s.calls.rpc.length, 1);
+});
+
+function createDbstoreScenario() {
+    const s = createScenario();
+    s.form.dbstoreField = 'dbstore';
+    s.form.sourceNode.attr = {};
+    return s;
+}
+
+test('a silent load failure on a dbstore form stays silent and keeps the form open', () => {
+    const s = createDbstoreScenario();
+    s.form.load({destPkey: 'A'});
+    s.lastRpc().deferred.callback({error: 'gnrsilent'});
+    assert.equal(s.calls.alerts.length, 0);
+    assert.equal(s.calls.loaded, 0);
+    const failed = s.calls.events.find(e => e.topic === 'onLoadFailed');
+    assert.equal(failed.kw.error.error, 'gnrsilent');
+    assert.ok(!s.topics().includes('onDismissed'));
+    assert.equal(s.form.getCurrentPkey(), 'A');
+});
+
+test('a load whose rpc fails at http level on a dbstore form is announced, then aborts the form', () => {
+    const s = createDbstoreScenario();
+    s.form.load({destPkey: 'A'});
+    s.lastRpc().deferred.callback(undefined);
+    const failed = s.calls.events.find(e => e.topic === 'onLoadFailed');
+    assert.deepEqual({...failed.kw.error}, {error: 'rpc_error'});
+    assertLoadRecovered(s, {alerts: 1});
 });
 
 function assertSaveRecovered(s, {messages = 0} = {}) {
@@ -436,6 +464,19 @@ test('a save whose rpcmethod returns null is a committed save that keeps the cur
     assert.equal(s.form.changed, false);
     assert.ok(s.topics().includes('onSaved'));
     assert.ok(!s.topics().includes('onSaveFailed'));
+});
+
+test('a recordCluster save answered with null is a committed save that keeps the current pkey', () => {
+    const s = createScenario({onSaved: 'reload'});
+    s.record.setItem('name', 'before', {}, {doTrigger: false});
+    s.edit('name', 'after');
+    s.form.save();
+    assert.equal(s.lastRpc().method, 'saveRecordCluster');
+    s.lastRpc().deferred.callback(null);
+    const saved = s.calls.events.find(e => e.topic === 'onSaved');
+    assert.equal(saved.kw.pkey, 'MI');
+    assert.equal(s.form.getCurrentPkey(), 'MI');
+    assert.equal(s.lastRpc().method, 'loadRecordCluster');
 });
 
 test('a load whose rpcmethod returns null is not a failure', () => {

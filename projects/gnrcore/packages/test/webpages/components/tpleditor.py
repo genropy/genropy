@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+"""templateEditor: the editor of Genropy templates, bound to a table or free"""
+
 from gnr.core.gnrdecorator import public_method
 from gnr.core.gnrbag import Bag
 
@@ -16,7 +18,7 @@ class GnrCustomWebPage(object):
                                                        emailChunk=True)
 
     def test_1_importTemplate(self,pane):
-        "tinyMCE/ckEditor are the widgets used in the Template Editor block to edit the template body"
+        "joditEditor is the widget used in the Template Editor block to edit the template body"
         content = pane.borderContainer(height='625px')
         top = content.borderContainer(region='top', height='25px')
         top.button('!!IMPORT TEMPLATE').dataRpc(self.importTemplate, _ask=dict(title='Import template', 
@@ -25,10 +27,7 @@ class GnrCustomWebPage(object):
                                     rowcaption='$code,$description', auxColumns='$description,$userid')]))
 
         middle = content.contentPane(region='center')
-        if self.getPreference('theme.tinymce_beta', pkg='sys'):
-            middle.tinymce(value='^.body', height='100%', width='100%')
-        else:
-            middle.ckeditor(value='^.body', height='100%', width='100%')
+        middle.joditEditor(value='^.body', height='100%', width='100%')
 
     @public_method
     def importTemplate(self, query_object_id=None):
@@ -40,3 +39,8 @@ class GnrCustomWebPage(object):
         "paletteTemplateEditor shows an icon to open Template Editor inside a palette"
         pane.paletteTemplateEditor(maintable='fatt.fattura', paletteCode='templatePaletteCode',
                                         dockButton_iconClass='iconbox create_edit_html_template')
+
+    def test_3_free_template(self, pane):
+        """templateEditor with no maintable: the free-variables editor, whose variables are declared by hand"""
+        bc = pane.borderContainer(height='600px')
+        bc.contentPane(region='center').templateEditor()

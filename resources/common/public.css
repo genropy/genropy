@@ -27,6 +27,29 @@
     padding-top: 2px;
     padding-bottom: 2px;
 }
+/* the inner box would inherit the pill radius and, with overflow hidden, cut the text on the left */
+._common_d11 .pbl_partitionField .cls_DbSelect {
+    border-radius: 0;
+    display: flex;
+    align-items: center;
+}
+/* flex row, so input and arrow are centered on the field's middle line instead of the text baseline */
+.pbl_partitionField .cls_DbSelect > .dijitInputField {
+    flex: 1;
+    order: 1;
+    line-height: 0;
+}
+.pbl_partitionField .cls_DbSelect > .dijitInputField > input {
+    width: 100%;
+    box-sizing: border-box;
+}
+.pbl_partitionField .cls_DbSelect > .dijitArrowButton {
+    order: 2;
+    float: none;
+}
+.pbl_partitionField .cls_DbSelect > .dijitValidationIcon {
+    order: 3;
+}
 
 /* Where filter description shown below title */
 .pbl_title_desc {

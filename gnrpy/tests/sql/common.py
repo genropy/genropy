@@ -3,6 +3,7 @@ import sys
 import os
 import os.path
 import weakref
+from contextlib import contextmanager
 import pytest
 from testing.postgresql import Postgresql
 
@@ -116,6 +117,19 @@ def get_pg_config():
         ), None
     pg_instance = _start_pg_instance()
     return pg_instance.dsn(), pg_instance
+
+
+@contextmanager
+def next_sql_compiler_flag(db, value):
+    """Set ``<experimental><db next_sql_compiler="..."/></experimental>`` on the
+    application config, then restore it."""
+    node = db.application.config.getNode('experimental.db', autocreate=True)
+    previous = node.attr.get('next_sql_compiler')
+    node.attr['next_sql_compiler'] = value
+    try:
+        yield
+    finally:
+        node.attr['next_sql_compiler'] = previous
 
 
 @excludewin32

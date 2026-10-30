@@ -204,7 +204,7 @@ class Table(object):
         format = counter_pars.get('format','')
         if date_field:
             if not record[date_field]:
-                raise self.exception('business_logic', msg='!!Missing %s. Mandatory for counter %s' %(date_field,field))
+                raise self.exception('business_logic', msg=self._translate('!!Missing %s. Mandatory for counter %s') %(date_field,field))
             ymd = self.getYmd(record[date_field])
             period = []
             if '$Y' in format:
@@ -266,7 +266,7 @@ class Table(object):
         date_field = counter_pars.get('date_field')
         date = record[date_field] if date_field else None
         if date_field and not date:
-            raise self.exception('business_logic',msg='!!Missing %s. Mandatory for counter %s' %(date_field,field))
+            raise self.exception('business_logic',msg=self._translate('!!Missing %s. Mandatory for counter %s') %(date_field,field))
         if date:
             ymd = self.getYmd(date)
             output = output.replace('$YYYY', ymd[0])
@@ -309,7 +309,7 @@ class Table(object):
         if date_field:
             date = record[date_field]
             if not date:
-                raise self.exception('business_logic', msg='!!Missing date %s for counter %s' %(date_field,field))
+                raise self.exception('business_logic', msg=self._translate('!!Missing date %s for counter %s') %(date_field,field))
             if isinstance(date,datetime):
                 date = date.date()
         counter_record = self.record(codekey,ignoreMissing=True,for_update=update).output('record')
@@ -326,10 +326,9 @@ class Table(object):
             counter_record['counter'] = counter
             if date and  last_used and date< last_used:
                 msgTpl = counter_pars.get('message_dateError','!!Incompatible date assigning %(fieldname)s counter')
-                fieldname = tblobj.column(field).name_long or field
-                fieldname = fieldname.replace('!!','')
+                fieldname = self._translate(tblobj.column(field).name_long or field)
                 if not counter_pars.get('date_tolerant'):
-                    raise self.exception('business_logic',msg=msgTpl %dict(fieldname=fieldname,last_used=last_used))
+                    raise self.exception('business_logic',msg=self._translate(msgTpl) %dict(fieldname=fieldname,last_used=last_used))
         if update:
             if counter_record['codekey']:
                 oldrec = dict(counter_record)
@@ -339,6 +338,8 @@ class Table(object):
             counterInfo['codekey'] = counter_record['codekey']
         return counter,counterInfo
 
+    def _translate(self, txt):
+        return self.db.localizer.translate(txt, language=self.db.currentEnv.get('locale'))
 
     def releaseCounter(self,tblobj=None,field=None,record=None):
         codekey = self.getCounterPkey(tblobj=tblobj,field=field,record=record)
@@ -347,7 +348,7 @@ class Table(object):
         N_start,N_end = self._getBoundaries(**counter_pars)['N']
         date = record[date_field] if date_field else None
         if date_field and not date:
-            raise self.exception('business_logic',msg='!!Missing %s. Mandatory for counter %s' %(date_field,field))
+            raise self.exception('business_logic',msg=self._translate('!!Missing %s. Mandatory for counter %s') %(date_field,field))
         with self.recordToUpdate(codekey,mode='record',ignoreMissing=True) as counter_record:
             if not counter_record:
                 return

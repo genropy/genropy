@@ -32,12 +32,12 @@ class MenuIframes(BaseComponent):
 
     def mainLeft_iframemenu_plugin(self, tc):
         frame = tc.framePane(title="Menu", pageName='menu_plugin')
-        frame.top.slotToolbar('2,searchOn,*',searchOn=True)
-        if not self.isMobile:
-            frame.bottom.slotToolbar('5,newWindow,*')
+        frame.top.slotToolbar('searchOn' if self.isMobile else 'searchOn,6,newWindow',searchOn=True,searchOn_width='100%',
+                              searchOn_placeholder='!!Search',_class='menu_plugin_searchbar')
         bc = frame.center.borderContainer()
         self.mainLeft_clientLogo(bc.contentPane(region='bottom'))
-        self.menu_iframemenuPane(bc.contentPane(region='center').div(position='absolute', top='2px', left='0', right='2px', bottom='2px', overflow='auto'))
+        self.menu_iframemenuPane(bc.contentPane(region='center').div(position='absolute', top='2px', left='0', right='2px', bottom='2px', overflow='auto',
+                                                                     _class='menu_plugin_tree'))
 
     def mainLeft_clientLogo(self,pane):
         pane.contentPane(region='bottom').div(height='40px',margin='5px',_class='clientlogo')
@@ -142,6 +142,10 @@ class MenuIframes(BaseComponent):
                   nodeId='_menutree_')
         pane.dataController("""var flat_tblname = _node.label;
                                 let store = treeNode.widget.storebag();
+                                if(!(store instanceof gnr.GnrBag)){
+                                    // menu still resolving: the reloaded menu brings its own badges
+                                    return;
+                                }
                                 store.walk(function(n){
                                     const titleCounter = n.attr.titleCounter;
                                     const menuLineBadge = n.attr.menuLineBadge;
@@ -149,17 +153,22 @@ class MenuIframes(BaseComponent):
                                         console.warn('titleCounter is deprecated. Use menuLineBadge instead of it')
                                     }
                                     if(n.attr.tag == "tableBranch"){
-                                        if(n.attr.table.replace('.','_') == flat_tblname){
-                                            n.refresh(true);
-                                            let content = n.getValue();
-                                            let child_count = (content instanceof gnr.GnrBag)?content.len():0;
-                                            let updater = {child_count:child_count};
-                                            if(titleCounter === true || menuLineBadge == '#'){
-                                                updater.badgeContent = child_count || null;
-                                            }
-                                            n.updAttributes(updater);
+                                        let tables = [n.attr.table].concat((n.attr.refreshOnTables || '').split(','));
+                                        if(!tables.some(tbl => tbl.trim().replace('.','_') == flat_tblname)){
+                                            return;
                                         }
-                                        return;
+                                        n.refresh(true);
+                                        let content = n.getValue();
+                                        let child_count = (content instanceof gnr.GnrBag)?content.len():0;
+                                        let updater = {child_count:child_count};
+                                        let childCountBadge = titleCounter || menuLineBadge == '#';
+                                        if(titleCounter === true || menuLineBadge == '#'){
+                                            updater.badgeContent = child_count || null;
+                                        }
+                                        n.updAttributes(updater);
+                                        if(childCountBadge){
+                                            return;
+                                        }
                                     }
    
                                     let menuLineBadgeKW = {};

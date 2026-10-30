@@ -24,6 +24,7 @@
 import os
 import re
 
+import gnr
 from gnr.core.gnrconfig import getGenroRoot
 from gnr.core.gnrstring import flatten
 from gnr.core.gnrbag import Bag,DirectoryResolver
@@ -31,7 +32,7 @@ from gnr.core.gnrlang import GnrException
 from gnr.app import logger
 
 SAFEAUTOTRANSLATE = re.compile(r"""(\%(?:\((?:.*?)\))?(?:.*?)[s|d|e|E|f|g|G|o|x|X|c|i|\%])""")
-LOCREGEXP = re.compile(r"""("{3}|'|")\!\!(?:\[(?P<lang_emb>.{2})\])?(?:{(?P<key_emb>\w*)})?(?P<text_emb>.*?)\1|\[\!\!(?:\[(?P<lang>.{2})\])?(?:{(?P<key>\w*)})?(?P<text>.*?)\]|\b_T\(("{3}|'|")(?P<text_func>.*?)\8\)""")
+LOCREGEXP = re.compile(r"""("{3}|'|")\!\!(?:\[(?P<lang_emb>.{2})\])?(?:{(?P<key_emb>\w*)})?(?P<text_emb>.*?)\1|\[\!\!(?:\[(?P<lang>.{2})\])?(?:{(?P<key>\w*)})?(?P<text>.*?)\]|\b_T\(("{3}|'|")(?:\!\!)?(?:\[(?P<lang_func>.{2})\])?(?:{(?P<key_func>\w*)})?(?P<text_func>.*?)\8\)""")
 TRANSLATION = re.compile(r"^\!\!(?:\[(?P<lang>.{2})\])?(?:{(\w*)})?(?P<value>.*)$|(?:\[\!\!(?:\[(?P<lang_emb>.{2})\])?)(?:{(\w*)})?(?P<value_emb>.*?)\]")
 PACKAGERELPATH = re.compile(r".*/packages/(.*)")
 
@@ -47,20 +48,42 @@ class GnrLocString(str):
         return GnrLocString(super(GnrLocString, self).__mod__(*args,**kwargs),lockey=self.lockey,_tplargs=args,_tplkwargs=kwargs)
 
 
+# (repository layout, installed package layout) of each folder scanned for the core catalogue
+CORE_LOCALIZATION_ROOTS = (('gnrpy/gnr', ''),
+                           ('gnrjs', 'gnrjs'),
+                           ('resources/common', 'resources/common'),
+                           ('resources/mobile', 'resources/mobile'))
+
+def coreLocalizationRoots(packageFolder):
+    """Return the core roots as (folder, modulePrefix) pairs.
+
+    In an installed distribution gnrjs and resources live inside the gnr
+    package (see [tool.setuptools.package-dir]); in a source checkout they
+    stay at the repository root. Each root is resolved under the package
+    first and falls back to the repository layout. The module prefix is
+    always the repository path, so the catalogue keys do not depend on
+    where the scan runs."""
+    genroRoot = getGenroRoot()
+    result = []
+    for repoPath, packagePath in CORE_LOCALIZATION_ROOTS:
+        folder = os.path.normpath(os.path.join(packageFolder, packagePath))
+        if not os.path.isdir(folder):
+            folder = os.path.join(genroRoot, repoPath)
+        result.append((folder, repoPath))
+    return result
+
+
 class AppLocalizer(object):
     def __init__(self, application=None):
         self.application = application
-        self.genroroot = getGenroRoot()
+        self.genroroot = os.path.dirname(gnr.__file__)
         self._translator = None
         self._languages = None
-        roots = [os.path.join(self.genroroot,n) for n in ('gnrpy/gnr','gnrjs','resources/common','resources/mobile')]
+        roots = coreLocalizationRoots(self.genroroot)
         self.slots = [dict(roots=roots,destFolder=self.genroroot,code='core',protected=True,language='en')]
         for p in list(self.application.packages.values()):
-            self.slots.append(dict(roots=[p.packageFolder],destFolder=p.packageFolder,
+            self.slots.append(dict(roots=[(p.packageFolder,'')],destFolder=p.packageFolder,
                                     code=p.id, protected = (p.project == 'gnrcore'),language=p.language))
-        #if os.path.exists(self.application.customFolder):
-        #    self.slots.append(dict(roots=[self.application.customFolder],destFolder=self.application.customFolder,
-        #                                code='customization',protected=False))
         self.buildLocalizationDict()
 
     @property
@@ -154,18 +177,26 @@ class AppLocalizer(object):
             baselang = lockey.split('_',1)[0]
             for lang in languages:
                 if lang==baselang:
-                    locdict[lang] = base_to_translate
+                    locdict[lang] = locdict['base']
                     continue
                 if not locdict.get(lang):
                     if not self.translator:
                         raise GnrException('No translator service available. Please configure a traslator service')
-                    translated = self.translator.translate(base_to_translate, from_language=baselang, to_language=lang)
+                    translated = self.translateTerm(base_to_translate, from_language=baselang, to_language=lang)
                     #items = list(safedict.items())
                     # self.utils.quickThermo(items, maxidx=len(items), labelcb=lambda t: t[0], title=f'!![en]Autotranslate terms in {lang}')
                     for k,v in safedict.items():
                         translated = translated.replace(k,v)
                     locdict[lang] = translated
                     
+    def translateTerm(self, text, from_language=None, to_language=None):
+        translated = self.translator.translate(text, from_language=from_language, to_language=to_language)
+        if not translated:
+            return translated
+        # translation services trim the text, while a term like 'Pending changes in ' is concatenated
+        lead, trail = re.match(r'(\s*).*?(\s*)\Z', text, re.S).groups()
+        return f'{lead}{translated.strip()}{trail}'
+
     def translateBlock(self, language=None, localizationBlock=None, override=None):
         blockdict = {s['code']:s['destFolder'] for s in self.slots}
         destFolder = blockdict[localizationBlock]
@@ -179,7 +210,7 @@ class AppLocalizer(object):
                     base_term = n.attr.get('base')
                     if not self.translator:
                         raise GnrException('No translator service available. Please configure a traslator service')
-                    translated = self.translator.translate(base_term, from_language=n.label[:2], to_language=language)
+                    translated = self.translateTerm(base_term, from_language=n.label[:2], to_language=language)
                     if translated and translated.lower()!=base_term.lower():
                         n.attr[language] = translated
                     else:
@@ -226,22 +257,30 @@ class AppLocalizer(object):
             slots = [r for r in slots if r.get('code')==localizationBlock]
         for s in slots:
             if scan_all or s['destFolder'] != self.genroroot:
-                locbag = Bag()
-                for root in s['roots']:
-                    logger.info("Scanning folder %s for localization", root)
-                    d = DirectoryResolver(root,include='*.py,*.js')()
-                    d.walk(self._updateModuleLocalization,locbag=locbag,_mode='deep',destFolder=s['destFolder'] )
+                locbag = self.scanSlot(s)
                 locbag.toXml(os.path.join(s['destFolder'],'localization.xml'),pretty=True,typeattrs=False, typevalue=False)
         self.buildLocalizationDict()
 
-    def _updateModuleLocalization(self,n,locbag=None,destFolder=None):
+    def scanSlot(self,slot):
+        locbag = Bag()
+        for root,modulePrefix in slot['roots']:
+            if not os.path.isdir(root):
+                logger.warning("Localization folder %s not found, skipped", root)
+                continue
+            logger.info("Scanning folder %s for localization", root)
+            d = DirectoryResolver(root,include='*.py,*.js')()
+            d.walk(self._updateModuleLocalization,locbag=locbag,_mode='deep',
+                    rootFolder=root,modulePrefix=modulePrefix)
+        return locbag
+
+    def _updateModuleLocalization(self,n,locbag=None,rootFolder=None,modulePrefix=''):
         if n.attr.get('file_ext') == 'directory':
             return
         moduleLocBag = Bag()
         def addToLocalizationBag(m):
-            lockey = m.group('key_emb') or m.group('key')
+            lockey = m.group('key_emb') or m.group('key') or m.group('key_func')
             loctext = m.group('text_emb') or  m.group('text') or m.group('text_func')
-            loclang = m.group('lang_emb') or m.group('lang') or 'en'
+            loclang = m.group('lang_emb') or m.group('lang') or m.group('lang_func') or 'en'
             if not loctext:
                 return
             if not lockey:
@@ -257,9 +296,13 @@ class AppLocalizer(object):
             filecontent = f.read() 
         LOCREGEXP.sub(addToLocalizationBag,filecontent)
         if moduleLocBag:
-            modulepath = os.path.relpath(n.attr['abs_path'],destFolder)
+            modulepath = os.path.join(modulePrefix,os.path.relpath(n.attr['abs_path'],rootFolder))
             path,ext = os.path.splitext(modulepath)
-            locbag.setItem(path.replace('/','.'),moduleLocBag,path=modulepath,ext=ext.replace('.',''))
+            ext = ext.replace('.','')
+            section = path.replace('/','.')
+            if section in locbag:
+                section = '%s_%s' %(section,ext)
+            locbag.setItem(section,moduleLocBag,path=modulepath,ext=ext)
 
 
             

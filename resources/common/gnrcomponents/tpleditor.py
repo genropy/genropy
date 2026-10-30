@@ -88,10 +88,12 @@ class TemplateEditorBase(BaseComponent):
         
     def te_renderTemplate(self, templateBuilder, record_id=None, extraData=None, locale=None,contentOnly=False,**kwargs):
         if record_id:
-            record = templateBuilder.data_tblobj.record(pkey=record_id,ignoreMissing=record_id=='*sample*',
-                                                        virtual_columns=templateBuilder.virtual_columns,
-                                                        ).output('bag')
-                                                        
+            sqlrecord = templateBuilder.data_tblobj.record(pkey=record_id,ignoreMissing=True,
+                                                        virtual_columns=templateBuilder.virtual_columns)
+            if record_id != '*sample*' and not sqlrecord.result:
+                # the record was deleted while shown (e.g. a chunk refreshed by a cascade delete)
+                return ''
+            record = sqlrecord.output('bag')
         else:
             record = templateBuilder.data_tblobj.record(pkey='*sample*',ignoreMissing=True,
                                                         virtual_columns=templateBuilder.virtual_columns).output('sample')
@@ -295,13 +297,13 @@ class TemplateEditor(TemplateEditorBase):
             frame.left.slotBar('5,fieldsTree,*',
                             fieldsTree_table=table,
                             fieldsTree_dragCode='fieldvars',
-                            border_right='1px solid silver',
+                            border_right='1px solid var(--border-color)',
                             closable=True,width='150px',fieldsTree_height='100%',
                             splitter=True,**fieldsTree_kwargs)
         else:
             bar = frame.left.slotBar('5,sourceTree,*',
                             #fieldsTree_dragCode='fieldvars',
-                            border_right='1px solid silver',
+                            border_right='1px solid var(--border-color)',
                             closable=True,width='150px',
                             splitter=True)
 
@@ -454,33 +456,27 @@ class TemplateEditor(TemplateEditorBase):
             self._te_attachedReports(topbc.contentPane(region='right',width='450px',closable='close'))
 
         editorConstrain = editorConstrain or dict()
-        constrain_height = editorConstrain.pop('constrain_height',False)
-        constrain_width = editorConstrain.pop('constrain_width',False)
-        bc.dataController("""SET .editor.height = letterhead_center_height?letterhead_center_height+'mm': constrain_height;
-                             SET .editor.width = letterhead_center_width?letterhead_center_width+'mm':constrain_width;
-            """,constrain_height=constrain_height,
-                constrain_width=constrain_width,
-                letterhead_center_height='^.preview.letterhead_record.center_height',
-                letterhead_center_width='^.preview.letterhead_record.center_width',
-                _init=True)
+        bc.dataFormula('.editor.height', "letterhead ? letterhead+'mm' : constrain",
+                       letterhead='^.preview.letterhead_record.center_height',
+                       constrain=editorConstrain.pop('constrain_height', None), _init=True)
+        bc.dataFormula('.editor.width', "letterhead ? letterhead+'mm' : constrain",
+                       letterhead='^.preview.letterhead_record.center_width',
+                       constrain=editorConstrain.pop('constrain_width', None), _init=True)
+        bc.dataFormula('.editor.bodyStyle', 'objectAsStyle({height:height, width:width})',
+                       height='^.editor.height', width='^.editor.width', _init=True)
         if plainText:
             bc.simpleTextArea(value='^.data.content',region='center',
-                            margin='3px',margin_left='6px',border='1px solid silver',
+                            margin='3px',margin_left='6px',border='1px solid var(--border-color)',
                             dropTarget=True,dropTypes="text/plain",
                             onDrop_text_plain="""let v = this.widget.getValue()
                             v += (' ' + data);
                             this.widget.setValue(v,true);
                             """,
                             rounded=6,padding='5px')
-        elif self.getPreference('theme.tinymce_beta', pkg='sys'):
-            bc.contentPane(region='center',margin='2px',margin_left='5px').tinymce(
-                            value='^.data.content',css_value='^.data.content_css',
-                            height='^.editor.height', width='^.editor.width', **editorConstrain)
         else:
-            bc.ExtendedCkeditor(region='center',margin='2px',margin_left='5px',
+            bc.ExtendedJoditEditor(region='center',margin='2px',margin_left='5px',
                             value='^.data.content',css_value='^.data.content_css',
-                            constrain_height='^.editor.height',
-                            constrain_width='^.editor.width',**editorConstrain)
+                            bodyStyle='^.editor.bodyStyle',**editorConstrain)
 
     def _te_framePreview(self,frame,table=None):
         bar = frame.top.slotToolbar('5,parentStackButtons,10,fb,*',parentStackButtons_font_size='8pt')                   
@@ -495,7 +491,7 @@ class TemplateEditor(TemplateEditorBase):
                    compiled='=.data.compiled')
         bc = frame.center.borderContainer()
         
-        bc.contentPane(region='center',overflow='hidden',border='1px solid silver',margin='3px'
+        bc.contentPane(region='center',overflow='hidden',border='1px solid var(--border-color)',margin='3px'
                             ).iframeDiv(value='^.preview.renderedtemplate',
                                                 contentCss='^.data.content_css',
                                                 height='100%',width='100%')

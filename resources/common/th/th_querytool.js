@@ -358,6 +358,105 @@ dojo.declare("gnr.QueryManager", null, {
     },
 
 
+    applyExternalQuery:function(kw){
+        // Loads conditions sent by another page in the query editor (topic th_external_query):
+        //   where_xml    the where bag, as the query editor writes it, serialized as xml
+        //   orderby_xml  optional custom order bag (rows with fieldpath and sorting)
+        //   limit, title optional query limit and caption
+        //   run          run the query after loading it
+        //   save         open the dialog that saves the query, its description filled with the title
+        //   view         optional {code, caption, struct_xml}: a view of the grid, added to its
+        //                views as a temporary view and selected
+        //   groupby      optional {code, caption, struct_xml, mode}: a view of the Group By page,
+        //                added and selected the same way; the page shows Group By and runs the
+        //                query, which the grouped view totalizes (mode: flatview, stackedview)
+        //   queryMode    optional S (search), U (union), I (intersect), D (difference): how the
+        //                records found combine with the current selection
+        //   query_id     optional id: a query is applied once, and the page confirms it to its
+        //                parent window with the topic th_external_query_applied
+        // Bags are serialized because the message crosses the iframe boundary.
+        if(!(kw.where_xml || kw.view || kw.groupby) || (kw.query_id && this._lastExternalQuery==kw.query_id)){
+            return;
+        }
+        this._lastExternalQuery = kw.query_id;
+        if(kw.queryMode){
+            var queryModes = genro.getData('gnr.qb.sqlop.queryModes');
+            var modeNode = queryModes && queryModes.getNode(kw.queryMode);
+            this.sourceNode.setRelativeData('.query.queryMode',kw.queryMode,
+                                            {caption:modeNode? modeNode.attr.caption:kw.queryMode});
+        }
+        if(kw.where_xml){
+            this._applyExternalConditions(kw);
+        }
+        if(kw.view){
+            this.applyExternalView(this.th_root+'_grid',kw.view);
+        }
+        var groupby = kw.groupby && this.applyExternalView(this.th_root+'_groupedView_grid',kw.groupby);
+        if(groupby){
+            if(kw.groupby.mode){
+                genro.nodeById(this.th_root+'_groupedView').setRelativeData('.groupMode',kw.groupby.mode);
+            }
+            this.sourceNode.setRelativeData('.statsTools.selectedPage','groupby');
+            this.sourceNode.setRelativeData('.viewPage','statsTools');
+        }else if(this.sourceNode.getRelativeData('.viewPage')=='statsTools'){
+            // a list of records: back from the Group By page left open by a previous message
+            this.sourceNode.setRelativeData('.viewPage','mainView');
+        }
+        if(kw.query_id){
+            genro.dom.windowMessage('parent',{topic:'th_external_query_applied',query_id:kw.query_id});
+        }
+        if(kw.run || groupby){
+            this.sourceNode.fireEvent('.runQuery');
+        }
+        if(kw.save && kw.where_xml){
+            this.sourceNode.setRelativeData('.query.queryAttributes.description',kw.title || null);
+            this.saveQuery();
+        }
+    },
+
+    applyExternalView:function(gridId,view){
+        // Adds a struct to the views of a grid as a temporary view (the views menu shows it
+        // and the grid configurator saves it) and selects it.
+        var gridNode = genro.nodeById(gridId);
+        if(!gridNode || !view || !view.struct_xml){
+            return false;
+        }
+        var code = view.code || ('external_'+genro.getCounter());
+        var caption = view.caption || code;
+        gridNode.setRelativeData('.temp_structs.'+code,new gnr.GnrBag(view.struct_xml),
+                                 {code:code,caption:caption,description:caption});
+        gridNode.setRelativeData('.currViewPath',null,null,false,false);
+        gridNode.setRelativeData('.currViewPath',code);
+        return true;
+    },
+
+    _applyExternalConditions:function(kw){
+        var sourceNode = this.sourceNode;
+        var where = new gnr.GnrBag(kw.where_xml);
+        if(!where.len()){
+            where.setItem('c_0',null,{op:null,column:null,op_caption:null,column_caption:null});
+        }
+        if(sourceNode.getRelativeData('.query.currentQuery')!='__queryeditor__'){
+            sourceNode.setRelativeData('.query.currentQuery','__queryeditor__');
+        }
+        sourceNode.setRelativeData('.query.where',where);
+        sourceNode.setRelativeData('.query.customOrderBy',kw.orderby_xml? new gnr.GnrBag(kw.orderby_xml):null);
+        sourceNode.setRelativeData('.query.limit',kw.limit || null);
+        sourceNode.setRelativeData('.query.joinConditions',null);
+        // a new query: saving it must not overwrite the saved query loaded before
+        ['id','pkey','code','description'].forEach(function(attr){
+            sourceNode.setRelativeData('.query.queryAttributes.'+attr,null);
+        });
+        sourceNode.setRelativeData('.query.queryAttributes.caption',kw.title || _T('New Query'));
+        sourceNode.setRelativeData('.query.queryAttributes.extended',true);
+        this.buildQueryPane();
+        if(sourceNode.getRelativeData('.query.queryEditor')){
+            this.queryEditor(true);
+        }else{
+            sourceNode.setRelativeData('.query.queryEditor',true);
+        }
+    },
+
     pkeySetToQuery:function(pkeys){
         if(!pkeys){
             return;
@@ -641,7 +740,7 @@ dojo.declare("gnr.QueryManager", null, {
         var box = center._('div', {datapath:datapath,padding:'5px'});
         var fb = genro.dev.formbuilder(box, 1, {border_spacing:'6px'});
         fb.addField('simpleTextArea', {lbl:_T("IN"),value:'^.items',
-                                        width:'20em',height:'15ex',colspan:2,lbl_vertical_align:'top'});
+                                        width:'20em',height:'15ex',lbl_vertical_align:'top'});
         var footer = dlg.bottom._('slotBar',{slots:'*,cancel,confirm'});
         footer._('button','cancel',{label:_T('Cancel'),'action':dlg.close_action});
         footer._('button','confirm',{label:_T('Confirm'),action:function(){
@@ -830,7 +929,7 @@ dojo.declare("gnr.QueryManager", null, {
         };
         var center = dlg.center._('div',{padding:'10px'});
         var bottom = dlg.bottom._('slotBar',{'slots':'cancel,*,confirm',_class:'dialog_bottom'});
-        genro.dev.dynamicQueryParsFb(center,sourceNode.getRelativeData(this.wherepath),parslist,1);
+        genro.dev.dynamicQueryParsFb(center,sourceNode.getRelativeData(this.wherepath),parslist,1,confirm);
         bottom._('button', 'cancel',{label:'Cancel',baseClass:'bottom_btn',action:cancel});
         bottom._('button', 'confirm',{label:'Confirm',baseClass:'bottom_btn',action:confirm});
         dlg.show_action();

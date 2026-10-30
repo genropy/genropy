@@ -69,8 +69,12 @@ class GnrTaskScheduler(object):
     def start(self):
         logger.info("Starting task scheduler, check every %s seconds", self.interval)
         while True:
-            self.writeTaskExecutions()
-            self.db.closeConnection()
+            try:
+                self.writeTaskExecutions()
+            except Exception:
+                logger.exception("Task scheduling pass failed, retrying in %s seconds", self.interval)
+            finally:
+                self.db.closeConnection()
             sleep(self.interval)
     
     def writeTaskExecutions(self):

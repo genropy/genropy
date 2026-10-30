@@ -25,7 +25,8 @@
 This module is the copy of ``compiler.py`` that receives new work.
 ``compiler.py`` is frozen: it keeps compiling every query for every instance
 that does not opt in, and only fixes are backported into it.  This copy is
-selected per instance with ``<db sql_compiler="next"/>`` in the instance
+selected per instance with the experimental flag
+``<experimental><db next_sql_compiler="True"/></experimental>`` in the instance
 configuration, through
 ``gnr.sql.gnrsqldata.compiler_factory.queryCompilerClass``.
 
@@ -413,11 +414,13 @@ class SqlQueryCompilerNext(object):
                         sql_formula = re.sub('#%s\\b' %susbselect, tpl %sql_text,sql_formula)
                 subreldict = {}
                 sql_formula = self.macro_expander.replace(sql_formula,'TSRANK,TSHEADLINE,VECRANK')
+                # #THIS must be expanded before updateFieldDict, which would
+                # rewrite the @rel.col after #THIS. into a $_rel_col placeholder
+                sql_formula = THISFINDER.sub(expandThis,sql_formula)
                 sql_formula = self.updateFieldDict(sql_formula, reldict=subreldict)
                 sql_formula = IN_RANGEFINDER.sub(self.expandInRange, sql_formula)
                 sql_formula = ENVFINDER.sub(expandEnv, sql_formula)
                 sql_formula = PREFFINDER.sub(expandPref, sql_formula)
-                sql_formula = THISFINDER.sub(expandThis,sql_formula)
                 sql_formula_var = dictExtract(attr,'var_')
                 if sql_formula_var:
                     prefix = str(id(fldalias))
@@ -981,6 +984,10 @@ class SqlQueryCompilerNext(object):
             draftField = self.tblobj.draftField
             if draftField:
                 wherelist.append('${} IS NOT TRUE'.format(draftField))
+        if self.joinConditions:
+            extracnd, _ = self.getJoinCondition('*', '*', self.aliasCode(0))
+            if extracnd:
+                wherelist.append(extracnd)
         where = ' AND '.join(['({where_chunk})'.format(where_chunk=w) for w in wherelist if w])
         columns = self.updateFieldDict(columns)
         where = self.embedFieldPars(where)
@@ -1033,13 +1040,6 @@ class SqlQueryCompilerNext(object):
 
         # replace $fldname with tn.fldname: finally the real SQL where!
         where = gnrstring.templateReplace(where, colPars)
-        if self.joinConditions:
-            extracnd, one_one = self.getJoinCondition('*', '*', self.aliasCode(0))
-            if extracnd:
-                if where:
-                    where = ' ( %s ) AND ( %s ) ' % (where, extracnd)
-                else:
-                    where = extracnd
         order_by = gnrstring.templateReplace(order_by, colPars)
         having = gnrstring.templateReplace(having, colPars)
         group_by = gnrstring.templateReplace(group_by, colPars)

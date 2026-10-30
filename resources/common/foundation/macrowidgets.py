@@ -164,57 +164,16 @@ class SelectionBrowser(BaseComponent):
                             rowcount=rowcount)
 
 class RichTextEditor(BaseComponent):
-    """This is the default toolbar definition used by the editor. It contains all editor features.
-    Any of these options can be used in the toolbar= parameter. We pass a string parameter 
-    to create a javascript array that is passed to the widget.
-    
-    To see more options, go to:
-    http://docs.cksource.com/ckeditor_api/symbols/CKEDITOR.config.html#.stylesCombo_stylesSet
-     config.toolbar_Full =
-         [
-          ['Source','-','Save','NewPage','Preview','-','Templates'],
-          ['Cut','Copy','Paste','PasteText','PasteFromWord','-','Print', 'SpellChecker', 'Scayt'],
-          ['Undo','Redo','-','Find','Replace','-','SelectAll','RemoveFormat'],
-          ['Form', 'Checkbox', 'Radio', 'TextField', 'Textarea', 'Select', 'Button', 'ImageButton', 'HiddenField'],
-          '/',
-          ['Bold','Italic','Underline','Strike','-','Subscript','Superscript'],
-          ['NumberedList','BulletedList','-','Outdent','Indent','Blockquote'],
-          ['JustifyLeft','JustifyCenter','JustifyRight','JustifyBlock'],
-          ['Link','Unlink','Anchor'],
-          ['Image','Flash','Table','HorizontalRule','Smiley','SpecialChar','PageBreak'],
-          '/',
-          ['Styles','Format','Font','FontSize'],
-          ['TextColor','BGColor'],
-          ['Maximize', 'ShowBlocks','-','About']
-         ];
-    """
+    """HTML editor pane: toolbar is any joditEditor toolbar (preset name, button list or False)."""
     css_requires = 'rich_edit'
-    js_requires = 'ckeditor/ckeditor'
 
     def RichTextEditor(self, pane, value, disabled=None, nodeId=None, toolbar=None, **kwargs):
         pane.attributes.update(overflow='hidden')
         editorId = None
         if nodeId:
             editorId = "%s_editor" % nodeId
-        if isinstance(toolbar, str):
-            tb = getattr(self, 'rte_toolbar_%s' % toolbar, None)
-            toolbar = tb() if callable(tb) else tb
-        return pane.ckeditor(value=value, nodeId=editorId, readOnly=disabled, toolbar=toolbar, **kwargs)
-
-    def rte_toolbar_standard(self):
-        return """[
-                   ['Source','-','Bold', 'Italic', '-', 'NumberedList', 'BulletedList', '-', 'Link', 'Unlink','-','Templates'],
-                   ['Image','Table','HorizontalRule','PageBreak'],
-                   ['JustifyLeft','JustifyCenter','JustifyRight','JustifyBlock'],
-                   ['Styles','Format','Font','FontSize'],
-                   ['TextColor','BGColor'],['Maximize', 'ShowBlocks']
-                   ]"""
-
-    def rte_toolbar_simple(self):
-        return """[
-                   ['Source','-','Bold', 'Italic', '-', 'NumberedList', 'BulletedList', '-','Image','Table','HorizontalRule','PageBreak'],
-                   ['JustifyLeft','JustifyCenter','JustifyRight','JustifyBlock'],
-                   ['Styles','Format','Font','FontSize','TextColor','BGColor']]"""
+        kwargs.setdefault('height', '100%')
+        return pane.joditEditor(value=value, nodeId=editorId, readOnly=disabled, toolbar=toolbar, **kwargs)
 
 
 class FilterBox(BaseComponent):

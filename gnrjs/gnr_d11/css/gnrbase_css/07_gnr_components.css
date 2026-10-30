@@ -129,7 +129,7 @@
     padding: 0.375em 0.5em;
     border-bottom: 1px solid var(--roundedgroup-border, #D1D1D6);
     background-color: var(--primary-lighter, #F2F2F7);
-    text-align: center;
+    text-align: left;
     color: var(--primary-dark, #3A3A3C);
     white-space: nowrap;
     font-weight: 600;
@@ -147,6 +147,11 @@
     padding: 0.375em 0.5em;
     border-bottom: 1px solid var(--roundedgroup-border, rgba(0,0,0,0.06));
     white-space: nowrap;
+}
+
+.multiColumnSelect th + th,
+.multiColumnSelect td + td {
+    border-left: 1px solid var(--roundedgroup-border, rgba(0,0,0,0.06));
 }
 
 .multiColumnSelect tbody tr:last-child td {
@@ -182,6 +187,19 @@
     white-space: normal;
     padding: 0.5em;
     border-bottom: 1px solid var(--roundedgroup-border, rgba(0,0,0,0.06));
+}
+
+.multiColumnSelect.multilineAuxColumns table {
+    min-width: var(--auxColumns-field-width, 0);
+}
+
+.multiColumnSelect.multilineAuxColumns .auxColumns_caption {
+    font-weight: 600;
+}
+
+.multiColumnSelect.multilineAuxColumns .auxColumns_line {
+    font-size: 0.85em;
+    opacity: 0.75;
 }
 
 .touchDevice .multiColumnSelect td {
@@ -276,7 +294,7 @@ tr[_is_valid_item='true'].multiColumnSelectHover td {
     bottom: 2px;
     left: 2px;
     right: 2px;
-    border: 1px solid var(--border-strong, #aab4c4);
+    border: 1px solid var(--roundedgroup-border, var(--border-strong));
     background: var(--roundedgroup-surface);
     border-radius: var(--radius-md);
     box-shadow: var(--shadow-sm);
@@ -298,7 +316,7 @@ tr[_is_valid_item='true'].multiColumnSelectHover td {
 
 /* @group pbl_roundedGroup */
 .pbl_roundedGroup {
-    border: 1px solid var(--border-strong, #aab4c4);
+    border: 1px solid var(--roundedgroup-border, var(--border-strong));
     background: var(--roundedgroup-surface);
     border-radius: var(--radius-md);
     box-shadow: var(--shadow-sm);
@@ -312,7 +330,7 @@ tr[_is_valid_item='true'].multiColumnSelectHover td {
 }
 
 .pbl_roundedGroup .framegrid_center {
-    border-top: 1px solid var(--border-strong, #aab4c4);
+    border-top: 1px solid var(--roundedgroup-border, var(--border-strong));
 }
 
 .pbl_roundedGroup:has(.quickgrid_container) .pbl_roundedGroupLabel {
@@ -320,13 +338,13 @@ tr[_is_valid_item='true'].multiColumnSelectHover td {
 }
 
 .pbl_roundedGroupLabel {
-    min-height: var(--toolbar-min-height);
+    min-height: var(--groupbar-min-height);
     font-size: 0.9em;
     background: var(--roundedgroup-bar);
     color: var(--roundedgroup-bar-color);
     font-weight: bold;
     border: none;
-    border-radius: var(--radius-md) var(--radius-md) 0 0;
+    border-radius: calc(var(--radius-md) - 1px) calc(var(--radius-md) - 1px) 0 0;
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -357,7 +375,7 @@ tr[_is_valid_item='true'].multiColumnSelectHover td {
     padding-left: 0.5em;
     font-size: 0.9em;
     background-color: var(--roundedgroup-bar);
-    border-radius: 0 0 var(--radius-md) var(--radius-md);
+    border-radius: 0 0 calc(var(--radius-md) - 1px) calc(var(--radius-md) - 1px);
 }
 /* @end */
 
@@ -393,6 +411,9 @@ tr[_is_valid_item='true'].multiColumnSelectHover td {
 .pbl_root_top .gnrfieldlabel {
     color: var(--root-top-color);
     font-size: .8em;
+}
+.pbl_root_top .helperbutton {
+    color: var(--root-top-color);
 }
 /* @end */
 

@@ -20,6 +20,7 @@ from werkzeug.exceptions import (HTTPException, InternalServerError,
                                   NotFound, Forbidden, PreconditionFailed,
                                   BadRequest, Unauthorized)
 from werkzeug.middleware.proxy_fix import ProxyFix
+from werkzeug.wsgi import ClosingIterator
 from gnr.web.compression import GzipMiddleware
 
 from gnr.core.gnrbag import Bag
@@ -36,15 +37,16 @@ from gnr.lib.services import ServiceHandler
 from gnr.app.pathresolver import PathResolver
 from gnr.app.gnrapp import GnrPackage
 from gnr.web import logger
+from gnr.web.gnrmanual import ManualCache
 from gnr.web.gnrwebapp import GnrWsgiWebApp
 from gnr.web.gnrwebpage import GnrUnsupportedBrowserException
 from gnr.web.gnrwsgisite_proxy.gnrresourceloader import ResourceLoader
-from gnr.web.gnrwsgisite_proxy.gnrstoragehandler import LegacyStorageHandler
+from gnr.web.gnrwsgisite_proxy.gnrstoragehandler import GenroStorageHandler, LegacyStorageHandler
 from gnr.web.gnrwsgisite_proxy.gnrstatichandler import StaticHandlerManager
 from gnr.web.gnrwsgisite_proxy.gnrpwahandler import PWAHandler
 from gnr.web.daemon.siteregister_client import SiteRegisterClient
 from gnr.web.daemon.siteregister import DEFAULT_PAGE_MAX_AGE
-from gnr.web.gnrwsgisite_proxy.gnrwebsockethandler import WsgiWebSocketHandler
+from gnr.web.gnrwsgisite_proxy.gnrwebsockethandler import WsgiWebSocketHandler, websocketHandlerClass
 from gnr.web.gnrwsgisite_proxy.datacollector import DataCollector
 
 try:
@@ -84,6 +86,22 @@ class GnrWebServerError(Exception):
 
 class PrintHandlerError(Exception):
     pass
+
+
+class _RequestClosingIterator(ClosingIterator):
+    def __init__(self, iterable, request):
+        self._request = request
+        try:
+            super().__init__(iterable)
+        except BaseException:
+            request.close()
+            raise
+
+    def close(self):
+        try:
+            super().close()
+        finally:
+            self._request.close()
 
 
 class UrlInfo(object):
@@ -144,7 +162,6 @@ class UrlInfo(object):
             last_path = os.path.join(basepath,*path_list)
             last_index_path = os.path.join(last_path,'index.py')
             if os.path.isfile(last_index_path):
-                pathfile_cache[last_path] = last_index_path
                 pathfile_cache[last_index_path.replace('.py','')] = last_index_path
                 self.relpath = last_index_path
                 self.request_args = []
@@ -192,7 +209,13 @@ class GnrDomainProxy(object):
     @property
     def storage_handler(self):
         if self._storage_handler is None:
-            self._storage_handler = LegacyStorageHandler(self.parent.site, domain=self.domain)
+            site = self.parent.site
+            # The main instance, not site.gnrapp: that one follows the thread's
+            # current aux instance, and this handler is built once and cached.
+            if site._main_gnrapp.experimentalFlag('storage', 'use_genro_storage'):
+                self._storage_handler = GenroStorageHandler(site, domain=self.domain)
+            else:
+                self._storage_handler = LegacyStorageHandler(site, domain=self.domain)
         return self._storage_handler
 
 
@@ -414,6 +437,8 @@ class GnrWsgiSite(object):
         GNRSITE = self
         self.storageTypes = STORAGE_TYPES + STATIC_HANDLER_TYPES
         self.pathfile_cache = {}
+        self.doc_listings = {}
+        self.manual_cache = ManualCache()
         self._currentAuxInstanceNames = ThreadedDict()
         self._currentPages = ThreadedDict()
         self._currentRequests = ThreadedDict()
@@ -465,10 +490,13 @@ class GnrWsgiSite(object):
 
         self.default_page = self.config['wsgi?default_page'] or 'sys/default'
         self.root_static = self.config['wsgi?root_static']
+        self.websocket_handler_class = websocketHandlerClass()
         self.websockets= boolean(self.config['wsgi?websockets']) or websockets
-        self.allConnectionsFolder = os.path.join(self.site_path, 'data', '_connections')
-        self.allUsersFolder = os.path.join(self.site_path, 'data', '_users')
-
+        if not self.websockets and self.websocket_handler_class is not WsgiWebSocketHandler:
+            # The selected provider terminates the socket in the server that
+            # serves the site: there is no daemon to reach and no config word to
+            # write, so the site has WebSockets because the provider says so.
+            self.websockets = True
         self.homepage = self.config['wsgi?homepage'] or self.default_uri + 'index'
         self.indexpage = self.config['wsgi?homepage'] or '/index'
         self._guest_counter = 0
@@ -622,7 +650,7 @@ class GnrWsgiSite(object):
         if not self.websockets:
             return
         if not hasattr(self,'_wsk'):
-            wsk = WsgiWebSocketHandler(self)
+            wsk = self.websocket_handler_class(self)
             if self.websockets=='required' or wsk.checkSocket():
                 self._wsk = wsk
             else:
@@ -674,6 +702,26 @@ class GnrWsgiSite(object):
         if self.multidomain:
             return f'{self.default_uri}{self.currentDomain}/'
         return self.default_uri
+
+    def domainDataFolder(self, *parts):
+        """Data folder of the current domain.
+
+        The root domain, and every single-domain site, keep ``data`` itself;
+        a workspace owns ``data/_domains/<domain>``, so what a connection or
+        a user writes never crosses the tenant boundary.
+        """
+        domain = self.currentDomain
+        if self.multidomain and domain and domain != self.rootDomain:
+            return os.path.join(self.site_path, 'data', '_domains', domain, *parts)
+        return os.path.join(self.site_path, 'data', *parts)
+
+    @property
+    def allConnectionsFolder(self):
+        return self.domainDataFolder('_connections')
+
+    @property
+    def allUsersFolder(self):
+        return self.domainDataFolder('_users')
 
     @property
     def rootDomainHomeUri(self):
@@ -791,7 +839,7 @@ class GnrWsgiSite(object):
             storageType = self.storageType(path_list)
         if ':' in storageType:
             #site:image -> site
-            storage_name, path_list[0] = storageType.split(':')
+            storage_name, path_list[0] = storageType.split(':', 1)
         elif storageType == 'storage':
             #/_storage/site/pippo -> site
             storage_name, path_list = path_list[1], path_list[2:]
@@ -805,6 +853,8 @@ class GnrWsgiSite(object):
     
     def storageDispatcher(self,path_list,environ,start_response,storageType=None,**kwargs):
         storageNode = self.storageNodeFromPathList(path_list, storageType)
+        if storageNode and self.storage_handler.isPrivateStorage(storageNode.service.service_name):
+            return self.not_found_exception(environ, start_response)
         exists = storageNode and storageNode.exists
         if not exists and '_lazydoc' in kwargs:
             #fullpath = None ### QUI NON DOBBIAMO USARE I FULLPATH
@@ -1062,6 +1112,46 @@ class GnrWsgiSite(object):
         except Exception:
             logger.warning('Failed to send error to endpoint %s', endpoint)
 
+    @deprecated(message='use errorHandler')
+    def writeException(self, exception=None, traceback=None):
+        return self._writeErrorRecord(exception=exception, error_type='EXC',
+                                      traceback=traceback)
+
+    @deprecated(message='use errorHandler')
+    def writeError(self, description=None, error_type=None, **kwargs):
+        return self._writeErrorRecord(description=description,
+                                      error_type=error_type or 'ERR',
+                                      error_kwargs=kwargs)
+
+    def rpc_writeError(self, description=None, error_type=None, **kwargs):
+        # the record carries the db env: it never goes back to the client
+        page = self.currentPage
+        if not page or not page.avatar:
+            return
+        self._writeErrorRecord(description=description,
+                               error_type=error_type or 'ERR',
+                               error_kwargs=kwargs)
+
+    def _writeErrorRecord(self, error_kwargs=None, **kwargs):
+        try:
+            if error_kwargs is not None:
+                error_data = Bag({k: v for k, v in self.db.currentEnv.items()
+                                  if not k.startswith('_')})
+                error_data.update(error_kwargs)
+                kwargs['traceback'] = error_data
+            error_id = self.errorHandler(**kwargs)
+            if not error_id or not self.db.package('sys'):
+                return None
+            with self.db.tempEnv(connectionName='system', storename=self.db.rootstore):
+                record = self.db.table('sys.error').record(
+                    error_code=error_id, ignoreMissing=True,
+                    ignoreDuplicate=True).output('dict') or None
+                self.db.rollback()
+                return record
+        except Exception:
+            logger.exception('Failed to write error %s',
+                             kwargs.get('description') or kwargs.get('exception'))
+
 
     def loadResource(self, pkg, *path):
         """TODO
@@ -1163,28 +1253,36 @@ class GnrWsgiSite(object):
         return page
 
     def dispatcher(self, environ, start_response):
-        self.currentRequest = Request(environ)
-        self.currentRequest.max_form_memory_size = 100_000_000
+        request = Request(environ)
+        self.currentRequest = request
+        request.max_form_memory_size = 100_000_000
         self.currentDomain = self.rootDomain
 
         try:
-            return self._dispatcher(environ, start_response)
-        except Exception as e:
-            self.raiseIfDeveloper()
-            self.errorHandler(exception=e, traceback=True)
-            exc = InternalServerError(
-                description='Internal server error; SCRIPT_NAME=%r; PATH_INFO=%r;'
-                % (environ.get('SCRIPT_NAME'), environ.get('PATH_INFO')))
-            return exc(environ, start_response)
-        finally:
-            self.cleanup()
-            # Do not re-set currentDomain here: cleanup() already reset it
-            # to None, which pops this thread's entry from the underlying
-            # ThreadedDict. Assigning rootDomain again would re-add a
-            # {tid: '_main_'} entry that is never removed, i.e. the same
-            # unbounded thread-local growth fixed for currentRequest/
-            # currentPage in #379. The currentDomain getter already falls
-            # back to rootDomain when unset, so no re-assignment is needed.
+            try:
+                result = self._dispatcher(environ, start_response)
+            except Exception as e:
+                self.raiseIfDeveloper()
+                self.errorHandler(exception=e, traceback=True)
+                exc = InternalServerError(
+                    description='Internal server error; SCRIPT_NAME=%r; PATH_INFO=%r;'
+                    % (environ.get('SCRIPT_NAME'), environ.get('PATH_INFO')))
+                result = exc(environ, start_response)
+            finally:
+                self.cleanup()
+                # Do not re-set currentDomain here: cleanup() already reset it
+                # to None, which pops this thread's entry from the underlying
+                # ThreadedDict. Assigning rootDomain again would re-add a
+                # {tid: '_main_'} entry that is never removed, i.e. the same
+                # unbounded thread-local growth fixed for currentRequest/
+                # currentPage in #379. The currentDomain getter already falls
+                # back to rootDomain when unset, so no re-assignment is needed.
+        except BaseException:
+            request.close()
+            raise
+        # Upload streams may back a streaming response; keep them alive
+        # until the server closes the response iterable.
+        return _RequestClosingIterator(result, request)
 
     def raiseIfDeveloper(self, exception=None):
         page = self.currentPage
@@ -1633,10 +1731,13 @@ class GnrWsgiSite(object):
             instance_path = self.config['instance?path'] or self.config['instances.#0?path']
         self.instance_path = instance_path
         restorepath = options.restore if options else None
+        # --xpr of gnr web serve, already parsed by the server: the other commands building a site have no such option
+        experimental_config = getattr(options, 'experimental_config', None)
         restorefiles=[]
         if self.remote_db:
             instance_path = '%s:%s' %(instance_path,self.remote_db)
-        app = GnrWsgiWebApp(instance_path, site=self,restorepath=restorepath)
+        app = GnrWsgiWebApp(instance_path, site=self,restorepath=restorepath,
+                            custom_config=experimental_config)
         self.config.setItem('instances.app', app, path=instance_path)
         return app
 
@@ -1695,8 +1796,11 @@ class GnrWsgiSite(object):
         :param dflt: TODO
         :param username: TODO"""
         if self.db.package('adm'):
-            username = username or self.currentPage.user if self.currentPage else None
-            pkg = pkg or self.currentPage.packageId if self.currentPage else None
+            page = self.currentPage
+            username = username or (page.user if page else None)
+            if not username:
+                return dflt
+            pkg = pkg or (page.packageId if page else None)
             return self.db.table('adm.user').getPreference(path=path, pkg=pkg, dflt=dflt, username=username)
 
     def setUserPreference(self, path, data, pkg=None, username=None):
@@ -1707,8 +1811,11 @@ class GnrWsgiSite(object):
         :param pkg: the :ref:`package <packages>` object
         :param username: TODO"""
         if self.db.package('adm'):
-            pkg = pkg or self.currentPage.packageId
-            username = username or self.currentPage.user if self.currentPage else None
+            page = self.currentPage
+            username = username or (page.user if page else None)
+            if not username:
+                return
+            pkg = pkg or (page.packageId if page else None)
             self.db.table('adm.user').setPreference(path, data, pkg=pkg, username=username)
 
     @property
@@ -1725,10 +1832,9 @@ class GnrWsgiSite(object):
 
     def dropConnectionFolder(self, connection_id=None):
         """:param connection_id: TODO"""
-        pathlist = ['data', '_connections']
+        connectionFolder = self.allConnectionsFolder
         if connection_id:
-            pathlist.append(connection_id)
-        connectionFolder = os.path.join(self.site_path, *pathlist)
+            connectionFolder = os.path.join(connectionFolder, connection_id)
         for root, dirs, files in os.walk(connectionFolder, topdown=False):
             for name in files:
                 os.remove(os.path.join(root, name))
@@ -1795,11 +1901,30 @@ class GnrWsgiSite(object):
             return
         if not won:
             return
-        Thread(target=self._runCleanup, daemon=True).start()
+        Thread(target=self._runCleanup, kwargs=dict(domain=self.currentDomain),
+               daemon=True).start()
 
-    def _runCleanup(self):
-        """Worker thread: drops stale pages/connections from the register
-        and removes their filesystem folders under _connections/.
+    def _runCleanup(self, domain=None):
+        """Clean the folders of one domain, in whatever thread.
+
+        The on-event pass runs in a thread of its own, where currentDomain
+        is unset and falls back to the root domain: the caller hands over
+        the domain it claimed the cleanup on, or the register and the
+        folders of the workspace would never be the ones walked. Without a
+        domain the walk takes the caller's, and leaves it alone: a request
+        thread still has its own rpc to finish on that register."""
+        if domain is None:
+            self._cleanupConnectionFolders()
+            return
+        self.currentDomain = domain
+        try:
+            self._cleanupConnectionFolders()
+        finally:
+            self.currentDomain = None
+
+    def _cleanupConnectionFolders(self):
+        """Drops stale pages/connections from the register of the current
+        domain and removes their filesystem folders under _connections/.
 
         Walks _connections/ once. For each entry:
         - if not in live connections AND old enough -> rmtree
@@ -2054,6 +2179,12 @@ class GnrWsgiSite(object):
             filename = '%s%s' %(filename,original_ext)
             file_ext = original_ext
         file_node = self.storageNode(uploadPath, filename,autocreate=-1)
+        service = file_node.service
+        storage_params = self.storage_handler.getStorageParameters(service.service_name) or {}
+        if (service.service_implementation == 'aws_s3' and service.readonly
+                and not storage_params.get('readonly')):
+            file_node = self.storageNode('site:%s/%s' % (service.service_name, file_node.path),
+                                         autocreate=-1)
         file_path = file_node.fullpath
         file_url = file_node.internal_url()
         with file_node.open(mode='wb') as outfile:

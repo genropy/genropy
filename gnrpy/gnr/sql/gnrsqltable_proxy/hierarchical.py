@@ -255,8 +255,12 @@ class HierarchicalHandler(object):
         parent_id=record.get('parent_id')
         parent_record = None
         if parent_id:
-            parent_record = tblobj.query(where='$%s=:pid' %pkeyfield,pid=parent_id,subtable='*').fetch()
+            parent_record = tblobj.query(where='$%s=:pid' %pkeyfield,pid=parent_id,subtable='*',
+                                        excludeLogicalDeleted=False,excludeDraft=False).fetch()
             parent_record = parent_record[0] if parent_record else None
+        if parent_record and old_record is not None and tblobj.fieldsChanged('parent_id',record,old_record) \
+                and record[pkeyfield] in parent_record['hierarchical_pkey'].split('/'):
+            raise tblobj.exception('business_logic',msg='A node cannot be moved under itself or one of its descendants')
         has_counter = tblobj.column('_row_count') is not None
         if has_counter and old_record is None and record.get('_row_count') is None:
             #has counter and inserting a new record without '_row_count':
@@ -286,6 +290,8 @@ class HierarchicalHandler(object):
 
     def trigger_after(self,record,old_record=None,**kwargs):
         tblobj = self.tblobj
+        if old_record is None:
+            raise tblobj.exception('standard',msg='Updating a hierarchical record requires old_record')
         hfields = tblobj.attributes.get('hierarchical').split(',')
         changed_hfields=[fld for fld in hfields if record.get('hierarchical_%s'%fld) != old_record.get('hierarchical_%s'%fld)]
         order_by = None
@@ -295,7 +301,7 @@ class HierarchicalHandler(object):
             changed_counter = (record['_row_count'] != old_record['_row_count']) or (record['_parent_h_count'] != old_record['_parent_h_count'])
         if changed_hfields or changed_counter:
             fetch = tblobj.query(where='$parent_id=:curr_id',addPkeyColumn=False, for_update=True,curr_id=record[tblobj.pkey],order_by=order_by,
-                                    bagFields=True,subtable='*').fetch()
+                                    bagFields=True,subtable='*',excludeLogicalDeleted=False,excludeDraft=False).fetch()
             for k,row in enumerate(fetch):
                 new_row = dict(row)
                 for fld in changed_hfields:
@@ -336,7 +342,7 @@ class HierarchicalHandler(object):
             condition = f'${self.tblobj.pkey}=:_search_pk AND ({condition})'
             condition_kwargs['_search_pk'] = pkey
             pkey = None
-        hierarchical_pkey =  self.tblobj.readColumns(columns='$hierarchical_pkey',pkey=pkey,_storename=dbstore,**condition_kwargs)
+        hierarchical_pkey =  self.tblobj.readColumns(columns='$hierarchical_pkey',pkey=pkey,where=condition,_storename=dbstore,**condition_kwargs)
         path = hierarchical_pkey.replace('/','.') if hierarchical_pkey else None
         return path
 
@@ -355,7 +361,12 @@ class HierarchicalHandler(object):
                     _storename=dbstore).fetch()
             f = [dict(_hpath='%s/%s' %(r['_hpath'],r[relpkey]) ) for r in f]
         if parent_id:
-            return ','.join([r['_hpath'].split(parent_id,1)[1][1:].replace('/','.') for r in f if r['_hpath']])
+            result = []
+            for r in f:
+                segments = r['_hpath'].split('/') if r['_hpath'] else []
+                if parent_id in segments:
+                    result.append('.'.join(segments[segments.index(parent_id)+1:]))
+            return ','.join(result)
         else:
             return ','.join([r['_hpath'].replace('/','.') for r in f if r['_hpath']])
 
@@ -374,7 +385,8 @@ class HierarchicalHandler(object):
     def fixRowCount(self,parent_id=None):
         if self.tblobj.column('_row_count') is None:
             raise self.tblobj.exception('business_logic',msg='This table is not sortable')
-        children = self.tblobj.query(where='$parent_id=:pid',pid=parent_id,order_by='$_row_count',for_update=True).fetch()
+        where = '$parent_id IS NULL' if parent_id is None else '$parent_id=:pid'
+        children = self.tblobj.query(where=where,pid=parent_id,order_by='$_row_count',for_update=True).fetch()
         for idx,row in enumerate(children):
             if row['_row_count'] != idx+1:
                 old_row = dict(row)

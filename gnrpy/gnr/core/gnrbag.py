@@ -66,6 +66,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 import urllib.request, urllib.parse, urllib.error
 import urllib.parse
+from xml.sax.saxutils import escape as xml_escape
 
 import requests
 
@@ -78,6 +79,25 @@ from gnr.core.gnrlang import file_types
 class AllowMissingDict(dict):
     def __missing__(self, key):
         return "{"+key+"}"
+
+TEMPLATE_PLACEHOLDER = re.compile(r'\{([A-Za-z_][A-Za-z0-9_]*)\}')
+XML_QUOTE_ENTITIES = {'"': '&quot;', "'": '&apos;'}
+
+def expandTemplate(source, template_kwargs):
+    unresolved = set()
+
+    def replace(match):
+        key = match.group(1)
+        if key in template_kwargs:
+            return xml_escape(str(template_kwargs[key]), XML_QUOTE_ENTITIES)
+        if not key.startswith('GNR_'):
+            unresolved.add(key)
+        return match.group(0)
+
+    result = TEMPLATE_PLACEHOLDER.sub(replace, source)
+    if unresolved:
+        logger.warning("Unresolved template placeholders left as is: %s", ', '.join(sorted(unresolved)))
+    return result
     
 def normalizeItemPath(item_path):
     if isinstance(item_path, str) or isinstance(item_path,list):
@@ -1994,7 +2014,13 @@ class Bag(GnrObject):
             # source = source.format_map(AllowMissingDict(_template_kwargs))
 
             if self._template_kwargs:
-                source = source.format_map(self._template_kwargs)
+                if fromFile:
+                    with open(source, 'rt') as f:
+                        source = f.read()
+                    fromFile = False
+                if isinstance(source, bytes):
+                    source = source.decode()
+                source = expandTemplate(source, self._template_kwargs)
             return self._fromXml(source, fromFile)
         elif mode == 'xsd':
             return self._fromXsd(source, fromFile)
@@ -2184,7 +2210,8 @@ class Bag(GnrObject):
             if hasattr(v, '_deepIndex'):
                 if not v in exploredItems:
                     exploredItems.append(v)
-                    v._deepIndex(path + [node.label], resList, exploredItems)
+                    v._deepIndex(path + [node.label], resList, exploredItems,
+                                 excludeFolders=excludeFolders)
                     
     def getIndexList(self, asText=False):
         """Return the Bag index as a plan list of the Nodes paths

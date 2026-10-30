@@ -121,6 +121,18 @@ dojo.declare("gnr.GnrDevHandler", null, {
         duration = duration || 50;
         dojo.publish("standardDebugger", {message: msg, type:level.toUpperCase(), duration:duration});
     },
+    isConnectionLost:function(){
+        var mainGenro = (genro.mainGenroWindow || window).genro;
+        return !!(mainGenro && mainGenro._connectionLost);
+    },
+    setConnectionLost:function(){
+        genro.polling_enabled = false;
+        if(this.isConnectionLost()){
+            return false;
+        }
+        (genro.mainGenroWindow || window).genro._connectionLost = true;
+        return true;
+    },
     handleRpcHttpError:function(response, ioArgs) {
         if(response.dojoType=='cancel'){
             return;
@@ -134,13 +146,17 @@ dojo.declare("gnr.GnrDevHandler", null, {
         var readyState = xhr.readyState;
         var responseText = xhr.responseText;
         if (status == 400) {
-            genro.dlg.alert('Client HTTP error','Error',null,null,{confirmCb:genro.pageReload});
+            if(this.setConnectionLost()){
+                genro.dlg.alert('Client HTTP error','Error',null,null,{confirmCb:genro.pageReload});
+            }
             return;
         }
         else if (status == 412) {
-            var mainGenroWindow = genro.mainGenroWindow.genro;
-            mainGenroWindow.polling_enabled = false;
-            mainGenroWindow.dlg.alert('No longer existing page','Error',null,null,{confirmCb:genro.pageReload});
+            if(this.setConnectionLost()){
+                var mainGenroWindow = genro.mainGenroWindow.genro;
+                mainGenroWindow.polling_enabled = false;
+                mainGenroWindow.dlg.alert('No longer existing page','Error',null,null,{confirmCb:genro.pageReload});
+            }
             return;
         } else {
             console.log('handleRpcHttpError');
@@ -198,6 +214,9 @@ dojo.declare("gnr.GnrDevHandler", null, {
             return;
         }
         if (error == 'expired') {
+            if(!this.setConnectionLost()){
+                return;
+            }
             genro.dlg.message('expired session');
 
             genro.dlg.ask('Expired session',
@@ -227,8 +246,16 @@ dojo.declare("gnr.GnrDevHandler", null, {
 
 
     formbuilder:function(node, col, tblattr) {
-        var defautlLblAttr = objectExtract(tblattr,'lbl_*');
-        var tbl = node._('table', tblattr || {})._('tbody');
+        tblattr = tblattr || {};
+        var formlet = objectPop(tblattr,'formlet');
+        if(isNullOrBlank(formlet)){
+            formlet = genro.startArgs.useFormletsInJsFb;
+        }
+        if(formlet){
+            return this.formlet(node, col, tblattr);
+        }
+        var defaultLblAttr = objectExtract(tblattr,'lbl_*');
+        var tbl = node._('table', tblattr)._('tbody');
 
         tbl.col_max = col || 1;
         tbl.col_count = tbl.col_max + 1;
@@ -243,14 +270,13 @@ dojo.declare("gnr.GnrDevHandler", null, {
             if(kw.label){
                 kw.label = _T(kw.label);
             }
-            var lblpars = {innerHTML:lbl?_T(lbl,true):null,_class:'gnrfieldlabel',
-                        hidden:kw.hidden,text_align:'right'};
-            lblpars = objectUpdate(defautlLblAttr,lblpars);
+            var lblpars = objectUpdate({innerHTML:lbl || null,_class:'gnrfieldlabel',
+                                        hidden:kw.hidden,text_align:'right'},defaultLblAttr);
             objectUpdate(lblpars, objectExtract(kw, 'lbl_*'));
             var tr = this.curr_tr;
             tr._('td', lblpars);
-            var res = tr._('td',objectUpdate({colspan:colspan},objectExtract(kw,'td_*')))._(tag, kw);
             var default_value = objectPop(kw,'default_value');
+            var res = tr._('td',objectUpdate({colspan:colspan},objectExtract(kw,'td_*')))._(tag, kw);
             var resNode = res.getParentNode();
             if(default_value && resNode.attr.value){
                 resNode.setRelativeData(resNode.attr.value,default_value);
@@ -259,6 +285,51 @@ dojo.declare("gnr.GnrDevHandler", null, {
             return res;
         };
         return tbl;
+    },
+
+    formlet:function(node, cols, attr) {
+        attr = objectUpdate({columns:cols || 1}, attr);
+        objectExtract(attr,'border_spacing,fld_width');
+        if(attr.width=='100%'){
+            // a block grid already fills its box: 100% plus the formlet padding overflows it
+            delete attr.width;
+        }
+        var tableOnlyLbl = 'lbl_text_align,lbl_vertical_align';
+        objectExtract(attr,tableOnlyLbl);
+        var defaultLblAttr = objectExtract(attr,'lbl_*',false,true);
+        attr._class = attr._class? 'formlet '+attr._class : 'formlet';
+        var grid = node._('gridbox', attr);
+        grid.addField = function(tag, kw) {
+            objectExtract(kw,'td_*');
+            objectExtract(kw,tableOnlyLbl);
+            kw = objectUpdate(objectUpdate({},defaultLblAttr),kw);
+            if(kw.lbl && !kw.label && (kw.tag || tag).toLowerCase()=='checkbox'){
+                kw.label = kw.lbl;
+                if((cols || 1)==1){
+                    kw.lbl = false;
+                }else{
+                    kw.lbl = '&nbsp;';
+                    kw.box__class = kw.box__class || 'formlet_placeholder_label';
+                }
+            }
+            if(kw.lbl){
+                kw.lbl = _T(kw.lbl);
+            }
+            if(kw.label){
+                kw.label = _T(kw.label);
+            }
+            if(kw.hidden && kw.lbl){
+                kw.box_hidden = kw.hidden;
+            }
+            var default_value = objectPop(kw,'default_value');
+            var res = this._(tag, kw);
+            var resNode = res.getParentNode();
+            if(default_value && resNode.attr.value){
+                resNode.setRelativeData(resNode.attr.value,default_value);
+            }
+            return res;
+        };
+        return grid;
     },
 
     relationExplorer:function(table, title, rect) {
@@ -1122,13 +1193,14 @@ dojo.declare("gnr.GnrDevHandler", null, {
     userObjectDialog:function(title,datapath,saveCb,preview){
         var dlg = genro.dlg.quickDialog(title);
         var center = dlg.center;
-        var box = center._('div', {datapath:datapath,padding:'20px'});
-        var fb = genro.dev.formbuilder(box, 2, {border_spacing:'6px'});
-        fb.addField('textbox', {lbl:_T("Code"),value:'^.code',width:'10em'});
+        var formlet = genro.startArgs.useFormletsInJsFb;
+        var box = center._('div', {datapath:datapath,padding:formlet?null:'20px'});
+        var fb = genro.dev.formbuilder(box, 2, {formlet:formlet,border_spacing:'6px'});
+        fb.addField('textbox', {lbl:_T("Code"),value:'^.code',width:formlet?'100%':'10em'});
         fb.addField('checkbox', {label:_T("Private"),value:'^.private'});
         fb.addField('textbox', {lbl:_T("Name"),value:'^.description',width:'100%',colspan:2});
         fb.addField('textbox', {lbl:_T("Authorization"),value:'^.authtags',width:'100%',colspan:2});
-        fb.addField('simpleTextArea', {lbl:_T("Notes"),value:'^.notes',width:'100%',height:'5ex',colspan:2,lbl_vertical_align:'top'});
+        fb.addField('simpleTextArea', {lbl:_T("Notes"),value:'^.notes',width:'100%',height:formlet?'8ex':'5ex',colspan:2,lbl_vertical_align:'top'});
         if(preview){
             fb.addField('button',{action:function(){
                 var that = this;
@@ -1139,27 +1211,22 @@ dojo.declare("gnr.GnrDevHandler", null, {
                 });
             },label:_T('Screenshot')});
             fb.addField('br',{});
-            fb.addField('img',{src:'^.preview',height:'50px',width:'200px',boder:'1px solid silver'});
+            fb.addField('img',{src:'^.preview',height:'50px',width:'200px',border:'1px solid var(--border-color)'});
         }
-        var bottom = dlg.bottom._('div');
-        var saveattr = {'float':'right',label:_T('Save')};        
-        saveattr.action = function(evt,counter,modifiers){
-            saveCb(dlg,evt,counter,modifiers);
-        };
-        bottom._('button', saveattr);
-
         var meta = genro.getData(datapath) || new gnr.GnrBag();
-        if(meta.getItem('id') || meta.getItem('pkey')){
-            var savecopy = {'float':'right',label:_T('Duplicate as')};        
-            savecopy.action = function(evt,counter,modifiers){
+        var canDuplicate = meta.getItem('id') || meta.getItem('pkey');
+        var bar = dlg.bottom._('slotBar',{slots:canDuplicate?'*,cancel,duplicate,save':'*,cancel,save'});
+        bar._('button','cancel',{label:_T('Cancel'),action:dlg.close_action});
+        if(canDuplicate){
+            bar._('button','duplicate',{label:_T('Duplicate as'),action:function(evt,counter,modifiers){
                 genro.getData(datapath).setItem('id',null);
                 genro.getData(datapath).setItem('pkey',null);
                 saveCb(dlg,evt,counter,modifiers);
-            };
-            bottom._('button', savecopy);
+            }});
         }
-
-        bottom._('button', {'float':'right',label:_T('Cancel'),action:dlg.close_action});
+        bar._('button','save',{label:_T('Save'),action:function(evt,counter,modifiers){
+            saveCb(dlg,evt,counter,modifiers);
+        }});
         dlg.show_action();
     },
 
@@ -1182,7 +1249,7 @@ dojo.declare("gnr.GnrDevHandler", null, {
 
     translateQueryPars: function(currwhere) {
         var parslist = [];
-        var cb = function(node, parslist, idx) {
+        var cb = function(node, parslist) {
             if (node.attr.value_caption) {
                 if(node.attr.value_caption[0]=='?'){
                     var relpath = node.getFullpath('static', currwhere);
@@ -1194,7 +1261,7 @@ dojo.declare("gnr.GnrDevHandler", null, {
                     result.relpath = relpath;
                     result.parcode = flattenString(result.lbl,['.',' ']);
                     parslist.push(result);
-                }else if(node.attr.value_caption && node.attr.value_caption.indexOf('set:')==0){
+                }else if(node.attr.value_caption.indexOf('set:')==0){
                     return;
                 }else{
                     node.setValue(node.attr.value_caption);
@@ -1205,30 +1272,26 @@ dojo.declare("gnr.GnrDevHandler", null, {
         return parslist;
     },
 
-    dynamicQueryParsFb:function(sourceNode,wherebag,parslist,cols){
+    dynamicQueryParsFb:function(sourceNode,wherebag,parslist,cols,onEnter){
         parslist = parslist || this.translateQueryPars(wherebag);
-        var queryform = genro.dev.formbuilder(sourceNode,cols || 1,{border_spacing:'3px',onEnter:confirm,margin_top:'6px'});
-        var tr, attrs;
-        for (var i = 0; i < parslist.length; i++) {
-            attrs = parslist[i];
-            var lbl = attrs.lbl || attrs.value_caption.slice(1);
-            var dflt;
-
+        var queryform = genro.dev.formbuilder(sourceNode,cols || 1,{border_spacing:'3px',onEnter:onEnter || null,margin_top:'6px'});
+        for (let attrs of parslist) {
+            let lbl = attrs.lbl || attrs.value_caption.slice(1);
+            let dflt;
             if(!('dflt' in attrs)){
-                if(lbl.indexOf('|')){
-                    var l = lbl.split('|');
-                    lbl=l[0];
-                    dflt = l[1] ;
+                if(lbl.indexOf('|')>=0){
+                    let l = lbl.split('|');
+                    lbl = l[0];
+                    dflt = l[1];
                 }
             }else{
                 dflt = attrs.dflt;
             }
-            
             if(dflt){
                 wherebag.setItem(attrs.relpath,dflt);
             }
             if(attrs.column_relationTo){
-                var ro = attrs.column_relationTo.split('.');
+                let ro = attrs.column_relationTo.split('.');
                 queryform.addField('dbselect',{lbl:lbl,value:'^.' + attrs.relpath, width:'12em',dbtable:ro[0]+'.'+ro[1]});
             }else{
                 queryform.addField('textbox',{lbl:lbl,value:'^.' + attrs.relpath, width:'12em'});
@@ -1267,7 +1330,7 @@ dojo.declare("gnr.GnrDevHandler", null, {
         var pane = parent._('palettePane',{'paletteCode':'gnrerrors','dockTo':false,
                                         title:'Current errors'});
         pane._('div',{innerHTML:'==genro.dev.formatErrors(_errors)',_errors:'^gnr.errors',padding:'5px',
-                    border:'1px solid silver',background:'whitesmoke',rounded:6,margin:'5px'});
+                    border:'1px solid var(--border-color)',background:'whitesmoke',rounded:6,margin:'5px'});
         parent.unfreeze();
     },
     currDataExplorer:function(kw){
@@ -1465,7 +1528,7 @@ dojo.declare("gnr.GnrDevHandler", null, {
                 });
             },label:_T('Screenshot')});
             fb.addField('br',{});
-            fb.addField('img',{src:'^.screenshot',height:'100px',width:'300px',boder:'1px solid silver'});
+            fb.addField('img',{src:'^.screenshot',height:'100px',width:'300px',border:'1px solid var(--border-color)'});
 
         });
 

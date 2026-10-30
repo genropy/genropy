@@ -13,7 +13,7 @@ class GnrCustomWebPage(object):
                    'gnrcomponents/grouplet/grouplet:GroupletGridHandler')
 
     def main(self, root, **kwargs):
-        tc = root.tabContainer(_anchor=True)
+        tc = root.tabContainer(_anchor=True, datapath='fill_scenarios')
         self._vtabsScenario(tc.borderContainer(title='A — vtabs'))
         self._cardsScenario(tc.borderContainer(title='B — long cards'))
         self._nestedScenario(tc.borderContainer(title='C — nested --fill'))
@@ -33,15 +33,15 @@ class GnrCustomWebPage(object):
     def _chaptersSeed(self, sizes):
         b = Bag()
         for k, (label, n) in enumerate(sizes):
-            chapter = Bag()
+            chapter = Bag(dict(label=label))
             items = Bag()
             short = label.split(' ', 1)[0]
             for i in range(n):
-                items.setItem(f'it_{i}', Bag(),
-                              label=f'{short} item {i + 1}',
-                              descr=f'Description line for item {i + 1}')
+                items.setItem(f'it_{i}', Bag(dict(
+                    label=f'{short} item {i + 1}',
+                    descr=f'Description line for item {i + 1}')))
             chapter.setItem('items', items)
-            b.setItem(f'ch_{k}', chapter, label=label)
+            b.setItem(f'ch_{k}', chapter)
         return b
 
     def _vtabsScenario(self, parent):
@@ -66,9 +66,9 @@ class GnrCustomWebPage(object):
                           'cards: body scrolls internally via --framed')
         items = Bag()
         for i in range(40):
-            items.setItem(f'it_{i}', Bag(),
-                          label=f'Card item {i + 1}',
-                          descr=f'Description for card {i + 1}')
+            items.setItem(f'it_{i}', Bag(dict(
+                label=f'Card item {i + 1}',
+                descr=f'Description for card {i + 1}')))
         wrap.data('.items', items)
         wrap.contentPane(region='center').groupletGrid(
             storepath='.items',

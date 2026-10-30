@@ -10,7 +10,8 @@ from gnr.core.gnrdecorator import public_method
 from gnr.core.gnrbag import Bag
 
 class GnrCustomWebPage(object):
-    py_requires = 'gnrcomponents/framegrid:FrameGrid'
+    py_requires = """gnrcomponents/framegrid:FrameGrid,
+                     gnrcomponents/batch_handler/batch_handler:TableScriptRunner"""
     auth_main = 'superadmin,_DEV_'
 
     def windowTitle(self):
@@ -38,13 +39,15 @@ class GnrCustomWebPage(object):
         
         #frame.grid.bagStore(storepath='policies.store', storeType='ValuesBagRows')
 
-        bar = frame.top.slotBar('2,vtitle,*,save_policies,2',
+        bar = frame.top.slotBar('2,vtitle,*,save_policies,5,execute_cleanup,2',
                                 vtitle='Policies',_class='pbl_roundedGroupLabel')
         
         bar.save_policies.slotButton('!!Save policies').dataRpc(
             self.save_policies,
             policies='=policies.store'
         )
+        bar.execute_cleanup.slotButton('!!Execute data cleanup',
+            action='PUBLISH table_script_run = {res_type:"action", resource:"cleanup", table:"sys.dataretention"};')
         
         pane.dataRpc(
             'policies.store',

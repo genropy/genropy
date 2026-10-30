@@ -190,6 +190,9 @@ dojo.declare("gnr.GnrRpcHandler", null, {
     },
 
     _onServerError: function() {
+        if (genro.root_page_id) {
+            return genro.mainGenroWindow.genro.rpc._onServerError();
+        }
         if (!this._server_error_since) {
             this._server_error_since = new Date();
         }
@@ -200,6 +203,9 @@ dojo.declare("gnr.GnrRpcHandler", null, {
     },
 
     _onServerSuccess: function() {
+        if (genro.root_page_id) {
+            return genro.mainGenroWindow.genro.rpc._onServerSuccess();
+        }
         if (this._server_error_since) {
             this._server_error_since = null;
             if (this._server_unavailable) {
@@ -214,13 +220,13 @@ dojo.declare("gnr.GnrRpcHandler", null, {
             delay: 0,
             message: 'Server not responding...'
         });
-        genro.setFastPolling(true);
+        genro.setFastPolling(true, '_server_unavailable');
     },
 
     _hideServerUnavailable: function() {
         this._server_unavailable = false;
         genro.lockScreen(false, '_server_unavailable');
-        genro.setFastPolling(false);
+        genro.setFastPolling(false, '_server_unavailable');
         genro.dlg.alert(_T('Server connection restored. You can resume your operations.'),
                         _T('Connection restored'));
     },
@@ -340,7 +346,7 @@ dojo.declare("gnr.GnrRpcHandler", null, {
             content.temp_dbstore = '_main_db';
         }
         if(!isNullOrBlank(tenant_schema)){
-            currParams.env_tenant_schema = tenant_schema==false?'_main_':tenant_schema;
+            content.temp_tenant_schema = tenant_schema==false?'_main_':tenant_schema;
         }
         if (genro.startArgs._avoid_module_cache){
             content._avoid_module_cache = true;
@@ -548,13 +554,21 @@ dojo.declare("gnr.GnrRpcHandler", null, {
                     if (stringStartsWith(changepath, serverpath_prefix)) {
                         let inner = changepath.slice(serverpath_prefix.length);
                         if (!inner || inner[0] == '.') {
-                            updater(clientpath_prefix + inner, value, attr, reason);
+                            let clientpath = clientpath_prefix + inner;
+                            if (isDelete) {
+                                // mark the removal as the server's, like the write path
+                                // below and the two other server-side pops: an unmarked
+                                // event is echoed back as a client write (genro.js:1621)
+                                genro._data.delItem(clientpath, reason);
+                            } else {
+                                updater(clientpath, value, attr, reason);
+                            }
                         }
                     }
                 }
             }
             else if (isDelete) {
-                genro._data.delItem(changepath);
+                genro._data.delItem(changepath, reason);
             }
             else {
                 updater(changepath, value, attr, reason);
@@ -581,8 +595,12 @@ dojo.declare("gnr.GnrRpcHandler", null, {
         }
         for (k in css_requires){
             if(!(k in this.dynRequires.css)){
-                if(css_requires[k]){
-                    jslist.push({htype:'link',href:css_requires[k]});
+                // a name may resolve to one file per package (#148)
+                let hrefs = css_requires[k];
+                if(hrefs){
+                    (Array.isArray(hrefs)? hrefs : [hrefs]).forEach(function(href){
+                        jslist.push({htype:'link',href:href});
+                    });
                 }
                 this.dynRequires.css[k] = true;
             }
@@ -742,7 +760,7 @@ dojo.declare("gnr.GnrRpcHandler", null, {
             currParams.temp_dbstore = '_main_db';
         }
         if(!isNullOrBlank(tenant_schema)){
-            currParams.env_tenant_schema = tenant_schema==false?'_main_':tenant_schema;
+            currParams.temp_tenant_schema = tenant_schema==false?'_main_':tenant_schema;
         }
         return objectUpdate(currParams, this.serializeParameters(genro.src.dynamicParameters(kwargs, sourceNode)));
     },

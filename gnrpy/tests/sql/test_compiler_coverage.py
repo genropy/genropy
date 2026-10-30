@@ -14,6 +14,15 @@ from gnr.core.gnrbag import Bag
 from gnr.sql.gnrsql_exceptions import GnrSqlMissingField
 
 
+from .common import next_sql_compiler_flag
+
+def setup_module(module):
+    BaseGnrTest.setup_class()
+def teardown_module(module):
+    BaseGnrTest.teardown_class()
+
+
+
 CUSTOMER_COUNT = 3200
 INVOICE_COUNT = 256
 INVOICE_ROW_COUNT = 803
@@ -371,6 +380,32 @@ class TestFormulaSelect:
 # ===================================================================
 # Formula columns with SQL expressions
 # ===================================================================
+
+class TestFormulaSqlThisRelation:
+    """1505: #THIS.@relation.column inside a sql_formula is expanded.
+
+    The column is a sqlparams override of the display_total formula column,
+    so the test model does not change.
+    """
+
+    @pytest.fixture(params=['False', 'True'], ids=['legacy', 'next'])
+    def sql_compiler(self, request, db_sqlite):
+        with next_sql_compiler_flag(db_sqlite, request.param):
+            yield request.param
+
+    @pytest.mark.usefixtures('sql_compiler')
+    def test_this_relation_in_sql_formula_sqlite(self, db_sqlite):
+        tbl = db_sqlite.table('invc.invoice')
+        q = tbl.query(columns='$customer_name,$this_customer', limit=5,
+                      where='$customer_id IS NOT NULL',
+                      this_customer=dict(field='display_total', dtype='T',
+                                         sql_formula='#THIS.@customer_id.account_name'))
+        assert '#THIS' not in q.sqltext
+        rows = q.fetch()
+        assert rows
+        for row in rows:
+            assert row['this_customer'] == row['customer_name']
+
 
 class TestFormulaSql:
 
@@ -2637,6 +2672,36 @@ class TestExpandBag:
         ).fetch()
         assert len(rows) == 5
 
+    def _bagcols_nested(self, db):
+        tbl = db.table('invc.product')
+        pkey = tbl.query(columns='$id', limit=1).fetch()[0]['id']
+        details = Bag()
+        details['a.b.c'] = 1
+        details['a.d'] = 2
+        details['e'] = 3
+        with tbl.recordToUpdate(pkey) as rec:
+            original = rec['details']
+            rec['details'] = details
+        db.commit()
+        try:
+            row = tbl.query(columns='#BAGCOLS($details) AS dc',
+                            where='$id = :pkey', pkey=pkey).fetch()[0]
+            bag_keys = {k for k in row.keys() if k.startswith('dc')}
+            assert bag_keys == {'dc', 'dc_a_b_c', 'dc_a_d', 'dc_e'}
+            assert row['dc'] is None
+            assert (row['dc_a_b_c'], row['dc_a_d'], row['dc_e']) == (1, 2, 3)
+        finally:
+            with tbl.recordToUpdate(pkey) as rec:
+                rec['details'] = original
+            db.commit()
+
+    def test_bagcols_nested_leaves_only_pg(self, db_pg):
+        """#BAGCOLS expands only leaves, never nested folders."""
+        self._bagcols_nested(db_pg)
+
+    def test_bagcols_nested_leaves_only_sqlite(self, db_sqlite):
+        self._bagcols_nested(db_sqlite)
+
 
 class TestCompiledRecordQuery:
     """Test compiledRecordQuery paths: virtual_columns as string,
@@ -3207,3 +3272,55 @@ class TestJoinConditions:
         assert 'account_name IS NOT NULL' in sql
         rows = q.fetch()
         assert isinstance(rows, list)
+
+    @pytest.fixture(params=['False', 'True'], ids=['legacy', 'next'])
+    def sql_compiler(self, request, db_sqlite):
+        with next_sql_compiler_flag(db_sqlite, request.param):
+            yield request.param
+
+    @pytest.mark.usefixtures('sql_compiler')
+    def test_join_condition_global_where_column_token_sqlite(self, db_sqlite):
+        """1362: a $column in the ('*','*') condition is compiled to its alias."""
+        tbl = db_sqlite.table('invc.invoice_row')
+        q = tbl.query(columns='$id')
+        q.setJoinCondition(target_fld='*', from_fld='*',
+                           condition='$quantity > :qmin', qmin=1)
+        sql = q.sqltext
+        assert '"t0"."quantity" > :qmin' in sql
+        assert '$quantity' not in sql
+
+    @pytest.mark.usefixtures('sql_compiler')
+    def test_join_condition_global_where_relation_token_sqlite(self, db_sqlite):
+        """1362: a @relation.column in the ('*','*') condition builds its join."""
+        tbl = db_sqlite.table('invc.invoice_row')
+        q = tbl.query(columns='$id')
+        q.setJoinCondition(target_fld='*', from_fld='*',
+                           condition='@invoice_id.date IS NOT NULL')
+        sql = q.sqltext
+        assert 'LEFT JOIN "invc"."invc_invoice"' in sql
+        assert '"t1"."date" IS NOT NULL' in sql
+        assert '@invoice_id' not in sql
+        assert isinstance(q.fetch(), list)
+
+    @pytest.mark.usefixtures('sql_compiler')
+    def test_join_condition_global_where_related_query_sqlite(self, db_sqlite):
+        """1362: the condition filters the same rows as the equivalent where."""
+        tbl = db_sqlite.table('invc.invoice_row')
+        quantities = {}
+        for row in tbl.query(columns='$invoice_id,$quantity').fetch():
+            quantities.setdefault(row['invoice_id'], []).append(row['quantity'])
+        invoice_id, values = next((k, v) for k, v in quantities.items()
+                                  if len(set(v)) > 1)
+        qmin = min(values)
+        expected = len([v for v in values if v > qmin])
+
+        q = tbl.relatedQuery(field='invoice_id', value=invoice_id)
+        q.setJoinCondition(target_fld='*', from_fld='*',
+                           condition='$quantity > :qmin', qmin=qmin)
+        assert len(q.fetch()) == expected
+
+        equivalent = tbl.query(columns='$id',
+                               where='$invoice_id=:inv AND $quantity > :qmin',
+                               inv=invoice_id, qmin=qmin)
+        assert len(equivalent.fetch()) == expected
+        assert expected < len(values)

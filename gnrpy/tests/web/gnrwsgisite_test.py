@@ -1,6 +1,8 @@
 import os
 import pytest
 
+from werkzeug.test import EnvironBuilder
+
 import gnr.web.gnrwsgisite as gws
 
 from webcommon import BaseGnrDaemonTest
@@ -112,6 +114,134 @@ class TestGnrWsgiSite(BaseGnrDaemonTest):
         response = self.client.get('/sys/test')
         assert "200 " in response.get('status')
         assert b'genro' in response.get('data')
-        
 
+    def test_storage_segment_with_many_colons_returns_404(self):
+        path = '.env.production::$DATA'
+        node = self.site.storageNodeFromPathList([path])
+        assert not node.exists
+        statuses = []
 
+        def start_response(status, headers, exc_info=None):
+            statuses.append(status)
+
+        environ = EnvironBuilder(path=f'/{path}').get_environ()
+        self.site.storageDispatcher([path], environ, start_response)
+        assert statuses and statuses[0].startswith('404')
+
+    def _error_rows(self, pkey):
+        db = self.site.db
+        db.closeConnection()
+        return db.table('sys.error').query(
+            columns='$description,$error_type,$error_code', where='$id=:pkey',
+            pkey=pkey).fetch()
+
+    def _drop_error_row(self, pkey):
+        db = self.site.db
+        db.table('sys.error').deleteSelection(where='$id=:pkey', pkey=pkey)
+        db.commit()
+
+    def test_deprecated_write_exception_returns_the_record(self):
+        flow_completed = False
+        try:
+            raise ValueError('legacy site failure')
+        except ValueError as e:
+            with pytest.warns(DeprecationWarning, match='writeException'):
+                rec = self.site.writeException(exception=e)
+            flow_completed = True
+        assert flow_completed
+        assert rec and rec['id']
+        try:
+            assert rec['error_code']
+            assert rec['error_type'] == 'EXC'
+            assert rec['description'] == 'legacy site failure'
+            rows = self._error_rows(rec['id'])
+            assert len(rows) == 1
+            assert rows[0]['error_code'] == rec['error_code']
+        finally:
+            self._drop_error_row(rec['id'])
+
+    def test_deprecated_write_exception_keeps_supplied_traceback(self):
+        supplied_traceback = 'traceback captured before reporting'
+        with pytest.warns(DeprecationWarning, match='writeException'):
+            rec = self.site.writeException(
+                exception=ValueError('legacy site failure'),
+                traceback=supplied_traceback)
+        assert rec and rec['id']
+        try:
+            self.site.db.closeConnection()
+            stored = self.site.db.table('sys.error').record(pkey=rec['id']).output('dict')
+            assert stored['error_data'] == supplied_traceback
+        finally:
+            self._drop_error_row(rec['id'])
+
+    def test_deprecated_write_error_returns_the_record(self):
+        assert not getattr(self.site.writeError, 'is_rpc', False)
+        with pytest.warns(DeprecationWarning, match='writeError'):
+            rec = self.site.writeError(description='legacy site error')
+        assert rec and rec['id']
+        try:
+            assert rec['error_type'] == 'ERR'
+            rows = self._error_rows(rec['id'])
+            assert len(rows) == 1
+            assert rows[0]['description'] == 'legacy site error'
+        finally:
+            self._drop_error_row(rec['id'])
+
+    def test_deprecated_write_error_keeps_kwargs_in_error_data(self):
+        with pytest.warns(DeprecationWarning, match='writeError'):
+            rec = self.site.writeError(description='legacy kwargs', extra_info='KWVAL',
+                                       loglevel='warning', error_id='legacy_id')
+        assert rec and rec['id']
+        try:
+            self.site.db.closeConnection()
+            stored = self.site.db.table('sys.error').record(pkey=rec['id']).output('dict')
+            error_data = str(stored['error_data'])
+            assert 'KWVAL' in error_data
+            assert 'legacy_id' in error_data
+            assert stored['error_code'] != 'legacy_id'
+        finally:
+            self._drop_error_row(rec['id'])
+
+    def test_deprecated_write_error_never_raises(self, monkeypatch):
+        def failing_error_handler(**kwargs):
+            raise RuntimeError('error handler failure')
+        monkeypatch.setattr(self.site, 'errorHandler', failing_error_handler)
+        with pytest.warns(DeprecationWarning):
+            rec = self.site.writeError(description='failing write')
+        assert rec is None
+
+    def _rpc_write_error(self, page, description):
+        previous_page = self.site.currentPage
+        self.site.currentPage = page
+        try:
+            handler = page.getPublicMethod('rpc', 'site.writeError')
+            result = handler(description=description, extra_info='KWVAL')
+        finally:
+            self.site.currentPage = previous_page
+        db = self.site.db
+        db.closeConnection()
+        rows = db.table('sys.error').query(
+            columns='$id', where='$description=:d', d=description).fetch()
+        for row in rows:
+            self._drop_error_row(row['id'])
+        return result, len(rows)
+
+    def test_rpc_write_error_refuses_a_page_without_user(self):
+        result, written = self._rpc_write_error(self.site.dummyPage, 'rpc no user')
+        assert result is None
+        assert written == 0
+
+    def test_rpc_write_error_refuses_a_guest(self):
+        page = self.site.dummyPage
+        page.user = page.connection.guestname
+        assert page.isGuest
+        result, written = self._rpc_write_error(page, 'rpc guest')
+        assert result is None
+        assert written == 0
+
+    def test_rpc_write_error_writes_for_a_logged_user_and_returns_nothing(self):
+        page = self.site.dummyPage
+        page.avatar = self.site.gnrapp.makeAvatar(user='rpc_tester', user_id='rpc_tester')
+        result, written = self._rpc_write_error(page, 'rpc logged user')
+        assert result is None
+        assert written == 1

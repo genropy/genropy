@@ -25,6 +25,7 @@
 from gnr.core.gnrbag import Bag, BagCbResolver, DirectoryResolver
 from gnr.core import gnrstring
 from gnr.core.gnrdict import dictExtract
+from gnr.core.gnrdecorator import deprecated
 
 from gnr.web.gnrwebstruct.base import GnrDomSrc, GnrDomSrcError
 from gnr.web.gnrwebstruct._helpers import _selected_defaultFrom
@@ -70,10 +71,10 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
              'dataFormula', 'dataScript', 'dataRpc', 'dataController', 'dataRemote',
              'gridView', 'viewHeader', 'viewRow', 'script', 'func',
              'staticGrid', 'dynamicGrid', 'fileUploader', 'gridEditor', 'ckEditor', 
-             'tinyMCE', 'protovis','codemirror','proseMirrorEditor','mdeditor','qrscanner','fullcalendar','dygraph','chartjs','MultiButton','PaletteGroup','DocumentFrame','DownloadButton','bagEditor','PagedHtml',
+             'tinyMCE', 'protovis','codemirror','proseMirrorEditor','joditEditor','mdeditor','qrscanner','fullcalendar','dygraph','chartjs','MultiButton','PaletteGroup','DocumentFrame','DownloadButton','bagEditor','PagedHtml',
              'DocItem','UserObjectLayout','UserObjectBar', 'PalettePane','PasswordTextBox','PaletteMap','PaletteImporter','DropUploader','ModalUploader','DropUploaderGrid','VideoPickerPalette','GeoCoderField','StaticMap','ImgUploader','TooltipPane','MenuDiv', 'BagNodeEditor','FlatBagEditor',
              'PaletteBagNodeEditor','StackButtons', 'Palette', 'PaletteTree','TreeFrame','CheckBoxText','RadioButtonText','GeoSearch','ComboArrow','ComboMenu','ChartPane','PaletteChart','ColorTextBox','ColorFiltering', 'SearchBox', 'FormStore',
-             'FramePane', 'FrameForm','BoxForm','QuickEditor','ExtendedCkeditor','ExtendedTinyMCE','CodeEditor','TreeGrid','QuickGrid',
+             'FramePane', 'FrameForm','BoxForm','QuickEditor','ExtendedCkeditor','ExtendedJoditEditor','ExtendedTinyMCE','CodeEditor','TreeGrid','QuickGrid',
             "GridGallery","VideoPlayer",'MultiValueEditor','MultiLanguageTextBox','TextboxMenu','MultiLineTextbox','QuickTree','SharedObject','IframeDiv','FieldsTree', 'SlotButton','TemplateChunk','LightButton','Semaphore','CharCounterTextarea','TracebackViewer']
     genroNameSpace = dict([(name.lower(), name) for name in htmlNS])
     genroNameSpace.update(dict([(name.lower(), name) for name in dijitNS]))
@@ -462,6 +463,7 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
     def docItem(self, store=None,key=None,contentpath=None,**kwargs):        
         return self.child('DocItem',store=store,key=key,contentpath=contentpath,**kwargs)
 
+    @deprecated('use joditEditor')
     def ckeditor(self,stylegroup=None,**kwargs):
         style_table = self.page.db.table('adm.ckstyle')
         if style_table:
@@ -847,12 +849,10 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
                       :ref:`datapath` section
         """
         if lbl and not label and not getattr(self,'fbuilder',None):
+            # the client adds a placeholder label only where a sibling on the
+            # same row needs it (_formletNeedsPlaceholderLbl)
             label = lbl
-            lbl = '&nbsp;'
-            # Placeholder label: keeps the label height with top/bottom label
-            # side so the checkbox lines up with the sibling inputs
-            if 'box__class' not in kwargs:
-                kwargs['box__class'] = 'formlet_placeholder_label'
+            lbl = None
         return self.child('checkbox', value=value, label=label,lbl=lbl, **kwargs)
         
     def dropdownbutton(self, label=None, **kwargs):
@@ -957,9 +957,13 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
             excludeCols = formNode.attr.get('excludeCols') if formNode else None
             if excludeCols and fld in excludeCols.split(','):
                 wdgattr.setdefault('hidden', True)
-        wdgattr['helpcode'] =  fieldobj.fullname.replace('.','_')
-        if fieldobj.attributes.get('_owner_package'):
-            wdgattr['helpcode_package'] = fieldobj.attributes.get('_owner_package')
+        if self.page.inlineDoc:
+            doc_table, doc_column = fieldobj.fullname.rsplit('.', 1)
+            wdgattr['docAddress'] = f'field:{doc_table}:{doc_column}'
+        else:
+            wdgattr['helpcode'] =  fieldobj.fullname.replace('.','_')
+            if fieldobj.attributes.get('_owner_package'):
+                wdgattr['helpcode_package'] = fieldobj.attributes.get('_owner_package')
         if fieldobj.getTag() == 'virtual_column' or (('@' in fld ) and fld != tblobj.fullRelationPath(fld)):
             wdgattr.setdefault('readOnly', True)
             wdgattr['_virtual_column'] = fld
@@ -1088,8 +1092,6 @@ class GnrDomSrc_dojo_11(GnrDomSrc):
             result['tag'] = 'modalUploader'
             result['dest_fld'] = fieldobj.fullname
             result.setdefault('enable','^#FORM.controller.is_newrecord?!=#v')
-            result.setdefault('height','210px')
-            result.setdefault('width','190px')
             result.setdefault('border','1px solid silver')
             result.setdefault('rounded',8)
             result.setdefault('dest_record_pkey','=#FORM.pkey')

@@ -122,6 +122,15 @@ Constraints, foreign keys and indexes use deterministic hashed names
 This allows the diff engine to match entities across ORM and DB
 regardless of the actual constraint name in the database.
 
+### Column uniqueness
+
+A UNIQUE on a single plain column, whether a constraint or an index, is the column's `unique` attribute, and the model decides it: if the model does not say `unique=True`, `migrate` removes it. Every other index or constraint (multi-column, partial, on expressions) is never touched.
+
+Both extractors apply the rule: `indexed=dict(unique=True)` on a single
+column is read by the ORM extractor as `unique=True`, so a new table gets
+a `cst_…` UNIQUE constraint, and an existing `idx_…` unique index is
+accepted as it is.
+
 ---
 
 ## Extensibility

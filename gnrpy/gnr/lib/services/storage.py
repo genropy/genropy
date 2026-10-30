@@ -5,7 +5,6 @@
 import os
 import re
 import random
-import os
 import shutil
 import mimetypes
 import hashlib
@@ -242,9 +241,6 @@ class ServiceType(BaseServiceType):
 
     #def conf_vol(self):
     #    return dict(implementation='symbolic')
-    def getServiceFactory(self,implementation=None):
-        return self.implementations.get(implementation)
-    
 class StorageNode(object):
     def __str__(self):
         return 'StorageNode %s <%s>' %(self.service.service_implementation,self.internal_path)
@@ -292,6 +288,10 @@ class StorageNode(object):
         """Returns a list of file/dir names cointained (if self.isdir)"""
         if self.isdir:
             return self.service.listdir(self.path)
+
+    def file_mtimes(self):
+        """Returns {relative path: mtime} of every file under me, at any depth"""
+        return self.service.file_mtimes(self.path)
     
     def mkdir(self, *args):
         """Creates me as a directory"""
@@ -742,6 +742,17 @@ class StorageService(GnrBaseService):
         """Return a list of storageNodes contained in a path"""
         pass
 
+    def file_mtimes(self, *args):
+        """{relative path: mtime} of every file under a path, at any depth"""
+        result = {}
+        for node in self.children(*args) or []:
+            name = node.basename
+            if node.isdir:
+                result.update({f'{name}/{k}': v for k, v in self.file_mtimes(node.path).items()})
+            else:
+                result[name] = node.mtime
+        return result
+
 class BaseLocalService(StorageService):
     def __init__(self, parent=None, base_path=None, tags=None,**kwargs):
         self.parent = parent
@@ -853,6 +864,15 @@ class BaseLocalService(StorageService):
         if self.parent.cache_max_age:
             file_responder.cache_control(max_age=self.parent.cache_max_age)
         return file_responder(environ, start_response)
+
+    def file_mtimes(self, *args):
+        root = self.internal_path(*args)
+        result = {}
+        for dirpath, dirnames, filenames in os.walk(root):
+            for filename in filenames:
+                fullpath = os.path.join(dirpath, filename)
+                result[os.path.relpath(fullpath, root).replace(os.sep, '/')] = os.path.getmtime(fullpath)
+        return result
 
     def children(self, *args, **kwargs):
         directory = sorted(os.listdir(self.internal_path(*args)))

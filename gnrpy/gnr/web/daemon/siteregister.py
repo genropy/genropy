@@ -188,8 +188,8 @@ class BaseRegister(BaseRemoteObject):
                          reason=None, **kwargs):
         if reason == 'autocreate':
             return
-        if evt == 'ins':
-            pathlist.append(node.label)
+        if evt in ('ins', 'del'):
+            pathlist = pathlist + [node.label]
         path = '.'.join(pathlist)
         if evt != 'del' and node.attr.get('_caching_table'):
             caching_subscribers = self.cached_tables[node.attr['_caching_table']]
@@ -201,7 +201,8 @@ class BaseRegister(BaseRemoteObject):
         for subscribed in register_item['subscribed_paths']:
             if path == subscribed or path.startswith(subscribed + '.'):
                 register_item['datachanges'].append(
-                    ClientDataChange(path=path, value=node.value, reason='serverChange', attributes=node.attr))
+                    ClientDataChange(path=path, value=node.value, reason='serverChange', attributes=node.attr,
+                                     delete=evt == 'del'))
                 break
 
     def invalidateTableCache(self, table):
@@ -984,7 +985,7 @@ class SiteRegister(BaseRemoteObject):
                        if page['user'].startswith('guest_')
                        else self.page_max_age)
             last_refresh_ts = page.get('last_refresh_ts') or page.get('start_ts')
-            if (now - last_refresh_ts).seconds > max_age:
+            if (now - last_refresh_ts).total_seconds() > max_age:
                 page_id = page['register_item_id']
                 self.drop_page(page_id)
                 dropped.append(page_id)
@@ -1001,7 +1002,7 @@ class SiteRegister(BaseRemoteObject):
                    if connection['user'].startswith('guest_')
                    else self.connection_max_age)
         last_refresh_ts = connection.get('last_refresh_ts') or connection.get('start_ts')
-        if (datetime.now() - last_refresh_ts).seconds > max_age:
+        if (datetime.now() - last_refresh_ts).total_seconds() > max_age:
             self.drop_connection(connection_id, cascade=True)
             return True
         return False
@@ -1085,7 +1086,7 @@ class SiteRegister(BaseRemoteObject):
         user_register_data = self.user_register.get_item_data(user)
         lastBatchUpdate = user_register_data.getItem('lastBatchUpdate')
         if lastBatchUpdate:
-            if (datetime.now() - lastBatchUpdate).seconds < 5:
+            if (datetime.now() - lastBatchUpdate).total_seconds() < 5:
                 envelope.setItem('runningBatch', True)
             else:
                 user_register_data.setItem('lastBatchUpdate', None)
@@ -1164,7 +1165,9 @@ class SiteRegister(BaseRemoteObject):
                 os.remove(loadedpath)
             os.rename(self.storage_path, loadedpath)
             return True
-        except EOFError:
+        except (EOFError, FileNotFoundError):
+            # the file may be empty, or already taken by a register that
+            # restored before this one
             return False
 
     def pendingProcessCommands(self):

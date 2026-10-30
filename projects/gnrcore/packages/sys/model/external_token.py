@@ -60,11 +60,13 @@ class Table(object):
         with self.db.tempEnv(connectionName='system',**self.get_storeargs()):
             record = self.record(id=token, ignoreMissing=True).output('bag')
             record = self.check_token(record, host)
+            if record and record['max_usages']:
+                self.db.table('sys.external_token_use').insert(
+                        dict(external_token_id=record['id'], host=host, datetime=dt.now(pytz.utc)))
+                self.db.commit()
+            else:
+                self.db.rollback()
             if record:
-                if record['max_usages']:
-                    self.db.table('sys.external_token_use').insert(
-                            dict(external_token_id=record['id'], host=host, datetime=dt.now(pytz.utc)))
-                    self.db.commit()
                 user = record['exec_user']
                 return record['method'], [], dict(record['parameters'] or {}), user
         return None, None, None, None

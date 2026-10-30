@@ -39,6 +39,30 @@ class TestBasicBag(object):
         test_kwargs = dict(TESTVAR="admin", TESTVAR2="admin2")
         b = Bag(source, _template_kwargs=test_kwargs)
         assert b['name'] == "admin"
+
+    def test_template_kwargs_from_file(self, tmp_path):
+        source = tmp_path / 'instanceconfig.xml'
+        source.write_text("<?xml version='1.0' encoding='UTF-8'?><GenRoBag><name>{TESTVAR}</name></GenRoBag>")
+        b = Bag(str(source), _template_kwargs=dict(TESTVAR="admin"))
+        assert b['name'] == "admin"
+
+    def test_template_kwargs_unresolved(self, tmp_path):
+        source = tmp_path / 'instanceconfig.xml'
+        source.write_text("<?xml version='1.0' encoding='UTF-8'?>"
+                          "<GenRoBag><name>{MISSINGVAR}</name><code>{\"a\": 1}</code></GenRoBag>")
+        b = Bag(str(source), _template_kwargs=dict(TESTVAR="admin"))
+        assert b['name'] == "{MISSINGVAR}"
+        assert b['code'] == '{"a": 1}'
+
+    def test_template_kwargs_xml_escaped(self, tmp_path):
+        secret = 'p&ss<w>"\'rd'
+        source = tmp_path / 'instanceconfig.xml'
+        source.write_text("<?xml version='1.0' encoding='UTF-8'?>"
+                          "<GenRoBag><db password=\"{SECRET}\" user='{SECRET}'>{SECRET}</db></GenRoBag>")
+        b = Bag(str(source), _template_kwargs=dict(SECRET=secret))
+        assert b['db'] == secret
+        assert b.getAttr('db', 'password') == secret
+        assert b.getAttr('db', 'user') == secret
         
     def test_fillFromBag(self):
         c = Bag(self.mybag)
@@ -296,6 +320,15 @@ class TestBasicBag(object):
 
         b.setBackRef()
         assert b['just.a.simple'].fullpath == 'just.a.simple'
+
+    def test_getLeaves(self):
+        b = Bag()
+        b['a.b.c'] = 1
+        b['a.d'] = 2
+        b['e'] = 3
+        assert b.getLeaves() == [('a.b.c', 1), ('a.d', 2), ('e', 3)]
+        assert [p for p, n in b.getIndex()] == [['a'], ['a', 'b'], ['a', 'b', 'c'],
+                                                ['a', 'd'], ['e']]
 
 class TestBagTrigger(object):
     def setup_class(cls):
