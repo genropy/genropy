@@ -239,7 +239,7 @@ class FrameGridTools(BaseComponent):
         if closable !='close':
             bc.data('.use_grouper',True)
         inattr = view.getInheritedAttributes()
-        bc.contentPane(region='center',datapath='.grouper').remote(self.fg_remoteGrouper,
+        bc.contentPane(region='center',datapath='.grouper',overflow='hidden').remote(self.fg_remoteGrouper,
                                                 groupedTh=inattr.get('frameCode'),
                                                 groupedThViewResource=groupedThViewResource or inattr.get('th_viewResource'),
                                                 table=table,store_is_grouper=True,**kwargs)
