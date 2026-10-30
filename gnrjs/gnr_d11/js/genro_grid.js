@@ -3184,17 +3184,26 @@ dojo.declare("gnr.widgets.VirtualStaticGrid", gnr.widgets.DojoGrid, {
                 } else if (kw.evt == 'del') {
                     if (parent_lv == 1) {
                         var currSelectedIdx = this.selection.selectedIndex;
-                        this.selection.unselectAll()
-                        var lastSelectable = this.storebag().len()-1;
-                        if(currSelectedIdx>lastSelectable){
-                            currSelectedIdx = lastSelectable;
+                        if(currSelectedIdx>=0){
+                            // the index filter is still the one before this removal
+                            var selectedAbsIdx = this.absIndex(currSelectedIdx);
+                            var selectedNode = selectedAbsIdx==kw.ind? kw.node:storebag.getNodes()[kw.ind<selectedAbsIdx? selectedAbsIdx-1:selectedAbsIdx];
+                            this._selectionOnRemoval = {idx:currSelectedIdx,node:selectedNode,autoRow:kw.reason=='autoRow'};
                         }
+                        this.selection.unselectAll()
                         this.filterToRebuild(true);
                         this.updateRowCount();
                         var that = this;
-                        if(currSelectedIdx>=0 && !this.sourceNode.attr._linkedFormId){
-                            setTimeout(function(){
-                                that.setSelectedIndex(currSelectedIdx);
+                        var pending = this._selectionOnRemoval;
+                        if(pending && !pending.timeout){
+                            pending.timeout = setTimeout(function(){
+                                that._selectionOnRemoval = null;
+                                var absIdx = that.storebag().getNodes().indexOf(pending.node);
+                                if(absIdx>=0){
+                                    that.setSelectedIndex(that.absIndex(absIdx,true));
+                                }else if(pending.autoRow || that.selectsNeighbourOnRemoval(that.rowIdentity(that.rowFromBagNode(pending.node)))){
+                                    that.setSelectedIndex(pending.idx);
+                                }
                             },1);
                         }
                         
@@ -3506,7 +3515,7 @@ dojo.declare("gnr.widgets.VirtualStaticGrid", gnr.widgets.DojoGrid, {
                 this._saved_selections = null;
             }
             if ((this.prevSelectedIdentifiers) && (this.prevSelectedIdentifiers.length > 0 )) {
-                let default_idx = this.sourceNode.attr._linkedFormId? -1:this.prevSelectedIdx;
+                let default_idx = this.selectsNeighbourOnRemoval(this.prevSelectedIdentifiers)? this.prevSelectedIdx:-1;
                 this.selectByRowAttr(this._identifier, this.prevSelectedIdentifiers,null,this.prevFirstVisibleRow,default_idx);
                 this.prevSelectedIdx = null;
                 this.prevSelectedIdentifiers = null;
@@ -3520,6 +3529,16 @@ dojo.declare("gnr.widgets.VirtualStaticGrid", gnr.widgets.DojoGrid, {
            //    this.prevFilterValue = null;
            //}
         }
+    },
+
+    mixin_selectsNeighbourOnRemoval:function(identifiers) {
+        if (this.sourceNode.attr._linkedFormId) {
+            return false;
+        }
+        var deleting = this._deletingPkeys || [];
+        return !!this.autoSelect || [].concat(identifiers).some(function(k) {
+            return deleting.indexOf(k) >= 0;
+        });
     },
 
     mixin_touchSelectedRows:function() {
@@ -5337,6 +5356,7 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
     
     mixin_deleteSelectedRows:function(){
         var pkeys = this.getSelectedPkeys();
+        this._deletingPkeys = pkeys;
         var protectPkeys;
         if(this.collectionStore().allowLogicalDelete){
             protectPkeys = this.getSelectedProtectedPkeys('delete');
