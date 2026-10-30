@@ -120,3 +120,20 @@ class FormWizardLeft(FormWizardResume):
 
     def th_options(self):
         return dict(dialog_height='420px', dialog_width='820px')
+
+
+class FormWizardNavigation(FormWizardResume):
+    """FormWizardResume keeping th's modal='navigation' bar (keepToolbar)."""
+
+    def th_form(self, form):
+        form.groupletWizardForm(
+            frameCode='ticket_wizard_navigation',
+            grouplets_root='wizard_grouplets',
+            resumeStepField='wizard_step',
+            draftConfirm=True,
+            keepToolbar=True,
+            completeLabel='Complete Ticket')
+
+    def th_options(self):
+        return dict(dialog_height='450px', dialog_width='700px',
+                    modal='navigation')

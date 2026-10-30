@@ -247,3 +247,16 @@ class GnrCustomWebPage(object):
             viewResource='View',
             formResource='FormSaveStep',
             view_store__onStart=True)
+
+    def test_16_wizard_navigation_bar(self, pane):
+        """groupletWizardForm with keepToolbar and the th option
+        modal='navigation': a ticket opens in a dialog whose top bar shows
+        ‹ Back and the Prev/Next arrows. The arrows move through the list,
+        disabled on the first and last ticket; Back closes the dialog."""
+        pane.borderContainer(height='500px').contentPane(
+            region='center').dialogTableHandler(
+            table='test.myticket',
+            datapath='.ticket_wizard_navigation',
+            viewResource='ViewWizard',
+            formResource='FormWizardNavigation',
+            view_store__onStart=True)
