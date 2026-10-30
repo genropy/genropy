@@ -1082,7 +1082,7 @@ class XlsxWriter(BaseXls):
                 value = ','.join([str(x != None and x or '') for x in value])
             coltype = coltypes.get(col)
             if coltype in ('R', 'F', 'N'):
-                logger.debug('writing float', c)
+                logger.debug('writing float %s', c)
                 self.writeCell(sheet, current_row, c, value, style="float")
             elif coltype in ('L', 'I'):
                 self.writeCell(sheet, current_row, c, value, style="int")
