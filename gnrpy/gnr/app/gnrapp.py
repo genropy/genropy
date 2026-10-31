@@ -1249,7 +1249,8 @@ class GnrApp(object):
                  ' packages section of instanceconfig.xml:']
         for e in self.undeclared_packages:
             lines.append('  %s (required by %s)' % (e['code'], ', '.join(sorted(e['required_by']))))
-        lines.append('Declare them there to have their python dependencies checked:')
+        lines.append('Their python dependencies are checked through the package closure.'
+                     ' To declare them explicitly:')
         for e in self.undeclared_packages:
             lines.append('  <%s pkgcode="%s"/>' % (e['code'].replace(':', '_'), e['code']))
         return '\n'.join(lines)
