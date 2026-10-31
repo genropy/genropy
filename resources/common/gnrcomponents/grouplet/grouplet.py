@@ -789,7 +789,8 @@ class GroupletHandler(BaseComponent):
         # the step form saves even when incomplete, so Back keeps what was
         # typed: validity is checked by the wizard on Next and on Confirm.
         # As a child of the surrounding form, its pending changes are asked
-        # about when that form is dismissed or navigated away.
+        # about when that form is dismissed or navigated away, unless that
+        # form has form_avoidPendingChangesDialog (wizardRegisterStep).
         grouplet_kwargs.update(resource='^#ANCHOR.current_resource',
                            value=value,
                            loadOnBuilt=True, formId=step_form_id,

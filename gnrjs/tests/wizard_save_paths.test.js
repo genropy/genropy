@@ -254,12 +254,9 @@ test('a rebuilt step replaces the previous one in the parent form', () => {
     assert.equal(main.form.childForms.wiz_step_form, rebuilt.form);
 });
 
-function createWizard(context, {stepChanged = true} = {}) {
-    const main = createForm(context, {changed: false, table_name: 'Ticket', childForms: {}});
-    const loads = [];
-    main.form.store = {getDefaultDestPkey: () => null};
-    main.form.load_store = kw => loads.push(kw.destPkey);
-    const step = createForm(context, {formId: 'wiz_step_form', changed: stepChanged,
+// every step the wizard builds is a new step form, registered in the parent form
+function createStep(context, main, {changed = true} = {}) {
+    const step = createForm(context, {formId: 'wiz_step_form', changed,
                                       pendingChangesSaveSlot: false, getParentForm: () => main.form});
     step.form.store = {};
     step.form.doload_store = () => { step.form.changed = false; };
@@ -267,6 +264,15 @@ function createWizard(context, {stepChanged = true} = {}) {
         if (topic === 'pendingChangesAnswer') step.form.pendingChangesAnswer(kw);
     };
     vm.runInContext('gnr_grouplet', context).wizardRegisterStep(step.form);
+    return step;
+}
+
+function createWizard(context, {stepChanged = true, parent = {}} = {}) {
+    const main = createForm(context, Object.assign({changed: false, table_name: 'Ticket', childForms: {}}, parent));
+    const loads = [];
+    main.form.store = {getDefaultDestPkey: () => null};
+    main.form.load_store = kw => loads.push(kw.destPkey);
+    const step = createStep(context, main, {changed: stepChanged});
     return {step, main, loads};
 }
 
@@ -298,6 +304,71 @@ test('dismissing the wizard with an untouched step closes without asking', () =>
     main.form.load({destPkey: '*dismiss*'});
     assert.equal(dialogs.length, 0);
     assert.deepEqual(loads, ['*dismiss*']);
+});
+
+test('a wizard whose form avoids Pending changes leaves every step without asking', () => {
+    const context = createContext();
+    const dialogs = stubQuickDialog(context);
+    const {step, main, loads} = createWizard(context, {parent: {avoidPendingChangesDialog: true}});
+    main.form.load({destPkey: '*dismiss*'});
+    assert.equal(dialogs.length, 0);
+    assert.equal(step.form.changed, false);
+    assert.deepEqual(loads, ['*dismiss*']);
+    const next = createStep(context, main);
+    main.form.load({destPkey: '*dismiss*'});
+    assert.equal(dialogs.length, 0);
+    assert.equal(next.form.changed, false);
+    assert.deepEqual(loads, ['*dismiss*', '*dismiss*']);
+});
+
+test('a wizard whose form avoids Pending changes leaves a changed record and step without asking', () => {
+    const context = createContext();
+    const dialogs = stubQuickDialog(context);
+    const {step, main} = createWizard(context, {parent: {changed: true, avoidPendingChangesDialog: true,
+                                                          pendingChangesSaveSlot: false}});
+    const discarded = [];
+    delete main.form.load_store;
+    main.form.doload_store = kw => { discarded.push(kw.destPkey); main.form.changed = false; };
+    main.form.publish = (topic, kw) => {
+        if (topic === 'pendingChangesAnswer') main.form.pendingChangesAnswer(kw);
+    };
+    main.form.load({destPkey: '*dismiss*'});
+    assert.equal(dialogs.length, 0);
+    assert.equal(step.form.changed, false);
+    assert.deepEqual(discarded, ['*dismiss*']);
+    assert.equal(main.saved.length, 0);
+});
+
+test('a wizard whose form keeps Pending changes asks on every changed step', () => {
+    for (const parent of [{}, {avoidPendingChangesDialog: false}]) {
+        const context = createContext();
+        const dialogs = stubQuickDialog(context);
+        const {step, main, loads} = createWizard(context, {parent});
+        main.form.load({destPkey: '*dismiss*'});
+        assert.equal(dialogs.length, 1);
+        assert.equal(dialogs[0].children.find(c => c.tag === 'slotBar').attrs.slots, 'discard,*,cancel');
+        answer(dialogs[0], 'cancel');
+        assert.equal(step.form.changed, true);
+        assert.deepEqual(loads, []);
+        const next = createStep(context, main);
+        main.form.load({destPkey: '*dismiss*'});
+        assert.equal(dialogs.length, 2);
+        answer(dialogs[1], 'discard');
+        assert.equal(next.form.changed, false);
+        assert.deepEqual(loads, ['*dismiss*']);
+    }
+});
+
+test('the option of one wizard does not reach the steps of another', () => {
+    const context = createContext();
+    const dialogs = stubQuickDialog(context);
+    const quiet = createWizard(context, {parent: {avoidPendingChangesDialog: true}});
+    const asking = createWizard(context);
+    asking.main.form.load({destPkey: '*dismiss*'});
+    quiet.main.form.load({destPkey: '*dismiss*'});
+    assert.equal(dialogs.length, 1);
+    assert.deepEqual(asking.loads, []);
+    assert.deepEqual(quiet.loads, ['*dismiss*']);
 });
 
 function createConfirm(context, attrs, {stepForm = null} = {}) {
