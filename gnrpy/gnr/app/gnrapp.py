@@ -213,6 +213,8 @@ class DbStoresHandler(object):
         result = {}
         if self.db.storetable:    
             dbdict = self.get_dbdict()
+            if not dbdict:
+                return result
             dbstores = self.db.table(self.db.storetable).query(
                 where='$dbstore IN :databases',
                 databases=list(dbdict.keys()),columns="$dbstore").fetch()
@@ -1044,8 +1046,6 @@ class GnrApp(object):
         # load the packages
         for pkgid,pkgattrs,pkgcontent in self.config['packages'].digest('#k,#a,#v'):
             self.addPackage(pkgid,pkgattrs=pkgattrs,pkgcontent=pkgcontent)
-        if self.undeclared_packages:
-            logger.warning(self.undeclared_packages_report())
 
         dbattrs = dict(self.config.getAttr('db') or {})
         dbattrs['implementation'] = dbattrs.get('implementation') or 'sqlite'
