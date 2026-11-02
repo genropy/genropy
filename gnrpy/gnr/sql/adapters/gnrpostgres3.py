@@ -139,7 +139,11 @@ class SqlDbAdapter(PostgresSqlDbBaseAdapter):
         kwargs = dict(dbname='postgres', host=host, port=port,
                       user=user, password=password, autocommit=True)
         kwargs = dict([(k, v) for k, v in list(kwargs.items()) if v != None])
-        conn = psycopg.connect(**kwargs)
+        try:
+            conn = psycopg.connect(**kwargs)
+        except psycopg.OperationalError:
+            # 'postgres' may be dropped or not granted; template1 always exists.
+            conn = psycopg.connect(**dict(kwargs, dbname='template1'))
         #conn.isolation_level=IsolationLevel.READ_COMMITTED
         return conn
         

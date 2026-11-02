@@ -1,5 +1,8 @@
+from contextlib import ExitStack, contextmanager
+
 from gnr.app.gnrdbo import GnrDboTable
 from gnr.app import pkglog as logger
+from gnr.sql.adapters._gnrbaseadapter import DbAdapterException
 
 
 class StoreTable(GnrDboTable):
@@ -35,8 +38,16 @@ class StoreTable(GnrDboTable):
         return
 
 
+    @contextmanager
     def _multidb_provisioningLock(self, dbstore):
-        return self.db.adapter.databaseLock(f'{self.db.multidb_prefix}{dbstore}')
+        with ExitStack() as stack:
+            try:
+                stack.enter_context(self.db.adapter.databaseLock(f'{self.db.multidb_prefix}{dbstore}'))
+            except DbAdapterException as exc:
+                raise self.exception('business_logic',
+                                     msg='!![en]Workspace %(store)s is being provisioned by another request',
+                                     store=dbstore) from exc
+            yield
 
     def _multidb_setProvisioningStatus(self, pkey, status, error=None):
         with self.recordToUpdate(pkey) as rec:
@@ -61,6 +72,8 @@ class StoreTable(GnrDboTable):
                 if not existing_db:
                     raise self.exception('business_logic',
                                          msg='!![en]The activated database is missing; restore it before continuing')
+                handler.refresh_dbstores()
+                handler.dbstore_align(dbstore)
                 return
             legacy_import = existing_db and (not status or status in ('aligning_import', 'failed_import'))
             previous_aux = handler.auxstores.get(dbstore)
@@ -69,8 +82,8 @@ class StoreTable(GnrDboTable):
                 self._multidb_setProvisioningStatus(
                     record[self.pkey], 'aligning_import' if legacy_import else 'creating')
                 if not existing_db:
-                    template = record.get('dbtemplate') or self.attributes.get('db_creation_template')
-                    self.db.createDb(dbname, template=template)
+                    # dbtemplate names a startup-data archive, not a database.
+                    self.db.createDb(dbname, template=self.attributes.get('db_creation_template'))
                 phase = 'align'
                 self._multidb_setProvisioningStatus(
                     record[self.pkey], 'aligning_import' if legacy_import else 'aligning')
@@ -85,9 +98,13 @@ class StoreTable(GnrDboTable):
             except Exception as exc:
                 self.db.rollback()
                 logger.exception('Store %s: provisioning failed during %s', dbstore, phase)
-                self._multidb_setProvisioningStatus(
-                    record[self.pkey], 'failed_import' if legacy_import else 'failed',
-                    f'{phase}: {exc}')
+                try:
+                    self._multidb_setProvisioningStatus(
+                        record[self.pkey], 'failed_import' if legacy_import else 'failed',
+                        f'{phase}: {exc}')
+                except Exception:
+                    self.db.rollback()
+                    logger.exception('Store %s: unable to record the provisioning failure', dbstore)
                 raise self.exception(
                     'business_logic',
                     msg='!![en]Workspace %(store)s failed during %(phase)s: %(error)s',

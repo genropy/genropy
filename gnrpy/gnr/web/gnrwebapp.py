@@ -40,6 +40,9 @@ class WebApplicationCache(object):
         with self.register.globalStore() as gs:
             gs.setItem('CACHE_TS.%s' %key,datetime.now())
 
+    def discardLocalItem(self,key):
+        self.cache.pop(key,None)
+
     def expiredItem(self,key):
         item,ts = self.cache.get(key,(None,None))
         if item is None:

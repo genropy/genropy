@@ -12,6 +12,7 @@ from gnr.app.gnrapp import GnrSqlAppDb
 from gnr.core.gnrbag import Bag
 from gnr.sql.gnrsql import GnrSqlDb
 from gnr.sql.adapters._gnrbaseadapter import DbAdapterException
+from gnr.sql.gnrsqltable import GnrSqlBusinessLogicException
 from .common import get_pg_config, MockApplication, MockCache
 
 
@@ -71,12 +72,15 @@ def test_creation_error_preserves_postgres_cause(db):
     assert 'already exists' in str(error.value)
 
 
-def test_failed_owned_queries_close_connections(db):
-    def sessions():
-        return db.adapter.raw_fetch(
-            "SELECT count(*) FROM pg_stat_activity WHERE datname='postgres'",
-            manager=True)[0][0]
-    before = sessions()
+def test_failed_owned_queries_close_connections(db, monkeypatch):
+    opened = []
+    open_manager = db.adapter._managerConnection
+
+    def tracked_manager():
+        connection = open_manager()
+        opened.append(connection)
+        return connection
+    monkeypatch.setattr(db.adapter, '_managerConnection', tracked_manager)
     errors = []
     for method in (db.adapter.raw_fetch, db.adapter.execute):
         try:
@@ -84,7 +88,8 @@ def test_failed_owned_queries_close_connections(db):
         except Exception as error:
             errors.append(error)  # Keep tracebacks alive: GC must not own cleanup.
     assert len(errors) == 2
-    assert sessions() == before
+    assert len(opened) == 2
+    assert all(connection.closed for connection in opened)
 
 
 def _hold_lock(config, implementation, dbname, pipe):
@@ -201,17 +206,48 @@ def test_activation_and_repeat_are_safe(store_db, pg_config):
         table.multidb_activateDbstore(name)
     assert table.record(pkey=name).output('dict')['provisioning_status'] == 'ready'
     assert name in db.dbstores
+    with db.tempEnv(storename=name):
+        db.adapter.execute('ALTER TABLE hosting.hosting_payload DROP COLUMN amount', autoCommit=True)
     table.multidb_activateDbstore(name)
     assert table.record(pkey=name).output('dict')['startup_data_ts'] is None
+    with db.tempEnv(storename=name):
+        assert 'amount' in [col['name'] for col in db.adapter.getColInfo('hosting_payload', 'hosting')]
 
 
-def test_failed_create_can_be_retried(store_db):
+def test_activation_while_locked_is_a_business_error(store_db, pg_config):
+    db, children = store_db
+    table = db.table('hosting.workspace')
+    name = uuid4().hex[:12]
+    table.insert(dict(id=name, dbstore=name))
+    db.commit()
+    context = multiprocessing.get_context('spawn')
+    parent, child = context.Pipe()
+    process = context.Process(target=_hold_lock,
+                              args=(pg_config, 'postgres', db.multidb_prefix + name, child))
+    process.start()
+    try:
+        assert parent.poll(15)
+        assert parent.recv() == 'locked'
+        with pytest.raises(GnrSqlBusinessLogicException, match='another request'):
+            table.multidb_activateDbstore(name)
+    finally:
+        if process.is_alive():
+            parent.send('release')
+        process.join(15)
+        parent.close()
+        child.close()
+    assert table.record(pkey=name).output('dict')['provisioning_status'] is None
+
+
+def test_failed_create_can_be_retried(store_db, monkeypatch):
     db, children = store_db
     table = db.table('hosting.workspace')
     name = uuid4().hex[:12]
     children.append(db.multidb_prefix + name)
-    table.insert(dict(id=name, dbstore=name, dbtemplate='gnr_missing_template'))
+    # dbtemplate names a startup-data archive and must not reach CREATE DATABASE.
+    table.insert(dict(id=name, dbstore=name, dbtemplate='startup_archive'))
     db.commit()
+    monkeypatch.setitem(table.attributes, 'db_creation_template', 'gnr_missing_template')
     with pytest.raises(Exception, match='gnr_missing_template'):
         table.multidb_activateDbstore(name)
     record = table.record(pkey=name).output('dict')
@@ -219,9 +255,7 @@ def test_failed_create_can_be_retried(store_db):
     assert record['provisioning_error'].startswith('create:')
     assert name not in db.dbstores
     assert not db.adapter.dbExists(children[0])
-    with table.recordToUpdate(name) as record:
-        record['dbtemplate'] = 'template0'
-    db.commit()
+    monkeypatch.undo()
     table.multidb_activateDbstore(name)
     record = table.record(pkey=name).output('dict')
     assert record['provisioning_status'] == 'ready'
@@ -278,10 +312,14 @@ def test_initialized_store_is_not_initialized_twice(store_db):
     assert table.record(pkey=name).output('dict')['startup_data_ts'] == timestamp
 
 
-def test_another_pod_refreshes_its_independent_store_cache(store_db, pg_config):
+def test_another_pod_refreshes_its_independent_store_cache(store_db, pg_config, monkeypatch):
     db, children = store_db
     other_app = copy.copy(db.application)
     other_app.cache = MockCache()
+
+    def shared_invalidation(key):
+        pytest.fail('A periodic refresh must not invalidate the shared cache')
+    monkeypatch.setattr(other_app.cache, 'updatedItem', shared_invalidation)
     other = GnrSqlAppDb(application=other_app, implementation='postgres',
                         dbname=db.dbname, **pg_config)
     other.inTransactionDaemon = False
@@ -292,7 +330,7 @@ def test_another_pod_refreshes_its_independent_store_cache(store_db, pg_config):
         name = uuid4().hex[:12]
         children.append(db.multidb_prefix + name)
         table = db.table('hosting.workspace')
-        table.insert(dict(id=name, dbstore=name, dbtemplate='template0'))
+        table.insert(dict(id=name, dbstore=name))
         db.commit()
         table.multidb_activateDbstore(name)
         assert other_app.cache.getItem('MULTI_DBSTORES') == {}
