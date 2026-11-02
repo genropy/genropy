@@ -56,12 +56,12 @@ function filterCell(context, attrs) {
 }
 
 // a NewIncludedView over an attributes store with three filterable columns
-function createGrid({virtual = false, selection = false} = {}) {
+function createGrid({virtual = false, selection = false, records = INVOICES} = {}) {
     const context = createContext();
     const {gnr, genro} = context;
     const data = new gnr.GnrBag();
     const rows = new gnr.GnrBag();
-    INVOICES.forEach((row, i) => rows.setItem(`r_${i}`, null, Object.assign({_pkey: `I${i}`}, row)));
+    records.forEach((row, i) => rows.setItem(`r_${i}`, null, Object.assign({_pkey: `I${i}`}, row)));
     data.setItem('grid.store', rows);
     const storeNode = {
         getRelativeData: p => data.getItem(p),
@@ -95,7 +95,7 @@ function createGrid({virtual = false, selection = false} = {}) {
     const filter = (field, values) => { grid.cellmap[field].filterValues = values; };
     const visible = () => {
         store.createFiltered(grid, null, null, null);
-        return store._filtered ? Array.from(store._filtered, i => `I${i}`) : INVOICES.map((r, i) => `I${i}`);
+        return store._filtered ? Array.from(store._filtered, i => `I${i}`) : records.map((r, i) => `I${i}`);
     };
     const counts = field => {
         const result = grid.columnFilterValues(grid.cellmap[field]);
@@ -160,6 +160,91 @@ test('counts follow the other filters and ignore the column own filter', () => {
     g.filter('_customer_id_name', ['C1']);
     assert.deepEqual(g.counts('status'), {Paid: 1, Sent: 1, Overdue: 0});
     assert.deepEqual(g.counts('_customer_id_name'), {C1: 1, C2: 1, C3: 0});
+});
+
+function createTaggedInvoices() {
+    const g = createGrid({records: [
+        {supplier: 'AKOAN S.A.S.', tags: 'B14 Restaurants,B14 Verificato,SenzaTitoloProgetto'},
+        {supplier: 'AKOAN S.A.S.', tags: 'fattura ok'},
+        {supplier: 'Other supplier', tags: 'SenzaTitoloProgetto'},
+        {supplier: 'Other supplier', tags: 'SenzaTitoloProgetto Extra'},
+        {supplier: 'Other supplier', tags: null},
+        {supplier: 'Other supplier', tags: ' B14 Verificato, B14 Verificato, ,fattura ok '},
+        {supplier: 'Other supplier', tags: ' , '}
+    ]});
+    for (const field of ['supplier', 'tags']) {
+        g.grid.cellmap[field] = filterCell(g.context, {field, field_getter: field, filterField: true});
+    }
+    return g;
+}
+
+test('comma-separated tags have individual choices and row counts under a supplier filter', () => {
+    const g = createTaggedInvoices();
+    g.grid.cellmap.tags.filterField_aggr = ',';
+    g.filter('supplier', ['AKOAN S.A.S.']);
+    assert.deepEqual(g.counts('tags'), {
+        'B14 Restaurants': 1, 'B14 Verificato': 1, SenzaTitoloProgetto: 1,
+        'fattura ok': 1, 'SenzaTitoloProgetto Extra': 0, null: 0
+    });
+    const choices = g.grid.columnFilterValues(g.grid.cellmap.tags);
+    assert.equal(choices.find(item => item.value === 'SenzaTitoloProgetto').caption, 'SenzaTitoloProgetto');
+    g.filter('tags', ['SenzaTitoloProgetto']);
+    assert.deepEqual(g.visible(), ['I0']);
+    assert.equal(g.counts('tags')['fattura ok'], 1);
+    g.filter('tags', ['SenzaTitoloProgetto', 'fattura ok']);
+    assert.deepEqual(g.visible(), ['I0', 'I1']);
+    g.filter('tags', null);
+    assert.deepEqual(g.visible(), ['I0', 'I1']);
+});
+
+test('tag matching is exact, trims whitespace, counts duplicates once and groups empty lists', () => {
+    const g = createTaggedInvoices();
+    g.grid.cellmap.tags.filterField_aggr = ',';
+    assert.equal(g.counts('tags')['B14 Verificato'], 2);
+    g.filter('tags', ['SenzaTitoloProgetto']);
+    assert.deepEqual(g.visible(), ['I0', 'I2']);
+    g.filter('tags', ['B14 Verificato']);
+    assert.deepEqual(g.visible(), ['I0', 'I5']);
+    g.filter('tags', [null]);
+    assert.deepEqual(g.visible(), ['I4', 'I6']);
+    assert.equal(g.counts('tags').null, 2);
+});
+
+test('ordinary text containing commas remains a single value by default', () => {
+    const g = createTaggedInvoices();
+    assert.equal(g.counts('tags')['B14 Restaurants,B14 Verificato,SenzaTitoloProgetto'], 1);
+    g.filter('tags', ['SenzaTitoloProgetto']);
+    assert.deepEqual(g.visible(), ['I2']);
+});
+
+test('the declared separator is used literally for both choices and matching', () => {
+    const g = createGrid({records: [
+        {tags: 'Restaurants, catering|Verified'},
+        {tags: 'Verified| No project |Verified'},
+        {tags: 'No project Extra'},
+        {tags: ' | '}
+    ]});
+    g.grid.cellmap.tags = filterCell(g.context, {
+        field: 'tags', field_getter: 'tags', filterField: true, filterField_aggr: '|'
+    });
+    assert.deepEqual(g.counts('tags'), {
+        'Restaurants, catering': 1, Verified: 2, 'No project': 1, 'No project Extra': 1, null: 1
+    });
+    g.filter('tags', ['No project']);
+    assert.deepEqual(g.visible(), ['I1']);
+    g.filter('tags', ['Restaurants, catering', 'No project']);
+    assert.deepEqual(g.visible(), ['I0', 'I1']);
+    g.filter('tags', [null]);
+    assert.deepEqual(g.visible(), ['I3']);
+});
+
+test('filterField_aggr survives cell construction and uses the declared filter field', () => {
+    const g = createTaggedInvoices();
+    const cell = structCell(g.context, {}, {field: 'display', filterField: 'tags', filterField_aggr: ','});
+    g.grid.cellmap.display = cell;
+    cell.filterValues = ['SenzaTitoloProgetto'];
+    assert.equal(cell.filterField_aggr, ',');
+    assert.deepEqual(g.visible(), ['I0', 'I2']);
 });
 
 test('the same caption on two ids stays two values', () => {
