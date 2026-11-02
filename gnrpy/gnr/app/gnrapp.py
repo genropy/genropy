@@ -199,6 +199,7 @@ class DbStoresHandler(object):
     def __init__(self, db):
         self.db = db
         self.auxstores = {}
+        self._dbstores_checked_at = 0
         instance_dbstores = db.application.config['dbstores'] if db.application.config else None
         if instance_dbstores:
             for n in instance_dbstores:
@@ -207,6 +208,10 @@ class DbStoresHandler(object):
     @property
     def dbstores(self):
         with self.db.tempEnv(storename=False):
+            # Also refresh across independent pod-local caches.
+            if time.monotonic() - self._dbstores_checked_at >= 5:
+                self.refresh_dbstores()
+                self._dbstores_checked_at = time.monotonic()
             return self.db.application.cache.getItem('MULTI_DBSTORES',defaultFactory=self._calculate_multidbstores)
 
     def _calculate_multidbstores(self):
@@ -215,14 +220,23 @@ class DbStoresHandler(object):
             dbdict = self.get_dbdict()
             if not dbdict:
                 return result
+            condition = '$dbstore IN :databases'
+            if self._has_provisioning_status():
+                condition += " AND ($provisioning_status IS NULL OR $provisioning_status='ready')"
             dbstores = self.db.table(self.db.storetable).query(
-                where='$dbstore IN :databases',
+                where=condition,
                 databases=list(dbdict.keys()),columns="$dbstore").fetch()
             for r in dbstores:
                 storename = r['dbstore']
                 result[storename] = dict(database=dbdict[storename])
         return result
     
+    def _has_provisioning_status(self):
+        table = self.db.table(self.db.storetable)
+        # The main schema must remain readable while upgrading older instances.
+        return any(col['name'] == 'provisioning_status' for col in
+                   self.db.adapter.getColInfo(table.model.sqlname, table.model.sqlschema))
+
     def get_dbdict(self):
         existing_databases = self.db.adapter.listElements('databases',manager=True)
         if self.db.dbname not in existing_databases:
@@ -243,8 +257,11 @@ class DbStoresHandler(object):
             tblname = tblname if not sqlprefix else f'{pkgname}_{tblname}'
             adaptSqlName = self.db.adapter.adaptSqlName
             sqltblfullname = f'{adaptSqlName(sqlschema)}.{adaptSqlName(tblname)}'
+            condition = 'dbstore IS NOT NULL'
+            if self._has_provisioning_status():
+                condition += " AND (provisioning_status IS NULL OR provisioning_status='ready')"
             dbstores = self.db.adapter.raw_fetch(f"""
-                SELECT dbstore FROM {sqltblfullname} WHERE dbstore IS NOT NULL
+                SELECT dbstore FROM {sqltblfullname} WHERE {condition}
             """)
             for r in dbstores:
                 storename = r['dbstore']

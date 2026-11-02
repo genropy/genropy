@@ -263,14 +263,17 @@ class SchemaMixin(GnrSqlDbBaseMixin):
 
     # -- DDL ----------------------------------------------------------------
 
-    def createDb(self, name: str, encoding: str = 'unicode') -> None:
+    def createDb(self, name: str, encoding: str = 'unicode', template=None) -> None:
         """Create a new database.
 
         Args:
             name: The database name.
             encoding: The character encoding (default ``'unicode'``).
         """
-        self.adapter.createDb(name, encoding=encoding)
+        kwargs = dict(encoding=encoding)
+        if template is not None:
+            kwargs['template'] = template
+        self.adapter.createDb(name, **kwargs)
 
     def dropDb(self, name: str) -> None:
         """Drop a database.
