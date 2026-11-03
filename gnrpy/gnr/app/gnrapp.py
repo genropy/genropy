@@ -228,9 +228,12 @@ class DbStoresHandler(object):
             condition = '$dbstore IN :databases'
             if self._has_provisioning_status():
                 condition += " AND ($provisioning_status IS NULL OR $provisioning_status='ready')"
-            dbstores = self.db.table(self.db.storetable).query(
+            query = self.db.table(self.db.storetable).query(
                 where=condition,
-                databases=list(dbdict.keys()),columns="$dbstore").fetch()
+                databases=list(dbdict.keys()),columns="$dbstore")
+            # Discovery must release its read lock before schema migration on
+            # another connection, without committing the caller's pending work.
+            dbstores = self.db.adapter.raw_fetch(query.sqltext, query.sqlparams)
             for r in dbstores:
                 storename = r['dbstore']
                 result[storename] = dict(database=dbdict[storename])
