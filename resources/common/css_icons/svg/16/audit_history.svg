@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
+  <title>audit_history_16x16</title>
+  <path d="M3 1h6l3 3v4.2a4.5 4.5 0 0 0-1-.2V5H8V2H4v12h3.3a4.5 4.5 0 0 0 .7 1H3z" fill="#515151"/>
+  <rect x="5" y="6" width="4" height="1" fill="#515151"/>
+  <rect x="5" y="8" width="3" height="1" fill="#515151"/>
+  <circle cx="11.5" cy="12" r="3.5" fill="#fff" stroke="#990a29" stroke-width="1.2"/>
+  <path d="M11.5 10v2.2l1.5 1" fill="none" stroke="#990a29" stroke-width="1.1" stroke-linecap="round"/>
+</svg>

@@ -469,7 +469,12 @@ class TableBase(object):
             for k,v in counter_kwargs.items():
                 self.sysFields_counter(tbl,'_row_count_%s' %k,counter=v,group=group,name_long='!![en]Counter %s' %k)
         audit = tbl.attributes.get('audit')
-        if audit:
+        if audit == 'external':
+            if 'audit' not in self.db.application.packages:
+                raise ValueError("audit='external' needs package gnrcore:audit")
+            tbl.column('__version','L',name_long='Audit version',_sysfield=True,group=group)
+            self.db.model.deferOnBuilding(self.declareExternalAudit, tbl=tbl)
+        elif audit:
             tbl.column('__version','L',name_long='Audit version',
                         onUpdating='setAuditVersionUpd', onInserting='setAuditVersionIns',_sysfield=True,
                         group=group)
@@ -614,6 +619,54 @@ class TableBase(object):
             with htbl.recordToUpdate(record[fldname]) as rec:
                 rec.update(updater)
         
+
+    def declareExternalAudit(self, tbl=None):
+        """Declare the audit triggers of a table with ``audit='external'``.
+
+        The ``audit`` attribute of a column decides whether it enters the
+        audit; without it the table ``audit_whitelist`` or ``audit_blacklist``
+        decides (``'*'`` or column and colgroup names); without a list every
+        column enters except the system fields that change at every write or
+        derive from other columns. Runs on building, when every column of
+        the table is declared."""
+        fullname = '%s.%s' % (tbl.parentNode.parentNode.parentNode.label, tbl.parentNode.label)
+        attributes = tbl.attributes
+        whitelist = attributes.get('audit_whitelist')
+        blacklist = attributes.get('audit_blacklist')
+        if whitelist and blacklist:
+            raise ValueError('%s declares both audit_whitelist and audit_blacklist' % fullname)
+        columns = tbl['columns']
+        if attributes['pkey'] not in columns:
+            raise ValueError("audit='external' on %s needs a physical pkey column" % fullname)
+        listed = whitelist or blacklist
+        names = splitAndStrip(listed, ',') if listed and listed != '*' else []
+        colgroups = tbl['colgroups'] or Bag()
+        unknown = [name for name in names if name not in columns and name not in colgroups]
+        if unknown:
+            raise ValueError('%s audit lists unknown columns or colgroups: %s' % (fullname, ','.join(unknown)))
+        default_excluded = {'__mod_ts', '__full_mod_ts', '__mod_user', '__rec_md5', '_h_count',
+                            '_parent_h_count', '__warnings', '__errors', '__invalid_fields',
+                            '__moved_related', attributes.get('draftField')}
+        excluded = ['__version']
+        for node in columns:
+            name = node.label
+            if name == '__version':
+                continue
+            audited = node.attr.get('audit')
+            if audited is None:
+                named = name in names or node.attr.get('colgroup_label') in names
+                if whitelist and names:
+                    audited = named
+                elif blacklist == '*':
+                    audited = False
+                else:
+                    audited = not (named or name in default_excluded
+                                   or name.startswith(('hierarchical_', '_parent_h_')))
+            if not audited:
+                excluded.append(name)
+        audit_schema = self.db.model.src.getNode('packages.audit').attr.get('sqlschema') or 'audit'
+        tbl.sqlCode(pkg='audit', sql_file='table_triggers.sql', excluded=','.join(excluded),
+                    audit_schema=audit_schema)
 
     def addRelXtdRelidxColumn(self,reltbl=None,relidx=None):
         model = self.db.model

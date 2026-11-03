@@ -305,7 +305,7 @@ class TableHandlerForm(BaseComponent):
                 #default_slots = default_slots.replace('form_delete','form_print,100,form_delete')
                 extra_slots.append('form_action')
                 options['form_action'] = actionMenu
-            if options.pop('audit',False):
+            if options.pop('audit',False) or tblobj.attributes.get('audit') == 'external':
                 extra_slots.append('form_audit')
             if copypaste:
                 form.attributes['form_copypaste_isRemote'] = copypaste=='*'
@@ -414,6 +414,10 @@ class TableHandlerForm(BaseComponent):
     def th_slotbar_form_audit(self,pane,**kwargs):
         inattr = pane.getInheritedAttributes()
         th_root = inattr['th_root']
+        if self.db.table(inattr['table']).attributes.get('audit') == 'external':
+            self.mixinComponent('audit_components:AuditHistory')
+            pane.historyPalette(paletteCode='%s_recordHistory' %th_root)
+            return
         pane.paletteGrid(paletteCode='%s_recordHistory' %th_root,
                         title='!!Record History',
                         dockButton=True,

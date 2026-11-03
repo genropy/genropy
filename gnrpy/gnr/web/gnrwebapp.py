@@ -127,7 +127,7 @@ class GnrWsgiWebApp(GnrApp):
             r['autoCommit'] = self.db.currentEnv.get('autoCommit')
             dbevents.setdefault(tblobj.fullname,[]).append(r)
         audit_mode = tblobj.attributes.get('audit')
-        if audit_mode:
+        if audit_mode and audit_mode != 'external':
             self.db.table('adm.audit').audit(tblobj,event,audit_mode=audit_mode,record=record, old_record=old_record)
                 
 
