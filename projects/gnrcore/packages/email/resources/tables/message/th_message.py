@@ -212,9 +212,18 @@ class Form(BaseComponent):
         self.db.commit()
 
     def th_top_custom(self,top):
-        bar = top.bar.replaceSlots('form_delete','send_button,5,form_delete')
+        bar = top.bar.replaceSlots('form_delete','send_button,5,send_again,5,form_delete')
         bar.send_button.slotButton('Send message', hidden='^#FORM.record.send_date').dataRpc(
                     self.db.table('email.message').sendMessage, pkey='=#FORM.record.id')
+        bar.send_again.slotButton('Send again', hidden='^#FORM.record.in_out?=#v!="O"').dataRpc(
+                    self.sendAgainMessage, message_id='=#FORM.record.id',
+                    _onResult='this.form.load({destPkey:result});')
+
+    @public_method
+    def sendAgainMessage(self, message_id=None):
+        new_message = self.db.table('email.message').sendAgainMessage(message_id=message_id)
+        self.db.commit()
+        return new_message['id']
 
 
 class FormFromDashboard(Form):

@@ -125,13 +125,46 @@ class Table(object):
         if record_data['in_out'] == 'I':
             self._onInsertingInputMessage(record_data)
 
+    def _waitsForSending(self, record_data):
+        return record_data['in_out'] == 'O' and record_data['send_date'] is None \
+            and not record_data.get(self.draftField)
+
     def trigger_onInserted(self, record_data):
-        if record_data['in_out'] == 'O' and record_data['send_date'] is None:
+        if self._waitsForSending(record_data):
             self.db.table('email.message_to_send').addMessageToQueue(record_data['id'])
 
     def trigger_onUpdating(self, record_data, old_record):
         self.deleteAddressRelations(record_data)
         self.explodeAddressRelations(record_data)
+
+    def trigger_onUpdated(self, record_data, old_record):
+        if old_record and old_record.get(self.draftField) and self._waitsForSending(record_data):
+            self.db.table('email.message_to_send').addMessageToQueue(record_data['id'])
+
+    def onDuplicating(self, record):
+        for field in ('send_date', 'proxy_ts', 'error_ts', 'error_msg', 'sending_attempt',
+                      'connection_retry', 'deferred_ts', 'uid', 'email_bag', 'read', 'batch_code'):
+            record[field] = None
+        extra_headers = Bag(record['extra_headers'])
+        extra_headers.pop('message_id')
+        record['extra_headers'] = extra_headers
+        record['message_date'] = self.db.workdate
+        record[self.draftField] = True
+
+    def onDuplicated(self, duplicated_records=None, original_record=None, **kwargs):
+        atc_tbl = self.db.table('email.message_atc')
+        attachments = atc_tbl.query(where='$maintable_id=:mid', mid=original_record['id'],
+                                    columns='$filepath,$external_url,$mimetype,$description,$is_foreign_document',
+                                    order_by='$_row_count').fetch()
+        for message in duplicated_records:
+            for atc in attachments:
+                atc_tbl.addAttachment(maintable_id=message['id'],
+                                      origin_filepath=atc['filepath'],
+                                      external_url=None if atc['filepath'] else atc['external_url'],
+                                      mimetype=atc['mimetype'],
+                                      description=atc['description'],
+                                      is_foreign_document=atc['is_foreign_document'],
+                                      destFolder=self.folderPath(message))
 
     def extractAddresses(self,addresses):
         if not addresses:
@@ -444,6 +477,9 @@ class Table(object):
             message['sending_attempt'] = None
             message['connection_retry'] = None
         self.db.table('email.message_to_send').addMessageToQueue(message_id)
+
+    def sendAgainMessage(self, message_id=None):
+        return self.duplicateRecord(message_id)
 
 
     @public_method
