@@ -175,7 +175,7 @@ class DbSqlScriptListObj(DbModelObj):
 
 
 class DbSqlScriptObj(DbModelObj):
-    """Compiled model object for a SQL script declared with ``sql()``.
+    """Compiled model object for a SQL script declared with ``sqlCode()``.
 
     The script belongs to a table or to a package. Its text is the ``text``
     attribute, or the content of ``sql_file`` in the ``model`` folder of a
@@ -210,6 +210,9 @@ class DbSqlScriptObj(DbModelObj):
             raise GnrSqlException(
                 f"sql_file '{sql_file}' needs an application to find package '{pkg}'")
         path = os.path.join(application.packages[pkg].packageFolder, 'model', sql_file)
+        if not os.path.isfile(path):
+            raise GnrSqlException(
+                f"sql_file '{sql_file}' of {owner.name} not found in package '{pkg}': {path}")
         with open(path) as sql_file_handle:
             return sql_file_handle.read()
 
@@ -253,7 +256,7 @@ class DbSqlScriptObj(DbModelObj):
         shadowed = set(declared).intersection(markers)
         if shadowed:
             raise GnrSqlException(
-                f"sql() markers {sorted(shadowed)} shadow model properties of {self.owner.name}")
+                f"sqlCode() markers {sorted(shadowed)} shadow model properties of {self.owner.name}")
         markers.update(declared)
         text = self.rawText()
         for name, value in markers.items():

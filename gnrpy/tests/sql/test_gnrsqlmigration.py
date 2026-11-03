@@ -1,4 +1,5 @@
 import hashlib
+from types import SimpleNamespace
 
 import pytest
 from unittest.mock import MagicMock, patch
@@ -1023,13 +1024,13 @@ CREATE OR REPLACE TRIGGER {sqlname}_norm BEFORE INSERT OR UPDATE ON {sqlfullname
                 .replace('{casing}', casing))
 
     def test_14a_table_script_creates_trigger(self):
-        """A table sql() script runs after CREATE TABLE and its md5 goes in the table comment."""
+        """A table sqlCode() script runs after CREATE TABLE and its md5 goes in the table comment."""
         pkg = self.src.package('alfa')
         tbl = pkg.table('scripted', pkey='id')
         tbl.column('id', dtype='serial')
         tbl.column('code', size=':10')
         tbl.column('extra', dtype='jsonb')
-        tbl.sql(self.SCRIPTED_TRIGGER, casing='upper')
+        tbl.sqlCode(self.SCRIPTED_TRIGGER, casing='upper')
         create_sql = ('CREATE TABLE "alfa"."alfa_scripted"(\n "id" serial8 NOT NULL,\n'
                       ' "code" character varying(10),\n "extra" jsonb,\n PRIMARY KEY (id)\n);')
         script_sql = self.scriptBlock(self.expandedTrigger('upper'), 'TABLE "alfa"."alfa_scripted"')
@@ -1064,11 +1065,11 @@ CREATE OR REPLACE TRIGGER {sqlname}_norm BEFORE INSERT OR UPDATE ON {sqlfullname
         assert [r[0] for r in triggers] == ['alfa_scripted_norm']
 
     def test_14d_package_function_in_formula_column(self):
-        """A package sql() script defines a function a formulaColumn can call."""
+        """A package sqlCode() script defines a function a formulaColumn can call."""
         pkg = self.src.package('alfa')
         script = ('CREATE OR REPLACE FUNCTION {sqlschema}.twice(v integer) RETURNS integer\n'
                   'LANGUAGE sql IMMUTABLE AS $$ SELECT v * 2 $$;')
-        pkg.sql(script)
+        pkg.sqlCode(script)
         tbl = pkg.table('scripted')
         tbl.column('qty', dtype='I')
         tbl.formulaColumn('double_qty', 'alfa.twice($qty)', dtype='I')
@@ -1084,28 +1085,42 @@ CREATE OR REPLACE TRIGGER {sqlname}_norm BEFORE INSERT OR UPDATE ON {sqlfullname
     def test_14e_marker_without_value_raises(self):
         """A marker whose model property is empty stops the migration."""
         tbl = self.src.package('alfa').table('scripted')
-        tbl.sql('SELECT {draftField};')
+        tbl.sqlCode('SELECT {draftField};')
         self.db.startup()
         with pytest.raises(GnrSqlException, match='draftField'):
             self.migrator.prepareMigrationCommands()
         tbl.pop('sql_scripts')
 
     def test_14f_marker_shadowing_a_model_property_raises(self):
-        """sql() markers cannot replace a model property."""
+        """sqlCode() markers cannot replace a model property."""
         tbl = self.src.package('alfa').table('scripted')
-        tbl.sql('SELECT 1;', sqlname='other')
+        tbl.sqlCode('SELECT 1;', sqlname='other')
         self.db.startup()
         with pytest.raises(GnrSqlException, match='shadow'):
             self.migrator.prepareMigrationCommands()
         tbl.pop('sql_scripts')
 
     def test_14g_sql_needs_text_or_file(self):
-        """sql() takes exactly one of text and sql_file."""
+        """sqlCode() takes exactly one of text and sql_file."""
         tbl = self.src.package('alfa').table('scripted')
         with pytest.raises(GnrSqlException):
-            tbl.sql()
+            tbl.sqlCode()
         with pytest.raises(GnrSqlException):
-            tbl.sql('SELECT 1;', sql_file='x.sql')
+            tbl.sqlCode('SELECT 1;', sql_file='x.sql')
+
+    def test_14h_missing_sql_file_raises(self, tmp_path):
+        """A declared sql_file missing from the package model folder stops the migration."""
+        tbl = self.src.package('alfa').table('scripted')
+        tbl.sqlCode(sql_file='missing.sql')
+        self.db.application = SimpleNamespace(
+            packages={'alfa': SimpleNamespace(packageFolder=str(tmp_path))})
+        try:
+            self.db.startup()
+            with pytest.raises(GnrSqlException, match='missing.sql'):
+                self.migrator.prepareMigrationCommands()
+        finally:
+            self.db.application = None
+            tbl.pop('sql_scripts')
 
 
 @pytest.mark.skipif(gnrpostgres.SqlDbAdapter.not_capable(Capabilities.MIGRATIONS),
@@ -2013,11 +2028,11 @@ class TestSqlCommandsForTable:
 
 
 def test_sql_scripts_need_postgres(tmp_path):
-    """sql() scripts on an adapter without SQL_SCRIPTS stop the migration."""
+    """sqlCode() scripts on an adapter without SQL_SCRIPTS stop the migration."""
     db = GnrSqlDb(implementation='sqlite', dbname=str(tmp_path / 'scripts'))
     tbl = db.model.src.package('alfa', sqlschema='alfa').table('scripted', pkey='id')
     tbl.column('id')
-    tbl.sql('SELECT 1;')
+    tbl.sqlCode('SELECT 1;')
     db.startup()
     with pytest.raises(GnrSqlException, match='PostgreSQL'):
         SqlMigrator(db).prepareMigrationCommands()

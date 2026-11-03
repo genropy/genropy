@@ -304,7 +304,7 @@ class CommandBuilderMixin(SqlMigratorBaseMixin):
         """Handle changes in table attributes.
 
         Handles primary key changes (DROP of the old PK + ADD of the new
-        PK) and changes of the ``sql()`` scripts md5.
+        PK) and changes of the ``sqlCode()`` scripts md5.
 
         Args:
             item: Table dictionary.
@@ -330,7 +330,7 @@ class CommandBuilderMixin(SqlMigratorBaseMixin):
 
     def changed_schema(self, item=None, changed_attribute=None,
                        oldvalue=None, newvalue=None, **kwargs):
-        """Handle changes in schema attributes: the ``sql()`` scripts md5.
+        """Handle changes in schema attributes: the ``sqlCode()`` scripts md5.
 
         Args:
             item: Schema dictionary.
@@ -342,7 +342,7 @@ class CommandBuilderMixin(SqlMigratorBaseMixin):
             self.scheduleSqlScript(item['schema_name'], md5=newvalue)
 
     def scheduleSqlScript(self, schema_name, table_name=None, md5=None):
-        """Store the command that runs the ``sql()`` scripts of a schema or table.
+        """Store the command that runs the ``sqlCode()`` scripts of a schema or table.
 
         The scripts run in one transaction together with the COMMENT that
         records their md5, so a failed script leaves the old md5 in place

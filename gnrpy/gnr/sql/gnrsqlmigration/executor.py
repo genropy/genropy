@@ -137,7 +137,7 @@ class ExecutorMixin(SqlMigratorBaseMixin):
         command_list += relation_command_list
         self.sql_commands['build_commands'] = '\n'.join(command_list)
 
-        # sql() scripts run after every structural change: package scripts
+        # sqlCode() scripts run after every structural change: package scripts
         # first, since table scripts may use the functions they define
         sql_scripts = [
             script['command']
@@ -243,7 +243,7 @@ class ExecutorMixin(SqlMigratorBaseMixin):
         3. **extensions_commands**: CREATE EXTENSION. Executed with
            ``autoCommit=True``.
 
-        4. **sql_scripts**: the ``sql()`` scripts of packages, then of
+        4. **sql_scripts**: the ``sqlCode()`` scripts of packages, then of
            tables, each one wrapped in its own BEGIN/COMMIT together with
            the COMMENT that records its md5. Executed with ``autoCommit=True``.
         """

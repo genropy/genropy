@@ -110,7 +110,7 @@ class OrmExtractor:
         self.schemas = self.json_structure['root']['schemas']
         self.tenant_schema_tables = {}
         self.deferred_indexes = []
-        # expanded sql() scripts, keyed by (schema_name, table_name or None)
+        # expanded sqlCode() scripts, keyed by (schema_name, table_name or None)
         self.sql_scripts = {}
 
     def fill_json_package(self, pkgobj):
@@ -183,7 +183,7 @@ class OrmExtractor:
 
     def fill_json_sql_scripts(self, entity, owner, schema_name, table_name=None,
                               tenant_schema=None):
-        """Record the md5 of the ``sql()`` scripts of a package or table.
+        """Record the md5 of the ``sqlCode()`` scripts of a package or table.
 
         The expanded text is kept in ``self.sql_scripts`` for the command
         builder; only its md5 enters the JSON, as the ``sql_md5`` attribute,
@@ -197,7 +197,7 @@ class OrmExtractor:
             tenant_schema: The tenant schema a table is replicated in.
 
         Raises:
-            GnrSqlException: If the adapter does not support sql() scripts.
+            GnrSqlException: If the adapter does not support sqlCode() scripts.
         """
         scripts = owner['sql_scripts']
         if not scripts:
@@ -205,7 +205,7 @@ class OrmExtractor:
         script = scripts.expandedText(tenant_schema=tenant_schema)
         if not self.db.adapter.has_capability(AdapterCapabilities.SQL_SCRIPTS):
             raise GnrSqlException(
-                f'sql() scripts of {owner.name} need a PostgreSQL adapter, '
+                f'sqlCode() scripts of {owner.name} need a PostgreSQL adapter, '
                 f'not {self.db.implementation}')
         entity['attributes']['sql_md5'] = hashlib.md5(script.encode('utf-8')).hexdigest()
         self.sql_scripts[(schema_name, table_name)] = script

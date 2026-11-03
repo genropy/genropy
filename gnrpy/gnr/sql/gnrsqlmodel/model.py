@@ -1350,7 +1350,7 @@ class DbModelSrc(GnrStructData):
         child = self.child('index', 'indexes.%s' % name, columns=columns, unique=unique)
         return child
 
-    def sql(
+    def sqlCode(
         self,
         text: str | None = None,
         sql_file: str | None = None,
@@ -1380,7 +1380,7 @@ class DbModelSrc(GnrStructData):
                 ``sql_file`` is given.
         """
         if (text is None) == (sql_file is None):
-            raise GnrSqlException('sql() needs either text or sql_file')
+            raise GnrSqlException('sqlCode() needs either text or sql_file')
         if 'sql_scripts' not in self:
             self.child('sql_script_list', 'sql_scripts')
         name = 's_%i' % len(self['sql_scripts'])

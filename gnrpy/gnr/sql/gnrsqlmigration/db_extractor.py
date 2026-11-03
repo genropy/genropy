@@ -433,7 +433,7 @@ class DbExtractor(object):  # REVIEW: old-style (object) base class — unnecess
             self.json_structure["root"]['extensions'][extension_name] = extension_item
 
     def process_sql_md5(self, sql_md5, **kwargs):
-        """Attach the md5 of the applied ``sql()`` scripts to their items.
+        """Attach the md5 of the applied ``sqlCode()`` scripts to their items.
 
         The md5 is read from the comment of the schema or table, where the
         migrator stores it after running the scripts. Items missing from

@@ -1181,7 +1181,7 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
 
     def struct_get_sql_md5_sql(self):
         """
-        Generate SQL code to retrieve the md5 of the applied sql() scripts,
+        Generate SQL code to retrieve the md5 of the applied sqlCode() scripts,
         stored in the comment of their schema or table
         """
         return """
@@ -1201,7 +1201,7 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
     @time_measure
     def struct_get_sql_md5(self, schemas):
         """
-        Return the md5 of the applied sql() scripts as a list of
+        Return the md5 of the applied sqlCode() scripts as a list of
         (schema_name, table_name, md5); table_name is None for a schema script
         """
         query = self.struct_get_sql_md5_sql()
@@ -1210,7 +1210,7 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
 
     def struct_sql_md5_comment_sql(self, schema_name, table_name=None, md5=None):
         """
-        Generate the COMMENT statement that records the md5 of the sql() scripts
+        Generate the COMMENT statement that records the md5 of the sqlCode() scripts
         of a schema or table; md5=None clears it
         """
         target = (f'TABLE {self.adaptSqlName(schema_name)}.{self.adaptSqlName(table_name)}'
