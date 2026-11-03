@@ -87,6 +87,7 @@ produce commands for the complete database creation.
 from collections import defaultdict
 
 from gnr.dev.decorator import time_measure
+from gnr.sql import AdapterCapabilities
 from gnr.sql.gnrsql_exceptions import GnrNonExistingDbException, GnrSqlConnectionException
 
 from .structures import (
@@ -213,6 +214,8 @@ class DbExtractor(object):  # REVIEW: old-style (object) base class — unnecess
                 result["indexes"] = adapter.struct_get_indexes(schemas=schemas)
                 result['extensions'] = adapter.struct_get_extensions()
                 result['event_triggers'] = adapter.struct_get_event_triggers()
+                if adapter.has_capability(AdapterCapabilities.SQL_SCRIPTS):
+                    result['sql_md5'] = adapter.struct_get_sql_md5(schemas)
         except GnrNonExistingDbException:
             result = False
         except GnrSqlConnectionException:
@@ -428,6 +431,28 @@ class DbExtractor(object):  # REVIEW: old-style (object) base class — unnecess
             extension_item = new_extension_item(extension_name)
             self.json_meta['root']['extension'] = extension_dict
             self.json_structure["root"]['extensions'][extension_name] = extension_item
+
+    def process_sql_md5(self, sql_md5, **kwargs):
+        """Attach the md5 of the applied ``sql()`` scripts to their items.
+
+        The md5 is read from the comment of the schema or table, where the
+        migrator stores it after running the scripts. Items missing from
+        the structure (empty schemas) are skipped.
+
+        Args:
+            sql_md5: List of ``(schema_name, table_name, md5)``; ``table_name``
+                is ``None`` for a schema.
+        """
+        for schema_name, table_name, md5 in sql_md5:
+            schema_item = self.json_schemas.get(schema_name)
+            if not schema_item:
+                continue
+            if table_name is None:
+                schema_item['attributes']['sql_md5'] = md5
+                continue
+            table_item = schema_item['tables'].get(table_name)
+            if table_item:
+                table_item['attributes']['sql_md5'] = md5
 
     def process_event_triggers(self, event_triggers, **kwargs):
         """Process DDL event triggers of the database.

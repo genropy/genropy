@@ -1,3 +1,5 @@
+import hashlib
+
 import pytest
 from unittest.mock import MagicMock, patch
 
@@ -6,6 +8,7 @@ from gnr.sql.gnrsqlmigration import new_relation_item, new_index_item, nested_de
 from gnr.sql.gnrsqlmigration.command_builder import CommandBuilderMixin
 from gnr.sql.gnrsqlmigration.executor import ExecutorMixin
 from gnr.sql.gnrsql import GnrSqlDb
+from gnr.sql.gnrsql_exceptions import GnrSqlException
 from gnr.sql.adapters import gnrpostgres, gnrpostgres3
 from gnr.sql import AdapterCapabilities as Capabilities
 from .common import BaseGnrSqlTest
@@ -998,6 +1001,112 @@ class BaseGnrSqlMigration(BaseGnrSqlTest):
         self.db.commit()
         self.checkChanges('')
 
+    SCRIPTED_TRIGGER = """CREATE OR REPLACE FUNCTION {sqlschema}.{sqlname}_norm() RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+  NEW.code := {casing}(NEW.code);
+  NEW.extra := COALESCE(NEW.extra, '{}'::jsonb);
+  RETURN NEW;
+END $$;
+CREATE OR REPLACE TRIGGER {sqlname}_norm BEFORE INSERT OR UPDATE ON {sqlfullname}
+  FOR EACH ROW EXECUTE FUNCTION {sqlschema}.{sqlname}_norm();"""
+
+    def scriptBlock(self, script, target):
+        """The command the migrator emits for an expanded script."""
+        md5 = hashlib.md5(script.encode('utf-8')).hexdigest()
+        return f"BEGIN;\n{script}\nCOMMENT ON {target} IS 'gnr:md5={md5}';\nCOMMIT;"
+
+    def expandedTrigger(self, casing):
+        return (self.SCRIPTED_TRIGGER.replace('{sqlschema}', 'alfa')
+                .replace('{sqlname}', 'alfa_scripted')
+                .replace('{sqlfullname}', '"alfa"."alfa_scripted"')
+                .replace('{casing}', casing))
+
+    def test_14a_table_script_creates_trigger(self):
+        """A table sql() script runs after CREATE TABLE and its md5 goes in the table comment."""
+        pkg = self.src.package('alfa')
+        tbl = pkg.table('scripted', pkey='id')
+        tbl.column('id', dtype='serial')
+        tbl.column('code', size=':10')
+        tbl.column('extra', dtype='jsonb')
+        tbl.sql(self.SCRIPTED_TRIGGER, casing='upper')
+        create_sql = ('CREATE TABLE "alfa"."alfa_scripted"(\n "id" serial8 NOT NULL,\n'
+                      ' "code" character varying(10),\n "extra" jsonb,\n PRIMARY KEY (id)\n);')
+        script_sql = self.scriptBlock(self.expandedTrigger('upper'), 'TABLE "alfa"."alfa_scripted"')
+        self.checkChanges(f'{create_sql}\n{script_sql}')
+        self.db.execute("INSERT INTO alfa.alfa_scripted (code) VALUES ('abc')")
+        self.db.commit()
+        row = self.db.execute('SELECT code, extra FROM alfa.alfa_scripted').fetchone()
+        self.db.commit()
+        assert row[0] == 'ABC'
+        assert row[1] == {}
+
+    def test_14b_changed_script_runs_again(self):
+        """Changing the text changes the md5: the whole script runs again, nothing else."""
+        tbl = self.src.package('alfa').table('scripted')
+        tbl.getNode('sql_scripts.s_0').attr['marker_casing'] = 'lower'
+        self.checkChanges(self.scriptBlock(self.expandedTrigger('lower'), 'TABLE "alfa"."alfa_scripted"'))
+        self.db.execute("UPDATE alfa.alfa_scripted SET code = 'XyZ'")
+        self.db.commit()
+        code = self.db.execute('SELECT code FROM alfa.alfa_scripted').fetchone()[0]
+        self.db.commit()
+        assert code == 'xyz'
+
+    def test_14c_removed_script_clears_the_comment(self):
+        """Removing the scripts clears the md5; the objects they created stay."""
+        tbl = self.src.package('alfa').table('scripted')
+        tbl.pop('sql_scripts')
+        self.checkChanges('COMMENT ON TABLE "alfa"."alfa_scripted" IS NULL;')
+        triggers = self.db.execute(
+            "SELECT tgname FROM pg_trigger WHERE tgrelid = 'alfa.alfa_scripted'::regclass "
+            "AND NOT tgisinternal").fetchall()
+        self.db.commit()
+        assert [r[0] for r in triggers] == ['alfa_scripted_norm']
+
+    def test_14d_package_function_in_formula_column(self):
+        """A package sql() script defines a function a formulaColumn can call."""
+        pkg = self.src.package('alfa')
+        script = ('CREATE OR REPLACE FUNCTION {sqlschema}.twice(v integer) RETURNS integer\n'
+                  'LANGUAGE sql IMMUTABLE AS $$ SELECT v * 2 $$;')
+        pkg.sql(script)
+        tbl = pkg.table('scripted')
+        tbl.column('qty', dtype='I')
+        tbl.formulaColumn('double_qty', 'alfa.twice($qty)', dtype='I')
+        add_sql = 'ALTER TABLE "alfa"."alfa_scripted"\n ADD COLUMN "qty" integer;'
+        script_sql = self.scriptBlock(script.replace('{sqlschema}', 'alfa'), 'SCHEMA "alfa"')
+        self.checkChanges(f'{add_sql}\n{script_sql}')
+        self.db.execute('UPDATE alfa.alfa_scripted SET qty = 21')
+        self.db.commit()
+        rows = self.db.table('alfa.scripted').query(columns='$double_qty').fetch()
+        self.db.commit()
+        assert rows[0]['double_qty'] == 42
+
+    def test_14e_marker_without_value_raises(self):
+        """A marker whose model property is empty stops the migration."""
+        tbl = self.src.package('alfa').table('scripted')
+        tbl.sql('SELECT {draftField};')
+        self.db.startup()
+        with pytest.raises(GnrSqlException, match='draftField'):
+            self.migrator.prepareMigrationCommands()
+        tbl.pop('sql_scripts')
+
+    def test_14f_marker_shadowing_a_model_property_raises(self):
+        """sql() markers cannot replace a model property."""
+        tbl = self.src.package('alfa').table('scripted')
+        tbl.sql('SELECT 1;', sqlname='other')
+        self.db.startup()
+        with pytest.raises(GnrSqlException, match='shadow'):
+            self.migrator.prepareMigrationCommands()
+        tbl.pop('sql_scripts')
+
+    def test_14g_sql_needs_text_or_file(self):
+        """sql() takes exactly one of text and sql_file."""
+        tbl = self.src.package('alfa').table('scripted')
+        with pytest.raises(GnrSqlException):
+            tbl.sql()
+        with pytest.raises(GnrSqlException):
+            tbl.sql('SELECT 1;', sql_file='x.sql')
+
 
 @pytest.mark.skipif(gnrpostgres.SqlDbAdapter.not_capable(Capabilities.MIGRATIONS),
                     reason="Adapter doesn't support migrations")
@@ -1901,3 +2010,14 @@ class TestSqlCommandsForTable:
             'ADD COLUMN "code" character varying(12),\n'
             'ADD COLUMN "descr" text;'
         ]
+
+
+def test_sql_scripts_need_postgres(tmp_path):
+    """sql() scripts on an adapter without SQL_SCRIPTS stop the migration."""
+    db = GnrSqlDb(implementation='sqlite', dbname=str(tmp_path / 'scripts'))
+    tbl = db.model.src.package('alfa', sqlschema='alfa').table('scripted', pkey='id')
+    tbl.column('id')
+    tbl.sql('SELECT 1;')
+    db.startup()
+    with pytest.raises(GnrSqlException, match='PostgreSQL'):
+        SqlMigrator(db).prepareMigrationCommands()

@@ -28,10 +28,12 @@ various list containers, and index objects.
 
 from __future__ import annotations
 
+import os
 import re
 from typing import Any
 
 from gnr.core.gnrdict import dictExtract
+from gnr.sql.gnrsql_exceptions import GnrSqlException
 from gnr.sql.gnrsqlmodel.obj import DbModelObj
 
 
@@ -155,3 +157,111 @@ class DbIndexObj(DbModelObj):
         return self.parent.parent
 
     table = property(_get_table)
+
+
+class DbSqlScriptListObj(DbModelObj):
+    """List container for the SQL scripts of a table or a package."""
+
+    sqlclass = "sql_script_list"
+
+    def expandedText(self, tenant_schema: str | None = None) -> str:
+        """Return the expanded scripts joined in declaration order.
+
+        Args:
+            tenant_schema: The tenant schema the scripts are expanded for.
+        """
+        return '\n'.join(script.expandedText(tenant_schema=tenant_schema)
+                         for script in self.children.values())
+
+
+class DbSqlScriptObj(DbModelObj):
+    """Compiled model object for a SQL script declared with ``sql()``.
+
+    The script belongs to a table or to a package. Its text is the ``text``
+    attribute, or the content of ``sql_file`` in the ``model`` folder of a
+    package. Every ``{name}`` marker is replaced by a model property of the
+    owner or by a ``marker_<name>`` attribute; other braces stay untouched.
+    """
+
+    sqlclass = "sql_script"
+
+    def _get_owner(self) -> Any:
+        """Return the ``DbTableObj`` or ``DbPackageObj`` owning this script."""
+        return self.parent.parent
+
+    owner = property(_get_owner)
+
+    def _get_isTableScript(self) -> bool:
+        """Return ``True`` when the script belongs to a table."""
+        return self.owner.sqlclass == 'table'
+
+    isTableScript = property(_get_isTableScript)
+
+    def rawText(self) -> str:
+        """Return the script text before marker replacement."""
+        text = self.attributes.get('text')
+        if text is not None:
+            return text
+        sql_file = self.attributes['sql_file']
+        owner = self.owner
+        pkg = self.attributes.get('pkg') or (owner.pkg.name if self.isTableScript else owner.name)
+        application = self.db.application
+        if application is None:
+            raise GnrSqlException(
+                f"sql_file '{sql_file}' needs an application to find package '{pkg}'")
+        path = os.path.join(application.packages[pkg].packageFolder, 'model', sql_file)
+        with open(path) as sql_file_handle:
+            return sql_file_handle.read()
+
+    def modelMarkers(self, tenant_schema: str | None = None) -> dict[str, Any]:
+        """Return the model properties the script can reference.
+
+        Args:
+            tenant_schema: The tenant schema the script is expanded for;
+                ``None`` for the package schema.
+        """
+        owner = self.owner
+        if not self.isTableScript:
+            return dict(sqlschema=owner.sqlname, name=owner.name, pkg=owner.name)
+        schema = tenant_schema or owner.pkg.sqlname
+        return dict(
+            sqlschema=schema,
+            sqlname=owner.sqlname,
+            sqlfullname='%s.%s' % (self.adapter.adaptSqlName(schema), owner.adapted_sqlname),
+            fullname=owner.fullname,
+            name=owner.name,
+            pkey=owner.pkey,
+            pkeys=','.join(owner.pkeys),
+            lastTS=owner.lastTS,
+            logicalDeletionField=owner.logicalDeletionField,
+            draftField=owner.draftField,
+            pkg=owner.pkg.name,
+        )
+
+    def expandedText(self, tenant_schema: str | None = None) -> str:
+        """Return the script text with every known marker replaced.
+
+        Args:
+            tenant_schema: The tenant schema the script is expanded for.
+
+        Raises:
+            GnrSqlException: If a ``marker_*`` attribute shadows a model
+                property, or if the text uses a marker that has no value.
+        """
+        markers = self.modelMarkers(tenant_schema=tenant_schema)
+        declared = dictExtract(self.attributes, 'marker_')
+        shadowed = set(declared).intersection(markers)
+        if shadowed:
+            raise GnrSqlException(
+                f"sql() markers {sorted(shadowed)} shadow model properties of {self.owner.name}")
+        markers.update(declared)
+        text = self.rawText()
+        for name, value in markers.items():
+            token = '{%s}' % name
+            if token not in text:
+                continue
+            if value is None or value == '':
+                raise GnrSqlException(f"Marker {token} has no value in {self.owner.name}")
+            text = text.replace(token, str(value))
+        return text
+
