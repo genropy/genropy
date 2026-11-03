@@ -37,7 +37,6 @@ test/webpages/tools/print_tutorial.py
 test/webpages/tools/qrscanner.py
 test/webpages/tools/scrollabletable.py
 test/webpages/tools/sheetjs.py
-test/webpages/tools/tinymce.py
 test/webpages/tools/videotrack.py
 test/webpages/ui_builder/clientside_builder.py
 test/webpages/websocket/websocket.py
