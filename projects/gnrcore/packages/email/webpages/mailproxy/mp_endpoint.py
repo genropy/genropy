@@ -111,7 +111,8 @@ class GnrCustomWebPage(object):
         This method:
         1. Receives delivery_report array with sent/error status
         2. Updates local email.message records with delivery status
-        3. Fetches pending messages and submits them to the proxy service
+        3. Fetches pending messages and submits them to the proxy service,
+           unless the service is disabled (queued=0)
         4. Returns ok or categorized response with problematic IDs
 
         Request format:
@@ -147,21 +148,7 @@ class GnrCustomWebPage(object):
                            len(report_result.get('error', [])),
                            len(report_result.get('not_found', [])))
 
-        # Fetch and submit pending outgoing messages to proxy (with batch limit)
-        batch_size = proxy_service.batch_size or 1000
-        outgoing_messages = self.db.table('email.message_to_send').query(
-            limit=batch_size,
-            order_by=f'COALESCE($proxy_priority,{MEDIUM_PRIORITY}),$__ins_ts',
-        ).fetch()
-
-        queued_count = 0
-        if outgoing_messages:
-            logger.info('proxy_sync: fetched %d pending messages to submit (limit=%d)',
-                       len(outgoing_messages), batch_size)
-            message_pkeys = [m['message_id'] for m in outgoing_messages]
-            queued_count = self._add_messages_to_proxy_queue(proxy_service, message_pkeys) or 0
-            self.db.commit()
-            logger.info('proxy_sync: queued %d messages to proxy', queued_count)
+        queued_count = self._submit_pending_messages(proxy_service)
 
         # Include queued count in response for proxy polling optimization
         response = dict(report_result)
@@ -170,6 +157,29 @@ class GnrCustomWebPage(object):
         return self._json_response(response)
         
                 
+    def _submit_pending_messages(self, proxy_service):
+        """Submit a batch of email.message_to_send to the proxy and return the queued count.
+
+        Nothing is handed out while the service is disabled: the local send_mail
+        task owns the queue then, and the proxy must not compete for it.
+        """
+        if proxy_service.disabled:
+            return 0
+        batch_size = proxy_service.batch_size or 1000
+        outgoing_messages = self.db.table('email.message_to_send').query(
+            limit=batch_size,
+            order_by=f'COALESCE($proxy_priority,{MEDIUM_PRIORITY}),$__ins_ts',
+        ).fetch()
+        if not outgoing_messages:
+            return 0
+        logger.info('proxy_sync: fetched %d pending messages to submit (limit=%d)',
+                    len(outgoing_messages), batch_size)
+        message_pkeys = [m['message_id'] for m in outgoing_messages]
+        queued_count = self._add_messages_to_proxy_queue(proxy_service, message_pkeys) or 0
+        self.db.commit()
+        logger.info('proxy_sync: queued %d messages to proxy', queued_count)
+        return queued_count
+
     def _update_from_delivery_report(self, delivery_report):
         """
         Process delivery reports from async-mail-service and update local message records.
