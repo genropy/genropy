@@ -1962,10 +1962,6 @@ class AttachmentTable(GnrDboTable):
         if not record['filepath'] \
             or record.get('is_foreign_document'):
             return
-        if not getattr(self.db.application, 'site', None):
-            logger.warning('No site: attachment file %s of %s not removed',
-                           record['filepath'], self.fullname)
-            return
         snode = self._atcStorageNode(record)
         try:
             if snode.exists:
