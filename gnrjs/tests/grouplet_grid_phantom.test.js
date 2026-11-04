@@ -336,6 +336,28 @@ test('a dynamic required condition is re-evaluated when the operation changes', 
     assert.equal(s.lines.getItem('r_k1.origin'), 'depot');
 });
 
+test('a field flagged while required stops blocking once its condition turns false', async () => {
+    const s = entryGrid({missing: 'origin', fieldAttrs: {
+        validate_notnull: '^record.operation?=#v=="RETURN"'
+    }});
+    s.data.setItem('record.operation', 'RETURN');
+    await tick();
+    assert.equal(s.field.getValidationError(), 'notnull');
+    s.data.setItem('record.operation', 'SHIP');
+    s.entry().setItem('item', 'Book');
+    assert.equal(s.controller._addEntry(), true);
+    assert.equal(s.lines.getItem('r_k1.item'), 'Book');
+    assert.deepEqual(s.published, []);
+});
+
+test('a false validate_notnull_if makes the field optional', async () => {
+    const s = entryGrid({missing: 'origin', fieldAttrs: {validate_notnull_if: 'false'}});
+    await tick();
+    s.entry().setItem('item', 'Book');
+    assert.equal(s.controller._addEntry(), true);
+    assert.equal(s.lines.getItem('r_k1.item'), 'Book');
+});
+
 test('template mode: a clicked row is edited in the entry row and saved in place', () => {
     const s = entryGrid();
     s.controller.rowTemplate = '$item';
