@@ -10,6 +10,7 @@ from gnr.core.gnrbag import Bag
 from gnr.core.gnrconfig import getGenroRoot
 from gnr.core.gnrlang import GnrException, gnrImport
 from gnr.lib.services.storage import StorageResolver
+from gnr.web.gnrwsgisite import GnrUploadException
 from gnr.web.gnrwsgisite_proxy.gnrstoragehandler import (GenroStorageHandler,
                                                          LegacyStorageHandler)
 
@@ -1556,3 +1557,21 @@ class TestStorageHandler(BaseGnrDaemonTest):
             tbltemplate.delete(template)
             db.commit()
             shutil.rmtree(local_dir, ignore_errors=True)
+
+    def test_upload_refuses_an_empty_file(self):
+        file_handle = type('FileHandle', (), dict(filename='empty.pdf', stream=io.BytesIO(b'')))()
+        with pytest.raises(GnrUploadException) as raised:
+            self.site.uploadFile(file_handle=file_handle, uploadPath='site:upload_probe')
+        assert 'empty.pdf' in str(raised.value)
+        assert not self.site.storageNode('site:upload_probe/empty.pdf').exists
+
+    def test_upload_refuses_a_file_not_stored_completely(self, monkeypatch):
+        service_class = type(self.site.storageNode('site:upload_probe').service)
+        monkeypatch.setattr(service_class, 'size', lambda service, *args: 3)
+        file_handle = type('FileHandle', (), dict(filename='short.pdf', stream=io.BytesIO(b'%PDF-1.4')))()
+        try:
+            with pytest.raises(GnrUploadException) as raised:
+                self.site.uploadFile(file_handle=file_handle, uploadPath='site:upload_probe')
+            assert 'short.pdf' in str(raised.value)
+        finally:
+            shutil.rmtree(os.path.join(self.site.site_static_dir, 'upload_probe'), ignore_errors=True)

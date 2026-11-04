@@ -4421,17 +4421,35 @@ dojo.declare("gnr.widgets.DropUploader", gnr.widgets.gnrwdg, {
         if(onResult){
             onResult = funcCreate(onResult,'evt',sourceNode);
         }
-        uploaderKw.onResult = function(evt){
+        var uploadFinished = function(sender){
             if(uploaderKw._lockScreen){
                 genro.lockScreen(false,nodeId);
             }
+            var d = sender && sender._progressDiv;
+            if(d && d.parentNode){
+                d.parentNode.removeChild(d);
+            }
+            var idx = gnrwdg.pendingHandlers.indexOf(sender);
+            if(idx >= 0){
+                gnrwdg.pendingHandlers.splice(idx,1);
+            }
+        };
+        uploaderKw.onResult = function(evt){
+            uploadFinished(evt && evt.currentTarget);
             if(onResult){
                 return onResult(evt);
             }
         };
-        if(uploaderKw.onError){
-            uploaderKw.onError = funcCreate(uploaderKw.onError,'evt',sourceNode);
+        var onError = uploaderKw.onError;
+        if(onError){
+            onError = funcCreate(onError,'evt',sourceNode);
         }
+        uploaderKw.onError = function(evt){
+            uploadFinished(this);
+            if(onError){
+                return onError(evt);
+            }
+        };
         if(uploaderKw.onAbort){
             uploaderKw.onAbort = funcCreate(uploaderKw.onAbort,'evt',sourceNode);
         }
@@ -4442,10 +4460,6 @@ dojo.declare("gnr.widgets.DropUploader", gnr.widgets.gnrwdg, {
                 var d = evt._sender._progressDiv;
                 if(d){
                     d.style.width = (evt.loaded *100) /evt.total +'%';
-                    if(evt.loaded == evt.total){
-                        gnrwdg.rootNode.domNode.removeChild(d);
-                        gnrwdg.pendingHandlers.splice(evt._sender._counter,1);
-                    }
                 }
             };
         }
