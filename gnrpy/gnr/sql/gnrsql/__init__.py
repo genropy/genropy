@@ -34,6 +34,7 @@ The actual implementations live in:
 * ``gnrsql/transactions.py`` — TransactionMixin
 * ``gnrsql/query.py``        — QueryMixin
 * ``gnrsql/schema.py``       — SchemaMixin
+* ``gnrsql/runtime_model.py`` — RuntimeModel
 """
 
 # Core class
@@ -52,3 +53,7 @@ from gnr.sql.gnrsql.helpers import (  # noqa: F401
     in_triggerstack,
     sql_audit,
 )
+
+
+# Runtime model
+from gnr.sql.gnrsql.runtime_model import RuntimeModel  # noqa: F401
