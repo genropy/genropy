@@ -14,16 +14,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from core.common import BaseGnrTest
 from gnr.web.gnrwsgisite import GnrWsgiSite
-
-
-def setup_module(module):
-    BaseGnrTest.setup_class()
-
-
-def teardown_module(module):
-    BaseGnrTest.teardown_class()
 
 
 def _in_transaction(connection):

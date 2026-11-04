@@ -14,7 +14,6 @@ import pathlib
 
 import pytest
 
-from core.common import BaseGnrTest
 
 from gnr.web.gnrwebstruct import GnrDomSrc_dojo_11
 
@@ -35,14 +34,6 @@ def _load_frameindex():
 
 
 frameindex = _load_frameindex()
-
-
-def setup_module(module):
-    BaseGnrTest.setup_class()
-
-
-def teardown_module(module):
-    BaseGnrTest.teardown_class()
 
 
 class _AppStub(object):

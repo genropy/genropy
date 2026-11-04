@@ -8,19 +8,10 @@ import importlib.util
 import os
 from datetime import datetime, timedelta
 
-from core.common import BaseGnrTest
 
 CLEANUP_ACTION = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'projects', 'gnrcore',
                               'packages', 'sys', 'resources', 'tables', 'dataretention',
                               'action', 'cleanup.py')
-
-
-def setup_module(module):
-    BaseGnrTest.setup_class()
-
-
-def teardown_module(module):
-    BaseGnrTest.teardown_class()
 
 
 def _set_override(db, retention_period):
