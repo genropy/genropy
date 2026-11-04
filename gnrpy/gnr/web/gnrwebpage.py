@@ -2615,6 +2615,9 @@ class GnrWebPage(GnrBaseWebPage):
             if hasattr(self,'deferredMainPageAuthTags'):
                 _auth = AUTH_OK if self.deferredMainPageAuthTags(page) else AUTH_FORBIDDEN
         if _auth == AUTH_NOT_LOGGED:
+            redirect = self.notLoggedRedirectPage
+            if redirect:
+                return (page,dict(redirect=redirect))
             root.clear()
             self.mixinComponent(LOGIN_COMPONENT,safeMode=True,only_callables=False)
             self.loginDialog(root, **kwargs)
@@ -3076,6 +3079,14 @@ class GnrWebPage(GnrBaseWebPage):
     def permissionPars(self):
         return dict(user=self.user,user_group=getattr(self.avatar,'group_code',None))
     
+    @property
+    def notLoggedRedirectPage(self):
+        """Where a page without a logged user sends the browser instead of showing
+        the login dialog: the url returned by a ``not_logged_redirect`` method,
+        provided by a package (e.g. an external authentication), or None."""
+        if hasattr(self,'not_logged_redirect'):
+            return self.not_logged_redirect()
+
     @property
     def forbiddenRedirectPage(self):
         if hasattr(self,'forbidden_redirect'):
