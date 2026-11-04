@@ -3412,6 +3412,7 @@ gnr.GroupletGridController = class GroupletGridController {
             this.entryTile.tileContent.walk((n) => {
                 const attr = n.attr || {};
                 if (!attr.validate_notnull || !n.widget || !n.hasValidations()
+                        || !n.getAttributeFromDatasource('validate_notnull')
                         || !isNullOrBlank(n.getAttributeFromDatasource('value'))) return;
                 this._validateEntryField(n);
             }, 'static');
@@ -4013,8 +4014,8 @@ gnr.GroupletGridController = class GroupletGridController {
     _entryMissingField() {
         return this.entryTile.tileContent.walk((n) => {
             const attr = n.attr || {};
-            if (!attr.validate_notnull || !n.widget
-                    || typeof attr.value !== 'string') return;
+            if (!attr.validate_notnull || !n.widget || typeof attr.value !== 'string'
+                    || !n.getAttributeFromDatasource('validate_notnull')) return;
             const v = n.getRelativeData(attr.value.replace(/^\^/, ''));
             if (v === null || v === undefined || v === '') return n;
         }, 'static');
