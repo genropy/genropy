@@ -128,6 +128,16 @@ gnr.columnFilterKey = function(value){
     return ''+value;
 };
 
+gnr.columnFilterParts = function(value,separator){
+    if(!separator || typeof(value)!='string'){
+        return [value];
+    }
+    var parts = Array.from(new Set(value.split(separator).map(function(part){
+        return part.trim();
+    }).filter(function(part){return part!=='';})));
+    return parts.length? parts:[null];
+};
+
 gnr.columnFilterDay = function(value){
     if(value instanceof Date){
         return new Date(value.getTime()-value.getTimezoneOffset()*60000).toISOString().slice(0,10);
@@ -4699,13 +4709,14 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
         return this.columnFilterCells().map(function(cell){
             var range = cell.filterRange;
             return cell.field+'='+(range? (range.from || '')+'..'+(range.to || ''):'')+
-                   (cell.filterValues? '|'+cell.filterValues.map(gnr.columnFilterKey).join('|'):'');
+                   (cell.filterValues? '|'+cell.filterValues.map(gnr.columnFilterKey).join('|'):'')+
+                   (cell.filterField_aggr? ';aggr:'+cell.filterField_aggr:'');
         }).join(';');
     },
 
     mixin_columnFilterCb:function(skipField){
         var filters = this.columnFilterCells(skipField).map(function(cell){
-            return {key:cell.filterField_key,range:cell.filterRange,
+            return {key:cell.filterField_key,range:cell.filterRange,separator:cell.filterField_aggr,
                     keys:cell.filterValues? new Set(cell.filterValues.map(gnr.columnFilterKey)):null};
         });
         if(!filters.length){
@@ -4714,7 +4725,9 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
         return function(rowdata){
             return filters.every(function(f){
                 return (!f.range || gnr.columnFilterInRange(rowdata[f.key],f.range)) &&
-                       (!f.keys || f.keys.has(gnr.columnFilterKey(rowdata[f.key])));
+                       (!f.keys || gnr.columnFilterParts(rowdata[f.key],f.separator).some(function(value){
+                           return f.keys.has(gnr.columnFilterKey(value));
+                       }));
             });
         };
     },
@@ -4773,7 +4786,7 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
     },
 
     mixin_columnFilterCaption:function(cell,rowdata,value){
-        var caption = cell._filterCaptionFromValue? null:rowdata[cell.field_getter];
+        var caption = (cell._filterCaptionFromValue || cell.filterField_aggr)? null:rowdata[cell.field_getter];
         if(caption===undefined || caption===null){
             caption = value;
         }
@@ -4785,21 +4798,23 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
         var filterCb = store.compileFilter(this,this.currentFilterValue,this.filterColumn,this.filterColumnType(),cell.field);
         var sn = this.sourceNode;
         var that = this;
-        var items = {};
+        var items = Object.create(null);
         var result = [];
         store.getItems().forEach(function(n,index){
             var rowidx = 'rowidx' in n.attr? n.attr.rowidx:index;
             var rowdata = store.rowFromItem(n);
-            var value = rowdata[cell.filterField_key];
-            var key = gnr.columnFilterKey(value);
-            var item = items[key];
-            if(!item){
-                item = items[key] = {value:key===''? null:value,caption:that.columnFilterCaption(cell,rowdata,value),count:0};
-                result.push(item);
-            }
-            if(!filterCb || filterCb.apply(sn,[rowdata,rowidx])){
-                item.count++;
-            }
+            var matches = !filterCb || filterCb.apply(sn,[rowdata,rowidx]);
+            gnr.columnFilterParts(rowdata[cell.filterField_key],cell.filterField_aggr).forEach(function(value){
+                var key = gnr.columnFilterKey(value);
+                var item = items[key];
+                if(!item){
+                    item = items[key] = {value:key===''? null:value,caption:that.columnFilterCaption(cell,rowdata,value),count:0};
+                    result.push(item);
+                }
+                if(matches){
+                    item.count++;
+                }
+            });
         });
         return result;
     },
@@ -5463,6 +5478,8 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
             kwargs.struct =  this.getExportStruct();
         }
         var store = this.collectionStore();
+        var groupedRows = store.selectionName && store.storeNode.attr.groupByStore && !kwargs.columns?
+                            this.currentData(allRows?'all':null,true,true).getNodes():null;
         if (store.storeType=='VirtualSelection'){
             kwargs['selectionName'] = store.selectionName;
             kwargs['selectedRowidx'] = allRows?[]:this.getSelectedRowidx();
@@ -5470,6 +5487,11 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
                 kwargs.limit = 0;
                 kwargs.sortBy = store.sortedBy;
             }
+        }else if(groupedRows && groupedRows.length){
+            //the grouped rows are frozen on the server: send their rowidx, not the rows
+            kwargs['selectionName'] = store.selectionName;
+            kwargs['selectedRowidx'] = groupedRows.length==store.len()?[]:groupedRows.map(function(n){return n.attr.rowidx;});
+            kwargs.sortBy = store.sortedBy;
         }else if(!kwargs.columns){
             kwargs['data'] = this.currentData(allRows?'all':null , useRawData,true);
         }

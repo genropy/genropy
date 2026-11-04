@@ -1,3 +1,5 @@
+from contextlib import closing, contextmanager
+import hashlib
 import threading
 import re
 from collections import defaultdict
@@ -392,33 +394,53 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
                                      user=connection_params.get('user'), 
                                      password=connection_params.get('password'))
 
+    @contextmanager
+    def databaseLock(self, dbname):
+        """Serialize provisioning using a transaction on a dedicated connection.
+
+        The separate transaction survives application commits and also pins a
+        backend with transaction pooling. Closing the connection releases it.
+        """
+        key = int.from_bytes(hashlib.sha256(
+            ('genropy:provision:' + dbname).encode()).digest()[:8],
+            'big', signed=True)
+        with closing(self._managerConnection()) as conn:
+            with closing(conn.cursor()) as cursor:
+                cursor.execute('BEGIN')
+                cursor.execute('SELECT pg_try_advisory_xact_lock(%s)', (key,))
+                if not cursor.fetchone()[0]:
+                    raise DbAdapterException(
+                        f'Database {dbname}: provisioning is already running')
+            yield
+
     @classmethod
     def _createDb(cls, dbname=None, host=None, port=None,
-                  user=None, password=None, encoding='unicode'):
-        conn = cls._classConnection(host=host, user=user,
-                                    password=password, port=port)
-        curs = conn.cursor()
-        try:
-            curs.execute(cls.createDbSql(dbname, encoding))
-            conn.commit()
-        except:
-            raise DbAdapterException(f"Could not create database {dbname}")
-        finally:
-            curs.close()
-            conn.close()
-            curs = None
-            conn = None
+                  user=None, password=None, encoding='unicode', template=None):
+        with closing(cls._classConnection(host=host, user=user,
+                                          password=password, port=port)) as conn:
+            try:
+                with closing(conn.cursor()) as curs:
+                    curs.execute(cls.createDbSql(dbname, encoding, template=template))
+                conn.commit()
+            except Exception as exc:
+                raise DbAdapterException(
+                    f'Could not create database {dbname}: {exc}') from exc
 
     @classmethod
-    def createDbSql(self, dbname, encoding):
-        return """CREATE DATABASE "%s" ENCODING '%s';""" % (dbname, encoding)
+    def createDbSql(cls, dbname, encoding, template=None):
+        name = dbname.replace('"', '""')
+        encoding = encoding.replace("'", "''")
+        sql = f'CREATE DATABASE "{name}" ENCODING \'{encoding}\''
+        if template is not None:
+            template = template.replace('"', '""')
+            sql += f' TEMPLATE "{template}"'
+        return sql + ';'
 
-
-    def createDb(self, dbname=None, encoding='unicode'):
-        if not dbname:
-            dbname = self.dbroot.get_dbname()
+    def createDb(self, dbname=None, encoding='unicode', template=None):
+        dbname = dbname or self.dbroot.get_dbname()
         self._createDb(dbname=dbname, host=self.dbroot.host, port=self.dbroot.port,
-                       user=self.dbroot.user, password=self.dbroot.password)
+                       user=self.dbroot.user, password=self.dbroot.password,
+                       encoding=encoding, template=template)
 
     @classmethod
     def _dropDb(cls, dbname=None, host=None, port=None,
@@ -484,15 +506,10 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
 
 
     def dbExists(self, dbname):
-        conn = self._managerConnection()
-        curs = conn.cursor()
-        curs.execute(self._list_databases())
-        dbnames = [dbn[0] for dbn in curs.fetchall()]
-        curs.close()
-        conn.close()
-        curs = None
-        conn = None
-        return dbname in dbnames
+        with closing(self._managerConnection()) as conn:
+            with closing(conn.cursor()) as curs:
+                curs.execute(self._list_databases())
+                return dbname in [row[0] for row in curs.fetchall()]
 
     def _list_databases(self):
         return 'SELECT datname FROM pg_catalog.pg_database;'

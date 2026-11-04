@@ -305,8 +305,11 @@ class GetSelectionMixin:
             if selectionName:
                 selection.setKey('rowidx')
                 selectionPath = self.page.freezeSelection(selection, selectionName, freezePkeys=True)
-                self.page.userStore().setItem('current.table.%s.last_selection_path' % table.replace('.', '_'),
-                                              selectionPath)
+                # a GROUP BY selection has no pkey column: the readers of
+                # last_selection_path need its pkeylist
+                if 'pkey' in selection.allColumns:
+                    self.page.userStore().setItem('current.table.%s.last_selection_path' % table.replace('.', '_'),
+                                                  selectionPath)
             resultAttributes.update(table=table, method='app.getSelection', selectionName=selectionName,
                                     row_count=row_count,
                                     totalrows=len(selection))

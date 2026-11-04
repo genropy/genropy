@@ -104,6 +104,7 @@ class TableHandlerGroupBy(BaseComponent):
         #gridstack.dataFormula('.currentTitle','',defaultTitle='!!Group by')
         structcb = struct or self._thg_defaultstruct
         baseViewName = structcb.__doc__
+        grid_kwargs.setdefault('draggable_row',not self.isMobile)
         frame = gridstack.frameGrid(frameCode=frameCode,grid_onDroppedColumn="""
                                     genro.groupth.addColumnCb(this,{data:data, column:column,fieldcellattr:fieldcellattr,treeNode:treeNode});
                                     """,
@@ -194,6 +195,7 @@ class TableHandlerGroupBy(BaseComponent):
         store_kwargs['_forcedReload'] = '^.reloadMain'
         frame.grid.selectionStore(table=table,where=where,selectmethod=self._thg_selectgroupby,
                                 childname='store',struct='=.grid.struct',
+                                selectionName='*%s' %frame.attributes['frameCode'],
                                 groupByStore=True,liveUpdate='PAGE',
                                 sortedBy='=.grid.sorted',
                                 _linkedTo=linkedTo,

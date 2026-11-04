@@ -2031,7 +2031,7 @@ dojo.declare("gnr.widgets.BagNodeEditor", gnr.widgets.gnrwdg, {
 dojo.declare("gnr.widgets.SearchBox", gnr.widgets.gnrwdg, {
     contentKwargs: function(sourceNode, attributes) {
         //var topic = attributes.nodeId+'_keyUp';
-        attributes.onKeyUp = function(e) {
+        attributes.onInput = function(e) {
             var sourceNode = e.target.sourceNode;
             genro.dom.setClass(sourceNode.getParentNode(),'activeSearch',!isNullOrBlank(e.target.value));
             sourceNode.setRelativeData('.currentValue', e.target.value);
@@ -2069,7 +2069,7 @@ dojo.declare("gnr.widgets.SearchBox", gnr.widgets.gnrwdg, {
         searchlbl._('menu', {'modifiers':'*',_class:'smallmenu',storepath:'.menubag',
             selected_col:'.field',selected_caption:'.caption',action:'SET .value = null;SET .currentValue = null;'});
         
-        var inputAttrs = {'value':'^.value',connect_onkeyup:kw.onKeyUp,
+        var inputAttrs = {'value':'^.value',connect_input:kw.onInput,
                           parentForm:false,width:objectPop(kw,'width') || '6em',
                           tabindex:"-1",connect_focus:function(){this.domNode.select()}};
         var placeholder = objectPop(kw,'placeholder');
@@ -8216,6 +8216,7 @@ dojo.declare("gnr.stores.Selection",gnr.stores.AttributesBagRows,{
 
     onLoaded:function(result){
         delete this.pendingLoading;
+        this.selectionName = result && result.attr? result.attr.selectionName:null;
         this.storeNode.setRelativeData(this.storepath,result,null,null,'loadData');
         return result;
     }

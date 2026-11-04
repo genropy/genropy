@@ -131,6 +131,9 @@ class ApplicationCache(object):
     def updatedItem(self,key):
         self.cache.pop(key,None)
 
+    def discardLocalItem(self,key):
+        self.cache.pop(key,None)
+
     def expiredItem(self,key):
         return key not in self.cache
 
@@ -199,6 +202,8 @@ class DbStoresHandler(object):
     def __init__(self, db):
         self.db = db
         self.auxstores = {}
+        self._dbstores_checked_at = 0
+        self._provisioning_status_migrated = False
         instance_dbstores = db.application.config['dbstores'] if db.application.config else None
         if instance_dbstores:
             for n in instance_dbstores:
@@ -207,6 +212,11 @@ class DbStoresHandler(object):
     @property
     def dbstores(self):
         with self.db.tempEnv(storename=False):
+            # Registers are per pod, so other pods' changes need a local expiry;
+            # a shared invalidation here would make every worker recompute.
+            if time.monotonic() - self._dbstores_checked_at >= 5:
+                self.db.application.cache.discardLocalItem('MULTI_DBSTORES')
+                self._dbstores_checked_at = time.monotonic()
             return self.db.application.cache.getItem('MULTI_DBSTORES',defaultFactory=self._calculate_multidbstores)
 
     def _calculate_multidbstores(self):
@@ -215,14 +225,30 @@ class DbStoresHandler(object):
             dbdict = self.get_dbdict()
             if not dbdict:
                 return result
-            dbstores = self.db.table(self.db.storetable).query(
-                where='$dbstore IN :databases',
-                databases=list(dbdict.keys()),columns="$dbstore").fetch()
+            condition = '$dbstore IN :databases'
+            if self._has_provisioning_status():
+                condition += " AND ($provisioning_status IS NULL OR $provisioning_status='ready')"
+            query = self.db.table(self.db.storetable).query(
+                where=condition,
+                databases=list(dbdict.keys()),columns="$dbstore")
+            # Discovery must release its read lock before schema migration on
+            # another connection, without committing the caller's pending work.
+            dbstores = self.db.adapter.raw_fetch(query.sqltext, query.sqlparams)
             for r in dbstores:
                 storename = r['dbstore']
                 result[storename] = dict(database=dbdict[storename])
         return result
     
+    def _has_provisioning_status(self):
+        # The main schema must remain readable while upgrading older instances;
+        # once migrated the column stays, so only a positive answer is cached.
+        if not self._provisioning_status_migrated:
+            table = self.db.table(self.db.storetable)
+            self._provisioning_status_migrated = any(
+                col['name'] == 'provisioning_status' for col in
+                self.db.adapter.getColInfo(table.model.sqlname, table.model.sqlschema))
+        return self._provisioning_status_migrated
+
     def get_dbdict(self):
         existing_databases = self.db.adapter.listElements('databases',manager=True)
         if self.db.dbname not in existing_databases:
@@ -1249,7 +1275,8 @@ class GnrApp(object):
                  ' packages section of instanceconfig.xml:']
         for e in self.undeclared_packages:
             lines.append('  %s (required by %s)' % (e['code'], ', '.join(sorted(e['required_by']))))
-        lines.append('Declare them there to have their python dependencies checked:')
+        lines.append('Their python dependencies are checked through the package closure.'
+                     ' To declare them explicitly:')
         for e in self.undeclared_packages:
             lines.append('  <%s pkgcode="%s"/>' % (e['code'].replace(':', '_'), e['code']))
         return '\n'.join(lines)

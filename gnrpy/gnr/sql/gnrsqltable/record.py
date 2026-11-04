@@ -232,7 +232,7 @@ class RecordMixin(SqlTableBaseMixin):
         )
 
     def cachedKey(self, topic):
-        if self.multidb == '*' or not self.use_dbstores() is False:
+        if self.multidb == '*' or self.use_dbstores() is False:
             storename = self.db.rootstore
         else:
             storename = self.db.currentStorename

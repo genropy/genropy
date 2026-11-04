@@ -775,7 +775,7 @@ function mapConvertFromText(value){
     if (typeof(value)=='string'){
         return convertFromText(value);
     }
-    if(typeof(value)=='object' && !(value instanceof Date)){
+    if(typeof(value)=='object' && !isDateObject(value)){
         var result = {};
         for (var k in value){
             result[k] = mapConvertFromText(value[k]);
@@ -1538,11 +1538,15 @@ var gnrformatter = {
         return result.join(format || '\n');
     }
 }
+// a Date made in another window (a parent or child page) is not instanceof Date here
+function isDateObject(obj){
+    return Object.prototype.toString.call(obj)==='[object Date]';
+}
 function isDate(obj){
     if(!obj){
         return false;
     }
-    return obj instanceof Date || obj._gnrdtype == 'D' || obj._gnrdtype=='DH' || obj._gnrdtype=='DHZ';
+    return isDateObject(obj) || obj._gnrdtype == 'D' || obj._gnrdtype=='DH' || obj._gnrdtype=='DHZ';
 }
 
 function guessDtype(value){
