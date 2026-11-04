@@ -4,7 +4,6 @@ import pytest
 
 from gnr.core.gnrbag import Bag
 from gnr.app.gnrapp import GnrApp, GnrSqlAppDb, DbStoresHandler
-from core.common import BaseGnrTest
 from sql.common import MockApplication, get_pg_config
 
 
@@ -15,7 +14,6 @@ def fresh_pg_app():
     Same lifecycle as _db_pg in tests/sql/conftest.py, without model.check:
     the main database exists but holds no table yet.
     """
-    BaseGnrTest.setup_class()
     dbname = 'test_gnrsqlappdb_fresh'
     pg_instance = None
     app = None
@@ -37,7 +35,6 @@ def fresh_pg_app():
         finally:
             if pg_instance is not None:
                 pg_instance.stop()
-            BaseGnrTest.teardown_class()
 
 
 class TestGnrSqlAppDb:

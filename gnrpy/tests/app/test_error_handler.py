@@ -6,17 +6,8 @@ includes ``gnrcore:sys``.
 
 import pytest
 
-from core.common import BaseGnrTest
 
 from gnr.core.gnrbag import Bag, BagResolver
-
-
-def setup_module(module):
-    BaseGnrTest.setup_class()
-
-
-def teardown_module(module):
-    BaseGnrTest.teardown_class()
 
 
 class FailingResolver(BagResolver):
