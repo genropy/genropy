@@ -7,15 +7,13 @@ import random
 import tempfile
 from urllib.parse import urlparse
 
-from paste import fileapp
-from paste.httpheaders import ETAG
-
 from gnr.core.gnrsys import expandpath
 from gnr.core.gnrbag import Bag
 from gnr.core import gnrstring
 from gnr.core.gnrlang import file_types
 from gnr.dev.decorator import callers
 from gnr.web import logger
+from gnr.lib.services.storage import _SimpleFileApp
 
 class StaticHandlerManager(object):
     """ This class handles the StaticHandlers"""
@@ -130,14 +128,14 @@ class StaticHandler(object):
             my_none_match = "%s-%s"%(str(mytime),str(size))
             if my_none_match == if_none_match:
                 headers = []
-                ETAG.update(headers, my_none_match)
+                headers.append(('ETag', '"%s"' % my_none_match))
                 start_response('304 Not Modified', headers)
                 return [EMPTY_BODY]
         file_args = dict()
         if download or download_name:
             download_name = download_name or os.path.basename(fullpath)
             file_args['content_disposition'] = "attachment; filename=%s" % download_name
-        file_responder = fileapp.FileApp(fullpath, **file_args)
+        file_responder = _SimpleFileApp(fullpath, **file_args)
         if self.site.cache_max_age:
             file_responder.cache_control(max_age=self.site.cache_max_age)
         return file_responder(environ, start_response)
@@ -298,20 +296,33 @@ class GnrStaticHandler(StaticHandler):
         else:
             return '%s_gnr/%s/%s' % (self.home_uri, version, '/'.join(args))
 
-class ConnectionStaticHandler(StaticHandler):
+class DomainHomeUri(object):
+    """Mixin for the statics whose files belong to the current domain.
+
+    The url carries the workspace segment, so the dispatcher sets the
+    domain before the file is served and ``path`` resolves in its folder.
+    Not a StaticHandler itself: addAllStatics registers every subclass.
+    """
+
+    @property
+    def home_uri(self):
+        return self.site.current_home_uri
+
+
+class ConnectionStaticHandler(DomainHomeUri, StaticHandler):
     prefix = 'conn'
 
     def path(self, connection_id, *args):
-        return os.path.join(self.site.site_path, 'data', '_connections', connection_id, *args)
+        return self.site.domainDataFolder('_connections', connection_id, *args)
 
     def url(self, connection_id, *args, **kwargs):
         return '%s_conn/%s/%s' % (self.home_uri, connection_id, '/'.join(args))
 
-class PageStaticHandler(StaticHandler):
+class PageStaticHandler(DomainHomeUri, StaticHandler):
     prefix = 'page'
 
     def path(self, connection_id, page_id, *args):
-        return os.path.join(self.site.site_path, 'data', '_connections', connection_id, page_id, *args)
+        return self.site.domainDataFolder('_connections', connection_id, page_id, *args)
 
     def url(self, connection_id, page_id, *args, **kwargs):
         return '%s_page/%s/%s/%s' % (self.home_uri, connection_id, page_id, '/'.join(args))
@@ -328,11 +339,11 @@ class TempStaticHandler(StaticHandler):
         #return '%s_page/%s/%s/%s' % (self.home_uri, connection_id, page_id, '/'.join(args))
 
 
-class UserStaticHandler(StaticHandler):
+class UserStaticHandler(DomainHomeUri, StaticHandler):
     prefix = 'user'
 
     def path(self, user, *args):
-        return os.path.join(self.site.site_path, 'data', '_users', user, *args)
+        return self.site.domainDataFolder('_users', user, *args)
 
     def url(self, user, *args):
         return '%s_user/%s/%s' % (self.home_uri, user, '/'.join(args))

@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 # encoding: utf-8
 
+from gnr.core.gnrbag import Bag
+from gnr.core.gnrdecorator import deprecated
+
 
 class Table(object):
     def config_db(self, pkg):
@@ -61,3 +64,20 @@ class Table(object):
             self.db.commit()
         return rec
 
+    @deprecated(message='use errorHandler')
+    def writeException(self, description=None, traceback=None, user=None,
+                       user_ip=None, user_agent=None):
+        return self.errorHandler(description=description, traceback=traceback,
+                                 error_type='EXC', user=user, user_ip=user_ip,
+                                 user_agent=user_agent)
+
+    @deprecated(message='use errorHandler')
+    def writeError(self, description=None, error_type=None, user=None,
+                   user_ip=None, user_agent=None, **kwargs):
+        # private entries such as the _relations cache are cyclic and do not serialize
+        error_data = Bag({k: v for k, v in self.db.currentEnv.items()
+                          if not k.startswith('_')})
+        error_data.update(kwargs)
+        return self.errorHandler(description=description, traceback=error_data,
+                                 error_type=error_type or 'ERR', user=user,
+                                 user_ip=user_ip, user_agent=user_agent)

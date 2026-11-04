@@ -2,6 +2,11 @@
 
 "Dbselect"
 
+from time import sleep
+
+from gnr.core.gnrdecorator import public_method
+
+
 class GnrCustomWebPage(object):
     py_requires="gnrcomponents/testhandler:TestHandlerFull"
 
@@ -37,8 +42,107 @@ class GnrCustomWebPage(object):
         fb = pane.formbuilder(cols=2, border_spacing='4px')
         fb.dbSelect(table='glbl.regione',value='^.regione',lbl='Regione',width='25em',selected_nome='.nome_regione')
         fb.dbSelect(table='glbl.provincia',value='^.sigla',condition='$regione=:regione',condition_regione='^.regione',
-                        lbl='Sigla',width='25em', validate_notnull=True, validate_notnull_error='Manca il valore')
-        
+                        lbl='Sigla',width='25em', selected_nome='.nome_provincia',
+                        validate_notnull=True, validate_notnull_error='Manca il valore')
+        fb.textbox(value='^.nome_provincia',lbl='Nome provincia')
+
+    def test_7_condition_single_option(self,pane):
+        "A single option updates both select widgets and their related values"
+        pane.data('.regione','LOM')
+        pane.data('.sigla','MI')
+        pane.data('.sigla_combo','MI')
+        fb = pane.formbuilder(cols=2, border_spacing='4px')
+        fb.dbSelect(table='glbl.regione',value='^.regione',lbl='Regione',width='25em')
+        fb.dbSelect(table='glbl.provincia',value='^.sigla',condition='$regione=:regione',
+                    condition_regione='^.regione',lbl='DbSelect',width='25em',
+                    selected_nome='.nome_provincia',validate_notnull=True)
+        fb.dbComboBox(table='glbl.provincia',value='^.sigla_combo',alternatePkey='sigla',
+                      condition='$regione=:regione',condition_regione='^.regione',
+                      lbl='DbComboBox',width='25em',selected_nome='.nome_provincia_combo',
+                      validate_notnull=True)
+        fb.textbox(value='^.nome_provincia',lbl='Nome dbSelect')
+        fb.textbox(value='^.nome_provincia_combo',lbl='Nome dbComboBox')
+        fb.button('Set VAL / AO',action="SET .regione='VAL'; SET .sigla='AO'; SET .sigla_combo='AO';")
+
+    def test_8_condition_race(self,pane):
+        "A stale condition reply must not restore or invalidate a newer value"
+        pane.data('.regione','VAL')
+        pane.data('.sigla','AO')
+        fb = pane.formbuilder(cols=2, border_spacing='4px')
+        fb.dbSelect(table='glbl.regione',value='^.regione',lbl='Regione',width='25em')
+        fb.dbSelect(table='glbl.provincia',value='^.sigla',method=self.delayedDbSelect,
+                    condition='$regione=:regione',condition_regione='^.regione',
+                    lbl='DbSelect',width='25em')
+        fb.div('^.sigla',lbl='Datastore value')
+        pane.dataRpc('.race_province',self.raceProvince,regione='^.regione',
+                     _if="regione=='LOM'",_else='null')
+        pane.dataController("SET .sigla=province;",province='^.race_province',_if='province')
+        fb.button('Set LOM / MI',action="SET .regione='LOM';")
+
+    @public_method
+    def delayedDbSelect(self,_id=None,**kwargs):
+        if _id == 'AO':
+            sleep(1)
+        return self.app.dbSelect(_id=_id,**kwargs)
+
+    @public_method
+    def raceProvince(self,regione=None):
+        return 'MI' if regione == 'LOM' else None
+
+    @public_method
+    def raceClearProvince(self,regione=None):
+        return regione == 'LOM'
+
+    def test_9_condition_null(self,pane):
+        "Condition change and SET null in the same tick: caption clears, no validation error"
+        pane.data('.regione','VAL')
+        pane.data('.sigla','AO')
+        fb = pane.formbuilder(cols=2, border_spacing='4px')
+        fb.dbSelect(table='glbl.regione',value='^.regione',lbl='Regione',width='25em')
+        fb.dbSelect(table='glbl.provincia',value='^.sigla',method=self.delayedDbSelect,
+                    condition='$regione=:regione',condition_regione='^.regione',
+                    lbl='DbSelect',width='25em',nodeId='dbselect_condition_null')
+        fb.div('^.sigla',lbl='Datastore value')
+        fb.button('Set LOM / null',action="SET .regione='LOM'; SET .sigla=null;")
+
+    def test_10_condition_race_validation(self,pane):
+        """A stale condition reply must not overwrite the validation state of the newer value.
+        The race ends on a blank, and notnull is a warning here so the blank reaches the
+        datastore: when the stale reply lands the node carries both required and warnings"""
+        pane.data('.regione','VAL')
+        pane.data('.sigla','AO')
+        fb = pane.formbuilder(cols=2, border_spacing='4px')
+        fb.dbSelect(table='glbl.regione',value='^.regione',lbl='Regione',width='25em')
+        fb.dbSelect(table='glbl.provincia',value='^.sigla',method=self.delayedDbSelect,
+                    condition='$regione=:regione',condition_regione='^.regione',
+                    lbl='DbSelect',width='25em',
+                    validate_notnull=True,validate_notnull_iswarning=True,
+                    validate_notnull_warning='Manca il valore',
+                    nodeId='dbselect_race_validation')
+        fb.div('^.sigla',lbl='Datastore value')
+        pane.dataRpc('.race_clear',self.raceClearProvince,regione='^.regione',
+                     _if="regione=='LOM'",_else='null')
+        pane.dataController("genro.nodeById('dbselect_race_validation').widget.setValue(null,true);",
+                            clear='^.race_clear',_if='clear')
+        fb.button('Set LOM (race to blank)',action="SET .regione='LOM';")
+
+    def test_11_widget_value_out_of_condition(self,pane):
+        """A value handed to the widget while it does not fit the current condition keeps its
+        query error: no newer fetch superseded it, so the error is installed and the datastore
+        refuses the value"""
+        pane.data('.regione','LOM')
+        pane.data('.sigla','MI')
+        fb = pane.formbuilder(cols=2, border_spacing='4px')
+        fb.dbSelect(table='glbl.regione',value='^.regione',lbl='Regione',width='25em')
+        fb.dbSelect(table='glbl.provincia',value='^.sigla',
+                    condition='$regione=:regione',condition_regione='^.regione',
+                    lbl='DbSelect',width='25em',validate_notnull=True,
+                    nodeId='dbselect_out_of_condition')
+        fb.div('^.sigla',lbl='Datastore value')
+        fb.button('Set AO on the widget',
+                  action="""var w = genro.nodeById('dbselect_out_of_condition').widget;
+                            w.clearCache(); w.setValue('AO',true);""")
+
     def test_2_clientmethod(self,pane):
         "Manually set what to display with callbackSelect"
         fb = pane.formbuilder(cols=1, border_spacing='4px')
@@ -77,3 +181,11 @@ class GnrCustomWebPage(object):
                         selected_regione='.regione',
                         invalidItemCondition_message='troppo lungo',auxColumns='$regione')
         fb.div('^.regione')
+
+    def test_6_hdbselect(self,pane):
+        "hdbSelect on a hierarchical table: table= kwarg and the deprecated dbtable= spelling sharing a connectedMenu"
+        fb = pane.formbuilder(cols=1, border_spacing='4px')
+        fb.hdbSelect(value='^.tag_id',table='adm.htag',lbl='Tag',width='25em',
+                    caption_field='hierarchical_description',connectedMenu='htag_menu')
+        fb.hdbSelect(value='^.tag_id_2',dbtable='adm.htag',lbl='Tag (old spelling)',width='25em',
+                    caption_field='hierarchical_description',connectedMenu='htag_menu')

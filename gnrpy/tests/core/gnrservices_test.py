@@ -1,13 +1,13 @@
-import logging
 import os
 import threading
+import logging
 import traceback
 import time
 
 import pytest
 
-from gnr.core.gnrlang import GnrException
 from gnr.lib.services import BaseServiceType, GnrUnresolvedService
+from gnr.core.gnrlang import GnrException
 
 SERVICE_MODULE = """
 class Service(object):
@@ -27,11 +27,14 @@ class FakeResourceLoader(object):
         return result
 
 
+class FakeApp(object):
+    packages = {}
+
 class FakeSite(object):
     def __init__(self, resources_dirs):
         self.resources_dirs = resources_dirs
         self.resource_loader = FakeResourceLoader()
-
+        self.gnrapp = FakeApp()
 
 @pytest.fixture
 def service_type(tmp_path):
@@ -230,3 +233,41 @@ def test_concurrent_first_access_is_atomic(service_type):
     assert len(build_calls) == 1
     assert len(factories) == 8
     assert all(f is factories[0] and callable(f) for f in factories)
+
+class FakeGlobalStore(object):
+    def __init__(self):
+        self.getitem_calls = 0
+
+    def getItem(self, key):
+        self.getitem_calls += 1
+        return None
+
+
+class FakeRegister(object):
+    def __init__(self):
+        self.global_store = FakeGlobalStore()
+
+    def globalStore(self, triggered=False):
+        return self.global_store
+
+
+def test_cached_non_db_service_skips_register(service_type):
+    service_type.site.register = FakeRegister()
+    service = service_type('one', implementation='alpha')
+    assert service._config_from_db is False
+    # creation path reads the register once
+    assert service_type.site.register.global_store.getitem_calls == 1
+    # cached non-db service: no further register reads
+    assert service_type('one') is service
+    assert service_type('one') is service
+    assert service_type.site.register.global_store.getitem_calls == 1
+
+
+def test_cached_db_service_keeps_freshness_check(service_type):
+    service_type.site.register = FakeRegister()
+    service_type.getServiceConfigurationFromDb = lambda service_name: {'implementation': 'alpha'}
+    service = service_type('one')
+    assert service._config_from_db is True
+    assert service_type('one') is service
+    # db-configured service: the register is read on every call
+    assert service_type.site.register.global_store.getitem_calls == 2

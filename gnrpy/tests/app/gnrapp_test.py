@@ -7,6 +7,7 @@ import pytest
 
 from common import BaseGnrAppTest
 import gnr.app.gnrapp as ga
+from gnr.core.gnrbag import Bag
 
 class TestGnrApp(BaseGnrAppTest):
     """
@@ -184,3 +185,63 @@ class TestGnrApp(BaseGnrAppTest):
             assert p['sys.error']['extra_where_filter'] == None
             assert p['sys.task_execution']['extra_where_filter'] == None
        
+
+
+class TestUserTagsOrder(object):
+    """The user tags string must not depend on set iteration order (#1173).
+
+    Python randomises string hashing at every process start, so joining a set
+    gave a different order in every process. The value travels into the
+    connection register item, the avatar and the logs, where an order that
+    moves on its own makes two runs impossible to compare.
+    """
+
+    def _app(self):
+        """makeAvatar with authenticate=False touches nothing else on the app."""
+        return object.__new__(ga.GnrApp)
+
+    def test_make_avatar_sorts_the_default_tags(self):
+        avatar = self._app().makeAvatar('u', defaultTags='superadmin,_DEV_,admin')
+        assert avatar.user_tags == '_DEV_,admin,superadmin'
+
+    def test_make_avatar_sorts_across_both_sources(self):
+        """defaultTags and tags are merged, and the merge must sort too."""
+        avatar = self._app().makeAvatar('u', defaultTags='user,_SYSTEM_',
+                                        tags='level/green,_TRD_')
+        assert avatar.user_tags == '_SYSTEM_,_TRD_,level/green,user'
+
+    def test_make_avatar_drops_duplicates_and_blanks(self):
+        avatar = self._app().makeAvatar('u', defaultTags='admin,,user',
+                                        tags='user,admin')
+        assert avatar.user_tags == 'admin,user'
+
+    def test_make_avatar_without_default_tags_is_untouched(self):
+        """No defaultTags means the branch never runs: the string passes through."""
+        avatar = self._app().makeAvatar('u', tags='b,a')
+        assert avatar.user_tags == 'b,a'
+
+
+def _app_with_experimental(**attrs):
+    app = ga.GnrApp.__new__(ga.GnrApp)
+    app.config = Bag()
+    if attrs:
+        app.config.setItem('experimental.page', None, **attrs)
+    return app
+
+
+def test_experimental_flag_reads_the_page_tag():
+    app = _app_with_experimental(no_mako='True', page_class_cache='false')
+    assert app.experimentalFlag('page', 'no_mako') is True
+    assert app.experimentalFlag('page', 'page_class_cache') is False
+
+
+def test_experimental_flag_of_a_missing_tag_is_false():
+    app = _app_with_experimental()
+    assert app.experimentalFlag('page', 'no_mako') is False
+    assert app.experimentalFlag('other', 'no_mako') is False
+
+
+def test_experimental_value_keeps_the_raw_attribute():
+    app = _app_with_experimental(remoteForm='delayed')
+    assert app.experimentalValue('page', 'remoteForm') == 'delayed'
+    assert app.experimentalValue('page', 'missing') is None

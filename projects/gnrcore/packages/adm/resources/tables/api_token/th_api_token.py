@@ -13,6 +13,7 @@ class View(BaseComponent):
         r = struct.view().rows()
         r.fieldcell('description', width='20em')
         r.fieldcell('group_code', name='!!Group', width='10em')
+        r.fieldcell('@user_id.fullname', name='!!User', width='12em')
         r.cell('status', name='!!Status', width='10em',
                rowTemplate=(
                    '<span class="status_dot status_$status"></span>'
@@ -73,6 +74,7 @@ class Form(BaseComponent):
         fb = top.formlet(cols=2, border_spacing='4px')
         fb.field('description', colspan=2)
         fb.field('group_code', hasDownArrow=True)
+        fb.field('user_id', hasDownArrow=True)
         fb.field('expires_ts')
         fb.field('notes', tag='simpleTextArea', height='4ex', colspan=2)
 

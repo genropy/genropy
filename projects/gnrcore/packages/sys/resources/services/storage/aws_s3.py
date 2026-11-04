@@ -15,6 +15,7 @@ import boto3
 import botocore
 from smart_open import open as so_open
 
+from gnr.core.gnrlang import GnrException
 from gnr.lib.services.storage import StorageService, StorageNode
 from gnr.web.gnrbaseclasses import BaseComponent
 
@@ -107,9 +108,10 @@ class Service(StorageService):
     def __init__(self, parent=None, bucket=None,
                 base_path=None, aws_access_key_id=None,
                 aws_secret_access_key=None, aws_session_token=None,
-                region_name=None, url_expiration=None, write_in_local=None, 
+                region_name=None, url_expiration=None, write_in_local=None,
                 readonly=None,versioned=True,
                 custom_endpoint=False, endpoint_url=None,
+                public_base_url=None,
                 disable_cert_verify=False, **kwargs):
         self.parent = parent
         self.bucket = bucket
@@ -119,6 +121,7 @@ class Service(StorageService):
         self.aws_session_token=aws_session_token
         self.region_name=region_name
         self.endpoint_url = endpoint_url if custom_endpoint else None
+        self.public_base_url = (public_base_url or '').rstrip('/')
         self.disable_cert_verify = disable_cert_verify
         self.url_expiration = url_expiration or 3600
         has_sys = 'gnrcore:sys' in self.parent.gnrapp.config['packages']
@@ -127,6 +130,7 @@ class Service(StorageService):
         local_readonly = (local or secondary) and not write_in_local
         self.readonly = readonly or local_readonly
         self.versioned = versioned
+        self._content_md5_cache = {}
 
     @property
     def is_versioned(self):
@@ -177,12 +181,18 @@ class Service(StorageService):
 
 
     def md5hash(self,*args):
-        bucket = self._head_object(*args)
-        if bucket:
-            etag = bucket['ETag'][1:-1]
-            if len(etag) == 32:
-                return etag
-        return None
+        head = self._head_object(*args)
+        if not head:
+            return None
+        etag = head['ETag'][1:-1]
+        if len(etag) == 32:
+            return etag
+        #multipart upload (smart_open always writes one): the ETag is not the content md5
+        #etag only keys the cache: a rewrite gets a new one, so the hash cannot go stale
+        key = (etag,) + args
+        if key not in self._content_md5_cache:
+            self._content_md5_cache[key] = super().md5hash(*args)
+        return self._content_md5_cache[key]
 
     def exists(self, *args):
         return self.isfile(*args) or self.isdir(*args)
@@ -320,10 +330,10 @@ class Service(StorageService):
 
     def url(self, *args , **kwargs):
         kwargs = kwargs or {}
-        _content_disposition = kwargs.get('_content_disposition') or 'inline'
-        _download = kwargs.get('_download')
-        if _download:
-            kwargs['_content_disposition'] = "attachment; filename=%s" % self.basename(*args)
+        if kwargs.get('_download') or kwargs.get('download'):
+            _content_disposition = "attachment; filename=%s" % self.basename(*args)
+        else:
+            _content_disposition = kwargs.get('_content_disposition') or 'inline'
         internal_path = self.internal_path(*args)
         _content_type = mimetypes.guess_type(internal_path)[0]
         expiration = kwargs.pop('expiration', self.url_expiration)
@@ -334,7 +344,28 @@ class Service(StorageService):
         return self._client.generate_presigned_url('get_object',
             Params=params,
             ExpiresIn=expiration)
-    
+
+    def public_url(self, *args, **kwargs):
+        """Returns a plain, non-expiring url for objects readable by anyone.
+
+        The object must be publicly readable (bucket policy or equivalent):
+        the service only builds the url, it does not grant access.
+        With public_base_url set, the url is {public_base_url}/{internal_path}:
+        use it for a custom or CDN domain fronting the bucket. Otherwise a
+        path-style url is built against the service endpoint: the custom
+        endpoint_url if configured (e.g. a SeaweedFS or MinIO gateway) or
+        the AWS regional endpoint https://s3.{region_name}.amazonaws.com."""
+        internal_path = self.internal_path(*args)
+        if self.public_base_url:
+            return '%s/%s' % (self.public_base_url, internal_path)
+        if self.endpoint_url:
+            endpoint = self.endpoint_url.rstrip('/')
+        elif self.region_name:
+            endpoint = 'https://s3.%s.amazonaws.com' % self.region_name
+        else:
+            endpoint = 'https://s3.amazonaws.com'
+        return '%s/%s/%s' % (endpoint, self.bucket, internal_path)
+
     def internal_url(self, *args, **kwargs):
         kwargs = kwargs or {}
         kwargs['_download'] = True
@@ -347,14 +378,19 @@ class Service(StorageService):
             Params={'Bucket': self.bucket,'Key': internal_path},
             ExpiresIn=expiration)
 
+    def autocreate(self, *args, **kwargs):
+        if self.readonly:
+            return
+        return super().autocreate(*args, **kwargs)
+
     def open(self, *args, **kwargs):
         kwargs['mode'] = kwargs.get('mode', 'rb')
         #version_id = kwargs.pop('version_id',None)
-        if self.readonly:
-            if 'b' in kwargs['mode']:
-                kwargs['mode'] = 'rb'
-            else:
-                kwargs['mode'] = 'r'
+        if self.readonly and set(kwargs['mode']) & set('wax+'):
+            raise GnrException('Storage service %(service_name)s is read-only: '
+                               'cannot write s3://%(bucket)s/%(key)s',
+                               service_name=self.service_name, bucket=self.bucket,
+                               key=self.internal_path(*args))
         so_open.DEFAULT_BUFFER_SIZE = 1024 * 1024
         version_id = kwargs.pop('version_id',None)
         return so_open("s3://%s/%s"%(self.bucket,self.internal_path(*args)),
@@ -430,7 +466,8 @@ class ServiceParameters(BaseComponent):
         fb.textbox(value='^.aws_secret_access_key',lbl='Aws Secret Access Key')
         fb.textbox(value='^.region_name',lbl='Region Name')
         fb.checkbox(value='^.custom_endpoint',lbl='Custom Endpoint')
-        fb.textbox(value='^.endpoint_url',lbl='Endpoint Url', hidden='==!custom', custom='^.custom_endpoint')
+        fb.textbox(value='^.endpoint_url',lbl='Endpoint Url', hidden='^.custom_endpoint?=!#v')
+        fb.textbox(value='^.public_base_url',lbl='!!Public Base Url')
         fb.checkbox(value='^.disable_cert_verify',lbl='Disable Certificate Verification')
         bc.storageTreeFrame(frameCode='bucketStorage',storagepath='^#FORM.record.service_name?=#v+":"',
                                 border='1px solid silver',margin='2px',rounded=4,

@@ -114,6 +114,7 @@
 
 /* --- Batch pane card --- */
 .bm_batchpane {
+    flex-shrink: 0;
     opacity: .5;
     position: relative;
     border: 1px solid var(--border-color, #ccc);

@@ -34,7 +34,6 @@ from gnr.core.gnrdecorator import extract_kwargs,metadata
 from gnr.core.gnrcrypto import AuthTokenGenerator
 from gnr.lib.services import ServiceHandler
 from gnr.app.pathresolver import PathResolver
-from gnr.web.gnrwsgisite_proxy.gnrapidispatcher import ApiDispatcher
 from gnr.app.gnrapp import GnrPackage
 from gnr.web import logger
 from gnr.web.gnrwebapp import GnrWsgiWebApp
@@ -45,7 +44,7 @@ from gnr.web.gnrwsgisite_proxy.gnrstatichandler import StaticHandlerManager
 from gnr.web.gnrwsgisite_proxy.gnrpwahandler import PWAHandler
 from gnr.web.daemon.siteregister_client import SiteRegisterClient
 from gnr.web.daemon.siteregister import DEFAULT_PAGE_MAX_AGE
-from gnr.web.gnrwsgisite_proxy.gnrwebsockethandler import WsgiWebSocketHandler
+from gnr.web.gnrwsgisite_proxy.gnrwebsockethandler import WsgiWebSocketHandler, websocketHandlerClass
 from gnr.web.gnrwsgisite_proxy.datacollector import DataCollector
 
 try:
@@ -145,7 +144,6 @@ class UrlInfo(object):
             last_path = os.path.join(basepath,*path_list)
             last_index_path = os.path.join(last_path,'index.py')
             if os.path.isfile(last_index_path):
-                pathfile_cache[last_path] = last_index_path
                 pathfile_cache[last_index_path.replace('.py','')] = last_index_path
                 self.relpath = last_index_path
                 self.request_args = []
@@ -466,10 +464,13 @@ class GnrWsgiSite(object):
 
         self.default_page = self.config['wsgi?default_page'] or 'sys/default'
         self.root_static = self.config['wsgi?root_static']
+        self.websocket_handler_class = websocketHandlerClass()
         self.websockets= boolean(self.config['wsgi?websockets']) or websockets
-        self.allConnectionsFolder = os.path.join(self.site_path, 'data', '_connections')
-        self.allUsersFolder = os.path.join(self.site_path, 'data', '_users')
-
+        if not self.websockets and self.websocket_handler_class is not WsgiWebSocketHandler:
+            # The selected provider terminates the socket in the server that
+            # serves the site: there is no daemon to reach and no config word to
+            # write, so the site has WebSockets because the provider says so.
+            self.websockets = True
         self.homepage = self.config['wsgi?homepage'] or self.default_uri + 'index'
         self.indexpage = self.config['wsgi?homepage'] or '/index'
         self._guest_counter = 0
@@ -489,7 +490,6 @@ class GnrWsgiSite(object):
         self.find_gnrjs_and_dojo()
         self._remote_edit = options.remote_edit if options else None
         self._main_gnrapp = self.build_gnrapp(options=options)
-        self.api_dispatcher = ApiDispatcher(self)
         self.server_locale = self.gnrapp.locale
         self.wsgiapp = self.build_wsgiapp(options=options)
         self.debugpy = debugpy
@@ -511,7 +511,7 @@ class GnrWsgiSite(object):
         # and it initialze the register itself.
         self.register
         
-        self.datacollector = DataCollector(self.register.siteregister)
+        self.datacollector = DataCollector(self.register)
         
         self.onInited()
 
@@ -624,7 +624,7 @@ class GnrWsgiSite(object):
         if not self.websockets:
             return
         if not hasattr(self,'_wsk'):
-            wsk = WsgiWebSocketHandler(self)
+            wsk = self.websocket_handler_class(self)
             if self.websockets=='required' or wsk.checkSocket():
                 self._wsk = wsk
             else:
@@ -677,10 +677,47 @@ class GnrWsgiSite(object):
             return f'{self.default_uri}{self.currentDomain}/'
         return self.default_uri
 
+    def domainDataFolder(self, *parts):
+        """Data folder of the current domain.
+
+        The root domain, and every single-domain site, keep ``data`` itself;
+        a workspace owns ``data/_domains/<domain>``, so what a connection or
+        a user writes never crosses the tenant boundary.
+        """
+        domain = self.currentDomain
+        if self.multidomain and domain and domain != self.rootDomain:
+            return os.path.join(self.site_path, 'data', '_domains', domain, *parts)
+        return os.path.join(self.site_path, 'data', *parts)
+
+    @property
+    def allConnectionsFolder(self):
+        return self.domainDataFolder('_connections')
+
+    @property
+    def allUsersFolder(self):
+        return self.domainDataFolder('_users')
+
+    @property
+    def rootDomainHomeUri(self):
+        """Returns the home URI of the rootDomain.
+
+        In multidomain mode _syspackage records live in the root store,
+        so they are reachable only through the rootDomain.
+        """
+        if self.multidomain:
+            return f'{self.default_uri}{self.rootDomain}/'
+        return self.default_uri
+
     def getSubscribedTables(self,tables):
         domain_proxy = self.domains[self.currentDomain]
         if domain_proxy and domain_proxy._register is not None:
             return self.register.filter_subscribed_tables(tables,register_name='page')
+
+    def allSubscribedTables(self):
+        """Every table observed by at least one live page, from the register index."""
+        domain_proxy = self.domains[self.currentDomain]
+        if domain_proxy and domain_proxy._register is not None:
+            return self.register.subscribed_tables(register_name='page')
 
     @property
     def connectionLogEnabled(self):
@@ -828,8 +865,7 @@ class GnrWsgiSite(object):
             else:
                 autocreate_args = args
             dest_dir = static_handler.path(*autocreate_args)
-            if not os.path.exists(dest_dir):
-                os.makedirs(dest_dir)
+            os.makedirs(dest_dir, exist_ok=True)
         dest_path = static_handler.path(*args)
         return dest_path
 
@@ -1048,6 +1084,46 @@ class GnrWsgiSite(object):
         except Exception:
             logger.warning('Failed to send error to endpoint %s', endpoint)
 
+    @deprecated(message='use errorHandler')
+    def writeException(self, exception=None, traceback=None):
+        return self._writeErrorRecord(exception=exception, error_type='EXC',
+                                      traceback=traceback)
+
+    @deprecated(message='use errorHandler')
+    def writeError(self, description=None, error_type=None, **kwargs):
+        return self._writeErrorRecord(description=description,
+                                      error_type=error_type or 'ERR',
+                                      error_kwargs=kwargs)
+
+    def rpc_writeError(self, description=None, error_type=None, **kwargs):
+        # the record carries the db env: it never goes back to the client
+        page = self.currentPage
+        if not page or not page.avatar:
+            return
+        self._writeErrorRecord(description=description,
+                               error_type=error_type or 'ERR',
+                               error_kwargs=kwargs)
+
+    def _writeErrorRecord(self, error_kwargs=None, **kwargs):
+        try:
+            if error_kwargs is not None:
+                error_data = Bag({k: v for k, v in self.db.currentEnv.items()
+                                  if not k.startswith('_')})
+                error_data.update(error_kwargs)
+                kwargs['traceback'] = error_data
+            error_id = self.errorHandler(**kwargs)
+            if not error_id or not self.db.package('sys'):
+                return None
+            with self.db.tempEnv(connectionName='system', storename=self.db.rootstore):
+                record = self.db.table('sys.error').record(
+                    error_code=error_id, ignoreMissing=True,
+                    ignoreDuplicate=True).output('dict') or None
+                self.db.rollback()
+                return record
+        except Exception:
+            logger.exception('Failed to write error %s',
+                             kwargs.get('description') or kwargs.get('exception'))
+
 
     def loadResource(self, pkg, *path):
         """TODO
@@ -1164,7 +1240,13 @@ class GnrWsgiSite(object):
             return exc(environ, start_response)
         finally:
             self.cleanup()
-            self.currentDomain = self.rootDomain
+            # Do not re-set currentDomain here: cleanup() already reset it
+            # to None, which pops this thread's entry from the underlying
+            # ThreadedDict. Assigning rootDomain again would re-add a
+            # {tid: '_main_'} entry that is never removed, i.e. the same
+            # unbounded thread-local growth fixed for currentRequest/
+            # currentPage in #379. The currentDomain getter already falls
+            # back to rootDomain when unset, so no re-assignment is needed.
 
     def raiseIfDeveloper(self, exception=None):
         page = self.currentPage
@@ -1304,8 +1386,6 @@ class GnrWsgiSite(object):
             finally:
                 self.cleanup()
             return response(environ, start_response)
-        if first_segment == '_api':
-            return self.serve_api(path_list, environ, start_response, **request_kwargs)
 
         #static elements that doesn't have .py extension in self.root_static
         if self.root_static and not first_segment.startswith('_') and '.' in last_segment and not (':' in first_segment):
@@ -1340,6 +1420,14 @@ class GnrWsgiSite(object):
                 logger.exception("wsgisite.dispatcher: self.resource_loader failed with non-HTTP exception.")
                 logger.exception(str(exc))
                 raise
+
+            if getattr(page, '__gramlot_page__', False):
+                from gnr.web.gramlotpage import GramlotPage
+                if isinstance(page, GramlotPage):
+                    try:
+                        return page.serve(request, response)(environ, start_response)
+                    finally:
+                        self.cleanup()
 
             if not (page and page._call_handler):
                 return self.not_found_exception(environ, start_response)
@@ -1411,7 +1499,19 @@ class GnrWsgiSite(object):
             response.data=result
         elif isinstance(result, Response):
             response = result
+        elif isinstance(result, Bag):
+            # A Bag is callable (Bag.__call__) but is regular page/rpc result
+            # data, not a WSGI app, so it must be serialised here rather than
+            # reaching the branch below: returned as a WSGI application it
+            # would later be invoked as response(environ, start_response) and
+            # raise a TypeError, since Bag.__call__ takes 0 or 1 argument.
+            # Same serialisation the method= entry point applies through
+            # GnrWebPageRpc.result_xml.
+            response.mimetype = kwargs.get('mimetype') or 'text/xml'
+            response.data = result.toXml(unresolved=True, omitUnknownTypes=True)
         elif callable(result):
+            # Objects that ARE the WSGI response: werkzeug HTTPException
+            # instances, GnrWsgiSite.forbidden_exception and friends.
             response = result
         return response
 
@@ -1431,6 +1531,7 @@ class GnrWsgiSite(object):
     def onClosedPage(self, page_id=None, **kwargs):
         "Drops page when closing"
         self.register.drop_page(page_id)
+        self.resource_loader.drop_page_class_cache(page_id)
 
     def cleanup(self):
         """clean up"""
@@ -1594,10 +1695,13 @@ class GnrWsgiSite(object):
             instance_path = self.config['instance?path'] or self.config['instances.#0?path']
         self.instance_path = instance_path
         restorepath = options.restore if options else None
+        # --xpr of gnr web serve, already parsed by the server: the other commands building a site have no such option
+        experimental_config = getattr(options, 'experimental_config', None)
         restorefiles=[]
         if self.remote_db:
             instance_path = '%s:%s' %(instance_path,self.remote_db)
-        app = GnrWsgiWebApp(instance_path, site=self,restorepath=restorepath)
+        app = GnrWsgiWebApp(instance_path, site=self,restorepath=restorepath,
+                            custom_config=experimental_config)
         self.config.setItem('instances.app', app, path=instance_path)
         return app
 
@@ -1609,6 +1713,7 @@ class GnrWsgiSite(object):
 
     def checkPendingConnection(self):
         if self.connectionLogEnabled:
+            # FIXME: evaluate methods to remove this dependency from a package
             self.db.table('adm.connection').dropExpiredConnections()
 
     def pageLog(self, event, page_id=None):
@@ -1655,8 +1760,11 @@ class GnrWsgiSite(object):
         :param dflt: TODO
         :param username: TODO"""
         if self.db.package('adm'):
-            username = username or self.currentPage.user if self.currentPage else None
-            pkg = pkg or self.currentPage.packageId if self.currentPage else None
+            page = self.currentPage
+            username = username or (page.user if page else None)
+            if not username:
+                return dflt
+            pkg = pkg or (page.packageId if page else None)
             return self.db.table('adm.user').getPreference(path=path, pkg=pkg, dflt=dflt, username=username)
 
     def setUserPreference(self, path, data, pkg=None, username=None):
@@ -1667,8 +1775,11 @@ class GnrWsgiSite(object):
         :param pkg: the :ref:`package <packages>` object
         :param username: TODO"""
         if self.db.package('adm'):
-            pkg = pkg or self.currentPage.packageId
-            username = username or self.currentPage.user if self.currentPage else None
+            page = self.currentPage
+            username = username or (page.user if page else None)
+            if not username:
+                return
+            pkg = pkg or (page.packageId if page else None)
             self.db.table('adm.user').setPreference(path, data, pkg=pkg, username=username)
 
     @property
@@ -1685,10 +1796,9 @@ class GnrWsgiSite(object):
 
     def dropConnectionFolder(self, connection_id=None):
         """:param connection_id: TODO"""
-        pathlist = ['data', '_connections']
+        connectionFolder = self.allConnectionsFolder
         if connection_id:
-            pathlist.append(connection_id)
-        connectionFolder = os.path.join(self.site_path, *pathlist)
+            connectionFolder = os.path.join(connectionFolder, connection_id)
         for root, dirs, files in os.walk(connectionFolder, topdown=False):
             for name in files:
                 os.remove(os.path.join(root, name))
@@ -1755,11 +1865,30 @@ class GnrWsgiSite(object):
             return
         if not won:
             return
-        Thread(target=self._runCleanup, daemon=True).start()
+        Thread(target=self._runCleanup, kwargs=dict(domain=self.currentDomain),
+               daemon=True).start()
 
-    def _runCleanup(self):
-        """Worker thread: drops stale pages/connections from the register
-        and removes their filesystem folders under _connections/.
+    def _runCleanup(self, domain=None):
+        """Clean the folders of one domain, in whatever thread.
+
+        The on-event pass runs in a thread of its own, where currentDomain
+        is unset and falls back to the root domain: the caller hands over
+        the domain it claimed the cleanup on, or the register and the
+        folders of the workspace would never be the ones walked. Without a
+        domain the walk takes the caller's, and leaves it alone: a request
+        thread still has its own rpc to finish on that register."""
+        if domain is None:
+            self._cleanupConnectionFolders()
+            return
+        self.currentDomain = domain
+        try:
+            self._cleanupConnectionFolders()
+        finally:
+            self.currentDomain = None
+
+    def _cleanupConnectionFolders(self):
+        """Drops stale pages/connections from the register of the current
+        domain and removes their filesystem folders under _connections/.
 
         Walks _connections/ once. For each entry:
         - if not in live connections AND old enough -> rmtree
@@ -1772,8 +1901,7 @@ class GnrWsgiSite(object):
         if not os.path.isdir(self.allConnectionsFolder):
             return
         try:
-            live_connections = {c['register_item_id']
-                                for c in self.register.connections()}
+            live_connections = self.register.connections()
         except Exception:
             logger.exception("Cleanup failed reading register")
             return
@@ -1929,9 +2057,6 @@ class GnrWsgiSite(object):
         kwargs_string = '&'.join(['%s=%s' % (k, v) for k, v in list(kwargs.items())])
         return '%s%s_tools/%s?%s' % (self.external_host, self.home_uri, tool, kwargs_string)
 
-    def serve_api(self, path_list, environ, start_response, **kwargs):
-        return self.api_dispatcher.dispatch(path_list, environ, start_response, **kwargs)
-
     def serve_ping(self, response, environ, start_response, page_id=None, reason=None, **kwargs):
         response.content_type = "text/xml"
         result = self.register.handle_ping(page_id=page_id,reason=reason,**kwargs)
@@ -2018,6 +2143,12 @@ class GnrWsgiSite(object):
             filename = '%s%s' %(filename,original_ext)
             file_ext = original_ext
         file_node = self.storageNode(uploadPath, filename,autocreate=-1)
+        service = file_node.service
+        storage_params = self.storage_handler.getStorageParameters(service.service_name) or {}
+        if (service.service_implementation == 'aws_s3' and service.readonly
+                and not storage_params.get('readonly')):
+            file_node = self.storageNode('site:%s/%s' % (service.service_name, file_node.path),
+                                         autocreate=-1)
         file_path = file_node.fullpath
         file_url = file_node.internal_url()
         with file_node.open(mode='wb') as outfile:

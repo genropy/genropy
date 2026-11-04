@@ -1,2 +1,0 @@
-def pippo():
-    print('pippo')

@@ -1,44 +1,9 @@
 var loginManager = {
+    // Kept as the entry point the index page fires on login; the dialog itself
+    // is built by adm_notification.js, which the notification form reuses to
+    // preview it on a single recipient.
     notificationManager:function(notification_id){
-        genro.setData('notification.confirm',null);
-        var notification_data = genro.serverCall('_table.adm.user_notification.getNotification',{pkey:notification_id});
-        var dlg = genro.dlg.quickDialog(notification_data['title'],{_showParent:true,max_width:'900px',datapath:'notification',background:'white'});
-        var box = dlg.center._('div',{overflow:'auto',height:'500px',overflow:'auto',padding:'10px'});
-        box._('div',{innerHTML:notification_data.notification,border:'1px solid transparent',padding:'10px'});
-        var cancel_label = notification_data.cancel_button_label;
-        var slots = cancel_label?['cancel','*']:['*'];
-        if(notification_data.confirm_label){
-            slots.push('confirm_checkbox','2');
-        }
-        slots.push('confirm');
-        var bar = dlg.bottom._('slotBar',{slots:slots.join(','),height:'22px'});
-        if(cancel_label){
-            // Refusing the notification leaves nowhere to go but the logout, so the
-            // button asks before doing it. A notification with no cancel label has no
-            // button at all, and confirming is then the only way into the application.
-            bar._('button','cancel',{'label':_T(cancel_label,true),command:'cancel',action:function(){
-                genro.dlg.ask(_T('!!Warning'),
-                              '!!If you do not confirm you will be logged out of the application',
-                              null,{confirm:function(){genro.logout();}});
-            }});
-        }
-        if(notification_data.confirm_label){
-            bar._('checkbox','confirm_checkbox',{value:'^.confirm',label:_T(notification_data.confirm_label,true)})
-        }
-        bar._('button','confirm',{'label':_T(notification_data.confirm_button_label || '!!Confirm',true),command:'confirm',disabled:notification_data.confirm_label?'^.confirm?=!#v':null,action:function(){
-                                                    genro.serverCall('_table.adm.user_notification.confirmNotification',{pkey:notification_id},
-                                                            function(n_id){
-                                                                dlg.close_action();
-                                                                if(n_id){
-                                                                    loginManager.notificationManager(n_id);
-                                                                }else{
-                                                                    genro.publish('end_notification')
-                                                                }
-                                                            }
-                                                    )
-
-                                                }});
-        dlg.show_action();
+        notificationDialog.open(notification_id);
     },
 
 }
@@ -148,6 +113,9 @@ dojo.declare("gnr.FramedIndexManager", null, {
         if(kw.externalSite){
             iframeattr.externalSite = kw.externalSite;
         }
+        if(kw.nonGenroContent){
+            iframeattr.nonGenroContent = true;
+        }
         if(kw.subtab){
             iframePageName = rootPageName;
             pane_kw = {_lazyBuild:true,overflow:'hidden',title:kw.title,pageName:rootPageName};
@@ -158,7 +126,7 @@ dojo.declare("gnr.FramedIndexManager", null, {
             pane_kw = {_lazyBuild:true,overflow:'hidden',title:'^'+multipageIframePagePath+'.title',
                       pageName:iframePageName,closable:true,
                       stackbutton_tooltip:'^'+multipageIframePagePath+'.title?titleFullDesc'};
-            genro.setData(multipageIframePagePath+'.title',label+'...');
+            genro.setData(multipageIframePagePath+'.title',kw.nonGenroContent ? label : label+'...');
             objectUpdate(iframeattr,{'id':'iframe_'+rootPageName+'_'+iframePageName,treeMenuPath:kw.fullpath,
                             frameName:rootPageName+'_'+iframePageName,multipage_childpath:multipageIframePagePath});
         }
@@ -167,7 +135,11 @@ dojo.declare("gnr.FramedIndexManager", null, {
                 return true;
             }
             var iframeSourceNode = this.getValue().getNode('iframecontainer.iframenode');
-            return iframeSourceNode.domNode.contentWindow.genro.checkBeforeUnload();
+            if(iframeSourceNode.attr.externalSite || iframeSourceNode.attr.nonGenroContent){
+                return true;
+            }
+            var iframeGenro = iframeSourceNode.domNode.contentWindow.genro;
+            return !iframeGenro || iframeGenro.checkBeforeUnload();
         };
 
         var center = root._('ContentPane',iframePageName,pane_kw);
@@ -176,7 +148,7 @@ dojo.declare("gnr.FramedIndexManager", null, {
             for (let cb of onStartCallbacks) {
                 cb.call(this,this._genro);
             }
-            that.checkStartsArgs(rootPageName)
+            that.checkStartsArgs(rootPageName,this.domNode)
         };
 
         var iframe = center._('div','iframecontainer',{'height':'100%','width':'100%',overflow:'hidden'})._('iframe','iframenode',iframeattr);
@@ -204,15 +176,18 @@ dojo.declare("gnr.FramedIndexManager", null, {
         //div('<div class="multipage_add">&nbsp;</div>',connect_onclick="""FIRE gnr.multipage.new = genro.dom.getEventModifiers($1);""",_class='multibutton')
     },
 
-    checkStartsArgs:function(rootPageName){
-        var iframeDataNode = this.iframesbag.getNode(rootPageName);
-        let attr = iframeDataNode.attr
-        let openKw = attr.openKw || {};
-        var iframe = this.getCurrentIframe(rootPageName);
-        if(openKw){
-            openKw.topic = openKw.topic || 'changedStartArgs';
-            iframe.gnr.postMessage(iframe.sourceNode,openKw);
+    checkStartsArgs:function(rootPageName,iframe){
+        var iframeDataNode = this.iframesbag && this.iframesbag.getNode(rootPageName);
+        if(!iframeDataNode){
+            return;
         }
+        let openKw = iframeDataNode.attr.openKw;
+        iframe = iframe || this.getCurrentIframe(rootPageName);
+        if(!iframe || !iframe.gnr || !openKw){
+            return;
+        }
+        openKw.topic = openKw.topic || 'changedStartArgs';
+        iframe.gnr.postMessage(iframe.sourceNode,openKw);
     },
 
     selectIframePage:function(kw){
@@ -259,7 +234,7 @@ dojo.declare("gnr.FramedIndexManager", null, {
         var that = this;
         this.stackSourceNode.watch('pageReady',function(){
             var iframe = that.getCurrentIframe(rootPageName);
-            if(iframe && iframe.sourceNode.attr.externalSite){
+            if(iframe && (iframe.sourceNode.attr.externalSite || iframe.sourceNode.attr.nonGenroContent)){
                 return true;
             }
             if(iframe && iframe.contentWindow && iframe.contentWindow.genro && iframe.contentWindow.genro._pageStarted){
@@ -423,7 +398,7 @@ dojo.declare("gnr.FramedIndexManager", null, {
         }
         var iframes = dojo.query('iframe',this.stackSourceNode.getValue().getNode(frameName).getWidget().domNode);
         if(iframes.some(function(n) {
-            if(n.sourceNode.attr.externalSite) {
+            if(n.sourceNode.attr.externalSite || n.sourceNode.attr.nonGenroContent) {
 		return false;
 	    }
 	    if(n.contentWindow.genro) {
@@ -640,6 +615,9 @@ dojo.declare("gnr.FramedIndexManager", null, {
             return;
         }
         var iframePageId = iframesbag.getItem(rootPageName+'?selectedPage');
+        if(!iframePageId){
+            return;
+        }
         var iframeId = iframePageId;
         if(rootPageName!=iframePageId){
             iframeId = rootPageName+'_'+iframePageId;
@@ -737,16 +715,27 @@ dojo.declare("gnr.FramedIndexManager", null, {
     checkStartPage:function(){
         let menubag = genro.getData('gnr.appmenu.root');
         let n = menubag.getNodeByAttr('openOnStart');
-        if(!n){
-            return;
+        if(n){
+            genro.publish('selectIframePage',{addToHistory:false,...n.attr});
         }
-        genro.publish('selectIframePage',{addToHistory:false,...n.attr});
+        if(this.pendingMenuCode){
+            let pending = this.pendingMenuCode;
+            this.pendingMenuCode = null;
+            this.handleExternalMenuCode(pending.menucode,pending.runKwargs);
+        }
     },
     handleExternalMenuCode:function(external_menucode,runKwargs){
         runKwargs = runKwargs || {}
         let menubag = genro.getData('gnr.appmenu.root');
+        if(!menubag){
+            this.pendingMenuCode = {menucode:external_menucode,runKwargs:runKwargs};
+            return;
+        }
         let n = menubag.getNodeByAttr('menucode',external_menucode);
-        inattr = n.getInheritedAttributes()
+        if(!n){
+            return;
+        }
+        let inattr = n.getInheritedAttributes()
         let kw = {name:n.label,pkg_menu:inattr.pkg_menu,"file":null,table:null,formResource:null,
                                 viewResource:null,fullpath:n.getFullpath(null,true),modifiers:null,
                     ...n.attr,...objectExtract(runKwargs,'url_*',null,true)};

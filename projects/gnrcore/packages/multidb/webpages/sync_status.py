@@ -23,7 +23,7 @@ class GnrCustomWebPage(object):
         per ogni grid abbiamo id, rowcaption operatore data e ora
         per modificati anche la modifica
         """
-        pane = self.pbl_rootContentPane(rootBC,title='!!Sync Status',datapath='syncstatus')
+        pane = rootBC.rootContentPane(title='!!Sync Status',datapath='syncstatus')
         frame = pane.framePane(frameCode='syncstatus')
         frame.includedView(storepath='.current')
         frame.dataRpc('.current','getCurrentStatus')

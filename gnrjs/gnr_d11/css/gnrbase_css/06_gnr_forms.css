@@ -188,26 +188,42 @@ label.ghostlabel span {
     display: none;
 }
 
+/* the keeper is a pin, faint until the value is kept */
 .fieldkeeper {
     position: absolute;
-    right: -10px;
-    bottom: 0px;
-    height: 6px;
-    width: 6px;
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-sm);
+    right: -17px;
+    bottom: 2px;
+    width: 13px;
+    height: 13px;
+    color: var(--text-muted);
+    opacity: 0.45;
     cursor: pointer;
+    transition: opacity 160ms ease;
+}
+.fieldkeeper:hover {
+    opacity: 0.8;
 }
 .fieldkeeper div {
-    position: absolute;
-    top: 1px;
-    bottom: 1px;
-    left: 1px;
-    right: 1px;
-    background: var(--surface-bg);
+    width: 100%;
+    height: 100%;
+    background: currentColor;
+    -webkit-mask: var(--icon-pin) center / contain no-repeat;
+    mask: var(--icon-pin) center / contain no-repeat;
 }
-.keeper_on .fieldkeeper div {
-    background: var(--text-muted);
+.keeper_on .fieldkeeper {
+    color: var(--accent-color, currentColor);
+    opacity: 1;
+}
+/* in a formlet it sits beside the label */
+.fieldkeeper.fieldkeeper_lbl {
+    position: relative;
+    right: auto;
+    bottom: auto;
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    margin-left: 5px;
+    vertical-align: -1px;
 }
 
 .gnrcheckbox_wrapper {

@@ -203,7 +203,10 @@ class Main(GnrBaseService):
         payload: dict[str, object] = {"messages": messages}
         if default_priority is not None:
             payload["default_priority"] = default_priority
-        response = self._post("/commands/add-messages", json=payload, params={"tenant_id": self.tenant_id})
+        # Scale the timeout with the batch size (default 10s fits small batches only)
+        timeout = min(60.0, 10.0 + 0.05 * len(messages))
+        response = self._post("/commands/add-messages", json=payload,
+                              params={"tenant_id": self.tenant_id}, timeout=timeout)
         if not isinstance(response, dict):
             raise RuntimeError("Mail proxy add-messages returned an unexpected payload")
         return response

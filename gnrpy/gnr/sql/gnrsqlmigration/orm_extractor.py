@@ -425,6 +425,8 @@ class OrmExtractor:
 
         If the column has a UNIQUE constraint, the index is not created
         because PostgreSQL automatically creates an index for UNIQUE constraints.
+        A non-partial unique index on a single plain column becomes the
+        column's ``unique`` attribute, as ``DbExtractor`` reads it from the DB.
 
         The ``indexed`` attribute can be:
         - ``True``: simple index without additional options
@@ -442,16 +444,19 @@ class OrmExtractor:
         if colobj.attributes.get('unique'):
             # The DB automatically creates an index for UNIQUE columns
             return
-        with_options = dictExtract(indexed, 'with_', pop=True)
-        sorting = indexed.pop('sorting', None)
-        columns = (
-            colobj.attributes.get('composed_of') or colobj.name
-        ).split(',')
-        sorting = sorting.split(',') if sorting else [None] * len(columns)
         table_name = colobj.table.sqlname
         schema_name = colobj.table.pkg.sqlname
         if tenant_schema and colobj.table.multi_tenant:
             schema_name = tenant_schema
+        table_json = self.schemas[schema_name]['tables'][table_name]
+        composed_of = colobj.attributes.get('composed_of')
+        if indexed.get('unique') and not composed_of and not indexed.get('where'):
+            table_json['columns'][colobj.sqlname]['attributes']['unique'] = True
+            return
+        with_options = dictExtract(indexed, 'with_', pop=True)
+        sorting = indexed.pop('sorting', None)
+        columns = (composed_of or colobj.name).split(',')
+        sorting = sorting.split(',') if sorting else [None] * len(columns)
         attributes = dict(
             columns=dict(zip(columns, sorting)),
             with_options=with_options,
@@ -460,7 +465,6 @@ class OrmExtractor:
         index_item = new_index_item(
             schema_name, table_name, columns, attributes=attributes
         )
-        table_json = self.schemas[schema_name]['tables'][table_name]
         table_json["indexes"][index_item["entity_name"]] = index_item
 
     def convert_colattr(self, colattr):

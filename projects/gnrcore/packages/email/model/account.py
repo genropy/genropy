@@ -21,13 +21,13 @@ class Table(object):
         tbl.column('password',size=':80',name_long='!!Password')
         tbl.column('last_uid',name_long='!!Last UID')
         tbl.column('smtp_host',name_long='!!SMTP host')
-        tbl.column('smtp_from_address',name_long='!!From address')
+        tbl.column('smtp_from_address',name_long='!!From address', validate_email=True)
         tbl.column('smtp_reply_to',name_long='!!Reply to', validate_email=True)
         tbl.column('smtp_username',name_long='!!Smtp username')
         tbl.column('smtp_password',name_long='!!Smtp password')
-        tbl.column('smtp_port',name_long='!!Smtp port',dtype='L')
+        tbl.column('smtp_port',name_long='!!Smtp port',dtype='L',default=587)
         tbl.column('smtp_timeout',name_long='!!Smtp timeout',dtype='L')
-        tbl.column('smtp_tls',name_long='!!Smtp tls',dtype='B')
+        tbl.column('smtp_tls',name_long='!!Smtp tls',dtype='B',default=True)
         tbl.column('smtp_ssl',name_long='!!Smtp ssl',dtype='B')
         tbl.column('send_limit', dtype='L', name_long='!!Sending limit')
         tbl.column('system_bcc',name_long='!!System bcc')
@@ -117,8 +117,7 @@ class Table(object):
         body = body or f'This is a test message from {from_address} to {to_address}'
         reply_to = reply_to or self.db.application.getPreference('dflt_reply_to',pkg='email')
         msg = mh.build_base_message(subject=subject, body=body)
-        if reply_to:
-            msg.add_header('reply-to', reply_to)
+        mh.set_address_headers(msg, from_address=from_address, to_address=to_address, reply_to=reply_to)
         try:
             smtp_connection = mh.get_smtp_connection(**account_params)
             smtp_connection.sendmail(from_address, to_address, msg.as_string())

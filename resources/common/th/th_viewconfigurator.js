@@ -390,8 +390,8 @@ var genro_plugin_grid_configurator = {
         var grid = pane._('quickGrid',grid_pars);
         grid._('column',{name:_T('Code'),field:'code',width:'5em'});
         grid._('column',{name:_T('Name'),field:'name',edit:true,width:'12em'});
-        this._subBagCell(grid,'styles_columnset','Styles',genro.dom.styleFields,{blacklist:['height','width']});
-        this._subBagCell(grid,'styles_cells','Cell styles',genro.dom.styleFields,{blacklist:['height','border']});
+        this._subBagCell(grid,'styles_columnset','!!Styles',genro.dom.styleFields,{blacklist:['height','width']});
+        this._subBagCell(grid,'styles_cells','!!Cell styles',genro.dom.styleFields,{blacklist:['height','border']});
  
         var t = grid._('tools',{tools:'delrow,addrow',title:_T('Columnsets'),
         custom_tools:{addrow:{content_class:'iconbox add_row',ask:{title:_T('New columnset'),
@@ -508,9 +508,9 @@ var genro_plugin_grid_configurator = {
         grid._('column',{name:_T('Format'),field:'format',edit:true,width:'8em'});
         grid._('column',{name:_T('Sort'),field:'sort',edit:{tag:'filteringSelect',values:'a:Asc,d:Desc'},width:'4em'});
 
-        this._subBagCell(grid,'styles_cells','Cell styles',genro.dom.styleFields,{blacklist:['height','border']});
+        this._subBagCell(grid,'styles_cells','!!Cell styles',genro.dom.styleFields,{blacklist:['height','border']});
         if(gridNode.widget.collectionStore().storeNode.attr.groupByStore){
-            this._subBagCell(grid,'group_pars','Grouping Pars',function(pane){
+            this._subBagCell(grid,'group_pars','!!Grouping Pars',function(pane){
                 genro.groupth.groupByParsFields(genro.dev.formbuilder(pane,1,{border_spacing:'1px',margin:'5px'}),
                                             pane.getParentNode().getRelativeData('.#parent.dtype'));
             });

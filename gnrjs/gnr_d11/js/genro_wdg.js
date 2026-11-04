@@ -107,6 +107,7 @@ dojo.declare("gnr.GnrWdgHandler", null, {
             'canvas':['width','height']
             };
         this.tagParameters = {};
+        this._factoryCache = {};
         this.tagParameters['button'] = {'caption':'input'};
         this.tagParameters['contentpane'] = {'label':'input','layoutAlign':'select:top,bottom,left,right,client'};
         this.tagParameters['splitcontainer'] = {'activeSizing':'checkbox','sizerWidth':'input'};
@@ -233,9 +234,12 @@ dojo.declare("gnr.GnrWdgHandler", null, {
                 result.hasDownArrow = true;
             }
         }
-        if('values' in fieldattr){
+        // A declared `values` is a closed set of choices, so it wins over the
+        // dtype widget. B (checkBox) and X (tree) are the exception: their own
+        // widget is not a list of choices at all.
+        if('values' in fieldattr && dt!='B' && dt!='X'){
             result.values = fieldattr.values;
-            result.tag = fieldattr.values.indexOf(':')>=0?'filteringselect':'combobox';
+            result.tag = 'filteringselect';
         }
         if('size' in fieldattr && result.tag=='Textbox'){
             result.validate_len = fieldattr.size;
@@ -466,7 +470,14 @@ dojo.declare("gnr.GnrWdgHandler", null, {
         return domnode;
     },
     getWidgetFactory: function(tag, handler) {
-        var dojotag = this.namespace[(handler._dojotag || tag).toLowerCase()];
+        //cache by the resolved dojo tag, not by the genro tag: handlers can
+        //switch _dojotag per instance (e.g. menuline -> MenuItem/MenuSeparator)
+        var cachekey = (handler._dojotag || tag).toLowerCase();
+        var cached = this._factoryCache[cachekey];
+        if (cached) {
+            return cached;
+        }
+        var dojotag = this.namespace[cachekey];
         var wdgpath;
         if (!dojotag) {
             wdgpath = handler._dojotag.split('.');
@@ -491,6 +502,7 @@ dojo.declare("gnr.GnrWdgHandler", null, {
         for (var i = 0; i < wdgpath.length; i++) {
             wdgfactory = wdgfactory[wdgpath[i]];
         }
+        this._factoryCache[cachekey] = wdgfactory;
         return wdgfactory;
     },
     createDojoWidget:function(tag, domnode, attributes, kw, sourceNode) {
@@ -571,55 +583,71 @@ dojo.declare("gnr.GnrWdgHandler", null, {
             };
         }
     },
-    doMixin:function(obj, handler, tag, sourceNode) {
-        var oldfunc, funcname;
+    _mixinPlan:function(handler) {
+        //the applicable mixin_/patch_/versionpatch_/nodemixin_/validatemixin_
+        //props of a handler never change: scan them once per handler
+        if (handler.__mixinPlan) {
+            return handler.__mixinPlan;
+        }
         var versionpatch = 'versionpatch_' + dojo.version.major + dojo.version.minor + '_';
         var versionpatch_fallback = (versionpatch !== 'versionpatch_11_') ? 'versionpatch_11_' : null;
-        var ispatch;
+        var plan = {methods:[], nodemixins:[], validatemixins:[]};
         for (var prop in handler) {
-            funcname = null;
             if (prop.indexOf('mixin_') == 0) {
-                ispatch = false;
-                funcname = prop.replace('mixin_', '');
+                plan.methods.push({funcname:prop.slice('mixin_'.length), prop:prop, ispatch:false});
             }
             else if (stringStartsWith(prop, 'versionpatch_')) {
-                ispatch = true;
                 if (stringStartsWith(prop, versionpatch)) {
-                    funcname = prop.replace(versionpatch, '');
+                    plan.methods.push({funcname:prop.slice(versionpatch.length), prop:prop, ispatch:true});
                 } else if (versionpatch_fallback && stringStartsWith(prop, versionpatch_fallback)) {
                     // fallback: if no version-specific patch exists, use 1.1 patch
-                    var fallback_funcname = prop.replace(versionpatch_fallback, '');
+                    var fallback_funcname = prop.slice(versionpatch_fallback.length);
                     if (!(versionpatch + fallback_funcname in handler)) {
-                        funcname = fallback_funcname;
+                        plan.methods.push({funcname:fallback_funcname, prop:prop, ispatch:true});
                     }
                 }
             }
             else if (stringStartsWith(prop, 'patch_')) {
-                ispatch = true;
-                funcname = prop.replace('patch_', '');
+                plan.methods.push({funcname:prop.slice('patch_'.length), prop:prop, ispatch:true});
             } else if (stringStartsWith(prop, 'nodemixin_')) {
-                sourceNode[prop.replace('nodemixin_', '')] = handler[prop];
+                plan.nodemixins.push({funcname:prop.slice('nodemixin_'.length), prop:prop});
             } else if (stringStartsWith(prop, 'validatemixin_')) {
-                if (sourceNode && (sourceNode.hasValidations())) {
-                    sourceNode[prop.replace('validatemixin_', '')] = handler[prop];
-                }
+                plan.validatemixins.push({funcname:prop.slice('validatemixin_'.length), prop:prop});
             }
-            if (funcname) {
-                oldfunc = obj[funcname];
-                if (ispatch) {
-                    obj[funcname] = handler[prop];
-                    if (oldfunc) {
-                        obj[funcname + '_replaced'] = oldfunc;
-                    } else if ((!handler._basedojotag) || (handler._dojotag == handler._basedojotag)) {
-                        genro.warning(tag + ' - Patch ' + prop + ': cannot find the replaced method.');
-                    }
-                } else {
-                    if (oldfunc) {
-                        genro.warning(tag + ' - Mixin ' + prop + ': method already existing.');
-                        obj[funcname + '_replaced'] = oldfunc;
-                    }
-                    obj[funcname] = handler[prop];
+        }
+        handler.__mixinPlan = plan;
+        return plan;
+    },
+
+    doMixin:function(obj, handler, tag, sourceNode) {
+        var plan = this._mixinPlan(handler);
+        var oldfunc, m, i;
+        for (i = 0; i < plan.nodemixins.length; i++) {
+            m = plan.nodemixins[i];
+            sourceNode[m.funcname] = handler[m.prop];
+        }
+        if (sourceNode && sourceNode.hasValidations()) {
+            for (i = 0; i < plan.validatemixins.length; i++) {
+                m = plan.validatemixins[i];
+                sourceNode[m.funcname] = handler[m.prop];
+            }
+        }
+        for (i = 0; i < plan.methods.length; i++) {
+            m = plan.methods[i];
+            oldfunc = obj[m.funcname];
+            if (m.ispatch) {
+                obj[m.funcname] = handler[m.prop];
+                if (oldfunc) {
+                    obj[m.funcname + '_replaced'] = oldfunc;
+                } else if ((!handler._basedojotag) || (handler._dojotag == handler._basedojotag)) {
+                    genro.warning(tag + ' - Patch ' + m.prop + ': cannot find the replaced method.');
                 }
+            } else {
+                if (oldfunc) {
+                    genro.warning(tag + ' - Mixin ' + m.prop + ': method already existing.');
+                    obj[m.funcname + '_replaced'] = oldfunc;
+                }
+                obj[m.funcname] = handler[m.prop];
             }
         }
         return obj;
@@ -974,7 +1002,7 @@ dojo.declare("gnr.GridEditor", null, {
                         }
                         grid.gridEditor.setCellValue(idx,node.label,val);
                         if(editable_cols[node.label].attr.remoteRowController){
-                            let rowNode = grid.storebag().getNode('#'+idx);
+                            let rowNode = grid.dataNodeByIndex(idx);
                             remoteControllerRows.addItem(rowNode.label,rowNode);
                         }
                     });
@@ -1858,6 +1886,9 @@ dojo.declare("gnr.GridEditor", null, {
         }
         var cell = this.grid.getCell(col);
         if (!(cell.field in this.columns)){return false;}
+        if(this.grid.treeStore && this.grid.treeStore()){
+            return false;
+        }
         if ((cell.classes || '').indexOf('hiddenColumn')>=0){return false}
         this.grid.currRenderedRowIndex = row;
         var rowdict = this.grid.rowByIndex(row);
@@ -1979,6 +2010,176 @@ dojo.declare("gnr.GridFilterManager", null, {
 
     hasActiveFilter:function(){
         return this.activeFilters().length>0;
+    }
+});
+
+dojo.declare("gnr.GridColumnFilterPane", null, {
+    maxRows:200,
+    searchThreshold:6,
+
+    constructor:function(grid,cell,domNode,openerId){
+        this.grid = grid;
+        this.cell = cell;
+        this.domNode = domNode;
+        this.openerId = openerId;
+        this.search = '';
+        this.items = [];
+        domNode.classList.add('gridColumnFilterPane');
+        var label = document.createElement('div');
+        label.innerHTML = cell.original_name || '';
+        var title = this.element('div','gcf_title',label.textContent);
+        this.searchBox = this.element('label','gcf_searchbox');
+        this.searchBox.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></svg>';
+        this.searchNode = this.element('input','gcf_search');
+        this.searchNode.type = 'search';
+        this.searchNode.placeholder = _T('Search');
+        this.searchBox.appendChild(this.searchNode);
+        this.searchBox.hidden = true;
+        this.listNode = this.element('div','gcf_list');
+        this.moreNode = this.element('div','gcf_more');
+        this.moreNode.hidden = true;
+        this.clearNode = this.element('button','gcf_clear',_T('Clear filter'));
+        this.clearNode.type = 'button';
+        this.countNode = this.element('span','gcf_rowcount');
+        var foot = this.element('div','gcf_foot');
+        foot.append(this.clearNode,this.countNode);
+        domNode.append(title,this.searchBox,this.listNode,this.moreNode,foot);
+        var that = this;
+        this.searchNode.addEventListener('input',function(){
+            that.search = that.searchNode.value;
+            that.renderList();
+        });
+        this.listNode.addEventListener('change',function(e){
+            if(e.target.dataset.idx!==undefined){
+                that.toggle(e.target);
+            }
+        });
+        this.clearNode.addEventListener('click',function(){
+            that.grid.setColumnFilter(that.cell,null);
+            that.renderList();
+        });
+        domNode.addEventListener('keydown',function(e){
+            if(e.key=='Escape' && that.openerId && genro.nodeById(that.openerId)){
+                dojo.stopEvent(e);
+                genro.nodeById(that.openerId).publish('close');
+            }
+        });
+        this.setItems(grid.columnFilterValues(cell));
+    },
+
+    element:function(tag,className,text){
+        var node = document.createElement(tag);
+        node.className = className;
+        if(text){
+            node.textContent = text;
+        }
+        return node;
+    },
+
+    checkedKeys:function(){
+        return new Set((this.cell.filterValues || []).map(gnr.columnFilterKey));
+    },
+
+    captionText:function(item){
+        if(item.key===''){
+            return _T('(empty)');
+        }
+        return (item.caption===null || item.caption===undefined)? item.key:''+item.caption;
+    },
+
+    compareItems:function(a,b){
+        if((a.key==='')!==(b.key==='')){
+            return a.key===''? 1:-1;
+        }
+        var cell = this.cell;
+        if(cell.filterField===true && !cell.caption_field && !cell.values){
+            var va = a.value instanceof Date? a.value.getTime():a.value;
+            var vb = b.value instanceof Date? b.value.getTime():b.value;
+            if(typeof(va)=='number' && typeof(vb)=='number'){
+                return va-vb;
+            }
+        }
+        return this.captionText(a).localeCompare(this.captionText(b),undefined,{numeric:true,sensitivity:'base'});
+    },
+
+    setItems:function(items){
+        var captions = this.cell._filterCaptions = this.cell._filterCaptions || {};
+        var byKey = {};
+        items.forEach(function(item){
+            item.key = gnr.columnFilterKey(item.value);
+            byKey[item.key] = item;
+            captions[item.key] = item.caption;
+        });
+        (this.cell.filterValues || []).forEach(function(value){
+            var key = gnr.columnFilterKey(value);
+            if(!byKey[key]){
+                byKey[key] = {value:value,key:key,caption:(key in captions)? captions[key]:value,count:0};
+                items.push(byKey[key]);
+            }
+        });
+        items.sort(this.compareItems.bind(this));
+        this.items = items;
+        this.searchBox.hidden = items.length<=this.searchThreshold;
+        this.renderList();
+        if(!this.searchBox.hidden){
+            this.searchNode.focus();
+        }
+    },
+
+    renderList:function(){
+        var query = this.search.trim().toLowerCase();
+        var checked = this.checkedKeys();
+        var fragment = document.createDocumentFragment();
+        var shown = 0;
+        var matches = 0;
+        var that = this;
+        this.items.forEach(function(item,idx){
+            var text = that.captionText(item);
+            if(query && text.toLowerCase().indexOf(query)<0){
+                return;
+            }
+            matches++;
+            var isChecked = checked.has(item.key);
+            if(!query && shown>=that.maxRows && !isChecked){
+                return;
+            }
+            var row = that.element('label','gcf_row'+(isChecked? ' gcf_checked':'')+(item.count? '':' gcf_zero'));
+            var input = document.createElement('input');
+            input.type = 'checkbox';
+            input.checked = isChecked;
+            input.dataset.idx = idx;
+            row.append(input,that.element('span','gcf_caption'+(item.key===''? ' gcf_empty':''),text),
+                       that.element('span','gcf_count',''+item.count));
+            fragment.appendChild(row);
+            shown++;
+        });
+        if(!matches){
+            fragment.appendChild(this.element('div','gcf_more',_T('No value')));
+        }
+        this.listNode.replaceChildren(fragment);
+        var rest = matches-shown;
+        this.moreNode.hidden = rest<=0;
+        this.moreNode.textContent = rest+' '+_T('more. Type to search.');
+        this.updateFoot();
+    },
+
+    updateFoot:function(){
+        var store = this.grid.collectionStore();
+        this.clearNode.hidden = !(this.cell.filterValues && this.cell.filterValues.length);
+        this.countNode.textContent = store.len(true)+' / '+store.len();
+    },
+
+    toggle:function(input){
+        var item = this.items[parseInt(input.dataset.idx)];
+        var values = (this.cell.filterValues || []).filter(function(value){
+            return gnr.columnFilterKey(value)!==item.key;
+        });
+        if(input.checked){
+            values.push(item.value);
+        }
+        this.grid.setColumnFilter(this.cell,values);
+        input.parentNode.classList.toggle('gcf_checked',input.checked);
+        this.updateFoot();
     }
 });
 
@@ -2130,6 +2331,12 @@ dojo.declare("gnr.GridChangeManager", null, {
         delete this.totalizeColumns[field];
     },
     calculateFormula:function(formulaKey,rowNode){
+        var values = {};
+        values[formulaKey] = this.evaluateFormula(formulaKey,rowNode);
+        this.grid.collectionStore().updateRowNode(rowNode,values);
+    },
+
+    evaluateFormula:function(formulaKey,rowNode){
         var formula = this.formulaColumns[formulaKey];
         var result;
         var pars = this.grid.rowFromBagNode(rowNode,true);
@@ -2156,12 +2363,13 @@ dojo.declare("gnr.GridChangeManager", null, {
         var cellmap = this.grid.cellmap;
         pars._currcell = cellmap[formulaKey];
         pars._rowNode = rowNode;
-        var struct = this.grid.structBag.getItem('#0.#0');
-        var bagcellattr = struct.getNode(cellmap[formulaKey]._nodelabel).attr;
+        // no struct in a groupletGrid card mode: no formula_* dynamic pars
+        var struct = this.grid.structBag? this.grid.structBag.getItem('#0.#0'):null;
+        var structNode = struct? struct.getNode(cellmap[formulaKey]._nodelabel):null;
+        var bagcellattr = structNode? structNode.attr:{};
         var dynPars = objectExtract(bagcellattr,'formula_*',true);
         dynPars = this.sourceNode.evaluateOnNode(dynPars);
         objectUpdate(pars,dynPars);
-        var values = {};
         if(formula=='#'){
             result = rowNode.attr.rowidx || this.grid.currRenderedRowIndex;
         }else{
@@ -2171,8 +2379,7 @@ dojo.declare("gnr.GridChangeManager", null, {
                 result = null;
             }
         }
-        values[formulaKey] = result;
-        this.grid.collectionStore().updateRowNode(rowNode,values);
+        return result;
     },
  
 

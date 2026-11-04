@@ -250,8 +250,41 @@ class TransactionMixin(GnrSqlDbBaseMixin):
             cursor.setConstraintsDeferred()
 
     def rollback(self) -> None:
-        """Roll back the current connection's transaction."""
-        self.connection.rollback()
+        """Roll back the current connection's transaction.
+
+        With a multi-store storename (``'*'`` or comma-separated) the
+        ``connection`` property returns a list of connections: each one
+        is rolled back.
+        """
+        connection = self.connection
+        if isinstance(connection, list):
+            for c in connection:
+                c.rollback()
+        else:
+            connection.rollback()
+
+    def rollbackAll(self) -> None:
+        """Roll back every uncommitted connection of the current thread.
+
+        This is the counterpart of :meth:`commit`, which walks *all* the
+        thread's connections whose ``connectionName`` matches the active
+        one: triggers may have written to other stores' connections (e.g.
+        a dbstore trigger updating the root store), and :meth:`rollback`
+        alone would leave those writes pending, silently flushed by the
+        next :meth:`commit`.
+
+        Deferred-callback queues and pending exceptions accumulated for
+        the rolled-back connections are discarded as well.
+        """
+        trconns = self._connections.get(_thread.get_ident(), {})
+        for connection in list(trconns.values()):
+            if connection.committed or connection.connectionName != self.currentConnectionName:
+                continue
+            connection.rollback()
+            with self.tempEnv(storename=connection.storename):
+                for queue in (self.QUEUE_DEFER_TO_COMMIT, self.QUEUE_DEFER_AFTER_COMMIT):
+                    self.currentEnv.pop(f"{queue}_{self.connectionKey()}", None)
+        self.currentEnv.pop('_pendingExceptions', None)
 
     def listen(self, *args: Any, **kwargs: Any) -> None:
         """Start listening for a database notification channel (Postgres).
@@ -275,6 +308,11 @@ class TransactionMixin(GnrSqlDbBaseMixin):
         """Run ``ANALYZE`` on the database to update query planner statistics."""
         self.adapter.analyze()
 
-    def vacuum(self) -> None:
-        """Run ``VACUUM`` on the database to reclaim storage."""
-        self.adapter.vacuum()
+    def vacuum(self, table: str = '', full: bool = False) -> None:
+        """Run ``VACUUM ANALYZE`` on the database, or on ``table``, to reclaim storage.
+
+        Args:
+            table: schema-qualified SQL table name (``sqlfullname``); empty for the whole database.
+            full: If ``True`` run ``VACUUM FULL``, returning the space to the filesystem.
+        """
+        self.adapter.vacuum(table=table, full=full)

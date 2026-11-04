@@ -95,6 +95,8 @@ class CommandBuilderMixin(SqlMigratorBaseMixin):
     - ``backup``: flag for creating backups before conversions
     - ``ignore_constraint_name``: flag for ignoring name differences
     - ``removeDisabled``: flag for disabling removals
+    - ``dbExtractor``: the :class:`DbExtractor`, whose
+      ``column_unique_objects`` names what enforces a column's uniqueness
     """
 
     def missing_handler_cb(self, **kwargs):
@@ -409,19 +411,7 @@ class CommandBuilderMixin(SqlMigratorBaseMixin):
             if newvalue:
                 self.addColumnUniqueConstraint(item)
             else:
-                columns = [column_name]
-                constraints_dict = table_dict['constraints']
-                constraint_name = hashed_name(
-                    schema=item['schema_name'],
-                    table=item['table_name'],
-                    columns=columns, obj_type='cst'
-                )
-                sql = self.db.adapter.struct_drop_constraint_sql(
-                    constraint_name=constraint_name,
-                    schema_name=item['schema_name'],
-                    table_name=item['table_name'],
-                )
-                constraints_dict[constraint_name] = {"command": sql}
+                self.dropColumnUniqueness(item, table_dict)
 
         elif changed_attribute in ('generated_expression', 'extra_sql'):
             # These attributes are not automatically migratable
@@ -631,7 +621,7 @@ class CommandBuilderMixin(SqlMigratorBaseMixin):
             )
 
     def changed_index(self, item=None, changed_attribute=None,
-                      oldvalue=None, newvalue=None, **kwargs):
+                      oldvalue=None, newvalue=None, old_attributes=None, **kwargs):
         """Handle changes in an index.
 
         Two cases:
@@ -644,6 +634,7 @@ class CommandBuilderMixin(SqlMigratorBaseMixin):
             changed_attribute: Changed attribute.
             oldvalue: Previous value.
             newvalue: New value.
+            old_attributes: Attributes of the index in the DB.
         """
         table_dict = self.schema_tables(item['schema_name'])[item['table_name']]
         indexes_dict = table_dict['indexes']
@@ -656,8 +647,8 @@ class CommandBuilderMixin(SqlMigratorBaseMixin):
             else:
                 sql = f"ALTER INDEX {oldvalue} RENAME TO {newvalue};"
         else:
-            new_command = self.createIndexSql(item)
-            sql = f'DROP INDEX IF EXISTS {index_attributes["index_name"]};\n{new_command}'
+            drop_command = self.dropIndexSql(item['schema_name'], old_attributes['index_name'])
+            sql = f'{drop_command}\n{self.createIndexSql(item)}'
         indexes_dict[entity_name]['command'] = sql
 
     def changed_relation(self, item=None, changed_attribute=None,
@@ -709,7 +700,7 @@ class CommandBuilderMixin(SqlMigratorBaseMixin):
         relations_dict[f'add_{entity_name}']['command'] = f"ADD {add_sql}"
 
     def changed_constraint(self, item=None, changed_attribute=None,
-                           oldvalue=None, newvalue=None, **kwargs):
+                           oldvalue=None, newvalue=None, old_attributes=None, **kwargs):
         """Handle changes in a constraint.
 
         Logic similar to ``changed_relation``: if only the name changed
@@ -721,6 +712,7 @@ class CommandBuilderMixin(SqlMigratorBaseMixin):
             changed_attribute: Changed attribute.
             oldvalue: Previous value.
             newvalue: New value.
+            old_attributes: Attributes of the constraint in the DB.
         """
         table_dict = self.schema_tables(item['schema_name'])[item['table_name']]
         constraints_dict = table_dict['constraints']
@@ -744,7 +736,11 @@ class CommandBuilderMixin(SqlMigratorBaseMixin):
             columns=item['attributes']['columns']
         )
         constraints_dict[f'drop_{entity_name}']['command'] = (
-            f"DROP CONSTRAINT {constraint_attr['constraint_name']};"
+            self.db.adapter.struct_drop_constraint_sql(
+                constraint_name=old_attributes['constraint_name'],
+                schema_name=item['schema_name'],
+                table_name=item['table_name'],
+            )
         )
         constraints_dict[f'add_{entity_name}']['command'] = f"ADD {add_sql}"
 
@@ -824,6 +820,55 @@ class CommandBuilderMixin(SqlMigratorBaseMixin):
         constraints_dict[constraint_name] = {
             "command": f'ADD {sql}'
         }
+
+    def dropColumnUniqueness(self, col, table_dict):
+        """Generate the drop of every constraint and index making a column unique.
+
+        The names are the real ones read from the DB, which differ from
+        ``hashed_name()`` when the column was created by an older setup path.
+
+        Args:
+            col: Column dictionary with schema_name, table_name, entity_name.
+            table_dict: Table command dictionary.
+        """
+        schema_name = col['schema_name']
+        table_name = col['table_name']
+        unique_objects = self.dbExtractor.column_unique_objects.get(
+            (schema_name, table_name, col['entity_name']), []
+        )
+        for kind, object_name in unique_objects:
+            if kind == 'constraint':
+                table_dict['constraints'][f'drop_{object_name}'] = {
+                    "command": self.db.adapter.struct_drop_constraint_sql(
+                        constraint_name=object_name,
+                        schema_name=schema_name,
+                        table_name=table_name,
+                    )
+                }
+            else:
+                table_dict['indexes'][f'drop_{object_name}'] = {
+                    "command": self.dropIndexSql(schema_name, object_name)
+                }
+
+    def dropIndexSql(self, schema_name, index_name):
+        """Generate the DROP INDEX command for an index existing in the DB.
+
+        The name is qualified with its schema: an index outside
+        search_path would otherwise not be found, and IF EXISTS would
+        turn the drop into a silent no-op.
+
+        Args:
+            schema_name: Name of the schema holding the index.
+            index_name: Real name of the index in the DB.
+
+        Returns:
+            str: Complete DROP INDEX command.
+        """
+        adapter = self.db.adapter
+        return adapter.dropIndex(
+            adapter.adaptSqlName(index_name),
+            sqlschema=adapter.adaptSqlName(schema_name)
+        )
 
     def columnSql(self, col):
         """Generate the SQL definition of a column for a CREATE TABLE.

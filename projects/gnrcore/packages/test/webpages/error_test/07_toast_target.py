@@ -15,6 +15,7 @@ VERIFY:
 - [ ] Scale animation (pop-in) instead of slide-in
 - [ ] Auto-dismisses after the specified duration
 - [ ] Each target box shows its own positioned toast
+- [ ] The floating message fades in centered on its box, then fades out
 """
 
 
@@ -53,3 +54,12 @@ class GnrCustomWebPage(object):
                 onClose: function(){ alert('onClose callback fired!'); }
             });
         """)
+
+    def test_2_floating_message(self, pane):
+        """genro.dlg.floatingMessage: the older positioned message, centered on a source node
+
+        Unlike the toast it needs a source node to anchor to, its duration is in
+        SECONDS, not ms, and its messageType is message, error or warning."""
+        box = pane.borderContainer(height='300px', width='700px', _class='pbl_roundedGroup')
+        pane.button('Show message', box=box,
+                    action="genro.dlg.floatingMessage(box,{message:'Saving record',messageType:'error',duration:3})")

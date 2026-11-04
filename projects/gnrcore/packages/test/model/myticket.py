@@ -3,10 +3,11 @@ class Table(object):
         tbl = pkg.table('myticket', pkey='id', name_long='Ticket',
                         name_plural='Tickets', caption_field='subject',
                         rowcaption='subject')
-        self.sysFields(tbl)
+        self.sysFields(tbl, draftField=True)
         tbl.column('subject', name_long='Subject')
         tbl.column('description', name_long='Description')
         tbl.column('ticket_type', name_long='Ticket Type')
         tbl.column('ticket_date', dtype='D', name_long='Date')
         tbl.column('status', name_long='Status')
         tbl.column('extra_data', dtype='X', name_long='Extra Data')
+        tbl.column('wizard_step', name_long='Wizard step')

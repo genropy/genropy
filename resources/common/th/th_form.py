@@ -32,7 +32,7 @@ class TableHandlerForm(BaseComponent):
             grid =  pane.view.grid
             linkTo = grid
         #context_dbstore = pane.getInheritedAttributes().get('context_dbstore')
-        remoteForm = options.pop('remote',None) or (self.getPreference('experimental.remoteForm',pkg='sys'))
+        remoteForm = options.pop('remote',None) or self.application.experimentalValue('page', 'remoteForm')
         if formInIframe:
             remoteForm = False
         remotePars = dict()
@@ -216,7 +216,7 @@ class TableHandlerForm(BaseComponent):
         draftIfInvalid= options.pop('draftIfInvalid',False)
         allowSaveInvalid= options.pop('allowSaveInvalid',draftIfInvalid)
         avoidFloatingMessage= options.pop('avoidFloatingMessage',draftIfInvalid)
-        draftMarker = options.pop('draftMarker', False)
+        draftMarker = options.pop('draftMarker', 'bar')
         formCaption_kwargs = dictExtract(options,'formCaption_',pop=True) 
         formCaption = options.pop('formCaption',formCaption_kwargs)
 
@@ -236,7 +236,7 @@ class TableHandlerForm(BaseComponent):
 
         form.dataController(""" if(reason=='nochange'){return;}
                                 genro.dlg.alert(msg+' '+this.form.getRecordCaption()+': '+(reason=='invalid'?invalid:nochange),titledialog);""",
-                            reason="^.controller.save_failed",_if='reason',
+                            reason="^#FORM.controller.save_failed",_if='reason',
                             titledialog='!!Save failed',
                             msg='!!You cannot save',
                             invalid='!!Invalid record',
@@ -340,7 +340,8 @@ class TableHandlerForm(BaseComponent):
             treeslots = '2,left_placeholder,searchOn,*,treeSortingTool,right_placeholder,2'
             hviewPicker = tree_kwargs.get('picker')
             if hviewPicker:
-                treeslots = '2,left_placeholder,searchOn,*,treePicker,right_placeholder,2'
+                #keep treeSortingTool: it self-suppresses on tables without _row_count
+                treeslots = '2,left_placeholder,searchOn,*,treeSortingTool,treePicker,right_placeholder,2'
             tree_searchbar = bar.htreeSearchbar.slotToolbar(treeslots,searchOn=True,searchOn_searchCode=searchCode)
             tree_kwargs['searchCode'] = searchCode
             treeviewclass = tree_kwargs.get('_class')

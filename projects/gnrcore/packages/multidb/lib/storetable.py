@@ -1,4 +1,5 @@
 from gnr.app.gnrdbo import GnrDboTable
+from gnr.app import pkglog as logger
 
 
 class StoreTable(GnrDboTable):
@@ -70,7 +71,7 @@ class StoreTable(GnrDboTable):
                 tbl.insertMany(main_f)
             old_rec = dict(record)
         with self.db.tempEnv(storename=dbstore):
-            self.db.application.pkgBroadcast('onDbUpgrade,onDbUpgrade_*')
+            self.db.application.dbUpgradeBroadcast()
             self.db.table('adm.counter').initializeApplicationSequences()
         record['startup_data_ts'] = self.newUTCDatetime()
         self.update(record,old_rec)
@@ -82,4 +83,11 @@ class StoreTable(GnrDboTable):
     def trigger_onDeleted_multidb(self,record):
         if record['dbstore']:
             self.db.stores_handler.refresh_dbstores()
-            self.db.application.site.domains.remove(record['dbstore'])
+            site = self.db.application.site
+            site.domains.remove(record['dbstore'])
+            if site.multidomain:
+                domainIdentifier = site.get_domainIdentifier(record['dbstore'])
+                try:
+                    site.register.gnrdaemon_proxy.siteregister_stop(domainIdentifier)
+                except Exception:
+                    logger.exception('Unable to stop the site register of %s', domainIdentifier)

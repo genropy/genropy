@@ -40,6 +40,7 @@ from aiohttp import web
 from concurrent.futures import ProcessPoolExecutor
 
 from gnr.core.gnrbag import Bag
+from gnr.core.gnrdatetime import localnow
 from gnr.app.gnrapp import GnrApp
 from gnr.web.gnrwsgisite import GnrWsgiSite
 from gnr.web import logger
@@ -153,31 +154,17 @@ class GnrTask:
     def __post_init__(self):
         self.queue_name = self.queue_name if self.queue_name else "general"
 
-    async def completed(self, tasktbl, exectbl, run_id=None):
-        """
-        The task has been executed and acknowledged, update
-        the last execution timestamp accordingly
-        """
-        end_ts = datetime.now(timezone.utc)
-        
-        record = tasktbl.record(self.task_id).output('dict')
-        tasktbl.update(dict(last_execution_ts=end_ts),
-                       record)
-        tasktbl.db.commit()
-
-        if run_id:
-            record = exectbl.record(run_id).output('dict')
-            exectbl.update(dict(end_ts=end_ts),
-                           record)
-            exectbl.db.commit()
-        
-
     def is_due(self, timestamp=None, last_scheduled_ts=None):
         """
         Compute if the task is to be executed
         """
         if not timestamp:
-            timestamp = datetime.now(timezone.utc)
+            # The month/day/hour/minute entries of the schedule are local wall
+            # clock time as entered by the user, so they must be compared
+            # against a timestamp carrying the local offset. last_scheduled_ts
+            # stays UTC: it is the same instant, just written with a different
+            # offset, so the frequency branch below is unaffected.
+            timestamp = localnow()
 
         result = []
                 
@@ -185,7 +172,7 @@ class GnrTask:
             return '*'
 
         if self.schedule.get("frequency", None):
-            if last_scheduled_ts is None or (timestamp - last_scheduled_ts.replace(tzinfo=timezone.utc)).seconds/60. >= self.schedule.get('frequency'):
+            if last_scheduled_ts is None or (timestamp - last_scheduled_ts.replace(tzinfo=timezone.utc)).total_seconds()/60. >= self.schedule.get('frequency'):
                 return '*'
             else:
                 return False
@@ -196,7 +183,7 @@ class GnrTask:
         months =  list(map(int, self.schedule.get('month').split(','))) if self.schedule.get('month') else range(1,13)
         days = list(map(int, self.schedule.get('day').split(','))) if self.schedule.get('day') else range(1,32)
         hours = list(map(int, self.schedule.get('hour').split(','))) if self.schedule.get('hour') else range(0,24)
-        minutes = list(map(int, self.schedule.get('minute').split(','))) if self.schedule.get('minutes') else range(0,60)
+        minutes = list(map(int, self.schedule.get('minute').split(','))) if self.schedule.get('minute') else range(0,60)
 
         hm = []
         for h in hours:
@@ -285,12 +272,16 @@ class GnrTaskScheduler:
                                    x['last_scheduled_ts']]
         
     async def complete_task(self, task_id, run_id=None):
-        task = self.tasks.get(task_id)[0]
-        if task:
-            logger.info("Task %s completed, saving", task_id)
-            await task.completed(self.tasktbl, self.exectbl, run_id)
-        else:
-            logger.error("Task %s not found, can't complete", task_id)
+        """
+        Close the acknowledged run and record the task last execution.
+        The task may have been stopped or deleted while running, so the
+        in-memory schedule is not consulted: a missing row is left alone.
+        """
+        logger.info("Task %s completed, saving", task_id)
+        end_ts = datetime.now(timezone.utc)
+        self.exectbl.batchUpdate(dict(end_ts=end_ts), pkey=run_id)
+        self.tasktbl.batchUpdate(dict(last_execution_ts=end_ts), pkey=task_id)
+        self.db.commit()
             
     async def start_service(self):
         await self.load_configuration()
@@ -666,25 +657,30 @@ def execute_task(sitename, task):
 
     page = site.dummyPage
     site.currentPage = page
-    page._db = None
-    page.db
-    record = task['payload'] #{x[0]:x[1] for x in task['payload']}
-    task_class = tasktbl.getBtcClass(table=record['table_name'],
-                                     command=record['action'],
-                                     page=page
-                                     )
-    if task_class:
-        task_obj = task_class(page=page, resource_table=page.db.table(record['table_name']),
-                              batch_selection_savedQuery=record['saved_query_code'])
-        task_params = record.get('parameters', {})
-        with db.tempEnv(connectionName="execution"):
-            logger.info("Executing task %s - %s",
-                        record['table_name'],
-                        record['action'])
-            task_obj(parameters=Bag(task_params),task_execution_record=record)
-    else:
-        logger.error("Can't find task class for command %s", record['action'])
-            
+    try:
+        page._db = None
+        page.db
+        record = task['payload'] #{x[0]:x[1] for x in task['payload']}
+        task_class = tasktbl.getBtcClass(table=record['table_name'],
+                                         command=record['action'],
+                                         page=page
+                                         )
+        if task_class:
+            task_obj = task_class(page=page, resource_table=page.db.table(record['table_name']),
+                                  batch_selection_savedQuery=record['saved_query_code'])
+            task_params = record.get('parameters', {})
+            with db.tempEnv(connectionName="execution"):
+                logger.info("Executing task %s - %s",
+                            record['table_name'],
+                            record['action'])
+                task_obj(parameters=Bag(task_params),task_execution_record=record)
+        else:
+            logger.error("Can't find task class for command %s", record['action'])
+    finally:
+        # currentPage is thread local: an exception raised by the task must not
+        # leave this executor thread's entry behind forever (#379/#380)
+        site.currentPage = None
+
     try:
         with requests.Session() as session:
             resp = session.post(f"{GNR_SCHEDULER_URL}/ack", json={"run_id": task["run_id"]})

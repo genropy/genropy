@@ -26,6 +26,13 @@ class AutoTable(object):
 description = "an interactive helper utility for handling tables"
 
 def main():
+    parser = GnrCliArgParse(description=description)
+    parser.add_argument("instance_name")
+    parser.add_argument("-s", "--storename", dest="storename",
+                        default=None,
+                        help="Run the shell inside specifc storename")
+    options = parser.parse_args()
+    
     try:
         import jedi # noqa: F401
         print ("\n*** Note: jedi is installed, autocompletion may not work properly ***\n")
@@ -33,10 +40,6 @@ def main():
         # %config IPCompleter.use_jedi = False
     except:
         pass
-
-    parser = GnrCliArgParse(description=description)
-    parser.add_argument("instance_name")
-    options = parser.parse_args()
 
     gnrapp = GnrApp(options.instance_name)
     db = gnrapp.db
@@ -55,7 +58,11 @@ def main():
 
 
     # start IPython
-    embed(colors="neutral", display_banner=False)
+    if options.storename:
+        with db.tempEnv(storename=options.storename):
+            embed(colors="neutral", display_banner=False)
+    else:
+        embed(colors="neutral", display_banner=False)
 
 
 if __name__ == "__main__":

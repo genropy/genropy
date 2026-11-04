@@ -307,6 +307,17 @@ th_options (Form class)
 
     TODO
     
+    * draftMarker(bool or str): how the form marks a draft record:
+
+        * ``False``: no draft indication
+        * ``'bar'``: centred badge on the form toolbar (the TableHandler default)
+        * ``'tr'``, ``'tl'``, ``'br'``, ``'bl'``: ribbon in the top right, top left,
+          bottom right or bottom left corner
+        * ``True``: same as ``'tr'``, which is also what a form built outside the
+          TableHandler uses when draftMarker is not set
+
+      Any other value logs a console warning and is rendered as ``'bar'``.
+
     * linker(bool)
     * lockable(bool)
     * modal(bool)

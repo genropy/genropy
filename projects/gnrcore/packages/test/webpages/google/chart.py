@@ -144,10 +144,10 @@ class GnrCustomWebPage(object):
         struct = Bag()
         columns = Bag()
         columns.addItem('c1',None, field='activity', name='Activity')
-        columns.addItem('c2',None, field='duration', name='Duration')
+        columns.addItem('c2',None, field='duration', name='Duration', dtype='L')
         struct['columns'] = columns
         bc.data('.struct', struct)        
-        bc.contentPane(region='left', width='50%').GoogleChart('Timeline',
+        bc.contentPane(region='left', width='50%').GoogleChart('PieChart',
                                 height='500px',
                                 width='500px',
                                 border='1px solid silver',
@@ -155,7 +155,7 @@ class GnrCustomWebPage(object):
                                 storepath='.store',
                                 structpath='.struct', 
                                 chart_is3D=True)
-        bc.contentPane(region='center').GoogleChart('Timeline',
+        bc.contentPane(region='center').GoogleChart('PieChart',
                                 height='500px',
                                 width='500px',
                                 border='1px solid silver',

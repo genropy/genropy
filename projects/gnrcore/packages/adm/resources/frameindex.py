@@ -24,7 +24,7 @@ class FrameIndex(BaseComponent):
                    gnrcomponents/maintenance:MaintenancePlugin
                    """
     #gnrcomponents/datamover:MoverPlugin, removed
-    js_requires='frameindex'
+    js_requires='frameindex,adm_notification'
     css_requires='frameindex'
     
     custom_plugin_list = None
@@ -358,13 +358,17 @@ class FrameIndex(BaseComponent):
         if not (usergroup_documentation or documentationcb or helpcb):
             return
         menu = slot.menudiv("!!Help",iconClass='iconbox help',_class='largemenu noIconMenu')
-        if documentationcb or usergroup_documentation:
-            m = menu.menuline('!![en]Open documentation',code='documentation',
-                              documentationcb=documentationcb)
-            if usergroup_documentation:
-                m = m.menu(action="genro.openBrowserTab($1.url);")
-                for r in usergroup_documentation:
-                    m.menuline(r['title'],url=r['url'])
+        if usergroup_documentation:
+            m = menu.menuline('!![en]Open documentation',code='documentation')
+            m = m.menu(action="genro.openBrowserTab($1.url);")
+            if documentationcb:
+                m.menuline('!![en]Application documentation',action=documentationcb)
+                m.menuline('-')
+            for r in usergroup_documentation:
+                m.menuline(r['title'],url=r['url'])
+        elif documentationcb:
+            menu.menuline('!![en]Open documentation',code='documentation',
+                          action=documentationcb)
         if helpcb:
             menu.menuline('!![en]Ask for help',code='help',action=helpcb)
         
@@ -373,6 +377,7 @@ class FrameIndex(BaseComponent):
         if not self.avatar.group_code:
             return
         return self.db.table('adm.group_helpdoc').query(
+            columns='$url,@helpdoc_id.title AS title',
             where='$group_code=:gc',
             gc = self.avatar.group_code,
         ).fetch()
@@ -516,6 +521,7 @@ class FrameIndex(BaseComponent):
         if not (self.plugin_list or self.custom_plugin_list):
             return
         pane = bc.contentPane(region='left',splitter=True,width='210px',datapath='left',_lazyBuild=True,
+                                   drawer_animate=True,
                                    overflow='hidden',hidden=self.hideLeftPlugins,border_right='1px solid #eee')
         sc = pane.stackContainer(selectedPage='^.selected',nodeId='gnr_main_left_center',
                                 subscribe_open_plugin="""var plugin_name = $1.plugin;
@@ -547,6 +553,7 @@ class FrameIndex(BaseComponent):
 
     def prepareLeft_mobile(self,bc):
         frame = bc.framePane(region='left',width='100%',datapath='left',
+                                drawer_animate=True,
                                 overflow='hidden',hidden=self.hideLeftPlugins)
         frame.top.slotBar('*,close_icon,5'
                           ).close_icon.lightButton(_class='google_icon google_cancel',height='30px',width='30px',background_color='white',

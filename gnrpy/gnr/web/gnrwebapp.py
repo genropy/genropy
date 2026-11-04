@@ -80,6 +80,24 @@ class GnrWsgiWebApp(GnrApp):
         for record in records:
             self.notifyDbEvent(tblobj, record, 'U')
     
+    def subscribedTables(self, table=None):
+        """Whether *table* is observed by any live page — or the whole observed set.
+
+        The register answers from its reverse index, so the question costs a lookup
+        there. Here it is asked at most once per request and memoized in currentEnv,
+        which every writer has, page or not: batches and scheduled tasks write with
+        no current page and their events must reach the pages that are watching.
+        The env is reset at the start of each page (``clearCurrentEnv``), so the memo
+        dies with the request and a page subscribing meanwhile is picked up by the
+        next one.
+        """
+        currentEnv = self.db.currentEnv
+        subscribed = currentEnv.get('_subscribed_tables')
+        if subscribed is None:
+            subscribed = frozenset(self.site.allSubscribedTables() or ())
+            self.db.updateEnv(_subscribed_tables=subscribed)
+        return table in subscribed if table else subscribed
+
     def notifyDbEvent(self, tblobj, record, event, old_record=None,**kwargs):
         """TODO
         
@@ -92,7 +110,7 @@ class GnrWsgiWebApp(GnrApp):
         if not currentEnv.get('env_transaction_id'):
             self.db.updateEnv(env_transaction_id= getUuid())
         broadcast = tblobj.attributes.get('broadcast')
-        if broadcast is not False and broadcast != '*old*':
+        if broadcast is not False and broadcast != '*old*' and self.subscribedTables(tblobj.fullname):
             dbevents=currentEnv.setdefault(dbeventKey,{})
             r=dict(dbevent=event,pkey=record.get(tblobj.pkey),old_pkey=old_record.get(tblobj.pkey) if old_record else None)
             if broadcast and broadcast is not True:

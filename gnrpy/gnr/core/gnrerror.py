@@ -5,7 +5,7 @@ import linecache
 import json
 
 from gnr.core.gnrstructures import GnrStructData
-from gnr.core.gnrbag import Bag
+from gnr.core.gnrbag import Bag, BagResolver
 
 
 def _is_library_frame(filename):
@@ -61,6 +61,8 @@ def tracebackBag(limit=None, full_stack=False):
                     v = '*STRUCTURE*'
                 elif isinstance(v,Bag):
                     v = '*BAG*'
+                elif isinstance(v,BagResolver):
+                    v = '*RESOLVER* %s' % v.__class__.__name__
                 elif isinstance(v,(dict,list,tuple)):
 
                     json.dumps(v)

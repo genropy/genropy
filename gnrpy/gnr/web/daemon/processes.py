@@ -8,6 +8,10 @@ import threading
 
 from datetime import datetime
 from multiprocessing import Process, get_logger, cpu_count
+
+from gnr.web.gnrtask import GnrTaskScheduler
+from gnr.web import logger
+
 class GnrCronHandler(object):
     def __init__(self, parent, sitename=None, interval=None, 
         batch_queue=None, batch_pars=None, monitor_interval=None):
@@ -61,6 +65,56 @@ class GnrCronHandler(object):
             counter = 0
             if self.cron_process and not self.cron_process.is_alive():
                 self.startCronProcess()
+
+class GnrTaskSchedulerHandler(object):
+    def __init__(self, parent, sitename=None, monitor_interval=None):
+        self.parent = parent
+        self.sitename = sitename
+        self.monitor_interval = monitor_interval or 10
+        self.scheduler_process = None
+        self.monitor_thread = None
+        self.monitor_running = False
+
+    def start(self):
+        self.startSchedulerProcess()
+        self.monitor_running = True
+        self.monitor_thread = threading.Thread(target=self.monitorSchedulerProcess, daemon=True)
+        self.monitor_thread.start()
+
+    def terminate(self):
+        self.monitor_running = False
+        if self.scheduler_process and self.scheduler_process.is_alive():
+            self.scheduler_process.terminate()
+
+    def is_alive(self):
+        return bool(self.scheduler_process and self.scheduler_process.is_alive())
+
+    def startSchedulerProcess(self):
+        self.scheduler_process = Process(name='ts_%s' % self.sitename,
+                                         target=self.runSchedulerProcess,
+                                         args=(self.sitename,))
+        self.scheduler_process.daemon = True
+        self.scheduler_process.start()
+
+    @staticmethod
+    def runSchedulerProcess(sitename=None):
+        GnrTaskScheduler(sitename).start()
+
+    def monitorSchedulerProcess(self):
+        counter = 0
+        while self.monitor_running:
+            time.sleep(1)
+            counter += 1
+            if counter % self.monitor_interval:
+                continue
+            counter = 0
+            self.checkSchedulerProcess()
+
+    def checkSchedulerProcess(self):
+        if self.monitor_running and self.scheduler_process and not self.scheduler_process.is_alive():
+            logger.warning("Task scheduler of %s exited with code %s, restarting",
+                           self.sitename, self.scheduler_process.exitcode)
+            self.startSchedulerProcess()
 
 class GnrWorkerPool(object):
     def __init__(self, parent, sitename=None, workers=None, interval=None,loglevel=None, 
@@ -315,24 +369,37 @@ class GnrWorker(GnrRemoteProcess):
         batch_kwargs = item_value.get('batch_kwargs')
         page = self.site.resource_loader.get_page_by_id(page_id)
         self.site.currentPage = page
-        page.table_script_run(**batch_kwargs)
-        self.site.currentPage = None
+        try:
+            page.table_script_run(**batch_kwargs)
+        finally:
+            # currentPage is thread local: without the finally an exception
+            # would leave this worker thread's entry behind forever (#379/#380)
+            self.site.currentPage = None
 
     def run_task(self, item_value):
         task = item_value
         task_id = task['id']
         page = self.site.dummyPage
         self.site.currentPage = page
-        if not task['concurrent']:
-            with self.lock:
-                if task_id in self.execution_dict:
-                    self.logger.warn('Task {} already being executed by PID {} and not marked as concurrent'.format(task_id,self.execution_dict[task_id]))
-                    return
-                else:
-                    self.execution_dict[task_id] = os.getpid()
-        self.site.db.table('sys.task').runTask(task, page=page)
-        self.execution_dict.pop(task_id, None)
-        self.site.currentPage = None
+        registered = False
+        try:
+            if not task['concurrent']:
+                with self.lock:
+                    if task_id in self.execution_dict:
+                        self.logger.warn('Task {} already being executed by PID {} and not marked as concurrent'.format(task_id,self.execution_dict[task_id]))
+                        return
+                    else:
+                        self.execution_dict[task_id] = os.getpid()
+                        registered = True
+            self.site.db.table('sys.task').runTask(task, page=page)
+        finally:
+            # covers both the early return of the concurrency guard and any
+            # exception raised by runTask (#379/#380). Only the call that
+            # registered the task may pop it: on the guard's early return the
+            # entry belongs to the execution already running it
+            if registered:
+                self.execution_dict.pop(task_id, None)
+            self.site.currentPage = None
 
     def start(self):
         queue = self.batch_queue

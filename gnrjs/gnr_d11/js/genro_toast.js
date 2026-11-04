@@ -141,7 +141,12 @@ dojo.declare("gnr.GnrToast", null, {
 
         if(!persistent){
             var timer = setTimeout(function(){ self.dismiss(el); }, duration);
-            el.addEventListener('click', function(){
+            el.addEventListener('click', function(e){
+                /* A scrollable message owns its own clicks: dragging its
+                   scrollbar ends in a click on the card, which would dismiss
+                   the toast mid-read. */
+                var msg = e.target.closest ? e.target.closest('.gnr-toast-message') : null;
+                if(msg && msg.scrollHeight > msg.clientHeight){ return; }
                 clearTimeout(timer);
                 self.dismiss(el);
             });

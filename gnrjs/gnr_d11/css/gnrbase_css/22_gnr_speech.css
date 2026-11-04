@@ -1,24 +1,49 @@
 /* ==========================================================================
    22_gnr_speech.css — voice input mic button on widgets with speech=True
+
+   The wrapper is a one-cell grid holding both the field and the mic: they
+   share the same cell, so the mic overlays the field without absolute
+   positioning and without any offset to keep in sync. Only the size the field
+   asked for is moved onto the wrapper (in _attachSpeechButton); everything
+   else — stretching the field, reserving room for the mic, placing it — is
+   the grid's job, driven by the --field-adornment-* tokens.
    ========================================================================== */
 
+.gnr_speech_wrapper {
+    display: inline-grid;
+    grid-template: 1fr / 1fr;
+    vertical-align: top;
+}
+
+/* the field is the only other child: it stretches to the cell */
+.gnr_speech_wrapper > :not(.gnr_speech_button) {
+    grid-area: 1 / 1;
+    min-inline-size: 0;
+    min-block-size: 0;
+    box-sizing: border-box;
+    padding-inline-end: var(--field-adornment-reserve);
+}
+
 .gnr_speech_button {
-    position: absolute;
-    top: 2px;
-    right: 2px;
-    width: 22px;
-    height: 22px;
+    grid-area: 1 / 1;
+    justify-self: end;
+    align-self: start;
+    margin: var(--field-adornment-inset);
+    inline-size: var(--field-adornment-size);
+    block-size: var(--field-adornment-size);
     padding: 0;
     border: none;
-    border-radius: 50%;
+    border-radius: var(--radius-full);
     background-color: transparent;
     background-image: url('/_rsrc/common/css_icons/google_icons/mic.svg');
     background-repeat: no-repeat;
     background-position: center center;
-    background-size: 16px 16px;
+    background-size: var(--field-adornment-glyph);
+    /* grid items honour z-index: the cell editor raises the field to 1, so the
+       mic has to sit above it or it stops receiving clicks */
+    z-index: var(--z-local);
     cursor: pointer;
     opacity: 0.5;
-    z-index: 5;
     transition: opacity 0.15s, background-color 0.15s;
 }
 
@@ -33,8 +58,18 @@
     animation: gnr_speech_pulse 1.2s ease-in-out infinite;
 }
 
+.gnr_speech_button.gnr_speech_unavailable {
+    opacity: 0.25;
+    cursor: not-allowed;
+}
+
+.gnr_speech_button.gnr_speech_unavailable:hover {
+    opacity: 0.25;
+    background-color: transparent;
+}
+
 @keyframes gnr_speech_pulse {
-    0%   { box-shadow: 0 0 0 0   rgba(220, 53, 69, 0.55); }
-    70%  { box-shadow: 0 0 0 6px rgba(220, 53, 69, 0); }
-    100% { box-shadow: 0 0 0 0   rgba(220, 53, 69, 0); }
+    0%   { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.55); }
+    70%  { box-shadow: 0 0 0 calc(var(--field-adornment-size) / 4) rgba(220, 53, 69, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); }
 }

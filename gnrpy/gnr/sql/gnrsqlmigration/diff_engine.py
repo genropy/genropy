@@ -98,6 +98,8 @@ class DiffMixin(SqlMigratorBaseMixin):
         - ``changed_attribute``: name of the changed attribute
         - ``oldvalue``: previous value in the DB
         - ``newvalue``: new value from the ORM
+        - ``old_attributes``: all the attributes of the entity in the DB,
+          carrying its real name
         - ``entity``: entity type ("column", "table", etc.)
         - ``entity_name``: entity name
 
@@ -149,6 +151,7 @@ class DiffMixin(SqlMigratorBaseMixin):
                     kw['changed_attribute'] = changed_attribute
                     kw['oldvalue'] = old_attributes.get(changed_attribute)
                     kw['newvalue'] = new_attributes.get(changed_attribute)
+                    kw['old_attributes'] = old_attributes
                     kw['entity'] = item['entity']
                     kw['entity_name'] = item['entity_name']
                     yield 'changed', kw

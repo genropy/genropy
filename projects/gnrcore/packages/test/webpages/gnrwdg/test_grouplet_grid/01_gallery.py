@@ -5,8 +5,9 @@
   test_02_todolist_handler       — handler= callable (not a resource file)
   test_03_invoice_responsive     — same rows, cols=3 + min_width
                                    (responsive: reflow with viewport width)
-  test_04_kanban_dnd             — 3 grids sharing dragCode='kanban',
-                                   cross-grid drag of editable cards
+  test_04_kanban_dnd             — 4 grids sharing dragCode='kanban'
+                                   (one starts empty), cross-grid drag of
+                                   editable cards
   test_05_team_tabs              — team roster with a layout picker:
                                    horizontal tabs / vertical tabs / cards
                                    (`layout='tabs'|'vtabs'|'cards'`),
@@ -160,14 +161,15 @@ class GnrCustomWebPage(object):
                           defaultRow=dict(qty=1, price=0))
 
     def test_04_kanban_dnd(self, pane):
-        """3-column kanban board with cross-grid drag-and-drop.
+        """4-column kanban board with cross-grid drag-and-drop.
 
         Each column is its own groupletGrid; all share `dragCode='kanban'`
         so a card can be dragged across columns to advance through the
-        workflow. Drop on a card inserts before it; drop on free space
-        (or on an empty column) appends. Each card is fully editable
-        inline — title, priority (filteringSelect with coloured dots),
-        assignee, and due date.
+        workflow. The "Archive" column starts empty. Drop on a card
+        inserts relative to it; drop on a column's "+" appends at the tail
+        (or makes it the first row when the column is empty). Each card is
+        fully editable inline — title, priority (filteringSelect with
+        coloured dots), assignee, and due date.
         """
         d = datetime.date
         todo = Bag()
@@ -197,19 +199,29 @@ class GnrCustomWebPage(object):
                                        assignee='@marta',
                                        priority='high',
                                        due=d(2026, 5, 9))))
+        # Archive starts EMPTY: it exercises the append-on-"+" drop.
+        # Dragging a card onto a column's "+" lands it as the first row
+        # when the column is empty, or appends at the tail otherwise —
+        # the "+" is the drop target, not the rows.
+        archive = Bag()
         pane.data('.kanban_todo', todo)
         pane.data('.kanban_wip', wip)
         pane.data('.kanban_done', done)
+        pane.data('.kanban_archive', archive)
         pane.div('Test 04: kanban board — drag cards across columns to '
-                 'advance their state. All columns share dragCode="kanban".',
+                 'advance their state. All columns share dragCode="kanban". '
+                 'Drop a card on a column\'s "+" to append it (it becomes '
+                 'the first row of the empty "Archive" column); drop on a '
+                 'card to insert relative to it.',
                  color='#666', font_style='italic', margin_bottom='8px')
         board = pane.div(display='grid',
-                         grid_template_columns='1fr 1fr 1fr',
+                         grid_template_columns='1fr 1fr 1fr 1fr',
                          gap='12px',
                          align_items='start')
         for label, store in [('To do', '.kanban_todo'),
                              ('In progress', '.kanban_wip'),
-                             ('Done', '.kanban_done')]:
+                             ('Done', '.kanban_done'),
+                             ('Archive', '.kanban_archive')]:
             col = board.div(_class='gg-kanban-col',
                             background='var(--surface-alt, #f4f6f9)',
                             border_radius='6px',

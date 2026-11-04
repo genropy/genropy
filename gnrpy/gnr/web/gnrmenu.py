@@ -31,6 +31,7 @@ from gnr.core.gnrbag import Bag,BagResolver
 from gnr.core.gnrlang import objectExtract
 from gnr.core.gnrstring import slugify
 from gnr.core.gnrdecorator import extract_kwargs
+from gnr.web import logger
 
 class BaseMenu(object):
     def __init__(self,page) -> None:
@@ -108,6 +109,22 @@ class MenuStruct(GnrStructData):
     def webpage(self, label,filepath=None,tags='',multipage=None, **kwargs):
         return self.child('webpage',label=label,multipage=multipage,tags=tags,
                         filepath=filepath,_returnStruct=False,**kwargs)
+
+    def docpage(self, label,source=None,tags='', **kwargs):
+        """Add a public document to the menu.
+
+        source is a storage path (e.g. ``pkg:test/resources/doc.html``) or an
+        absolute http(s) URL, resolved through the built-in ``_http_`` service.
+        With a remote URL the delivery caveats are the remote server's, not
+        ours: ``X-Frame-Options``/``frame-ancestors`` yield a blank frame with
+        no warning, an ``http`` URL under an ``https`` app is blocked as mixed
+        content, and the ``nocache`` cache-buster is silently ignored.
+
+        The tags argument controls menu visibility only; it does not restrict
+        access to the document URL, so source must not contain confidential data.
+        """
+        return self.child('docpage',label=label,source=source,tags=tags,
+                        _returnStruct=False,**kwargs)
 
     def thpage(self, label=None,table=None,tags='',multipage=True, **kwargs):
         return self.child('thpage',label=label,table=table,
@@ -320,7 +337,9 @@ class MenuResolver(BagResolver):
             titleCounter_val = attributes.get('titleCounter')
             menuLineBadge = attributes.get('menuLineBadge')
             menuLineBadge_attr = {}
-            if (titleCounter_val or menuLineBadge) and menuTag != 'tableBranch':
+            # a tableBranch counts its own children in nodeType_tableBranch
+            childCountBadge = menuTag == 'tableBranch' and (titleCounter_val or menuLineBadge == '#')
+            if (titleCounter_val or menuLineBadge) and not childCountBadge:
                 if menuLineBadge:
                     menuLineBadge_attr = dictExtract(attributes,'menuLineBadge_',pop=False)
                     menuLineBadge_attr['table'] = menuLineBadge_attr.get('table') or attributes.get('table')
@@ -446,14 +465,22 @@ class MenuResolver(BagResolver):
         attributes = dict(node.attr)
         return None,attributes
 
-    def checkContextParameters(self,attributes):
+    def checkContextParameters(self,attributes,absolute_webpage=False):
         externalSite = attributes.get('externalSite') or self.externalSite
-        if externalSite:
+        if externalSite and not absolute_webpage:
             externalSite = self._page.site.config['externalSites'].getAttr(externalSite)['url']
             attributes['webpage'] = f"{externalSite}{attributes['webpage']}"
         tenant_schema = attributes.pop('tenant_schema',None)
         if  tenant_schema is not None:
             attributes['url_env_tenant_schema'] = '_main_' if tenant_schema is False else tenant_schema
+
+    def _finalizePageAttributes(self,attributes,absolute_webpage=False):
+        webpage = attributes.get('webpage')
+        aux_instance = attributes.get('aux_instance') or self.aux_instance
+        if webpage and self.basepath and not absolute_webpage and not webpage.startswith('/'):
+            attributes['webpage'] = f"{self.basepath}/{webpage}"
+        attributes['url_aux_instance'] = aux_instance
+        self.checkContextParameters(attributes,absolute_webpage=absolute_webpage)
 
     def nodeType_webpage(self,node):
         attributes = dict(node.attr)
@@ -461,11 +488,25 @@ class MenuResolver(BagResolver):
         webpage = attributes['webpage'] 
         if webpage and not self._page.checkPermission(webpage):
             raise NotAllowedException('Not allowed page')
-        aux_instance = attributes.get('aux_instance') or self.aux_instance
-        if webpage and self.basepath and not webpage.startswith('/'):
-            attributes['webpage'] = f"{self.basepath}/{webpage}" 
-        attributes['url_aux_instance'] = aux_instance
-        self.checkContextParameters(attributes)
+        self._finalizePageAttributes(attributes)
+        return None,attributes
+
+    def nodeType_docpage(self,node):
+        attributes = dict(node.attr)
+        source = attributes.pop('source',None)
+        attributes.pop('externalSite',None)
+        try:
+            storage_node = self._page.site.storageNode(source) if source else None
+            webpage = storage_node.public_url(nocache=True) if storage_node else None
+        except Exception as error:
+            logger.warning("Cannot resolve docpage source %r: %s",source,error)
+            raise NotAllowedException('Invalid document source') from error
+        if not webpage:
+            logger.warning("Cannot resolve docpage source %r",source)
+            raise NotAllowedException('Invalid document source')
+        attributes['webpage'] = webpage
+        attributes['nonGenroContent'] = True
+        self._finalizePageAttributes(attributes,absolute_webpage=True)
         return None,attributes
 
     def nodeType_lookupBranch(self,node):
@@ -554,11 +595,17 @@ class MenuResolver(BagResolver):
         kwargs = dict(attributes)
         kwargs.pop('titleCounter',None)
         kwargs.pop('menuLineBadge',None)
+        kwargs.pop('badgeClass',None)
+        dictExtract(kwargs,'menuLineBadge_',pop=True)
         kwargs.pop('tag')
         cacheTime = kwargs.pop('cacheTime',None)
         xmlresolved = kwargs.pop('resolved',False)
+        refreshOnTables = kwargs.pop('refreshOnTables',None)
         attributes.pop('branchPage',None)
         self._page.subscribeTable(kwargs['table'],True,subscribeMode=True)
+        for tbl in (refreshOnTables or '').split(','):
+            if tbl.strip():
+                self._page.subscribeTable(tbl.strip(),True,subscribeMode=True)
         titleCounter = attributes.get('titleCounter')
         menuLineBadge = attributes.get('menuLineBadge')
         xmlresolved=titleCounter is not None
@@ -610,6 +657,9 @@ class MenuResolver(BagResolver):
 
 
 class TableMenuResolver(MenuResolver):
+    # keys returned by menu_dynamicMenuLine that style the menu line instead of its url
+    node_attributes = ('customLabelClass','badgeContent','badgeClass')
+
     @extract_kwargs(query=True,add=True)
     def __init__(self, table=None,branchId=None, branchMethod=None,webpage=None,
                         branchIdentifier=None, cacheTime=None,caption_field=None,branchPage=None,
@@ -675,6 +725,7 @@ class TableMenuResolver(MenuResolver):
         else:
             linekw.setdefault('title',self.title or self.label)
         linekw.update(kwargs)
+        nodekw = {k:linekw.pop(k) for k in self.node_attributes if k in linekw}
         webpage = kwargs.get('webpage') or self.webpage
         if webpage:
             start_pkey = None
@@ -694,7 +745,7 @@ class TableMenuResolver(MenuResolver):
             result.webpage(label = label,branchPage=self.branchPage,start_pkey=start_pkey,title=title,
                            url_pkey=url_pkey,filepath=webpage,
                            pageName=pageName,**{f'url_{k}':v for k,v in linekw.items()},
-                           **self.leaf_kwargs)
+                           **dict(self.leaf_kwargs,**nodekw))
         else:
             linekw.update(objectExtract(self,'th_',slicePrefix=False))
             branchPage = True if self.branchPage is None else self.branchPage
@@ -706,6 +757,7 @@ class TableMenuResolver(MenuResolver):
                 linekw['pkey'] = record['pkey']    
                 linekw['title'] = record.get(self.title_field)
                 linekw['pageName'] = record['pkey']
+            linekw.update(nodekw)
             result.thpage(table=self.table,**linekw)
 
 
@@ -774,24 +826,26 @@ class PackageMenuResolver(MenuResolver):
 
 
 class DirectoryMenuResolver(MenuResolver):
-    def __init__(self, dirpath=None, **kwargs):
-        super().__init__(dirpath=dirpath,**kwargs)
+    def __init__(self, dirpath=None, folder=None, **kwargs):
+        super().__init__(dirpath=dirpath,folder=folder,**kwargs)
         self.dirpath = dirpath
+        self.folder = folder or ''
         self.xmlresolved = False
 
     @property
     def sourceBag(self):
         result = MenuStruct(page=self._page)
+        folder = self.folder or ''
         if self.pkg:
-            folderSN = self._page.site.storageNode(f'pkg:{self.pkg}/webpages',self.folder)
+            folderSN = self._page.site.storageNode(f'pkg:{self.pkg}/webpages',folder)
         else:
-            folderSN = self._page.site.storageNode(f'site:webpages',self.folder)
-        for sn in folderSN.children():
+            folderSN = self._page.site.storageNode('site:webpages',folder)
+        for sn in folderSN.children() or []:
             if sn.isfile and sn.ext=='py':
                 filepath = sn.path.replace('.py','').replace('webpages/','')
                 result.webpage(sn.cleanbasename.replace('_',' ').title(),
                                 filepath=f"/{filepath}")
-            elif sn.isdir and sn.basename!='__pycache__':
+            elif sn.isdir and not sn.basename.startswith('_'):
                 result.directoryBranch(sn.cleanbasename.replace('_',' ').title(),
                                         folder=sn.path.replace(f'{self.pkg}/webpages',''),pkg=self.pkg)
         return result

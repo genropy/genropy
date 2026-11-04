@@ -57,7 +57,7 @@ var genro_plugin_groupth = {
                 if(n.attr.group_aggr){
                     f += '_'+n.attr.group_aggr.replace(/\W/g, '_').toLowerCase();
                 }
-                cell = objectExtract(n.attr,'field,queryfield,group_aggr',true);
+                cell = objectExtract(n.attr,'field,queryfield,group_aggr,group_empty,hierarchical_field_of',true);
                 cell.field_getter = f;
                 cell.original_field = cell.field;
                 cell.dtype = n.attr.dtype;
@@ -95,11 +95,18 @@ var genro_plugin_groupth = {
                 if(typeof(value)!='string'){
                     description = _F(description);
                 }
-                kl.push(flattenString(description,['.','?','#']));
-                treepath = kl.join('.');
-                if(!treedata.getNode(treepath)){
-                    treedata.setItem(treepath,null,{'description':description,_cell:cell,value:value});
+                let segments = [description];
+                if(cell.hierarchical_field_of && typeof(value)=='string' && value!=(cell.group_empty || '[NP]')){
+                    segments = value.split('/');
                 }
+                segments.forEach(function(segment,idx){
+                    kl.push(flattenString(segment,['.','?','#']));
+                    treepath = kl.join('.');
+                    if(!treedata.getNode(treepath)){
+                        treedata.setItem(treepath,null,{description:segment,_cell:cell,
+                                        value:segments.length>1?segments.slice(0,idx+1).join('/'):value});
+                    }
+                });
             });
             objectUpdate(treedata.getAttr(kl),row);
         });
@@ -110,7 +117,7 @@ var genro_plugin_groupth = {
     updateTreeTotals:function(treeData,formulalist){
         var that = this;
         let firstNode = treeData.getNode('#0');
-        if(treeData.len()==1 && firstNode.label=='[NP]'){
+        if(treeData.len()==1 && firstNode.label=='[NP]' && firstNode.getValue()){
             treeData = firstNode.getValue()
         }
         treeData.forEach(function(n){
@@ -144,12 +151,17 @@ var genro_plugin_groupth = {
         });
     },
     updateTotalsAttr:function(currAttr,attr){
+        let own_count = currAttr._grp_count_sum || 0;
         for(let k in attr){
             if(k.endsWith('_sum')){
                 currAttr[k] = (currAttr[k] || 0)+attr[k];
             }else if(k.endsWith('_avg')){
-                currAttr[k+'_avg_cnt'] = (currAttr[k+'_avg_cnt'] || 0)+attr._grp_count_sum;
-                currAttr[k+'_avg_s'] = (currAttr[k+'_avg_s'] || 0)+attr[k]*attr._grp_count_sum;
+                if(!(k+'_avg_cnt' in currAttr)){
+                    currAttr[k+'_avg_cnt'] = own_count;
+                    currAttr[k+'_avg_s'] = (currAttr[k] || 0)*own_count;
+                }
+                currAttr[k+'_avg_cnt'] += attr._grp_count_sum;
+                currAttr[k+'_avg_s'] += attr[k]*attr._grp_count_sum;
                 currAttr[k] = currAttr[k+'_avg_s']/currAttr[k+'_avg_cnt'];
             }else if(k.endsWith('_min')){
                 currAttr[k] = Math.min(k in currAttr? currAttr[k]:attr[k],attr[k]);
@@ -300,15 +312,25 @@ var genro_plugin_groupth = {
         });
         return {'struct':resultStruct,'store':resultStore};
     },
+    addGridColumnCb:function(grid,kw){
+        var sourceGrid = genro.wdgById(kw.data.gridId);
+        if(!sourceGrid || sourceGrid===grid || sourceGrid.sourceNode.attr.table!=grid.sourceNode.attr.table){
+            return;
+        }
+        var cell = sourceGrid.cellmap[kw.data.field];
+        if(!cell || cell.calculated){
+            return;
+        }
+        this.addColumnCb(grid,{column:kw.column,data:{fieldpath:cell.caption_field || cell.original_field,
+                                                     dtype:cell.caption_field?'T':cell.dtype,
+                                                     fullcaption:cell.original_name || cell.name,
+                                                     hierarchical_field_of:cell.hierarchical_field_of}});
+    },
+
     addColumnCb:function(grid,kw){
-        var treeNode = kw.treeNode;
         var data = kw.data;
         var column = kw.column;
         var fieldcellattr = kw.fieldcellattr;
-        var n = treeNode.getRelativeData(treeNode.attr.storepath).getNode(data.fieldpath);
-        /* if(n && n.attributeOwnerNode('mode','M')){
-            genro.publish('floating_message',{messageType:'warning',message:_T('This kind of relation is not allowed in group by totalization')});
-        } */
         var dtype = data.dtype;
         var that = this;
         var dflt = new gnr.GnrBag(data);

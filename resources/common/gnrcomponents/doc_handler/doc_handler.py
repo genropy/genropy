@@ -124,7 +124,7 @@ class DocHandler(BaseComponent):
         editorpane = sc.contentPane(pageName='editor',datapath='.record',title='!!Edit',iconTitle='icnBottomEditor',overflow='hidden')
         palette = editorpane.imgPickerPalette(code=code,folders='^#FORM.imgFolders',dockTo='dummyDock',externalSnapshot=True)
         palette.dataController("this.getParentWidget('floatingPane').show()",_fired='^#FORM.showImagesPicker');
-        editorpane.ckeditor(value='^.body',config_contentsCss=cssurl,toolbar='standard') 
+        editorpane.joditEditor(value='^.body',contentsCss=cssurl,toolbar='standard',height='100%')
         return form
 
     @public_method

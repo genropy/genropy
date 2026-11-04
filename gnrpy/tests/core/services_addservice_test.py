@@ -42,6 +42,8 @@ def make_site():
         debug=False,
         getStatic=lambda name: None,
         default_page=None,
+        gnrapp=SimpleNamespace(packages={}, experimentalFlag=lambda group, name: False),
+
     )
     site.resource_loader = ResourceLoader(site)
     site.resources_dirs = [COMMON_RESOURCES]
@@ -68,7 +70,6 @@ def test_add_service_missing_implementation_raises_clear_error():
     assert service is not None
     with pytest.raises(GnrException, match='faketype'):
         service.anymethod()
-
 
 def test_add_service_ignores_parameters_the_factory_does_not_accept(caplog):
     """authentication/dummy declares no **kwargs: a foreign key must not break it."""

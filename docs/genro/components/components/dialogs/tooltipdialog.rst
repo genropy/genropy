@@ -15,7 +15,7 @@ TooltipDialog
     
         Dojo modified!! --> TODO add all the difference respect to the Dojo tooltipdialog!
         
-        --> check test15/gnrwdg/tooltipDialog
+        --> check test/webpages/gnrwdg/tooltipDialog.py
         
         per farlo comparire --> il valore di *evt*, oppure all'unione di *evt* e di *modifiers*
         

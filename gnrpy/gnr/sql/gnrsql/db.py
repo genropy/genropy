@@ -173,6 +173,16 @@ class GnrSqlDb(
             'missedCommit': GnrMissedCommitException,
         }
 
+    @property
+    def default_language(self):
+        """Return the default language for database localization.
+        
+        :returns: the first language code from db languages config, or None
+        """
+        db_languages = self.extra_kw.get('languages')
+        db_languages = db_languages.split(',') if db_languages else []
+        return db_languages[0].lower() if db_languages else None
+
     # -- Encryption ----------------------------------------------------------
 
     @property

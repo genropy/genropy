@@ -1,5 +1,5 @@
 import datetime
-    
+
 import pytest
 from gnr.core import gnrlist as gl
 
@@ -153,8 +153,6 @@ def test_sortByItem():
     assert "Wayne" in res[-1]['company']['name']
     res = gl.sortByItem(test_l, "company.name:d*", hkeys=True)
     assert "Wayne" in res[0]['company']['name']
-    
-        
 def test_sortByAttr():
     class MockObj(object):
         a = 1
@@ -171,9 +169,6 @@ def test_sortByAttr():
     m1.a = MockObj()
     m2 = MockObj()
     m2.a = MockObj()
-
-
-
 
 def test_hGetAttr():
     """Test hierarchical attribute getter"""
@@ -204,8 +199,6 @@ def test_hGetAttr():
     # Nested None
     obj.profile = None
     assert gl.hGetAttr(obj, 'profile.city') is None
-
-
 
 
 def test_GnrNamedList_extractMethods():
@@ -254,7 +247,6 @@ def test_GnrNamedList_dynamic_columns():
 
 
 
-
 def test_GnrNamedList_iteritems():
     """Test iteritems method"""
     index = {'name': 0, 'age': 1, 'city': 2}
@@ -292,7 +284,6 @@ def test_sortByItem_case_insensitive():
     assert result[0]['name'] == 'alice'
     assert result[1]['name'] == 'bob'
     assert result[2]['name'] == 'Charlie'
-
 
 
 def test_GnrNamedList_sql_adapter_compatibility():
@@ -384,4 +375,3 @@ def test_GnrNamedList_mixed_access_patterns():
     # Pattern 5: Enumerate
     for i, value in enumerate(row):
         assert row[i] == value
-

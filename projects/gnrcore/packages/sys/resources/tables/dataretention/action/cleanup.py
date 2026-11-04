@@ -11,5 +11,5 @@ class Main(BaseResourceAction):
     batch_steps = 'main'
     batch_cancellable = False
     
-    def steps_main(self):
+    def step_main(self):
         self.db.application.executeRetentionPolicy(dry_run=False)
