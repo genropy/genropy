@@ -151,7 +151,7 @@ def _pg_dbname(request, implementation):
     return '%s_%s' % (module, implementation)
 
 
-def _db_pg(request, implementation):
+def _db_pg(request, implementation, instance='test_invoice'):
     """A module's postgres database, built fresh and dropped afterwards.
 
     No skip on failure: postgres is a required part of this suite, and a run
@@ -162,7 +162,7 @@ def _db_pg(request, implementation):
     dbname = _pg_dbname(request, implementation)
     app = None
     try:
-        app = GnrApp('test_invoice', db_attrs=dict(
+        app = GnrApp(instance, db_attrs=dict(
             implementation=implementation,
             dbname=dbname,
             **pg_conf,

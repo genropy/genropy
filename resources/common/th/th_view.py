@@ -353,13 +353,14 @@ class TableHandlerView(BaseComponent):
             statsEnabled = True if extendedQuery else False
         statsSlot = 'stats' if statsEnabled else False
         vhelp = 'vhelp' if self.inlineDoc else False
+        tableAudit = 'tableAudit' if self.db.table(table).attributes.get('audit') == 'external' else False
         if extendedQuery:
             if 'adm' in self.db.packages and not self.isMobile:
                 templateManager = 'templateManager'
             else:
                 templateManager = False
             if extendedQuery == '*':
-                base_slots = ['5','fastQueryBox','runbtn','queryMenu','viewsMenu','5','filterSelected,menuUserSets','15','export','importer','resourcePrints','resourceMails','resourceActions',batchAssign,'5',templateManager,'stats','advancedTools','10',pageHooksSelector,'*']
+                base_slots = ['5','fastQueryBox','runbtn','queryMenu','viewsMenu','5','filterSelected,menuUserSets','15','export','importer','resourcePrints','resourceMails','resourceActions',batchAssign,'5',templateManager,'stats',tableAudit,'advancedTools','10',pageHooksSelector,'*']
                 if self.deviceScreenSize=='phone':
                     base_slots = ['5','fastQueryBox','runbtn','queryMenu','viewsMenu',statsSlot,'export','resourcePrints','resourceMails,5',pageHooksSelector,'*']
             elif extendedQuery is True:
@@ -372,7 +373,7 @@ class TableHandlerView(BaseComponent):
             top_kwargs['_class']='mobileTemplateGridTop'
         elif not virtualStore:
             if root_tablehandler:
-                base_slots = ['5','searchOn','5','count','viewsMenu','5','menuUserSets','*','export','5',statsSlot,'advancedTools','10',pageHooksSelector,'5','resourcePrints','resourceMails','resourceActions',batchAssign,'10']
+                base_slots = ['5','searchOn','5','count','viewsMenu','5','menuUserSets','*','export','5',statsSlot,tableAudit,'advancedTools','10',pageHooksSelector,'5','resourcePrints','resourceMails','resourceActions',batchAssign,'10']
                 if searchOn is False:
                     base_slots.remove('searchOn')
             else:
@@ -1085,6 +1086,13 @@ class TableHandlerView(BaseComponent):
                         action="genro.nodeById('{gridId}').publish('open_print_editor',{{new:true}});".format(gridId=gridId))
         return result
         
+    @struct_method
+    def th_slotbar_tableAudit(self,pane,**kwargs):
+        inattr = pane.getInheritedAttributes()
+        self.mixinComponent('audit_components:AuditHistory')
+        pane.tableHistoryPalette(paletteCode='%s_tableHistory' %(inattr.get('th_root') or inattr['frameCode']),
+                                 table=inattr.get('table') or pane.frame.grid.attributes.get('table'))
+
     @struct_method
     def th_slotbar_resourceActions(self,pane,**kwargs):
         pane.menudiv(iconClass='iconbox gear',storepath='.resources.action.menu',
