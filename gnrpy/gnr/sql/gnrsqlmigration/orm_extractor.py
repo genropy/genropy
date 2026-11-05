@@ -20,8 +20,9 @@ The extraction proceeds in this order::
         |               +-- fill_json_column(colobj)
         |               |   +-- convert_colattr()  -> normalizes dtype/size
         |               +-- fill_json_relations_and_indexes(colobj)
-        |                   +-- fill_json_relation()  -> foreign key
-        |                   +-- fill_json_column_index()  -> index
+        |               |   +-- fill_json_relation()  -> foreign key
+        |               |   +-- fill_json_column_index()  -> index
+        |               +-- fill_json_table_index()  -> tbl.index()
         |
         +-- add_tenant_schemas()  -> replicate multi-tenant tables
         |
@@ -178,6 +179,16 @@ class OrmExtractor:
         for compositecol in tblobj.composite_columns.values():
             self.fill_json_relations_and_indexes(compositecol, tenant_schema=tenant_schema)
             self.fill_multiple_unique_constraint(compositecol, tenant_schema=tenant_schema)
+
+        # Table-level indexes declared with tbl.index()
+        indexes_src = self.db.model.src[
+            'packages.%s.tables.%s.indexes' % (tblobj.pkg.name, tblobj.name)
+        ]
+        if indexes_src:
+            for idxnode in indexes_src:
+                self.fill_json_table_index(
+                    tblobj, idxnode.attr, tenant_schema=tenant_schema
+                )
         self.fill_json_sql_scripts(table_entity, tblobj, schema_name,
                                    table_name=table_name, tenant_schema=tenant_schema)
 
@@ -209,6 +220,51 @@ class OrmExtractor:
                 f'not {self.db.implementation}')
         entity['attributes']['sql_md5'] = hashlib.md5(script.encode('utf-8')).hexdigest()
         self.sql_scripts[(schema_name, table_name)] = script
+
+    def fill_json_table_index(self, tblobj, idxattr, tenant_schema=None):
+        """Create an index item for an index declared with ``tbl.index()``.
+
+        The declared indexes are read from the model source: the compiled
+        ``tbl.indexes`` also holds the indexes the model derives from
+        columns with ``indexed``/``unique`` and from relations, which
+        ``fill_json_relations_and_indexes`` already extracts with its own
+        rules. An existing item with the same key is never replaced.
+
+        Column names are converted to their sqlname. An index on exactly
+        the primary key columns is skipped (the PK already creates one).
+        A unique index on a single column becomes the column's ``unique``
+        attribute, as ``DbExtractor`` reads it from the DB.
+
+        Indexes created by the legacy checker carry the name
+        ``<table>_<columns>_idx``: they hash to the same key, and with
+        ``ignore_constraint_name`` only their name differs.
+
+        Args:
+            tblobj: Genropy table object.
+            idxattr: Attributes of the index source node
+                (``columns``, ``unique``).
+            tenant_schema: Alternative tenant schema.
+        """
+        table_name = tblobj.sqlname
+        schema_name = tenant_schema or tblobj.pkg.sqlname
+        table_json = self.schemas[schema_name]['tables'][table_name]
+        columns = [
+            tblobj.column(col.strip()).sqlname
+            for col in idxattr['columns'].split(',')
+        ]
+        if ','.join(columns) == table_json['attributes']['pkeys']:
+            return
+        unique = idxattr.get('unique')
+        if unique and len(columns) == 1:
+            table_json['columns'][columns[0]]['attributes']['unique'] = True
+            return
+        attributes = dict(columns=dict.fromkeys(columns), with_options={})
+        if unique:
+            attributes['unique'] = True
+        index_item = new_index_item(
+            schema_name, table_name, columns, attributes=attributes
+        )
+        table_json["indexes"].setdefault(index_item["entity_name"], index_item)
 
     def fill_json_column(self, colobj, tenant_schema=None):
         """Process a single ORM column and add it to the JSON structure.

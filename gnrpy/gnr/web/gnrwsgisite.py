@@ -81,6 +81,11 @@ class GnrSiteException(GnrException):
     description = '!!Genro Site exception'
     caption = "!! Site Error : %(message)s"
 
+class GnrUploadException(GnrException):
+    code = 'GNRSITE-002'
+    description = '!!Upload failed'
+    caption = '!!Upload of %(filename)s failed: %(reason)s'
+
 class GnrWebServerError(Exception):
     pass
 
@@ -2178,6 +2183,9 @@ class GnrWsgiSite(object):
         if not file_ext:
             filename = '%s%s' %(filename,original_ext)
             file_ext = original_ext
+        if not content:
+            raise GnrUploadException(filename=filename, reason='!!the file is empty',
+                                     localizer=self.gnrapp.localizer)
         file_node = self.storageNode(uploadPath, filename,autocreate=-1)
         service = file_node.service
         storage_params = self.storage_handler.getStorageParameters(service.service_name) or {}
@@ -2189,6 +2197,9 @@ class GnrWsgiSite(object):
         file_url = file_node.internal_url()
         with file_node.open(mode='wb') as outfile:
             outfile.write(content)
+        if not file_node.exists or file_node.size != len(content):
+            raise GnrUploadException(filename=filename, reason='!!the file was not stored completely',
+                                     localizer=self.gnrapp.localizer)
         return file_path,file_url
 
     def zipFiles(self, file_list=None, zipPath=None):

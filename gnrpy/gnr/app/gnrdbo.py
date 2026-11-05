@@ -1974,6 +1974,8 @@ class AttachmentTable(GnrDboTable):
         mimetype = mimetype or mimetypes.guess_type(originStorageNode.path)[0]
         filename = filename or originStorageNode.basename
         if copyFile or moveFile:
+            if not originStorageNode.exists:
+                raise FileNotFoundError(f'Attachment origin not found: {originStorageNode.fullpath}')
             if destFolder:
                 destStorageNode = site.storageNode(destFolder,filename)
             else:

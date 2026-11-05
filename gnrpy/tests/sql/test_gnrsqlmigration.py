@@ -1002,6 +1002,50 @@ class BaseGnrSqlMigration(BaseGnrSqlTest):
         self.db.commit()
         self.checkChanges('')
 
+    def tableIndexes(self, table):
+        rows = self.db.execute(
+            "SELECT indexname, indexdef FROM pg_indexes "
+            "WHERE schemaname = 'alfa' AND tablename = :table ORDER BY indexname",
+            sqlargs=dict(table=table)).fetchall()
+        return {r[0]: r[1] for r in rows}
+
+    def test_14a_table_index_unique(self):
+        """tbl.index(..., unique=True) is created by the migrator."""
+        pkg = self.src.package('alfa')
+        tbl = pkg.table('table_index', pkey='id')
+        tbl.column('id', dtype='serial')
+        tbl.column('lock_table', size=':40')
+        tbl.column('lock_pkey', size=':22')
+        tbl.index('lock_table,lock_pkey', unique=True)
+        self.checkChanges(apply_only=True)
+        self.checkChanges('')
+        indexes = self.tableIndexes('alfa_table_index')
+        assert any('UNIQUE' in d and '(lock_table, lock_pkey)' in d for d in indexes.values()), indexes
+
+    def test_14b_table_index_multi_column(self):
+        """A non-unique multi-column tbl.index() is created by the migrator."""
+        pkg = self.src.package('alfa')
+        tbl = pkg.table('table_index')
+        tbl.column('kind', size=':10')
+        tbl.column('ts', dtype='DH')
+        tbl.index('kind,ts')
+        self.checkChanges(apply_only=True)
+        self.checkChanges('')
+        indexes = self.tableIndexes('alfa_table_index')
+        assert any('UNIQUE' not in d and '(kind, ts)' in d for d in indexes.values()), indexes
+
+    def test_14c_table_index_legacy_names_converge(self):
+        """Table indexes created by the legacy checker under their legacy names need no DDL."""
+        for indexname, indexdef in self.tableIndexes('alfa_table_index').items():
+            if indexname != 'alfa_table_index_pkey':
+                self.db.execute(f'DROP INDEX alfa."{indexname}"')
+        self.db.execute('CREATE UNIQUE INDEX alfa_table_index_lock_table_lock_pkey_idx '
+                        'ON alfa.alfa_table_index (lock_table, lock_pkey)')
+        self.db.execute('CREATE INDEX alfa_table_index_kind_ts_idx '
+                        'ON alfa.alfa_table_index (kind, ts)')
+        self.db.commit()
+        self.checkChanges('')
+
     SCRIPTED_TRIGGER = """CREATE OR REPLACE FUNCTION {sqlschema}.{sqlname}_norm() RETURNS trigger
 LANGUAGE plpgsql AS $$
 BEGIN
@@ -1023,7 +1067,7 @@ CREATE OR REPLACE TRIGGER {sqlname}_norm BEFORE INSERT OR UPDATE ON {sqlfullname
                 .replace('{sqlfullname}', '"alfa"."alfa_scripted"')
                 .replace('{casing}', casing))
 
-    def test_14a_table_script_creates_trigger(self):
+    def test_15a_table_script_creates_trigger(self):
         """A table sqlCode() script runs after CREATE TABLE and its md5 goes in the table comment."""
         pkg = self.src.package('alfa')
         tbl = pkg.table('scripted', pkey='id')
@@ -1042,7 +1086,7 @@ CREATE OR REPLACE TRIGGER {sqlname}_norm BEFORE INSERT OR UPDATE ON {sqlfullname
         assert row[0] == 'ABC'
         assert row[1] == {}
 
-    def test_14b_changed_script_runs_again(self):
+    def test_15b_changed_script_runs_again(self):
         """Changing the text changes the md5: the whole script runs again, nothing else."""
         tbl = self.src.package('alfa').table('scripted')
         tbl.getNode('sql_scripts.s_0').attr['marker_casing'] = 'lower'
@@ -1053,7 +1097,7 @@ CREATE OR REPLACE TRIGGER {sqlname}_norm BEFORE INSERT OR UPDATE ON {sqlfullname
         self.db.commit()
         assert code == 'xyz'
 
-    def test_14c_removed_script_clears_the_comment(self):
+    def test_15c_removed_script_clears_the_comment(self):
         """Removing the scripts clears the md5; the objects they created stay."""
         tbl = self.src.package('alfa').table('scripted')
         tbl.pop('sql_scripts')
@@ -1064,7 +1108,7 @@ CREATE OR REPLACE TRIGGER {sqlname}_norm BEFORE INSERT OR UPDATE ON {sqlfullname
         self.db.commit()
         assert [r[0] for r in triggers] == ['alfa_scripted_norm']
 
-    def test_14d_package_function_in_formula_column(self):
+    def test_15d_package_function_in_formula_column(self):
         """A package sqlCode() script defines a function a formulaColumn can call."""
         pkg = self.src.package('alfa')
         script = ('CREATE OR REPLACE FUNCTION {sqlschema}.twice(v integer) RETURNS integer\n'
@@ -1082,7 +1126,7 @@ CREATE OR REPLACE TRIGGER {sqlname}_norm BEFORE INSERT OR UPDATE ON {sqlfullname
         self.db.commit()
         assert rows[0]['double_qty'] == 42
 
-    def test_14e_marker_without_value_raises(self):
+    def test_15e_marker_without_value_raises(self):
         """A marker whose model property is empty stops the migration."""
         tbl = self.src.package('alfa').table('scripted')
         tbl.sqlCode('SELECT {draftField};')
@@ -1091,7 +1135,7 @@ CREATE OR REPLACE TRIGGER {sqlname}_norm BEFORE INSERT OR UPDATE ON {sqlfullname
             self.migrator.prepareMigrationCommands()
         tbl.pop('sql_scripts')
 
-    def test_14f_marker_shadowing_a_model_property_raises(self):
+    def test_15f_marker_shadowing_a_model_property_raises(self):
         """sqlCode() markers cannot replace a model property."""
         tbl = self.src.package('alfa').table('scripted')
         tbl.sqlCode('SELECT 1;', sqlname='other')
@@ -1100,7 +1144,7 @@ CREATE OR REPLACE TRIGGER {sqlname}_norm BEFORE INSERT OR UPDATE ON {sqlfullname
             self.migrator.prepareMigrationCommands()
         tbl.pop('sql_scripts')
 
-    def test_14g_sql_needs_text_or_file(self):
+    def test_15g_sql_needs_text_or_file(self):
         """sqlCode() takes exactly one of text and sql_file."""
         tbl = self.src.package('alfa').table('scripted')
         with pytest.raises(GnrSqlException):
@@ -1108,7 +1152,7 @@ CREATE OR REPLACE TRIGGER {sqlname}_norm BEFORE INSERT OR UPDATE ON {sqlfullname
         with pytest.raises(GnrSqlException):
             tbl.sqlCode('SELECT 1;', sql_file='x.sql')
 
-    def test_14h_missing_sql_file_raises(self, tmp_path):
+    def test_15h_missing_sql_file_raises(self, tmp_path):
         """A declared sql_file missing from the package model folder stops the migration."""
         tbl = self.src.package('alfa').table('scripted')
         tbl.sqlCode(sql_file='missing.sql')
