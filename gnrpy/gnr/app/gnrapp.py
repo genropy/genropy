@@ -228,8 +228,11 @@ class DbStoresHandler(object):
             condition = '$dbstore IN :databases'
             if self._has_provisioning_status():
                 condition += " AND ($provisioning_status IS NULL OR $provisioning_status='ready')"
+            # The store list is cached for the whole application: the current
+            # user's partition must not filter it, and raw_fetch would not
+            # supply the partition's env parameters anyway.
             query = self.db.table(self.db.storetable).query(
-                where=condition,
+                where=condition, ignorePartition=True,
                 databases=list(dbdict.keys()),columns="$dbstore")
             # Discovery must release its read lock before schema migration on
             # another connection, without committing the caller's pending work.
