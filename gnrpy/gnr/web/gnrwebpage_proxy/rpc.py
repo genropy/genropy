@@ -121,6 +121,15 @@ class GnrWebRpc(GnrBaseProxy):
         return result or error
 
     def rpc_upload_file(self, *args ,**kwargs):
+        # reached as an externalCall, outside the page rpc dispatcher that turns a GnrException into an envelope
+        try:
+            return self._upload_file(**kwargs)
+        except GnrException as e:
+            self.page.site.raiseIfDeveloper()
+            self.error = 'gnrexception'
+            return self.result_bag(str(e))
+
+    def _upload_file(self, **kwargs):
         onUploadingMethod= kwargs.get('onUploadingMethod')
         if onUploadingMethod:
             onUploading = self.page.getPublicMethod('rpc', onUploadingMethod)
