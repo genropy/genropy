@@ -594,7 +594,7 @@ class GnrCustomWebPage(object):
         attachments = []
         for path in self._attachment_paths(record):
             node = self.site.storageNode(path)
-            if not node:
+            if not node or not node.exists:
                 raise FileNotFoundError(f'Attachment not found: {path}')
             attachments.append(self._attachment_payload_from_node(
                 node, filename=node.basename or path.split('/')[-1]))

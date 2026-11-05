@@ -129,11 +129,12 @@ def new_schema_item(schema_name):
         schema_name: Name of the schema (corresponds to the package sqlname).
 
     Returns:
-        dict: Schema item with empty ``tables``.
+        dict: Schema item with empty ``attributes`` and ``tables``.
     """
     return {
         'entity': 'schema',
         'entity_name': schema_name,
+        'attributes': {},
         'tables': {},
         'schema_name': schema_name,
     }

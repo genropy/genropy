@@ -32,6 +32,9 @@
 ._common_d11 .address_book, ._common_d11 .frameplugin_staff_icon{
     background: url(/_rsrc/common/css_icons/svg/16/address_book.svg) no-repeat center center;
 }
+._common_d11 .audit_history{
+    background: url(/_rsrc/common/css_icons/svg/16/audit_history.svg) no-repeat center center;
+}
 
 ._common_d11 .gear{
     background: url(/_rsrc/common/css_icons/svg/16/gear.svg) no-repeat center center;
