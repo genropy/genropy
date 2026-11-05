@@ -521,6 +521,25 @@ class SqlDbAdapter(object):
         """Returns SQL to retrieve table constraints."""
         raise AdapterMethodNotImplemented()
 
+    def struct_get_sql_md5_sql(self):
+        """
+        Generate SQL code to retrieve the md5 of the applied sqlCode() scripts
+        """
+        raise AdapterMethodNotImplemented()
+
+    def struct_get_sql_md5(self, schemas):
+        """
+        Return the md5 of the applied sqlCode() scripts as a list of
+        (schema_name, table_name, md5)
+        """
+        raise AdapterMethodNotImplemented()
+
+    def struct_sql_md5_comment_sql(self, schema_name, table_name=None, md5=None):
+        """
+        Generate the statement that records the md5 of the sqlCode() scripts
+        """
+        raise AdapterMethodNotImplemented()
+
     def struct_get_event_triggers(self):
         """
         Return the list of triggers 

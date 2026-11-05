@@ -45,6 +45,9 @@ The ``applyChanges()`` method executes commands in three phases:
 
 3. **extensions_commands**: executed with ``autoCommit=True``
 
+4. **sql_scripts**: executed with ``autoCommit=True``; every script
+   carries its own BEGIN/COMMIT
+
 Backup conversion verification
 -------------------------------
 
@@ -133,6 +136,16 @@ class ExecutorMixin(SqlMigratorBaseMixin):
         # FKs are added last to respect dependencies
         command_list += relation_command_list
         self.sql_commands['build_commands'] = '\n'.join(command_list)
+
+        # sqlCode() scripts run after every structural change: package scripts
+        # first, since table scripts may use the functions they define
+        sql_scripts = [
+            script['command']
+            for scripts in (dbitem['schema_scripts'], dbitem['table_scripts'])
+            for script in scripts.values()
+        ]
+        if sql_scripts:
+            self.sql_commands['sql_scripts'] = '\n'.join(sql_scripts)
 
         return '\n'.join([v for v in self.sql_commands.values() if v])
 
@@ -229,6 +242,10 @@ class ExecutorMixin(SqlMigratorBaseMixin):
 
         3. **extensions_commands**: CREATE EXTENSION. Executed with
            ``autoCommit=True``.
+
+        4. **sql_scripts**: the ``sqlCode()`` scripts of packages, then of
+           tables, each one wrapped in its own BEGIN/COMMIT together with
+           the COMMENT that records its md5. Executed with ``autoCommit=True``.
         """
         self.getChanges()
 
@@ -243,6 +260,10 @@ class ExecutorMixin(SqlMigratorBaseMixin):
         extensions_commands = self.sql_commands.pop('extensions_commands', None)
         if extensions_commands:
             self.db.adapter.execute(extensions_commands, autoCommit=True)
+
+        sql_scripts = self.sql_commands.pop('sql_scripts', None)
+        if sql_scripts:
+            self.db.adapter.execute(sql_scripts, autoCommit=True)
 
     def verifyConversionBackups(self):
         """Verify backup columns after type conversions.

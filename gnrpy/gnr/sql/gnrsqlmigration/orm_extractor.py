@@ -61,8 +61,12 @@ The ``convert_colattr()`` function normalizes Genropy types::
     A/C without size -> T (text, char without length is impossible)
 """
 
+import hashlib
+
 from gnr.core.gnrdict import dictExtract
 from gnr.core.gnrstring import boolean
+from gnr.sql import AdapterCapabilities
+from gnr.sql.gnrsql_exceptions import GnrSqlException
 
 from .structures import (
     COL_JSON_KEYS, GNR_DTYPE_CONVERTER, DTYPE_INDEX_CONFIG,
@@ -107,6 +111,8 @@ class OrmExtractor:
         self.schemas = self.json_structure['root']['schemas']
         self.tenant_schema_tables = {}
         self.deferred_indexes = []
+        # expanded sqlCode() scripts, keyed by (schema_name, table_name or None)
+        self.sql_scripts = {}
 
     def fill_json_package(self, pkgobj):
         """Process an ORM package and its tables.
@@ -120,6 +126,7 @@ class OrmExtractor:
         """
         schema_name = pkgobj.sqlname
         self.schemas[schema_name] = new_schema_item(schema_name)
+        self.fill_json_sql_scripts(self.schemas[schema_name], pkgobj, schema_name)
         for tblobj in pkgobj.tables.values():
             self.fill_json_table(tblobj)
             if tblobj.multi_tenant:
@@ -182,6 +189,37 @@ class OrmExtractor:
                 self.fill_json_table_index(
                     tblobj, idxnode.attr, tenant_schema=tenant_schema
                 )
+        self.fill_json_sql_scripts(table_entity, tblobj, schema_name,
+                                   table_name=table_name, tenant_schema=tenant_schema)
+
+    def fill_json_sql_scripts(self, entity, owner, schema_name, table_name=None,
+                              tenant_schema=None):
+        """Record the md5 of the ``sqlCode()`` scripts of a package or table.
+
+        The expanded text is kept in ``self.sql_scripts`` for the command
+        builder; only its md5 enters the JSON, as the ``sql_md5`` attribute,
+        so the diff compares it with the md5 stored in the database comment.
+
+        Args:
+            entity: The schema or table JSON item.
+            owner: The ``DbPackageObj`` or ``DbTableObj`` declaring the scripts.
+            schema_name: The schema of the item.
+            table_name: The table of the item, ``None`` for a schema.
+            tenant_schema: The tenant schema a table is replicated in.
+
+        Raises:
+            GnrSqlException: If the adapter does not support sqlCode() scripts.
+        """
+        scripts = owner['sql_scripts']
+        if not scripts:
+            return
+        script = scripts.expandedText(tenant_schema=tenant_schema)
+        if not self.db.adapter.has_capability(AdapterCapabilities.SQL_SCRIPTS):
+            raise GnrSqlException(
+                f'sqlCode() scripts of {owner.name} need a PostgreSQL adapter, '
+                f'not {self.db.implementation}')
+        entity['attributes']['sql_md5'] = hashlib.md5(script.encode('utf-8')).hexdigest()
+        self.sql_scripts[(schema_name, table_name)] = script
 
     def fill_json_table_index(self, tblobj, idxattr, tenant_schema=None):
         """Create an index item for an index declared with ``tbl.index()``.
