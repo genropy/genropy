@@ -76,6 +76,8 @@ class Table(object):
         """Write the events of one queue row and the new last state of its record.
 
         A row with ``old_full`` first writes an A event with version 0.
+        I rows and U rows with version 0 come only from the triggers before
+        lazy capture (#1818), still in the queue when a database upgrades.
 
         :returns: the events written with a version gap
         """

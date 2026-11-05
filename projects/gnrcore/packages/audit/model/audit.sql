@@ -2,9 +2,8 @@
 -- audit='external'. Both receive the comma-separated excluded columns as
 -- their last trigger argument.
 
--- __version: 0 at insert; +1 when an audited column changes; unchanged
--- otherwise. A record without version (it existed before activation) gets
--- 1 at its first audited change, 0 when the statement sets it (touch).
+-- __version: NULL at insert; +1 when an audited column changes; unchanged
+-- otherwise. A record without version gets 1 at its first audited change.
 CREATE OR REPLACE FUNCTION {sqlschema}.version_before() RETURNS trigger
 LANGUAGE plpgsql AS $$
 DECLARE
@@ -12,7 +11,7 @@ DECLARE
     v_changed boolean;
 BEGIN
     IF TG_OP = 'INSERT' THEN
-        NEW.__version := 0;
+        NEW.__version := NULL;
         RETURN NEW;
     END IF;
     v_changed := (to_jsonb(NEW) - v_excluded) IS DISTINCT FROM (to_jsonb(OLD) - v_excluded);
@@ -20,15 +19,17 @@ BEGIN
         NEW.__version := OLD.__version + CASE WHEN v_changed THEN 1 ELSE 0 END;
     ELSIF v_changed THEN
         NEW.__version := 1;
-    ELSIF NEW.__version IS DISTINCT FROM 0 THEN
+    ELSE
         NEW.__version := NULL;
     END IF;
     RETURN NEW;
 END $$;
 
--- One queue row per written record: insert and delete always, update only
--- when __version changed. Arguments: GenroPy fullname, pkey column,
--- excluded columns. User, caller and command come from the GNRCOMMENT line.
+-- One queue row per changed record: delete always, update only when
+-- __version changed. Inserts are not captured: a record enters the history
+-- at its first audited change, which carries the whole old record in
+-- old_full. Arguments: GenroPy fullname, pkey column, excluded columns.
+-- User, caller and command come from the GNRCOMMENT line.
 -- The pkey is read as text, so a character(n) pkey loses its padding.
 CREATE OR REPLACE FUNCTION {sqlschema}.capture_after() RETURNS trigger
 LANGUAGE plpgsql AS $$
@@ -49,26 +50,21 @@ BEGIN
     IF v_first_line LIKE '-- GNRCOMMENT - %' THEN
         v_gnr := substr(v_first_line, 17)::jsonb;
     END IF;
-    IF TG_OP <> 'DELETE' THEN
+    IF TG_OP = 'DELETE' THEN
+        EXECUTE format('SELECT ($1).%I::text', TG_ARGV[1]) INTO v_pkey USING OLD;
+    ELSE
         EXECUTE format('SELECT ($1).%I::text', TG_ARGV[1]) INTO v_pkey USING NEW;
-        v_new := to_jsonb(NEW) - v_excluded;
-        v_version := NEW.__version;
     END IF;
-    IF TG_OP <> 'INSERT' THEN
-        IF v_pkey IS NULL THEN
-            EXECUTE format('SELECT ($1).%I::text', TG_ARGV[1]) INTO v_pkey USING OLD;
-        END IF;
-        v_old := to_jsonb(OLD) - v_excluded;
-        IF OLD.__version IS NULL THEN
-            v_old_full := v_old;
-        END IF;
+    v_old := to_jsonb(OLD) - v_excluded;
+    IF OLD.__version IS NULL THEN
+        v_old_full := v_old;
     END IF;
-    IF TG_OP = 'INSERT' THEN
-        v_data := v_new;
-    ELSIF TG_OP = 'DELETE' THEN
+    IF TG_OP = 'DELETE' THEN
         v_data := v_old;
         v_version := COALESCE(OLD.__version, 0) + 1;
     ELSE
+        v_new := to_jsonb(NEW) - v_excluded;
+        v_version := NEW.__version;
         SELECT COALESCE(jsonb_object_agg(n.key, n.value), '{}'::jsonb) INTO v_data
           FROM jsonb_each(v_new) n
          WHERE n.value IS DISTINCT FROM v_old -> n.key;
