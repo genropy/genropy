@@ -998,6 +998,50 @@ class BaseGnrSqlMigration(BaseGnrSqlTest):
         self.db.commit()
         self.checkChanges('')
 
+    def tableIndexes(self, table):
+        rows = self.db.execute(
+            "SELECT indexname, indexdef FROM pg_indexes "
+            "WHERE schemaname = 'alfa' AND tablename = :table ORDER BY indexname",
+            sqlargs=dict(table=table)).fetchall()
+        return {r[0]: r[1] for r in rows}
+
+    def test_14a_table_index_unique(self):
+        """tbl.index(..., unique=True) is created by the migrator."""
+        pkg = self.src.package('alfa')
+        tbl = pkg.table('table_index', pkey='id')
+        tbl.column('id', dtype='serial')
+        tbl.column('lock_table', size=':40')
+        tbl.column('lock_pkey', size=':22')
+        tbl.index('lock_table,lock_pkey', unique=True)
+        self.checkChanges(apply_only=True)
+        self.checkChanges('')
+        indexes = self.tableIndexes('alfa_table_index')
+        assert any('UNIQUE' in d and '(lock_table, lock_pkey)' in d for d in indexes.values()), indexes
+
+    def test_14b_table_index_multi_column(self):
+        """A non-unique multi-column tbl.index() is created by the migrator."""
+        pkg = self.src.package('alfa')
+        tbl = pkg.table('table_index')
+        tbl.column('kind', size=':10')
+        tbl.column('ts', dtype='DH')
+        tbl.index('kind,ts')
+        self.checkChanges(apply_only=True)
+        self.checkChanges('')
+        indexes = self.tableIndexes('alfa_table_index')
+        assert any('UNIQUE' not in d and '(kind, ts)' in d for d in indexes.values()), indexes
+
+    def test_14c_table_index_legacy_names_converge(self):
+        """Table indexes created by the legacy checker under their legacy names need no DDL."""
+        for indexname, indexdef in self.tableIndexes('alfa_table_index').items():
+            if indexname != 'alfa_table_index_pkey':
+                self.db.execute(f'DROP INDEX alfa."{indexname}"')
+        self.db.execute('CREATE UNIQUE INDEX alfa_table_index_lock_table_lock_pkey_idx '
+                        'ON alfa.alfa_table_index (lock_table, lock_pkey)')
+        self.db.execute('CREATE INDEX alfa_table_index_kind_ts_idx '
+                        'ON alfa.alfa_table_index (kind, ts)')
+        self.db.commit()
+        self.checkChanges('')
+
 
 @pytest.mark.skipif(gnrpostgres.SqlDbAdapter.not_capable(Capabilities.MIGRATIONS),
                     reason="Adapter doesn't support migrations")
