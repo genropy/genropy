@@ -2,7 +2,7 @@
 import sys
 
 from gnr.core.cli import GnrCliArgParse
-from gnr.app.gnrapp import GnrApp
+from gnr.web.gnrdummysite import GnrDummySite
 from gnr.app import logger
 
 description = "execute cleanup based on data retention policies"
@@ -21,7 +21,8 @@ def main():
     if dry_run:
         logger.info("Dry-run execution")
         
-    app = GnrApp(options.instance_name)
+    # a site gives the cascaded deletes access to storage (attachment files)
+    app = GnrDummySite(options.instance_name).gnrapp
 
     policy = app.retentionPolicy
     if not policy:
