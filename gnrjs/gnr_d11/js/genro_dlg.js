@@ -1343,9 +1343,10 @@ dojo.declare("gnr.GnrDlgHandler", null, {
     multiUploaderDialog:function(title,kw,sourceNode) {
         var uploaderKw = objectExtract(kw,'nodeId,height,width,uploadPath,onUploadedMethod,onUploadingMethod,onResult,label');
         kw.closable = true;
+        kw._class = (kw._class || 'dlg_prompt')+' multiUploaderDialog';
         var dlg = this.quickDialog(title,kw,sourceNode);
-        uploaderKw.height = uploaderKw.height || '300px';
-        uploaderKw.width =uploaderKw.width || '500px';
+        uploaderKw.height = uploaderKw.height || '420px';
+        uploaderKw.width =uploaderKw.width || '680px';
         uploaderKw.nodeId =uploaderKw.nodeId || 'multiuploader_'+genro.getCounter();
         var onResult = objectPop(uploaderKw,'onResult') || function(result){};
         uploaderKw.onResult = function(result){
@@ -1359,7 +1360,8 @@ dojo.declare("gnr.GnrDlgHandler", null, {
         var actionCb = function(){
             genro.nodeById(uploaderKw.nodeId).publish('doUpload');
         };
-        dlg.bottom._('button','confirm',{float:'right',action:actionCb,label:kw.buttonLabel || _T('Upload files')});
+        dlg.bottom._('button','confirm',{float:'right',action:actionCb,label:kw.buttonLabel || _T('Upload files'),
+                                         disabled:'^gnr.multiupload_store?=!(#v && #v.len())'});
         return dlg;
     },
 

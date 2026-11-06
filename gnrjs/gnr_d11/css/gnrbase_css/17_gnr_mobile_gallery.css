@@ -75,6 +75,200 @@
     line-height: 30px;
 }
 
+/* --- Multi uploader dialog (DropUploaderGrid) --- */
+.multiUploaderDialog .pbl_dialog_center{
+    padding: 0;
+}
+
+.dropUploaderGrid_dropPane{
+    padding: 12px;
+}
+
+.dropUploaderGrid_stripPane{
+    padding: 0 12px 12px 12px;
+}
+
+.dropUploaderArea{
+    height: 100%;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 16px;
+    border: 2px dashed var(--border-color);
+    border-radius: var(--radius-lg);
+    color: var(--text-muted);
+    text-align: center;
+    cursor: pointer;
+    user-select: none;
+    transition: border-color .15s, background-color .15s;
+}
+
+.dropUploaderArea:hover,
+.dropUploaderArea.canBeDropped{
+    border-color: var(--accent-color);
+}
+
+.dropUploaderArea .dropUploaderArea_icon{
+    width: 48px;
+    height: 48px;
+    mask-size: 100%;
+    -webkit-mask-size: 100%;
+    background-color: currentColor;
+    pointer-events: none;
+}
+
+.dropUploaderArea:hover .dropUploaderArea_icon,
+.dropUploaderArea.canBeDropped .dropUploaderArea_icon{
+    background-color: var(--accent-color);
+}
+
+.dropUploaderArea_label{
+    max-width: 22em;
+    font-size: 1.1em;
+    line-height: 1.4;
+    pointer-events: none;
+}
+
+.dropUploaderArea.dropUploaderArea_compact{
+    height: auto;
+    flex-direction: row;
+    gap: 10px;
+    padding: 10px 16px;
+    border-width: 1.5px;
+    border-radius: var(--radius-md);
+}
+
+.dropUploaderArea_compact .dropUploaderArea_icon{
+    width: 22px;
+    height: 22px;
+}
+
+.dropUploaderArea_compact .dropUploaderArea_label{
+    max-width: none;
+    font-size: 0.95em;
+}
+
+/* file list look for the DropUploaderGrid grid: no zebra, no cell borders */
+.dropUploaderGrid{
+    --grid-row-odd-bg: var(--grid-row-bg);
+    --grid-row-selected-bg: var(--grid-cell-hover-bg);
+}
+
+._common_d11 .dropUploaderGrid .dojoxGrid-header .dojoxGrid-cell .cellHeaderContent{
+    padding: 0;
+    text-align: left;
+}
+
+._common_d11 .dropUploaderGrid .dojoxGrid,
+._common_d11 .dropUploaderGrid .dojoxGrid-master-header,
+._common_d11 .dropUploaderGrid .dojoxGrid-header,
+._common_d11 .dropUploaderGrid .dojoxGrid-header .dojoxGrid-cell{
+    background: transparent;
+    border: none;
+}
+
+._common_d11 .dropUploaderGrid .dojoxGrid-master-header{
+    border-bottom: 1px solid var(--border-color);
+}
+
+._common_d11 .dropUploaderGrid .dojoxGrid-header .dojoxGrid-cell{
+    padding: 8px 10px;
+    color: var(--text-muted);
+    font-size: 0.75em;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    text-align: left;
+}
+
+._common_d11 .dropUploaderGrid .dojoxGrid-row,
+._common_d11 .dropUploaderGrid .dojoxGrid-row-odd{
+    border: none;
+}
+
+._common_d11 .dropUploaderGrid .dojoxGrid-row .dojoxGrid-cell,
+._common_d11 .dropUploaderGrid .dojoxGrid-row-odd .dojoxGrid-cell,
+._common_d11 .dropUploaderGrid .dojoxGrid-row-selected .dojoxGrid-cell{
+    padding: 5px 10px;
+    border: none;
+    border-bottom: 1px solid var(--border-light);
+    background-color: transparent;
+    vertical-align: middle;
+}
+
+._common_d11 .dropUploaderGrid .dojoxGrid-row-over .dojoxGrid-cell{
+    background-color: var(--grid-cell-hover-bg);
+}
+
+._common_d11 .dropUploaderGrid .dojoxGrid-cell.dropUploaderGrid_muted{
+    color: var(--text-muted);
+}
+
+.dropUploaderGrid_file{
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.dropUploaderGrid_ext{
+    flex: none;
+    width: 24px;
+    height: 30px;
+    box-sizing: border-box;
+    padding-bottom: 3px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    border: 1px solid var(--border-strong);
+    border-radius: 2px 8px 2px 2px;
+    background: var(--surface-light);
+    color: var(--text-secondary);
+    font-size: 7px;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.dropUploaderGrid_name{
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--text-color);
+}
+
+.dropUploaderGrid_progress{
+    height: 6px;
+    border-radius: var(--radius-pill);
+    background: var(--border-light);
+    overflow: hidden;
+}
+
+.dropUploaderGrid_progress > div{
+    height: 100%;
+    border-radius: inherit;
+    background: var(--accent-color);
+    transition: width .3s;
+}
+
+.dropUploaderGrid_delete{
+    width: 22px;
+    height: 22px;
+    cursor: pointer;
+    opacity: .35;
+    transition: opacity .15s;
+}
+
+.dojoxGrid-row-over .dropUploaderGrid_delete{
+    opacity: .7;
+}
+
+.dojoxGrid-row-over .dropUploaderGrid_delete:hover{
+    opacity: 1;
+}
+
 /* --- Modal uploader --- */
 .modalUploader{
     width: var(--modaluploader-width);
