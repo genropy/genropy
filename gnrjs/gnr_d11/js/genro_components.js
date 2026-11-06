@@ -217,6 +217,9 @@ dojo.declare("gnr.widgets.TooltipPane", gnr.widgets.gnrwdg, {
         var left = parseFloat(wrapper.style.left) || 0;
         var top = parseFloat(wrapper.style.top) || 0;
         var onScroll = function(e){
+            if(wrapper.contains(e.target)){
+                return;
+            }
             if(!anchor.isConnected){
                 genro.publish({topic:'close',nodeId:ddbId},{evt:e});
                 return;
