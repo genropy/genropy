@@ -128,7 +128,10 @@ class TableScriptHandler(BaseComponent):
                             padding='10px')
             if batch_dict.get('title'):
                 record_count = batch_dict.get('record_count')
-                dlgtitle = "!!%s (%i)" %(batch_dict['title'],record_count) if record_count else batch_dict['title']
+                dlgtitle = batch_dict['title']
+                if record_count:
+                    loctitle = dlgtitle if dlgtitle.startswith('!!') else '!!%s' % dlgtitle
+                    dlgtitle = '%s (%i)' % (self.localize(loctitle), record_count)
                 parsform.dataFormula('.title','dlgtitle',dlgtitle=dlgtitle,_onBuilt=True)
             if hasParameters:
                 self.table_script_parameters_pane(parsbox,extra_parameters=extra_parameters,**batch_dict)
