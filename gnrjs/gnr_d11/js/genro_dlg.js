@@ -744,7 +744,10 @@ dojo.declare("gnr.GnrDlgHandler", null, {
                             genro.dlg.prompt_counter--;
                             if(!genro.dlg.prompt_counter){
                                 setTimeout(function(){
-                                    genro._data.popNode('gnr.promptDlg');
+                                    // a prompt opened meanwhile, e.g. from an asynchronous callback of this one, keeps its data
+                                    if(!genro.dlg.prompt_counter){
+                                        genro._data.popNode('gnr.promptDlg');
+                                    }
                                 },genro.dlg._quickDialogDestroyTimeout+1);
                             }
                         }
