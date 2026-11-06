@@ -73,7 +73,6 @@ def test_table_is_registered(db):
     assert member['tbl'] == 'audit_test.audited_item'
     assert member['pkey_column'] == 'id'
     assert member['activated_ts'] is not None
-    assert member['touched_ts'] is None
     excluded = member['excluded_cols'].split(',')
     assert {'__version', '__mod_ts', '__mod_user', '__is_draft', 'last_invoice_date'} <= set(excluded)
     assert not {'id', 'code', 'amount', 'details', '__ins_ts', '__ins_user', '__del_ts'} & set(excluded)
@@ -86,8 +85,10 @@ def test_insert_update_delete(db):
         tbl.insert(record)
         db.commit()
         pkey = record['id']
-        with tbl.recordToUpdate(pkey) as rec:
-            rec['description'] = 'second'
+        assert version(db, pkey) is None
+        assert queue(db, pkey) == []
+        old_record = tbl.record(pkey, mode='dict')
+        tbl.update(dict(old_record, description='second'), old_record)
         db.commit()
         with tbl.recordToUpdate(pkey) as rec:
             rec['last_invoice_date'] = '2026-11-03'
@@ -95,15 +96,13 @@ def test_insert_update_delete(db):
         assert version(db, pkey) == 1
         tbl.delete(pkey)
         db.commit()
-    ins, upd, dele = queue(db, pkey)
-    assert (ins['op'], ins['version'], ins['username'], ins['sqlcommand']) == ('I', 0, 'mario', 'insert')
-    assert re.search(r'test_audit_external\.test_insert_update_delete:\d+$', ins['caller'])
-    assert ins['data']['code'] == 'A1'
-    assert 'last_invoice_date' not in ins['data'] and '__mod_ts' not in ins['data']
-    assert ins['old_full'] is None
+    upd, dele = queue(db, pkey)
     assert (upd['op'], upd['version'], upd['username'], upd['sqlcommand']) == ('U', 1, 'mario', 'update')
+    assert re.search(r'test_audit_external\.test_insert_update_delete:\d+$', upd['caller'])
     assert upd['data'] == {'description': 'second'}
-    assert upd['old_full'] is None
+    assert upd['old_full']['description'] == 'first'
+    assert 'last_invoice_date' not in upd['old_full'] and '__mod_ts' not in upd['old_full']
+    assert dele['old_full'] is None
     assert (dele['op'], dele['version'], dele['username']) == ('D', 2, 'mario')
     assert dele['data']['description'] == 'second'
 
@@ -132,20 +131,11 @@ def test_delete_of_a_record_written_before_activation(db):
     assert dele['old_full']['code'] == 'P2'
 
 
-def test_touch(db):
-    insert_without_audit(db, 'pre_touch_1', 'T1')
-    insert_without_audit(db, 'pre_touch_2', 'T2')
-    members = db.table('audit.members')
-    members.touch(block_size=1)
-    for pkey, code in (('pre_touch_1', 'T1'), ('pre_touch_2', 'T2')):
-        assert version(db, pkey) == 0
-        [touch] = queue(db, pkey)
-        assert (touch['op'], touch['version'], touch['data']) == ('U', 0, {})
-        assert touch['old_full']['code'] == code
-    assert members.record(AUDITED).output('dict')['touched_ts'] is not None
-    queued = db.table('audit.queue').query().count()
-    members.touch()
-    assert db.table('audit.queue').query().count() == queued
+def test_insert_ignores_a_given_version(db):
+    db.execute(f"INSERT INTO {AUDITED} (id, code, amount, __version) VALUES ('given', 'G1', 1, 5)")
+    db.commit()
+    assert version(db, 'given') is None
+    assert queue(db, 'given') == []
 
 
 def test_writes_that_bypass_the_orm_triggers(db):
@@ -161,7 +151,7 @@ def test_writes_that_bypass_the_orm_triggers(db):
         db.commit()
         tbl.sql_deleteSelection(_pkeys=[pkey])
         db.commit()
-    ins, batch, raw, dele = queue(db, pkey)
+    batch, raw, dele = queue(db, pkey)
     assert (batch['op'], batch['version'], batch['username']) == ('U', 1, 'mario')
     assert float(batch['data']['amount']) == 5
     assert (raw['op'], raw['version'], raw['data']) == ('U', 2, {'description': 'raw'})

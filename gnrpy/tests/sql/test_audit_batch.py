@@ -91,10 +91,10 @@ def test_history_of_a_record_and_of_a_bag_path(db):
         db.commit()
     assert run(db) == []
     assert queued(db) == 0
-    ins, upd, upd_details, dele = events(db, pkey)
-    assert [(e['op'], e['version']) for e in (ins, upd, upd_details, dele)] == \
-        [('I', 0), ('U', 1), ('U', 2), ('D', 3)]
-    assert (ins['username'], ins['sqlcommand']) == ('mario', 'insert')
+    first, upd, upd_details, dele = events(db, pkey)
+    assert [(e['op'], e['version']) for e in (first, upd, upd_details, dele)] == \
+        [('A', 0), ('U', 1), ('U', 2), ('D', 3)]
+    assert Bag(first['data'])['description'] == 'first'
     assert Bag(upd['data']).asDict() == {'description': 'second'}
     diff = Bag(upd_details['data'])['details']
     assert diff['address.city'] == 'Roma'
@@ -114,7 +114,11 @@ def test_history_of_a_record_and_of_a_bag_path(db):
 
 def test_a_second_run_changes_nothing(db):
     tbl = db.table('audit_test.audited_item')
-    tbl.insert(dict(code='R1'))
+    record = dict(code='R1')
+    tbl.insert(record)
+    db.commit()
+    with tbl.recordToUpdate(record['id']) as rec:
+        rec['code'] = 'R2'
     db.commit()
     run(db)
     count = db.table('audit.event').query().count()
@@ -125,30 +129,29 @@ def test_a_second_run_changes_nothing(db):
 def test_old_full_gives_an_A_event(db):
     insert_without_audit(db, 'pre_update', 'P1')
     insert_without_audit(db, 'pre_delete', 'P2')
-    insert_without_audit(db, 'pre_touch', 'P3')
     tbl = db.table('audit_test.audited_item')
     with tbl.recordToUpdate('pre_update') as rec:
         rec['amount'] = 2
     tbl.delete('pre_delete')
     db.commit()
-    db.table('audit.members').touch()
     assert run(db) == []
     assert [(e['op'], e['version']) for e in events(db, 'pre_update')] == [('A', 0), ('U', 1)]
     assert [(e['op'], e['version']) for e in events(db, 'pre_delete')] == [('A', 0), ('D', 1)]
-    [touch] = events(db, 'pre_touch')
-    assert (touch['op'], touch['version']) == ('A', 0)
-    assert Bag(touch['data'])['code'] == 'P3'
     history = db.table('audit.event').recordHistory('audit_test.audited_item', 'pre_update')
     assert [h['state']['amount'] for h in history] == [Decimal(1), Decimal(2)]
 
 
 def test_a_row_committed_during_the_run_goes_to_the_next_run(db):
     tbl = db.table('audit_test.audited_item')
-    tbl.insert(dict(code='C1'))
-    tbl.insert(dict(code='C2'))
+    for pkey in ('during_1', 'during_2', 'late'):
+        tbl.insert(dict(id=pkey, code='C1'))
+    db.commit()
+    for pkey in ('during_1', 'during_2'):
+        with tbl.recordToUpdate(pkey) as rec:
+            rec['code'] = 'C2'
     db.commit()
     late = db.adapter.connection()
-    late.cursor().execute(f"INSERT INTO {AUDITED} (id, code) VALUES ('late', 'L1')")
+    late.cursor().execute(f"UPDATE {AUDITED} SET code = 'L1' WHERE id = 'late'")
     locker = db.adapter.connection()
     locker_cursor = locker.cursor()
     locker_cursor.execute('LOCK TABLE audit.audit_record_state IN ACCESS EXCLUSIVE MODE')
@@ -177,8 +180,7 @@ def test_a_row_committed_during_the_run_goes_to_the_next_run(db):
     assert queued(db, 'late') == 1
     run(db)
     assert queued(db, 'late') == 0
-    [ins] = events(db, 'late')
-    assert (ins['op'], ins['version']) == ('I', 0)
+    assert [(e['op'], e['version']) for e in events(db, 'late')] == [('A', 0), ('U', 1)]
 
 
 def test_a_second_run_exits_while_one_holds_the_lock(db):
@@ -188,6 +190,9 @@ def test_a_second_run_exits_while_one_holds_the_lock(db):
         tbl = db.table('audit_test.audited_item')
         record = dict(code='K1')
         tbl.insert(record)
+        db.commit()
+        with tbl.recordToUpdate(record['id']) as rec:
+            rec['code'] = 'K2'
         db.commit()
         assert run(db) is None
         assert queued(db, record['id']) == 1
@@ -201,6 +206,9 @@ def test_a_failed_run_leaves_the_queue_intact(db):
     tbl = db.table('audit_test.audited_item')
     record = dict(code='F1')
     tbl.insert(record)
+    db.commit()
+    with tbl.recordToUpdate(record['id']) as rec:
+        rec['code'] = 'F2'
     db.execute(f"INSERT INTO {QUEUE} (ts, tbl, record_pkey, op, version, data) "
                "VALUES (now(), 'nopkg.notable', 'broken', 'I', 0, '{}')")
     db.commit()
@@ -213,8 +221,7 @@ def test_a_failed_run_leaves_the_queue_intact(db):
     db.execute(f"DELETE FROM {QUEUE} WHERE record_pkey = 'broken'")
     db.commit()
     assert run(db) == []
-    [ins] = events(db, record['id'])
-    assert ins['op'] == 'I'
+    assert [e['op'] for e in events(db, record['id'])] == ['A', 'U']
 
 
 def test_a_gap_is_reported(db):
@@ -223,14 +230,16 @@ def test_a_gap_is_reported(db):
     tbl.insert(record)
     db.commit()
     pkey = record['id']
-    for amount in (2, 3):
+    for amount in (2, 3, 4):
         with tbl.recordToUpdate(pkey) as rec:
             rec['amount'] = amount
         db.commit()
-    db.execute(f'DELETE FROM {QUEUE} WHERE record_pkey = :pkey AND version = 1', dict(pkey=pkey))
+    db.execute(f'DELETE FROM {QUEUE} WHERE record_pkey = :pkey AND version = 2', dict(pkey=pkey))
     db.commit()
     gaps = run(db)
-    assert gaps == [dict(tbl='audit_test.audited_item', record_pkey=pkey, version=2,
-                         expected_version=1)]
-    ins, upd = events(db, pkey)
-    assert (ins['expected_version'], upd['version'], upd['expected_version']) == (None, 2, 1)
+    assert gaps == [dict(tbl='audit_test.audited_item', record_pkey=pkey, version=3,
+                         expected_version=2)]
+    first, upd, gap = events(db, pkey)
+    assert (first['op'], first['expected_version'], upd['version'], upd['expected_version']) == \
+        ('A', None, 1, None)
+    assert (gap['version'], gap['expected_version']) == (3, 2)
