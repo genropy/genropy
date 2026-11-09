@@ -4574,6 +4574,7 @@ dojo.declare("gnr.widgets.DateTextBox", gnr.widgets._BaseTextBox, {
                 if(constraints.selector=='datetime'){
                     hours = parseInt(match[4] || '0');
                     minutes = parseInt(match[5] || '0');
+                    seconds = parseInt(match[6] || '0');
                     if(match[6]=='AM' || match[6]=='PM'){
                         seconds = 0;
                         if(match[6]=='PM'){
