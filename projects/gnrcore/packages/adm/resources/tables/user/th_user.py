@@ -134,7 +134,6 @@ class FormFrom2FaSettings(BaseComponent):
         bar = frame.bottom.slotBar('*,confirm,5',childname='confirmbar',height='22px',border='1px solid var(--border-color)')
         rpc = bar.slotButton('Add').dataRpc(
             self.confirmOTP,otp='=.otp',
-            user_id='=#FORM.record.id',
             secret='=.secret'
         )
         rpc.addCallback("""if(result){
@@ -161,10 +160,10 @@ class FormFrom2FaSettings(BaseComponent):
         return result
 
     @public_method
-    def confirmOTP(self,user_id=None,otp=None,secret=None):
+    def confirmOTP(self,otp=None,secret=None):
         result = self.getService('2fa').verifyTOTP(secret=secret,otp=otp)
         if result:
-            with self.db.table('adm.user').recordToUpdate(user_id) as user:
+            with self.db.table('adm.user').recordToUpdate(self.avatar.user_id) as user:
                 user['avatar_last_2fa_otp'] = otp
                 user['avatar_secret_2fa'] = secret
             self.db.commit()
