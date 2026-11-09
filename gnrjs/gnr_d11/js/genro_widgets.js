@@ -3643,6 +3643,10 @@ dojo.declare("gnr.widgets.Menu", gnr.widgets.baseDojo, {
             return;
         }
         var sourceNode = this.sourceNode;
+        var attachedWidget = sourceNode.attr.attachTo && sourceNode.attr.attachTo.widget;
+        if(attachedWidget && (attachedWidget.readOnly || attachedWidget.disabled)){
+            return;
+        }
         var wdg = sourceNode.widget;
         if( (wdg.modifiers || wdg.validclass ) && !(genro.wdg.filterEvent(e, wdg.modifiers, wdg.validclass)) ){
             return;
