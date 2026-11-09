@@ -17,8 +17,11 @@ only needs ``server.daemon.register`` -- as in ``subscribed_tables_index_test.py
 """
 
 import logging
+import types
 
 from gnr.web.daemon.siteregister import SiteRegister
+from gnr.web.daemon.siteregister_client import ServerStore
+from gnr.web.gnrwebpage import GnrWebPage
 
 
 class _FakeDaemon:
@@ -105,3 +108,39 @@ def test_client_changes_never_reach_server_only_paths(caplog):
     assert data.getNode('vb_filter') is None
     assert data['rootenv.language'] == 'it'
     assert len(caplog.records) == len(forged) - 1
+
+
+class _InProcessRegister(SiteRegister):
+    """The register with the client's ``pageStore``, without the Pyro hop."""
+
+    def pageStore(self, page_id, triggered=False):
+        return ServerStore(self, 'page', page_id, triggered=triggered)
+
+
+class _Page:
+    page_id = 'p1'
+    sourcepage_id = None
+    pageStore = GnrWebPage.pageStore
+    rpc_setInServer = GnrWebPage.rpc_setInServer
+
+    def __init__(self, register):
+        self.site = types.SimpleNamespace(register=register)
+
+
+def test_set_in_server_never_reaches_server_only_paths(caplog):
+    sr = _InProcessRegister(_FakeServer(), sitename='testsite')
+    sr.page_register.create('p1')
+    data = sr.page_register.get_item_data('p1')
+    data.setItem('waiting2fa', 'user_id')
+    data.setItem('rootenv.user_local_tags', 'base')
+    page = _Page(sr)
+    with caplog.at_level(logging.WARNING):
+        page.rpc_setInServer('waiting2fa', value='')
+        page.rpc_setInServer('confirm_user_id', value='victim', pageId='p1')
+        page.rpc_setInServer('rootenv.user_local_tags', value='admin')
+        page.rpc_setInServer('thermo_t1_stop', value=True)
+    assert data['waiting2fa'] == 'user_id'
+    assert data['confirm_user_id'] is None
+    assert data['rootenv.user_local_tags'] == 'base'
+    assert data['thermo_t1_stop'] is True
+    assert len(caplog.records) == 3

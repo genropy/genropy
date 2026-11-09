@@ -2833,7 +2833,8 @@ class GnrWebPage(GnrBaseWebPage):
         :param path: TODO
         :param value: TODO. 
         :param pageId: TODO. """
-        self.pageStore(pageId).setItem(path, value)
+        self.site.register.set_serverstore_changes(pageId or self.sourcepage_id or self.page_id,
+                                                   {path: value})
             
     #def rpc_setViewColumns(self, contextTable=None, gridId=None, relation_path=None, contextName=None,
     #                       query_columns=None, **kwargs):
