@@ -2,10 +2,12 @@
 
 """Formbuilder"""
 
+import random
+
 from gnr.core.gnrbag import Bag
 
 class GnrCustomWebPage(object):
-    py_requires = "gnrcomponents/testhandler:TestHandlerBase"
+    py_requires = "gnrcomponents/testhandler:TestHandlerFull"
     
     def test_0_htmltable(self, pane):
         "Formbuilder is basically an HTML table"
@@ -64,7 +66,7 @@ class GnrCustomWebPage(object):
 
 
     def test_2Z_testForm(self, pane):
-        form = pane.frameForm(frameCode='TestForm',datapath='.mieidati',store='memory',height='500px',border='1px solid silver',rounded=10)
+        form = pane.frameForm(frameCode='TestForm_2Z',datapath='.mieidati',store='memory',height='500px',border='1px solid silver',rounded=10)
         t = form.record.table(border_spacing='8px',margin='20px').tbody()
         r = t.tr()
         r.td().textbox(value='^.nome',lbl='Nome',validate_notnull=True)
@@ -85,7 +87,7 @@ class GnrCustomWebPage(object):
         )
 
     def test_2K_testForm(self, pane):
-        form = pane.frameForm(frameCode='TestForm',datapath='.mieidati',store='memory',height='500px',border='1px solid silver',rounded=10)
+        form = pane.frameForm(frameCode='TestForm_2K',datapath='.mieidati',store='memory',height='500px',border='1px solid silver',rounded=10)
         t = form.record.table(border_spacing='8px',margin='20px').tbody()
         r = t.tr()
         side = 'top'
@@ -111,7 +113,7 @@ class GnrCustomWebPage(object):
 
 
     def test_2FLEX_testForm(self, pane):
-        form = pane.frameForm(frameCode='TestForm',datapath='.mieidati',store='memory',height='500px',border='1px solid silver',rounded=10)
+        form = pane.frameForm(frameCode='TestForm_2FLEX',datapath='.mieidati',store='memory',height='500px',border='1px solid silver',rounded=10)
         bc = form.center.borderContainer(datapath='.record')
         bc.contentPane(region='right',splitter=True,width='150px')
         r = bc.contentPane(region='center').div(style='display:flex;flex-wrap:wrap;',margin='5px')
@@ -132,8 +134,7 @@ class GnrCustomWebPage(object):
         )
 
     def test_3FLEX_random(self, pane):
-        import random
-        form = pane.frameForm(frameCode='TestForm',datapath='.mieidati',store='memory',height='500px',border='1px solid silver',rounded=10)
+        form = pane.frameForm(frameCode='TestForm_3FLEX',datapath='.mieidati',store='memory',height='500px',border='1px solid silver',rounded=10)
         bc = form.center.borderContainer(datapath='.record')
         bc.contentPane(region='right',splitter=True,width='150px')
         r = bc.contentPane(region='center').div(style='display:flex;flex-wrap:wrap;justify-content:stretch;')
@@ -256,3 +257,15 @@ class GnrCustomWebPage(object):
         fb.field('codice')
         fb.field('codice_istat')
 
+    def test_7_lbl_outside_formbuilder(self, pane):
+        """lbl outside a formbuilder: the fields inherit lbl_side from the pane that wraps them"""
+        box = pane.div(datapath='.lbl_outside', lbl_side='left')
+        box.textbox(value='^.nome', lbl='Your name')
+        box.br()
+        box.br()
+        box.simpleTextarea(value='^.area', lbl='Notes', width='200px')
+
+    def test_8_checkboxtext_lbl(self, pane):
+        """lbl on a popup checkboxtext outside a formbuilder"""
+        pane.checkboxtext(value='^.cbtext.nome', lbl='Your name',
+                          values='mario,luigi,antonio', popup=True)

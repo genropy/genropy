@@ -1,5 +1,7 @@
 import pytest
 from gnr.sql.adapters import _gnrbaseadapter as ba
+from gnr.sql.adapters import _gnrbasepostgresadapter as pgmod
+from gnr.sql.adapters.gnrsqlite import SqlDbAdapter as SqliteAdapter
 
 class FakeCursor(object):
     def fetchall(self):
@@ -256,7 +258,9 @@ class TestSqlDbAdapter():
         assert "field" in r
         assert "separator" in r
 
-        
+        r = self.adapter.string_join(["a", "b"], ",")
+        assert r == "array_to_string(ARRAY[a,b],',')"
+
         r = self.adapter.addUniqueConstraint("package", "table", "field")
         assert r == "ALTER TABLE package.table ADD CONSTRAINT un_package_table_field UNIQUE (field)"
 
@@ -429,3 +433,71 @@ class TestSqliteAdapterMaskField:
         # Should fall back to 2-4
         assert "2" in result
         assert "4" in result
+
+
+class TestSqliteAdapterStringJoin:
+
+    @classmethod
+    def setup_class(cls):
+        cls.adapter = SqliteAdapter(FakeDbRoot(False))
+
+    def test_string_join(self):
+        r = self.adapter.string_join(["a", "b"], ",")
+        assert r == "substr(COALESCE(','||(a),'')||COALESCE(','||(b),''),2)"
+        assert "ARRAY" not in r
+
+    def test_string_join_separator_length(self):
+        r = self.adapter.string_join(["a"], " | ")
+        assert r == "substr(COALESCE(' | '||(a),''),4)"
+
+
+class FakeCompletedProcess(object):
+    """Stand-in for the CompletedProcess returned by subprocess.run."""
+    def __init__(self, stdout=''):
+        self.stdout = stdout
+        self.returncode = 0
+
+
+class TestPostgresAdapterListRemoteDatabases:
+    """Test listRemoteDatabases output parsing for the PostgreSQL adapter."""
+
+    @classmethod
+    def setup_class(cls):
+        cls.adapter = pgmod.PostgresSqlDbBaseAdapter(FakeDbRoot(False))
+
+    def _patch_run(self, monkeypatch, stdout):
+        captured = {}
+
+        def fake_run(cmd, **kwargs):
+            captured['cmd'] = cmd
+            captured['kwargs'] = kwargs
+            return FakeCompletedProcess(stdout)
+
+        monkeypatch.setattr(pgmod.subprocess, 'run', fake_run)
+        return captured
+
+    def test_parses_output(self, monkeypatch):
+        """psql -l -t output is parsed; non-ascii names and blank lines handled."""
+        fixture = (
+            " mydb      | postgres | UTF8 | libc | C | C |  |  | \n"
+            " caff\xe8_db  | postgres | UTF8 | libc | C | C |  |  | \n"
+            " template0 | postgres | UTF8 | libc | C | C |  |  | =c/postgres\n"
+            "\n"
+        )
+        captured = self._patch_run(monkeypatch, fixture)
+        result = self.adapter.listRemoteDatabases(source_ssh_host='example.com',
+                                                  source_ssh_user='user')
+        assert result == ['mydb', 'caff\xe8_db', 'template0']
+        assert captured['cmd'][0] == 'ssh'
+        assert captured['cmd'][1] == 'user@example.com'
+        # robustness contract: utf-8 decoding regardless of locale, fail-loud on error
+        assert captured['kwargs']['encoding'] == 'utf-8'
+        assert captured['kwargs']['errors'] == 'replace'
+        assert captured['kwargs']['check'] is True
+        assert captured['kwargs']['capture_output'] is True
+
+    def test_empty_output(self, monkeypatch):
+        self._patch_run(monkeypatch, '')
+        result = self.adapter.listRemoteDatabases(source_ssh_host='example.com',
+                                                  source_ssh_user='user')
+        assert result == []

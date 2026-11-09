@@ -84,7 +84,7 @@ def cellFromField(field,tableobj,checkPermissions=None):
     kwargs['dtype'] =  fldobj.dtype
     
     kwargs['dfltwidth'] = '%iem' % int(fldobj.print_width*.6) if fldobj.print_width else None
-    for attr in ['caption_field', '_owner_package', 'required_columns']:
+    for attr in ['caption_field', '_owner_package', 'required_columns', 'hierarchical_field_of']:
         if fldattr.get(attr):
             kwargs[attr] = fldattr[attr]
         

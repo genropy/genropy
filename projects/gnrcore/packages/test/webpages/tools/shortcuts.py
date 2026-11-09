@@ -3,7 +3,7 @@
 "Shortcuts"
 
 class GnrCustomWebPage(object):
-    py_requires="gnrcomponents/testhandler:TestHandlerBase"
+    py_requires="gnrcomponents/testhandler:TestHandlerFull"
 
     def test_0_shortcut(self,pane):
         "Possibility to define custom shortcuts. Insert name and press Ctrl+Shift+H to trigger button action"

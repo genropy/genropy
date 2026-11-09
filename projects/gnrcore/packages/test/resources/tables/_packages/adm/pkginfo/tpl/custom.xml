@@ -1,0 +1,59 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<GenRoBag><metadata><email><subject></subject>
+<to_address></to_address>
+<cc_address></cc_address></email></metadata>
+<varsbag><n_472><fieldpath>pkgid</fieldpath>
+<fieldname>Package</fieldname>
+<varname>pkgid</varname>
+<virtual_column _T="NN"></virtual_column></n_472>
+<n_527><fieldpath>@tables.tblid</fieldpath>
+<fieldname>Tables/Table</fieldname>
+<varname>tables_tblid</varname>
+<virtual_column _T="NN"></virtual_column></n_527>
+<n_534><fieldpath>@tables.description</fieldpath>
+<fieldname>Tables/Description</fieldname>
+<varname>tables_description</varname>
+<virtual_column _T="NN"></virtual_column></n_534></varsbag>
+<parameters></parameters>
+<content>&lt;p&gt;
+$pkgid&lt;/p&gt;
+&lt;p&gt;
+&amp;nbsp;&lt;/p&gt;
+&lt;table cellpadding="1" cellspacing="1" row_datasource="@tables" style="border-collapse: collapse; width: 500px;"&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;
+&lt;strong&gt;Table&lt;/strong&gt;&lt;/td&gt;
+&lt;td&gt;
+&lt;strong&gt;Description&lt;/strong&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;
+$tables_tblid&lt;/td&gt;
+&lt;td&gt;
+$tables_description&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;
+&amp;nbsp;&lt;/p&gt;
+</content>
+<compiled><_tables _tag="@tables">&lt;tr&gt;&lt;td&gt;
+$tblid&lt;/td&gt;
+&lt;td&gt;
+$description&lt;/td&gt;
+&lt;/tr&gt;</_tables>
+<main virtual_columns="" locale="it-IT" masks="{}::JS" dtypes="{}::JS" maintable="adm.pkginfo" columns="$pkgid,@tables.tblid,@tables.description" formats="{}::JS" df_templates="{}::JS">&lt;p&gt;
+$pkgid&lt;/p&gt;
+&lt;p&gt;
+&amp;#160;&lt;/p&gt;
+&lt;table cellpadding="1" cellspacing="1" row_datasource="@tables" style="border-collapse: collapse; width: 500px;"&gt;&lt;tbody&gt;&lt;tr&gt;&lt;td&gt;
+&lt;strong&gt;Table&lt;/strong&gt;&lt;/td&gt;
+&lt;td&gt;
+&lt;strong&gt;Description&lt;/strong&gt;&lt;/td&gt;
+&lt;/tr&gt;
+$@tables
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;p&gt;
+&amp;#160;&lt;/p&gt;</main></compiled>
+<parametersbag _T="NN"></parametersbag></GenRoBag>

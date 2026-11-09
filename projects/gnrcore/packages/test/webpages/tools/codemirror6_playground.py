@@ -162,7 +162,7 @@ SAMPLES = {
 
 
 class GnrCustomWebPage(object):
-    py_requires = "gnrcomponents/testhandler:TestHandlerBase"
+    py_requires = "gnrcomponents/testhandler:TestHandlerFull"
 
     def test_0_playground(self, pane):
         "Live playground: change language, theme and options on the fly. Read-only switches without rebuild; other changes recreate the editor."

@@ -206,10 +206,15 @@
     --expandbox-content-padding: 8px; /* @theme */
     --expandbox-transition-duration: 0.3s; /* @theme */
 
+    /* --- Modal uploader (modalUploader widget, default size when none is passed) --- */
+    --modaluploader-width: 190px; /* @theme */
+    --modaluploader-preview-ratio: 190 / 210; /* @theme */
+
     /* === Forms === */
 
     /* --- Form fields --- */
     --field-bg: var(--color-bg); /* @theme */
+    --field-color: var(--text-color); /* @theme */
     --field-border: var(--gray-400); /* @theme */
     --field-error-border: #DE9091; /* color-error #E53935 45% + gray-300 #D8D8DC */
     --field-error-dot-size: 8px; /* @theme */
@@ -221,12 +226,34 @@
     --field-disabled-opacity: 0.85;
     --field-readonly-border: var(--gray-200);
     --field-readonly-bg: var(--field-bg);
+    --field-readonly-color: var(--field-color);
     --field-focus-bg: var(--color-bg);
     --gnrfieldlabel-color: var(--gray-700); /* @theme — readable on light form surfaces */
+
+    /* --- Field adornments (voice input mic, textarea action bar) --- */
+    --field-adornment-size: 1.375rem;   /* @theme clickable box overlaid on the field */
+    --field-adornment-glyph: 1rem;      /* @theme icon drawn inside that box */
+    --field-adornment-inset: 0.125rem;  /* @theme gap between box and field border */
+    /* room the field must leave so text never runs under the adornment */
+    --field-adornment-reserve: calc(var(--field-adornment-size) + 2 * var(--field-adornment-inset));
+    /* --- Numeric keypad / calculator popup (keypad=True) ---
+       em, against the font-size the pad inherits from its own field: the pad has to
+       look like it belongs to that field. keypad_size='large' swaps in absolute
+       units instead, for a coarse touch target on a small field. */
+    --keypad-key-size: 3em;       /* @theme */
+    --keypad-key-font: 1.125em;   /* @theme */
+    --keypad-gap: 0.3125em;       /* @theme */
+    --keypad-field-reserve: 1.4em; /* @theme room the field leaves for the opener */
+
+    /* the same adornments inline in the textarea action bar: no overlay, no inset */
+    --bar-adornment-size: 0.875rem;     /* @theme */
+    --bar-adornment-glyph: 0.8125rem;   /* @theme */
+    --bar-adornment-gap: 0.25rem;       /* @theme */
 
     /* --- Form-context field defaults (shared by formbuilder & formlet) --- */
     --form-field-border: var(--field-border);
     --form-field-bg: var(--field-bg);
+    --form-field-color: var(--field-color);
     --form-field-border-width: 1px;
     --form-field-radius: var(--radius-sm);
     --form-label-font-size: .9em;
@@ -241,6 +268,7 @@
     --formbuilder-plaintext-border: var(--form-field-border);
     --formbuilder-field-border: var(--form-field-border);
     --formbuilder-field-bg: var(--form-field-bg);
+    --formbuilder-field-color: var(--form-field-color);
     --formbuilder-field-border-width: var(--form-field-border-width);
     --formbuilder-field-radius: var(--form-field-radius);
     --formbuilder-field-padding-x: 3px;
@@ -266,6 +294,10 @@
     --formlet-label-font-weight: bold;
     --formlet-label-font-size: var(--form-label-font-size);
 
+    /* --- Linker (open search field in a linker bar) --- */
+    --linker-field-padding-y: 2px; /* @theme how much taller than its text the open field is */
+    --linker-bar-padding-y: 2px; /* @theme air between the open field and the bar edges */
+
     /* --- topLabelTable --- */
     --topLabelTable-border-top: none;
     --topLabelTable-separator: var(--gray-250); /* @theme */
@@ -284,6 +316,7 @@
     --toast-container-right: 16px;
     --toast-min-width: 300px;
     --toast-max-width: 420px;
+    --toast-message-max-height: 40vh;
     --toast-padding: 14px 16px;
     --toast-gap: 10px;
     --toast-border-width: 4px;
@@ -303,7 +336,6 @@
     --tb-num-bg: var(--gray-200);
     --tb-num-color: #666;
     --tb-num-error-bg: #fee2e2;
-    --tb-module-color: var(--accent-color);
     --tb-func-color: #7c3aed;
     --tb-muted-color: #999;
     --tb-hash-color: #9ca3af;
@@ -390,6 +422,17 @@
     --multibutton-selected-bg: var(--gray-700, #656567); /* @theme */
     --button-in-grid-bg: var(--gray-200); /* @theme */
 
+    /* --- Menudiv token (menudiv rendered as a bare inline word + chevron) --- */
+    --menutoken-disabled-color: var(--text-muted); /* @theme */
+
+    /* --- Checkstrip (contiguous checkboxes as a minimal toggle strip) ---
+       em-based on purpose: the strip scales with the font-size of its context */
+    --checkstrip-cell-min-width: 3em;
+    --checkstrip-cell-padding: .4em .5em;
+    --checkstrip-gap: .2em;
+    --checkstrip-color: var(--text-muted); /* @theme */
+    --checkstrip-selected-color: var(--text-on-dark); /* @theme */
+
     /* --- Buttons: shared --- */
     --btn-border-color: var(--border-color); /* @theme */
 
@@ -421,6 +464,7 @@
     --icon-folder: url(/_rsrc/common/css_icons/svg/16/folder.svg);
     --icon-print: url(/_rsrc/common/css_icons/svg/16/print.svg);
     --icon-trash: url(/_rsrc/common/css_icons/svg/16/trash.svg);
+    --icon-pin: url(/_rsrc/common/css_icons/svg/16/pin.svg);
     --icon-readonly: url(/_rsrc/common/css_icons/svg/16/read_only_status.svg);
     --icon-query: url(/_rsrc/common/css_icons/svg/16/select_query.svg);
     --icon-menu: url(/_rsrc/common/css_icons/svg/16/menu_icon.svg);
@@ -467,7 +511,7 @@
     --icon-play: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4 2l10 6-10 6z' fill='%23515151'/%3E%3C/svg%3E");
     --icon-pause: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='3' y='2' width='3.5' height='12' rx='0.5' fill='%23515151'/%3E%3Crect x='9.5' y='2' width='3.5' height='12' rx='0.5' fill='%23515151'/%3E%3C/svg%3E");
     --icon-invalid: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3E%3Cpath d='M0 0h8v8z' fill='%23d32f2f'/%3E%3C/svg%3E");
-    --icon-editor-palette: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 34 14'%3E%3Crect x='1' y='1' width='32' height='12' rx='2' fill='none' stroke='%23888' stroke-width='1'/%3E%3Crect x='4' y='4' width='6' height='6' fill='%23515151'/%3E%3Crect x='14' y='4' width='6' height='6' fill='%23888'/%3E%3Crect x='24' y='4' width='6' height='6' fill='%23bbb'/%3E%3C/svg%3E");
+    --icon-text-editor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M2.5 2.5h11l.4 3.2h-.7c-.3-1.6-.8-2.2-2.5-2.2H9.3v8.7c0 1 .3 1.3 1.7 1.4v.6H5v-.6c1.4-.1 1.7-.4 1.7-1.4V3.5H5.3c-1.7 0-2.2.6-2.5 2.2h-.7z' fill='%23515151'/%3E%3C/svg%3E");
     --icon-tuner-up: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M2 7l3-4 3 4' fill='none' stroke='%23515151' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
     --icon-tuner-down: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M2 3l3 4 3-4' fill='none' stroke='%23515151' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
     --icon-small-add: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M5 2v6M2 5h6' stroke='%23515151' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
@@ -475,6 +519,7 @@
     --icon-genropy-logo: url(/_rsrc/common/css_icons/svg/16/genrologo.svg);
     --icon-download-file: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M32 6v36M20 30l12 12 12-12' fill='none' stroke='%23888' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M12 48h40' fill='none' stroke='%23888' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E");
     --icon-draft-stamp: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='32'%3E%3Ctext x='20' y='20' text-anchor='middle' font-size='11' font-weight='bold' letter-spacing='2' fill='%23aaa' opacity='0.4' font-family='sans-serif' transform='rotate(-25 20 16)'%3EDRAFT%3C/text%3E%3C/svg%3E");
+    --icon-sigma: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 7V4H6l6 8-6 8h12v-3'/%3E%3C/svg%3E");
     --icon-placeholder-img: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 90'%3E%3Crect width='120' height='90' fill='%23f0f0f0'/%3E%3Crect x='35' y='20' width='50' height='40' rx='3' fill='none' stroke='%23ccc' stroke-width='2'/%3E%3Ccircle cx='48' cy='33' r='5' fill='%23ccc'/%3E%3Cpath d='M35 52l15-12 10 8 8-5 17 12' fill='none' stroke='%23ccc' stroke-width='2' stroke-linejoin='round'/%3E%3Ctext x='60' y='78' text-anchor='middle' font-size='10' fill='%23bbb' font-family='sans-serif'%3Eplaceholder%3C/text%3E%3C/svg%3E");
 
     /* --- Window controls --- */
@@ -499,10 +544,19 @@
     /* --- Splitters --- */
     --splitter-size: 5px;
     --splitter-bg: var(--surface-light); /* @theme */
-    --splitter-line-active: var(--accent-color); /* @theme */
     --splitter-grip: var(--text-placeholder); /* @theme */
     --splitter-grip-hover: var(--text-secondary); /* @theme */
     --icon-grip-h: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 8'%3E%3Ccircle cx='4' cy='4' r='2.5'/%3E%3Ccircle cx='12' cy='4' r='2.5'/%3E%3Ccircle cx='20' cy='4' r='2.5'/%3E%3C/svg%3E");
     --icon-grip-v: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 24'%3E%3Ccircle cx='4' cy='4' r='2.5'/%3E%3Ccircle cx='4' cy='12' r='2.5'/%3E%3Ccircle cx='4' cy='20' r='2.5'/%3E%3C/svg%3E");
 
+}
+
+/* Derived from --accent-color/--primary-color: resolved on body, where themes
+   and color variants redefine them (a var() on :root freezes the default). */
+body {
+    --tb-module-color: var(--accent-color);
+    --menutoken-color: var(--accent-color); /* @theme */
+    --menutoken-hover-color: var(--primary-color); /* @theme */
+    --checkstrip-selected-bg: var(--accent-color); /* @theme */
+    --splitter-line-active: var(--accent-color); /* @theme */
 }

@@ -32,6 +32,9 @@ class Table(object):
                                       limit=1),
                           dtype='T',name_long='First Product'
                           ).relation('product.id',relation_name='first_in_invoice')
+        tbl.aliasColumn('first_product_description',
+                        relation_path='@first_product_id.description',
+                        name_long='First Product Description')
         tbl.aliasColumn('customer_name',
                         relation_path='@customer_id.account_name',
                         name_long='Customer Name')

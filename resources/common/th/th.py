@@ -18,6 +18,7 @@
 #License along with this library; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
+from gnr.web import logger
 from gnr.web.gnrbaseclasses import BaseComponent
 from gnr.web.gnrwebstruct import struct_method
 from gnr.core.gnrdecorator import extract_kwargs,public_method
@@ -37,6 +38,26 @@ class TableHandler(BaseComponent):
                   gnrcomponents/userobject/userobject_editor:RpcQueryEditor
                   """
     
+    def _th_checkDatapathCollision(self,pane,effective_datapath,table=None,th_root=None):
+        """Two tableHandlers whose datapath resolves to the same address share
+        struct, selection and workspace: the last one built silently overwrites
+        the other. The default datapath is .<tablename>, so this bites whenever
+        the same table appears twice in the same datapath scope."""
+        parts = [effective_datapath]
+        node = pane
+        while node is not None and parts[-1].startswith('.'):
+            dp = node.attributes.get('datapath') if getattr(node,'attributes',None) else None
+            if dp:
+                parts.append(str(dp))
+            node = getattr(node,'parent',None)
+        scope_key = '/'.join(reversed(parts))
+        registry = self.__dict__.setdefault('_th_datapath_registry',{})
+        other = registry.get(scope_key)
+        if other and other!=th_root:
+            logger.warning("TableHandler datapath collision on table %s: '%s' and '%s' share datapath '%s' in the same scope; the last one built overwrites the other's grid struct and workspace - pass an explicit datapath to one of them",
+                           table,other,th_root,scope_key)
+        registry[scope_key] = th_root
+
     @extract_kwargs(condition=True,grid=True,view=True,picker=True,export=True,addrowmenu=True,hider=True,preview=True,relation=True)
     def __commonTableHandler(self,pane,nodeId=None,th_pkey=None,table=None,relation=None,datapath=None,viewResource=None,
                             formInIframe=False,virtualStore=False,extendedQuery=None,condition=None,condition_kwargs=None,
@@ -98,6 +119,7 @@ class TableHandler(BaseComponent):
 
         if pane.attributes.get('tag') == 'ContentPane':
             pane.attributes['overflow'] = 'hidden'
+        self._th_checkDatapathCollision(pane,datapath or '.{}'.format(tableCode),table=table,th_root=th_root)
         wdg = pane.child(tag=tag,datapath=datapath or '.{}'.format(tableCode),
                         thlist_root=viewCode,
                         thform_root=formCode,
@@ -901,7 +923,6 @@ class ThLinker(BaseComponent):
         linkerpath = '#FORM.linker_%s' %field
         forbudden_dbstore = self.dbstore and (related_tblobj.attributes.get('multidb') or related_tblobj.dbtable.use_dbstores() is False)
         linker = pane.div(_class='th_linker',childname='linker',datapath=linkerpath,
-                         rounded=8,
                          onCreated='this.linkerManager = new gnr.LinkerManager(this);',
                          connect_onclick='this.linkerManager.openLinker();',
                          selfsubscribe_disable='this.linkerManager.closeLinker();',
@@ -944,13 +965,22 @@ class ThLinker(BaseComponent):
                     formUrl=None,newRecordOnly=None,openIfEmpty=None,
                     _class='pbl_roundedGroup',label=None,template_kwargs=None,
                     margin=None, editEnabled=True, addEnabled=True, 
-                    clientTemplate=False,center_class=None, **kwargs):
+                    clientTemplate=False,center_class=None, flex=False, alwaysOpen=False, **kwargs):
         frameCode= frameCode or 'linker_%s' %field.replace('.','_')
-        if pane.attributes.get('tag') == 'ContentPane':
-            pane.attributes['overflow'] = 'hidden'
-        frame = pane.framePane(frameCode=frameCode,_class=_class,margin=margin,
-                               center_class='pbl_roundedGroupContent')
-        linkerBar = frame.top.linkerBar(field=field,
+        if alwaysOpen:
+            _class = '%s th_linkerAlwaysOpen' %_class
+        if flex:
+            # a flow box: its height follows the content instead of being imposed by a BorderContainer
+            frame = pane.div(_class='%s th_linkerBoxFlex' %_class,margin=margin,
+                             height=kwargs.pop('height',None),max_height=kwargs.pop('max_height',None))
+            top = frame
+        else:
+            if pane.attributes.get('tag') == 'ContentPane':
+                pane.attributes['overflow'] = 'hidden'
+            frame = pane.framePane(frameCode=frameCode,_class=_class,margin=margin,
+                                   center_class='pbl_roundedGroupContent')
+            top = frame.top
+        linkerBar = top.linkerBar(field=field,
                                         formResource=formResource,
                                         formUrl=formUrl,
                                         newRecordOnly=newRecordOnly,
@@ -963,20 +993,33 @@ class ThLinker(BaseComponent):
         center_class = center_class or 'linkerCenter'
         table = linker.attributes['table']
         related_tblobj = self.db.table(table)
-        if clientTemplate:
-            template = frame.center.contentPane(_class=center_class).templateChunk(template=template,table=table,
+        if flex:
+            center = frame.div(_class='pbl_roundedGroupContent th_linkerBoxFlexCenter',childname='center',
+                               hidden=None if template is False else '%s?=!#v' %currpkey)
+            if template is not False:
+                center = center.div(_class=center_class)
+        else:
+            center = frame.center.contentPane(_class=center_class)
+        if template is False:
+            pass
+        elif clientTemplate:
+            template = center.templateChunk(template=template,table=table,
                                       datasource='^.@%s' %field,
                                       visible=currpkey,margin='4px',
                                       **template_kwargs)
         else:
-            template = frame.center.contentPane(_class=center_class).templateChunk(template=template,table=table,
+            template = center.templateChunk(template=template,table=table,
                                       record_id='^.%s' %field,
                                       visible=currpkey,margin='4px',
                                       **template_kwargs)
         
         forbudden_dbstore = self.dbstore and (related_tblobj.attributes.get('multidb') or related_tblobj.use_dbstores() is False)
         if editEnabled and formResource or formUrl:
-            footer = frame.bottom.slotBar('*,linker_edit',padding='2px')
+            # flex: footer and linker bar share one container, so the footer needs a name of its own;
+            # framePane: the bottom bar keeps its default name, applications reach it as frame.bottom.bar
+            footer = (frame if flex else frame.bottom).slotBar('*,linker_edit',padding='2px',
+                                                                 childname='footer' if flex else 'bar',
+                                                                 _class='th_linkerBoxFooter')
             footer.linker_edit.slotButton('Edit',baseClass='no_background',iconClass='iconbox pencil',
                                             action='linker.publish("loadrecord");',linker=linker,
                                             forbudden_dbstore=forbudden_dbstore,hidden=forbudden_dbstore,
@@ -985,7 +1028,9 @@ class ThLinker(BaseComponent):
 
     @struct_method          
     def th_linkerBar(self,pane,field=None, label=None, _class='pbl_roundedGroupLabel',newRecordOnly=True, addEnabled=None, **kwargs):
-        bar = pane.slotBar('lbl,*,linkerslot,5',height='20px',_class=_class)
+        # min_height, not height: the bar follows the field, which the theme may make taller
+        bar = pane.slotBar('lbl,*,linkerslot,5',min_height='20px',
+                           _class='%s th_linkerBar' % _class)
         linker = bar.linkerslot.linker(field=field,newRecordOnly=newRecordOnly, addEnabled=addEnabled, **kwargs)
         bar.linker = linker
         label = label or self.db.table(linker.attributes['table']).name_long

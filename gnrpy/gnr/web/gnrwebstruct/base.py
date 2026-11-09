@@ -151,7 +151,25 @@ class GnrDomSrc(GnrStructData):
         :param nodeId: the :ref:`nodeid`"""
         assert nodeId not in self.register_nodeId,'%s is duplicated' %nodeId
         self.page._register_nodeId[nodeId] = self
-        
+
+    def unregisterNodeIds(self, childname):
+        """Remove from the :ref:`nodeid` register every :ref:`nodeid` declared
+        inside a child subtree, so that the child can be rebuilt
+
+        :param childname: the :ref:`childname` of the subtree"""
+        childnode = self.getNode(childname)
+        if childnode is None:
+            return
+        register = self.register_nodeId
+        nodes = [childnode]
+        childvalue = childnode.getStaticValue()
+        if isinstance(childvalue, Bag):
+            nodes += list(childvalue.traverse())
+        for node in nodes:
+            nodeId = node.attr.get('nodeId')
+            if nodeId:
+                register.pop(nodeId, None)
+
     @property
     def register_nodeId(self):
         """TODO"""
@@ -836,7 +854,7 @@ class GnrDomSrc(GnrStructData):
         return self.child('script', childcontent=content, **kwargs)
     
     def bagField(self,value=None,method=None,**kwargs):
-        return self.child('bagField',value=value,methodname=method,**kwargs)
+        return self.child('bagField',value=value,bfhandler=method,**kwargs)
     
     def grouplet(self,value=None,handler=None,**kwargs):
         return self.child('grouplet',value=value,handler=handler,**kwargs)
@@ -1007,13 +1025,39 @@ class GnrDomSrc(GnrStructData):
             return self.formbuilder_table(*args,**kwargs)
         
     def formlet(self,columns=None,table=None,formletCode=None,
-                formletclass='formlet',_class=None,**kwargs):
+                formletclass='formlet',excludeParentField=True,_class=None,
+                wrap=None,col_min_width=None,**kwargs):
+        # Two responsive modes, mutually exclusive with each other and with a
+        # fixed `columns`/`cols`:
+        #  * wrap=True       -> wrapping flexbox: heterogeneous items keep their
+        #    intrinsic width and flow onto new rows when they no longer fit
+        #    (toolbar / "headline" strips). See .gnrgridbox.formlet_wrap.
+        #  * col_min_width   -> responsive grid: uniform columns that reduce in
+        #    count as the container narrows, down to 1, each column at least
+        #    `col_min_width` wide (mobile-friendly record forms). Same CSS
+        #    auto-fit/minmax trick as the groupletGrid min_width. auto-fit
+        #    never lays out more tracks than there are items; cap the count on
+        #    wide screens with a fixed `columns=N` or a max_width on the formlet.
+        #    A distinct name (not `min_width`) so it never shadows the element's
+        #    CSS min-width style.
+        if col_min_width:
+            kwargs.pop('cols', None)
+            columns = f'repeat(auto-fit, minmax({col_min_width}, 1fr))'
+        elif wrap:
+            formletclass = f'{formletclass} formlet_wrap'
         formNode = self.parentNode.attributeOwnerNode('formId') if self.parentNode else None
         excludeCols = kwargs.pop('excludeCols',None)
-        if excludeCols:
-            raise NotImplementedError('Not implemented in formlet')
         if formNode:
             table = table or formNode.attr.get('table')
+            # Hide the parent link column when this formlet is the child form of a
+            # relation-based Table Handler, mirroring the formbuilder behaviour
+            # (see GnrFormBuilder._formCell). The Table Handler puts the parent fkey
+            # in the form node's excludeCols; field() reads it back from there.
+            # excludeParentField=False opts out and shows the column anyway.
+            if not excludeParentField:
+                formNode.attr.pop('excludeCols',None)
+            elif excludeCols:
+                formNode.attr.setdefault('excludeCols',excludeCols)
 
         # Promote static item_* to their unprefixed form on the gridbox so
         # that child fields can pick them up via getInheritedAttributes()

@@ -144,8 +144,8 @@ class BaseStorageHandler:
 
         Reads from siteconfig.xml services section:
         <services>
-            <storage service_name="my_storage" implementation="local">
-                <base_path>/path/to/storage</base_path>
+            <storage>
+                <my_storage implementation="local" base_path="/path/to/storage"/>
             </storage>
             <my_s3 service_type="storage" implementation="aws_s3" bucket="my-bucket" />
         </services>
@@ -169,6 +169,18 @@ class BaseStorageHandler:
                     self._setStorageParams(service_name, parameters=attrs, implementation=implementation)
             # Also check flat structure: <services><my_storage service_type="storage" .../></services>
             for service_name, attrs in services.digest('#k,#a'):
+                if service_name == 'storage':
+                    # <services><storage> is the type section handled above, not a service
+                    if attrs and attrs.get('service_name'):
+                        # the shape this docstring used to document: an instance that
+                        # followed it had the mount registered under the label 'storage',
+                        # and would now lose it without a word
+                        logger.warning(
+                            "<services><storage service_name=%r> is the storage type section, "
+                            "not a service: the mount is not loaded. Declare it as a child, "
+                            "<storage><%s implementation=... /></storage>",
+                            attrs['service_name'], attrs['service_name'])
+                    continue
                 attrs = dict(attrs) if attrs else {}
                 service_type = attrs.pop('service_type', None) or service_name
                 if service_type == 'storage':
@@ -219,7 +231,6 @@ class BaseStorageHandler:
             service_name = service_record['service_name']
             implementation = service_record['implementation']
             parameters_bag = Bag(service_record['parameters'])
-
             # Use centralized method to set parameters
             self._setStorageParams(service_name,
                 parameters=parameters_bag,
@@ -544,6 +555,5 @@ class LegacyStorageHandler(BaseStorageHandler):
             mode=mode,
             version=version
         )
-
 
 

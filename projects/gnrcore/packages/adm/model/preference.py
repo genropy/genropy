@@ -28,6 +28,8 @@ class Table(object):
         return result.deepcopy()
     
     def getStorePreferences(self):
+        if self.db.usingMultiStore():
+            return self.getMainStorePreference()
         storename = self.db.currentEnv.get('storename')
         pref_cache_key = '_storepref_%s' %storename
         preference = None
@@ -110,6 +112,8 @@ class Table(object):
         with self.db.tempEnv(connectionName='system',**self.get_storeargs()):
             try:
                 record = self.record(pkey=pkey, for_update=for_update).output('bag')
+                if not for_update:
+                    self.db.rollback()
             except RecordNotExistingError:
                 record = self.newrecord(code=pkey, data=Bag())
                 self.insert(record)

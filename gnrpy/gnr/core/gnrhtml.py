@@ -10,6 +10,7 @@
 
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrstring import splitAndStrip, stringWidth
+from gnr.utils.fonts import resolve_font_name
 from gnr.core.gnrstructures import GnrStructData
 from gnr.core.gnrsys import expandpath
 from gnr.core.gnrdecorator import extract_kwargs
@@ -743,15 +744,15 @@ class GnrHtmlBuilder(object):
 
         :param text: plain text to measure
         :param width_mm: available width in mm; defaults to page width minus margins
-        :param font_name: font for AFM lookup; defaults to ``self.font_family`` or ``'Helvetica'``
+        :param font_name: font (or CSS font-family stack) for AFM lookup;
+                          defaults to ``self.font_family``, falling back to ``'Helvetica'``
         :param font_size: font size in points; defaults to ``self.font_size``
         """
         if not text:
             return 0
         if width_mm is None:
             width_mm = self.page_width - self.page_margin_left - self.page_margin_right - 2
-        if font_name is None:
-            font_name = self.font_family or 'Helvetica'
+        font_name = resolve_font_name(font_name or self.font_family)
         if font_size is None:
             font_size = self.font_size
         avail_pt = width_mm * MM_TO_PT

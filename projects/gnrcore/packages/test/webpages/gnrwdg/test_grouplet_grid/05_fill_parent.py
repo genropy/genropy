@@ -26,7 +26,7 @@ class GnrCustomWebPage(object):
                    'gnrcomponents/grouplet/grouplet:GroupletGridHandler')
 
     def main(self, root, **kwargs):
-        bc = root.borderContainer(_anchor=True)
+        bc = root.borderContainer(_anchor=True, datapath='fill_parent')
         self._sidePane(bc, region='left', width='50%',
                        title='fillParent=False (legacy)',
                        fill=False)
@@ -65,15 +65,15 @@ class GnrCustomWebPage(object):
         for k, (label, n) in enumerate([('Alpha (5 items)', 5),
                                         ('Beta (40 items)', 40),
                                         ('Gamma (80 items)', 80)]):
-            chapter = Bag()
+            chapter = Bag(dict(label=label))
             items = Bag()
             short = label.split(' ', 1)[0]
             for i in range(n):
-                items.setItem(f'it_{i}', Bag(),
-                              label=f'{short} item {i + 1}',
-                              descr=f'Description line for item {i + 1}')
+                items.setItem(f'it_{i}', Bag(dict(
+                    label=f'{short} item {i + 1}',
+                    descr=f'Description line for item {i + 1}')))
             chapter.setItem('items', items)
-            b.setItem(f'ch_{k}', chapter, label=label)
+            b.setItem(f'ch_{k}', chapter)
         return b
 
     @public_method

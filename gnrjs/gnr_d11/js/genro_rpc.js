@@ -363,6 +363,8 @@ dojo.declare("gnr.GnrRpcHandler", null, {
         if(!sysrpc){
             genro._lastRpc = new Date();
         }
+        content._lastUserEventTs = genro.getServerLastTs();
+        content._lastRpc = genro.getServerLastRpc();
         if (genro.debugRpc) {
             this.debugRpc(kw);
         }
@@ -544,13 +546,23 @@ dojo.declare("gnr.GnrRpcHandler", null, {
                 for (var clientpath_prefix in genro._serverstore_paths) {
                     var serverpath_prefix = genro._serverstore_paths[clientpath_prefix];
                     if (stringStartsWith(changepath, serverpath_prefix)) {
-                        let clientpath = clientpath_prefix + changepath.slice(serverpath_prefix.length);
-                        updater(clientpath, value, attr, reason);
+                        let inner = changepath.slice(serverpath_prefix.length);
+                        if (!inner || inner[0] == '.') {
+                            let clientpath = clientpath_prefix + inner;
+                            if (isDelete) {
+                                // mark the removal as the server's, like the write path
+                                // below and the two other server-side pops: an unmarked
+                                // event is echoed back as a client write (genro.js:1621)
+                                genro._data.delItem(clientpath, reason);
+                            } else {
+                                updater(clientpath, value, attr, reason);
+                            }
+                        }
                     }
                 }
             }
             else if (isDelete) {
-                genro._data.delItem(changepath);
+                genro._data.delItem(changepath, reason);
             }
             else {
                 updater(changepath, value, attr, reason);
@@ -577,8 +589,12 @@ dojo.declare("gnr.GnrRpcHandler", null, {
         }
         for (k in css_requires){
             if(!(k in this.dynRequires.css)){
-                if(css_requires[k]){
-                    jslist.push({htype:'link',href:css_requires[k]});
+                // a name may resolve to one file per package (#148)
+                let hrefs = css_requires[k];
+                if(hrefs){
+                    (Array.isArray(hrefs)? hrefs : [hrefs]).forEach(function(href){
+                        jslist.push({htype:'link',href:href});
+                    });
                 }
                 this.dynRequires.css[k] = true;
             }
@@ -871,6 +887,8 @@ dojo.declare("gnr.GnrRpcHandler", null, {
             '_storename':params._storename};
         var storefield = params._storefield;
         var resolver_kwargs = params._resolver_kwargs;
+        //shared by onloading and onloaded
+        var targetTable = params._target_fld.split('.').slice(0, 2).join('_');
         kwargs.method = 'app.getRelatedRecord';
         var resolver = new gnr.GnrRemoteResolver(kwargs, isGetter, cacheTime);
         resolver.updateAttr = true;
@@ -891,9 +909,7 @@ dojo.declare("gnr.GnrRpcHandler", null, {
                 }
                 kwargs['resolver_kwargs'] = resolver_kwargs;
             }
-            var target = kwargs.target_fld.split('.');
-            var table = target[0] + '_' + target[1];
-            var loadingParameters = genro.getData('gnr.tables.' + table + '.loadingParameters');
+            var loadingParameters = genro.getData('gnr.tables.' + targetTable + '.loadingParameters');
             //var resolverParameters = genro.getData('gnr.resolverParameters.xyz.@pippo_@caio_puza');
             var rowLoadingParameters = objectPop(kwargs, 'rowLoadingParameters');
             if (rowLoadingParameters) {
@@ -909,7 +925,7 @@ dojo.declare("gnr.GnrRpcHandler", null, {
             kwargs['loadingParameters'] = loadingParameters;
         };
         resolver.onloaded = function(){
-            var f = this.attr._from_fld || this.attr._target_fld || table;
+            var f = this.attr._from_fld || this.attr._target_fld || targetTable;
             genro.publish('resolverOneLoaded_'+f.replace(/\./g, '_'),{path:this.getFullpath(),node:this});
         }
         var _related_field = params._target_fld.split('.')[2];

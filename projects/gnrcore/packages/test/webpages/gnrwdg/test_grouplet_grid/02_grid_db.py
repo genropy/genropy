@@ -10,7 +10,14 @@
                             currently edited regione.
                             Save is explicit (no autoSave — that's
                             Item 24).
+  test_2_struct_fieldcell — struct-mode groupletGrid whose struct is
+                            built with `fieldcell` on `glbl.provincia`:
+                            the adapter must bind the real column, not
+                            the caption_field a foreign-key fieldcell
+                            emits (a relation path, unresolvable on a
+                            Bag store).
 """
+from gnr.core.gnrbag import Bag
 
 
 class GnrCustomWebPage(object):
@@ -47,3 +54,23 @@ class GnrCustomWebPage(object):
             formResource='RegionWithProvinces',
             formId='region_provinces_form',
             datapath='.regione')
+
+    def test_2_struct_fieldcell(self, pane):
+        """Struct built with fieldcell: the regione cell is a foreign
+        key, its editor must be a dbselect bound to the raw column."""
+        seed = Bag()
+        seed.setItem('r_001', Bag(dict(nome='Milano', regione='LOM')))
+        seed.setItem('r_002', Bag(dict(nome='Torino', regione='PIE')))
+        pane.data('.province_rows', seed)
+
+        def struct(struct):
+            r = struct.view().rows()
+            r.fieldcell('nome', width='100%', edit=True)
+            r.fieldcell('regione', width='14em', edit=True)
+
+        pane.groupletGrid(storepath='.province_rows',
+                          table='glbl.provincia',
+                          struct=struct,
+                          max_height='240px',
+                          editmenu=True,
+                          defaultRow=dict(nome=None, regione=None))

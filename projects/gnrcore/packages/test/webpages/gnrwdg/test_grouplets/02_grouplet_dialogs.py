@@ -37,7 +37,7 @@ class GnrCustomWebPage(object):
         """documentDataEditor: edit a document by path"""
         fb = pane.formlet(cols=1)
         fb.textbox(value='^.doc_path', lbl='Document path',
-                  default_value='pkg:test15/testdata/docstore/doc1.xml')
+                  default_value='pkg:test/testdata/docstore/doc1.xml')
         fb.button('Edit Document').dataController(
             "genro.dlg.documentDataEditor('doc_edit', {path:doc_path, handler:grp_handler,title:'Edit Document'}, this)",
             doc_path='=.doc_path',

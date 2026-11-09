@@ -43,12 +43,13 @@ from gnr.core.gnrdict import dictExtract
 from gnr.core.gnrlang import moduleDict
 from gnr.core.gnrstructures import GnrStructData
 from gnr.sql import logger
-from gnr.sql.gnrsql_exceptions import GnrSqlException, GnrSqlRelationError
+from gnr.sql.gnrsql_exceptions import GnrSqlException, GnrSqlRelationError, NotMatchingModelError
 from gnr.sql.gnrsqlmodel.columns import DbVirtualColumnObj
 from gnr.sql.gnrsqlmodel.containers import DbIndexObj
 from gnr.sql.gnrsqlmodel.helpers import (
     ConfigureAfterStartError,
     bagItemFormula,
+    baseDtype,
     toolFormula,
 )
 from gnr.sql.gnrsqlmodel.obj import DbModelObj
@@ -151,7 +152,20 @@ class DbModel:
                     if hasattr(tblmix, 'config_db'):
                         tblmix._cls = tblmix.config_db.__self__
                     _doObjMixinConfig(tblmix, pkgsrc)
-                    tblsrc = pkgsrc.table(tblmix._tblname)
+                # every config_db has run, so this is the whole package rather than
+                # the modules that sort before the one being checked
+                declared = set(pkgsrc['tables'].keys()) if 'tables' in pkgsrc else set()
+                for tblname in tablenames:
+                    tblmix = tables[tblname]
+                    if tblname not in declared:
+                        # the mixin registry is keyed by module filename: calling
+                        # pkgsrc.table() here would materialize an empty phantom
+                        # table and leave the declared one without its mixin
+                        raise NotMatchingModelError(
+                            'model module %s/%s declares no table named %r (declared: %s): '
+                            'name the module after the table it declares'
+                            % (pkg, tblname, tblname, ', '.join(sorted(declared)) or 'none'))
+                    tblsrc = pkgsrc.table(tblname)
                     tblsrc._mixinobj = tblmix
                     tblmix.src = tblsrc
         onBuildingCalls: list[Any] = []
@@ -1005,6 +1019,21 @@ class DbModelSrc(GnrStructData):
                 raise GnrSqlException(error)
 
         kwargs.update(variant_kwargs)
+        kind = dict(
+            relation_path=relation_path, select=select, exists=exists,
+            sql_formula=sql_formula, py_method=py_method,
+            join_column=kwargs.get('join_column'),
+            composed_of=kwargs.get('composed_of'),
+        )
+        # on a colgroup child() writes on the table (_destinationNode)
+        table_src = getattr(self, '_destinationNode', self)
+        existing = table_src['virtual_columns'].getNode(name)
+        if existing and any(v is not None for v in kind.values()):
+            # child() skips None kwargs, so a redefinition of another kind
+            # would otherwise inherit the previous kind's attributes
+            for k, v in kind.items():
+                if v is None:
+                    existing.attr.pop(k, None)
         vcsrc = self.child(
             'virtual_column', 'virtual_columns.%s' % name,
             relation_path=relation_path, select=select, exists=exists,
@@ -1149,8 +1178,13 @@ class DbModelSrc(GnrStructData):
         Returns:
             The virtual-column source node.
         """
+        # resolve package custom dtypes (custom_type_<dtype> hooks) to their
+        # base dtype for the SQL cast; the virtual_column keeps the original
+        # dtype so the custom-type mixin (size, format...) applies at doInit
+        pkgmixin = self.root._dbmodel.mixins['pkg.%s' % self.attributes.get('pkg')]
         sql_formula = bagItemFormula(
-            bagcolumn=bagcolumn, itempath=itempath, dtype=dtype, kwargs=kwargs,
+            bagcolumn=bagcolumn, itempath=itempath,
+            dtype=baseDtype(pkgmixin, dtype), kwargs=kwargs,
         )
         return self.virtual_column(
             name, sql_formula=sql_formula,
@@ -1198,8 +1232,12 @@ class DbModelSrc(GnrStructData):
         """
         if mode == 'json':
             tname = f"{self.attributes.get('fullname').replace('.', '_')}_{name}"
+            # jsonb_agg, not json_agg: the json type has no equality operator,
+            # so the column would break any SELECT DISTINCT (auto-injected by
+            # the compiler on exploding many-relations); psycopg still parses
+            # jsonb to a python list
             sql_formula = (
-                f"SELECT json_agg(row_to_json({tname}_json)) "
+                f"SELECT jsonb_agg(row_to_json({tname}_json)) "
                 f"FROM #nestedselect {tname}_json"
             )
             return self.virtual_column(
@@ -1209,9 +1247,12 @@ class DbModelSrc(GnrStructData):
         if mode == 'xml':
             tname = f"{self.attributes.get('fullname').replace('.', '_')}_{name}"
             columns = query['columns'].replace('$', '')
+            # cast to text: the xml type has no equality operator either, and
+            # psycopg already returns xml columns as plain strings
             sql_formula = (
-                f"SELECT xmlagg(xmlelement(name {tname}_xml,"
-                f"xmlforest({columns}))) FROM #nestedselect {tname}_xml"
+                f"SELECT CAST(xmlagg(xmlelement(name {tname}_xml,"
+                f"xmlforest({columns}))) AS text) "
+                f"FROM #nestedselect {tname}_xml"
             )
             return self.virtual_column(
                 name, sql_formula=sql_formula, select_nestedselect=query,

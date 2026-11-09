@@ -1,28 +1,30 @@
 # -*- coding: utf-8 -*-
 
-"""Test drag & drop"""
+"""Drag and drop: drag values and tags, and detachable panes
+
+Any widget becomes a drag source with `draggable=True`; `dragTags` (which
+implies `draggable`) labels what is dragged. A widget with a data value drags
+that value; `drag_value=` overrides it with a path (`=ccc.nnn.kkk`,
+`=hhh.kkk?.yyy`) or an observer (`^mydata`), and `drag_cb=` computes it in a
+callback that receives the `sourceNode`. HTML5 drag and drop is used, so
+values can also be dragged to another application, and files can be dragged in.
+A drop target filters with `dropTypes` (`text/plain`, `xml`, `Files`, ...) and
+`dropTags`, where a comma is an OR and AND is explicit (`client AND good,payer`);
+`onDrop` runs a script and `drop_ext` restricts file extensions.
+
+    DRAG                        DROP
+    draggable=True              dropTags = 'foo AND Bar'
+    dragTags='foo AND Bar'      dropTypes = 'text/plain', 'xml', 'Files'
+                                onDrop = "js"
+                                drop_ext = 'gif' or 'py' or 'bar' , etc
+
+`test_0_simple` shows drag sources with toggled and fixed `draggable` and
+with tags; `test_1_detachable_tab` shows `detachable` panes dragged out of a
+tabContainer into a floating window.
+"""
+
 
 class GnrCustomWebPage(object):
-    """This is an example of Drag and Drop to support dragging of a field from one div to another even or to
-       another application.  You can also drag files.  HTML5 is used to implement this feature.
-       For a dropbox we have 'dropTags' and 'dropTypes'. A drop tag can have multiple tags and support boolean operators.
-       For example: foo AND bar; client AND good,payer; so the comma implies an OR and the AND is explicit.
-       A drop_type specifies whether it is plain text, xml, a file etc.
-       
-       From a source widget we can set it to 'draggable=True'. We can also have 'dragTags', and if we do,
-       we can omit 'draggable=True' as it is implicit.
-       From a source widget we can also define 'drag_value='.  This can be a path for example: =ccc.nnn.kkk' or =hhh.kkk?.yyy'
-       If a div (or textbox or any widget) has a data value, then the data value is used, The data value can be an observer,
-       for example ='^mydata'. The data dragged can be overridden by 'drag_value='.
-       You can also have 'drag_cb='. In this case you get a callback and you can put any value.
-       The callback parameters are: sourceNode, so you have all the info to know how to build the value to return.
-       
-       DRAG                        DROP
-       draggable=True              dropTags = 'foo AND Bar'
-       dragTags='foo AND Bar'      dropTypes = 'text/plain', 'xml', 'Files'
-                                   onDrop = "js"
-                                   drop_ext = 'gif' or 'py' or 'bar' , etc
-    """
     py_requires = """gnrcomponents/testhandler:TestHandlerFull"""
                       
     def test_0_simple(self, pane):
@@ -39,17 +41,27 @@ class GnrCustomWebPage(object):
         fb.textBox(value='^.name2', lbl='alwaysdraggable', draggable=True)
         fb.br()
         
-        # Si può anche usare dragValue="^.valoreDaDraggare" oppure onDrag="... imposta il valore da draggare ..."
+        # dragValue="^.valueToDrag" can also be used, or onDrag="... sets the value to drag ..."
         #
-        # Vedi tablehandler_core.py e tablehandler_list.py per qualche esempio
+        # See tablehandler_core.py and tablehandler_list.py for some examples
         #
-        # onDrag può:
-        # - restituire False, per abortire il drag & drop;
-        # - ha i parametri dragValues, dragInfo, treeItem (l'ultimo ha senso solo se dragghi da un albero)
-        # - dragValues è l'envelope ove si possono aggiungere altri dati
+        # onDrag can:
+        # - return False, to abort the drag & drop;
+        # - it receives dragValues, dragInfo, treeItem (the last one is meaningful only when dragging from a tree)
+        # - dragValues is the envelope where other data can be added
         
         fb = pane.formbuilder(dragClass='draggedItem')
         fb.div('^.mydiv', lbl='my div', draggable=True)
         fb.div('drag foo', dragTags='foo', lbl='drag with foo', draggable=True)
         fb.div('drag bar', dragTags='bar', lbl='drag with bar', draggable=True)
         fb.div('drag foo,bar', dragTags='foo,bar', lbl='drag with foo,bar', draggable=True)
+
+    def test_1_detachable_tab(self, pane):
+        """Hold shift and drag a coloured pane out of its tab: a detachable pane moves into a floating window and leaves a placeholder in the tab"""
+        tc = pane.tabContainer(height='300px', width='400px')
+        one = tc.contentPane(title='One', overflow='hidden').contentPane(background_color='pink', detachable=True)
+        one.div('one')
+        two = tc.contentPane(title='Two').contentPane(background_color='yellow', detachable=True)
+        two.div('two')
+        three = tc.contentPane(title='Three').contentPane(background_color='lime', detachable=True)
+        three.div('three')

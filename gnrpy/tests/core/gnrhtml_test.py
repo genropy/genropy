@@ -58,3 +58,18 @@ def test_calcRowsNumber_wraps_long_text():
 
 def test_calcRowsNumber_mm_to_pt_constant():
     assert MM_TO_PT == 72 / 25.4
+
+
+def test_calcRowsNumber_resolves_css_stack():
+    b = _builder()
+    text = 'aaaa ' * 40
+    narrow = b.calcRowsNumber(text, width_mm=30, font_name='"Arial Narrow", sans-serif')
+    helvetica = b.calcRowsNumber(text, width_mm=30, font_name='Helvetica')
+    assert narrow < helvetica
+
+
+def test_calcRowsNumber_unknown_font_falls_back_to_helvetica():
+    b = _builder()
+    text = 'aaaa ' * 40
+    assert b.calcRowsNumber(text, width_mm=30, font_name='Comic Sans MS') == \
+        b.calcRowsNumber(text, width_mm=30, font_name='Helvetica')

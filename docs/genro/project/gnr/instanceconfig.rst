@@ -73,6 +73,8 @@ Tags
       :ref:`instanceconfig_db` section.
     * The ``<authentication>`` tag allow to handle all the access authorization to your project.
       Check the :ref:`instanceconfig_authentication` section for more information.
+    * The ``<experimental>`` tag switches on features that are not yet part of the default
+      behaviour. Check the :ref:`instanceconfig_experimental` section for more information.
     * The ``_T="NN"`` is a special attribute that allow to keep track of datatypes (for more
       information, check the :ref:`bag_from_to_XML` section).
     
@@ -155,6 +157,58 @@ Tags
         <db dbname="mypersonaldatabase" implementation="postgres"
             host="localhost" password="superSecurePwd" user="postgres"  />
         
+.. _instanceconfig_experimental:
+
+``<experimental>``
+^^^^^^^^^^^^^^^^^^
+
+    The ``<experimental>`` tag groups the switches of features that are still opt-in.
+    Every switch is an attribute of a child tag named after the area it affects; the
+    value is read once at startup, so a change requires a restart::
+
+        <experimental>
+            <page no_mako="True" page_class_cache="True" dojo_xhr_patch="fetch"/>
+            <db next_sql_compiler="True"/>
+        </experimental>
+
+    A switch of an experimental feature lives under ``<experimental>`` and nowhere
+    else: no other tag of the configuration carries one. The code reads it only
+    through ``GnrApp.experimentalFlag(group, name)`` for a boolean switch and
+    ``GnrApp.experimentalValue(group, name)`` for one carrying a value.
+
+    ``<page>`` switches:
+
+    * ``no_mako``: render the rootPage from a Python struct template (``<name>.py``)
+      when one is found next to the ``.tpl``, falling back to Mako otherwise.
+    * ``page_class_cache``: reuse the page class built at the page's birth for every
+      later request carrying the same ``page_id``.
+    * ``remoteForm``: default for the ``remote`` option of the table handler forms,
+      ``onEnter`` or ``delayed``; a form passing ``remote=`` overrides it.
+    * ``dojo_xhr_patch``: transport of the supported asynchronous Dojo HTTP requests.
+      Only ``fetch`` replaces the original XHR transport; see
+      ``docs/development/dojo-xhr-patch.md``.
+
+    ``<db>`` switches:
+
+    * ``next_sql_compiler``: compile the queries with ``SqlQueryCompilerNext`` of
+      ``compiler_next.py``, the copy of the query compiler that receives new work,
+      instead of the frozen ``SqlQueryCompiler``.
+
+    A missing tag or attribute reads as ``False`` for a boolean switch and as
+    ``None`` for one carrying a value.
+
+    ``gnr web serve`` switches features on for a single run with ``--xpr``, a
+    comma-separated list of ``group.name`` (the switch is on) or
+    ``group.name=value`` items, applied on top of this tag::
+
+        gnr web serve myinstance --xpr page.no_mako,page.dojo_xhr_patch=fetch
+
+    The command line wins over ``instanceconfig.xml`` for the attributes it names
+    and leaves the others as they are. Surrounding square brackets are accepted
+    when quoted (``--xpr '[page.no_mako]'``); unquoted, zsh reads them as a glob
+    pattern. Processes started separately (``gnrdaemon``, the websocket server,
+    the task workers) do not receive the option.
+
 .. _instanceconfig_authentication:
 
 ``<authentication>``

@@ -2,7 +2,7 @@ import pytest
 import os
 import threading
 from gnr.core import gnrlang as gl
-from gnr.core.gnrbag import Bag
+from gnr.core.gnrbag import Bag, BagResolver
 from gnr.core.gnrerror import tracebackBag
 
 class TestGnrLang():
@@ -131,6 +131,28 @@ class TestGnrLang():
         r = tracebackBag()
         #FIXME: how to test this properly?
 
+    def test_tracebackBag_resolver_locals(self):
+        calls = []
+
+        class FailingResolver(BagResolver):
+            classKwargs = {'cacheTime': 0, 'readOnly': True}
+            classArgs = []
+
+            def load(self):
+                calls.append(1)
+                raise ValueError('resolver failure')
+
+        b = Bag()
+        b.setItem('root', FailingResolver())
+        try:
+            b['root']
+        except ValueError:
+            r = tracebackBag()
+        assert calls == [1]
+        xml = r.toXml()
+        assert calls == [1]
+        assert '*RESOLVER* FailingResolver' in xml
+
     def test_thlocal(self):
         r = gl.thlocal()
         assert not r
@@ -188,6 +210,215 @@ class TestGnrLang():
         with pytest.raises(AttributeError):
             assert 1000 in fl
         assert "d" not in fl
+
+
+class TestClassMixinProxy():
+    def test_legacy_true_uses_lowercase_class_name(self):
+        class Target(object):
+            pass
+
+        class Proxy_test(object):
+            proxy = True
+
+            def ping(self):
+                return 'pong'
+
+        gl.classMixin(Target, Proxy_test)
+
+        assert hasattr(Target, 'proxy_test_proxyclass')
+        assert Target.proxy_test_proxyclass.ping.proxy_name == 'proxy_test'
+
+    def test_legacy_named_proxy_composes_components(self):
+        class Target(object):
+            pass
+
+        class FirstComponent(object):
+            proxy = 'shared'
+
+            def first(self):
+                return 'first'
+
+        class SecondComponent(object):
+            proxy = 'shared'
+
+            def second(self):
+                return 'second'
+
+        gl.classMixin(Target, FirstComponent)
+        gl.classMixin(Target, SecondComponent)
+
+        page = Target()
+        page.shared = Target.shared_proxyclass(page)
+        assert page.shared.first() == 'first'
+        assert page.shared.second() == 'second'
+
+    def test_proxy_name_precedes_legacy_proxy(self):
+        class Target(object):
+            pass
+
+        class Component(object):
+            proxy = 'legacy'
+            proxy_name = 'modern'
+
+            def ping(self):
+                return 'pong'
+
+        gl.classMixin(Target, Component)
+
+        assert hasattr(Target, 'modern_proxyclass')
+        assert not hasattr(Target, 'legacy_proxyclass')
+        assert Target.modern_proxyclass.ping.proxy_name == 'modern'
+
+    def test_proxy_instantiation_preserves_serialized_rpc_name(self):
+        class Target(object):
+            pass
+
+        class Component(object):
+            proxy = 'shared'
+
+            def rpc_ping(self):
+                return 'pong'
+
+        gl.classMixin(Target, Component)
+
+        page = Target()
+        page.shared = Target.shared_proxyclass(page)
+        assert page.shared.main is page
+        assert page.shared.rpc_ping() == 'pong'
+        assert gl.serializedFuncName(page.shared.rpc_ping) == 'shared.ping'
+
+    @staticmethod
+    def _shared_proxy_module(tmp_path):
+        module = tmp_path / 'sharedproxy.py'
+        module.write_text(
+            "class SharedProxy(object):\n"
+            "    is_proxy = True\n"
+            "    proxy = 'shared'\n"
+            "\n"
+            "    def ping(self):\n"
+            "        return 'pong'\n"
+        )
+        return str(module)
+
+    @staticmethod
+    def _proxy_keys(target):
+        return sorted(k for k in dir(target) if k.endswith('_proxyclass'))
+
+    def test_as_alias_does_not_stick_to_the_module_class(self, tmp_path):
+        module = self._shared_proxy_module(tmp_path)
+        First = type('First', (object,), {})
+        Second = type('Second', (object,), {})
+
+        gl.classMixin(First, '%s:SharedProxy AS first' % module)
+        gl.classMixin(Second, '%s:SharedProxy' % module)
+
+        assert self._proxy_keys(First) == ['first_proxyclass']
+        assert self._proxy_keys(Second) == ['shared_proxyclass']
+        assert not hasattr(gl.gnrImport(module, avoidDup=True).SharedProxy, 'proxy_name')
+
+    def test_each_as_alias_gets_its_own_proxy(self, tmp_path):
+        module = self._shared_proxy_module(tmp_path)
+        Target = type('Target', (object,), {})
+
+        gl.classMixin(Target, '%s:SharedProxy AS first' % module)
+        gl.classMixin(Target, '%s:SharedProxy AS second' % module)
+
+        assert self._proxy_keys(Target) == ['first_proxyclass', 'second_proxyclass']
+        assert 'ping' in Target.first_proxyclass.__dict__
+        assert 'ping' in Target.second_proxyclass.__dict__
+
+
+class TestMixinRouting():
+    """Mixing a shared function into a new target never reroutes a method already bound elsewhere (#1665)."""
+
+    @staticmethod
+    def _handler():
+        from gnr.core.gnrdecorator import public_method
+
+        class SharedHandler(object):
+            @public_method
+            def template(self, a=1, *, b=2):
+                return a + b
+
+        return SharedHandler
+
+    @staticmethod
+    def _resource(base, path):
+        resource = type('Resource', (base,), {})
+        setattr(resource, '__mixin_path', path)
+        return resource
+
+    def test_bound_method_keeps_its_route(self):
+        handler = self._handler()
+        page = gl.GnrObject()
+        gl.instanceMixin(page, self._resource(handler, 'repro/account:Account'))
+        held = page.template
+        before = gl.serializedFuncName(held)
+        assert before == '*|repro/account:Account;template'
+
+        gl.classMixin(type('Item', (object,), {}), handler)
+        assert gl.serializedFuncName(held) == before
+
+        other_page = gl.GnrObject()
+        gl.instanceMixin(other_page, self._resource(handler, 'repro/item:Item'))
+        assert gl.serializedFuncName(held) == before
+        assert gl.serializedFuncName(other_page.template) == '*|repro/item:Item;template'
+
+    def test_source_function_is_not_annotated(self):
+        handler = self._handler()
+        target = type('Target', (object,), {})
+        gl.classMixin(target, self._resource(handler, 'repro/a:A'))
+        gl.instanceMixin(gl.GnrObject(), self._resource(handler, 'repro/b:B'))
+
+        source = handler.__dict__['template']
+        assert not hasattr(source, '__mixin_path')
+        assert not hasattr(source, 'proxy_name')
+        assert target.__dict__['template'] is not source
+
+    def test_routed_copy_keeps_decorator_flags_and_defaults(self):
+        page = gl.GnrObject()
+        gl.instanceMixin(page, self._resource(self._handler(), 'repro/a:A'))
+
+        assert page.template.is_rpc is True
+        assert page.template() == 3
+        assert page.template(2, b=5) == 7
+        assert page.template.__qualname__.endswith('SharedHandler.template')
+
+    def test_hash_mixin_as_is_not_duplicated(self):
+        class Hooked(object):
+            def onLoading_hook(self):
+                pass
+            onLoading_hook.mixin_as = 'onLoading_#'
+
+        target = type('Target', (object,), {})
+        gl.classMixin(target, Hooked)
+        gl.classMixin(target, Hooked)
+
+        assert len([k for k in target.__dict__ if k.startswith('onLoading_')]) == 1
+
+    def test_proxy_methods_keep_their_route_per_page(self):
+        class Component(object):
+            proxy = 'pp'
+
+            def rpc_ping(self):
+                return 'pong'
+
+        first_source = self._resource(object, 'a/b:R')
+        second_source = self._resource(object, 'c/d:R')
+        gl.classMixin(first_source, Component)
+        gl.classMixin(second_source, Component)
+
+        first_page = gl.GnrObject()
+        second_page = gl.GnrObject()
+        gl.instanceMixin(first_page, first_source)
+        held = first_page.pp.rpc_ping
+        gl.instanceMixin(second_page, second_source)
+
+        assert gl.serializedFuncName(held) == '*|a/b:R;pp.ping'
+        assert gl.serializedFuncName(second_page.pp.rpc_ping) == '*|c/d:R;pp.ping'
+        assert held() == 'pong'
+        assert held.__self__.main is first_page
+
 
 class TestGnrLang_getEncoding():
     def _get_data_path(self, filename):
@@ -277,3 +508,61 @@ def test_gnrImport_concurrent_single_module_identity(tmp_path):
     assert len(modules) == 8
     assert all(m is modules[0] for m in modules)
     assert modules[0].Service is not None
+
+# ---------------------------------------------------------------------------
+# ThreadedDict
+# ---------------------------------------------------------------------------
+
+
+def test_threaded_dict_get_default_is_none():
+    td = gl.ThreadedDict()
+    assert td.get() is None
+
+
+def test_threaded_dict_set_then_get_roundtrip():
+    td = gl.ThreadedDict()
+    td.set('value')
+    assert td.get() == 'value'
+
+
+def test_threaded_dict_set_none_pops_entry():
+    """Assigning None removes the current thread's entry instead of
+    storing it, so the backing dict does not keep a live-but-empty slot
+    for every thread that ever called set()."""
+    td = gl.ThreadedDict()
+    td.set('value')
+    assert len(td._data) == 1
+    td.set(None)
+    assert td.get() is None
+    assert len(td._data) == 0
+
+
+def test_threaded_dict_isolated_across_threads():
+    """Each thread sees only the value it set, keyed by its own ident.
+
+    A thread that exits without explicitly resetting to None leaves its
+    entry behind: ThreadedDict itself does no bookkeeping on thread exit,
+    so callers (e.g. GnrWsgiSite.cleanup()) are responsible for popping
+    their slot with set(None) before the thread ends. Skipping that step
+    is exactly the unbounded per-thread growth fixed by #379/#380.
+    """
+    td = gl.ThreadedDict()
+    results = {}
+
+    def worker(name):
+        td.set(name)
+        results[name] = td.get()
+        td.set(None)  # mirrors the app's own cleanup-on-exit responsibility
+
+    threads = [threading.Thread(target=worker, args=(name,))
+               for name in ('thread_a', 'thread_b', 'thread_c')]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    assert results == {'thread_a': 'thread_a',
+                        'thread_b': 'thread_b',
+                        'thread_c': 'thread_c'}
+    # each worker popped its own entry before exiting: nothing left behind
+    assert len(td._data) == 0

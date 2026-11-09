@@ -227,7 +227,7 @@ class GnrWebBatch(GnrBaseProxy):
         if not code in self.line_codes:
             return
         curr_time = datetime.now()
-        if progress > 1 and code == self.line_codes[-1] and ((datetime.now() - self.last_ts).seconds < self.delay):
+        if progress > 1 and code == self.line_codes[-1] and ((datetime.now() - self.last_ts).total_seconds() < self.delay):
             return
         self.last_ts = curr_time
         with self.page.userStore() as store:

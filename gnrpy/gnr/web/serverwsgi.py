@@ -35,7 +35,8 @@ from werkzeug.wrappers import Response, Request
 from gnr.core.cli import GnrCliArgParse
 from gnr.core.gnrconfig import getGnrConfig, gnrConfigPath
 from gnr.core.gnrdict import dictExtract
-from gnr.core.gnrstring import boolean
+from gnr.core.gnrbag import Bag
+from gnr.core.gnrstring import boolean, splitAndStrip
 from gnr.app.pathresolver import PathResolver
 from gnr.web.gnrwsgisite import GnrWsgiSite
 from gnr.web import logger
@@ -130,6 +131,31 @@ class GnrDebuggedApplication(DebuggedApplication):
 class ServerException(Exception):
     pass
 
+def experimentalConfig(xpr):
+    """The ``<experimental>`` configuration described by a command-line string.
+
+    ``xpr`` is a comma-separated list of ``group.name`` or ``group.name=value``
+    items, optionally wrapped in square brackets: ``page.no_mako,db.x=next``
+    gives ``<experimental><page no_mako="True"/><db x="next"/></experimental>``.
+    An item with no value is a switch turned on. An item with no group raises
+    ``ValueError``.
+    """
+    result = Bag()
+    xpr = xpr.strip()
+    if xpr.startswith('[') and xpr.endswith(']'):
+        xpr = xpr[1:-1]
+    for item in splitAndStrip(xpr, ','):
+        key, _, value = item.partition('=')
+        group, dot, name = key.strip().partition('.')
+        if not dot or not group or not name:
+            raise ValueError("experimental feature '%s' is not in the form group.name[=value]" % item)
+        path = 'experimental.%s' % group
+        if path not in result:
+            result.setItem(path, None)
+        result.setAttr(path, **{name: value.strip() if value else 'True'})
+    return result
+
+
 def host_binding_address(host):
     """
     Type validator for command line
@@ -158,6 +184,11 @@ class Server(object):
                             dest='nodebug',
                             action='store_true',
                             help="Don't use werkzeug debugger")
+        parser.add_argument('--collect',
+                            dest='collect',
+                            action='store_true',
+                            help="Record every request and every site register "
+                                 "call into a run archive (requires gnrprobe)")
         parser.add_argument('-a', '--async-port',
                             dest='async_port',
                             type=int,
@@ -225,6 +256,13 @@ class Server(object):
                 type=int,
                 help="Debugpy port (defaults to 5678)")
 
+        parser.add_argument('--xpr',
+                            dest='xpr',
+                            help="Experimental features to switch on for this run, "
+                                 "on top of the <experimental> tag of instanceconfig.xml: "
+                                 "a comma-separated list of group.name or group.name=value, "
+                                 "e.g. --xpr page.no_mako,db.next_sql_compiler")
+
         self.site_script = site_script
         self.app_scheme = 'http'
         self.app_host = '127.0.0.1'
@@ -232,6 +270,8 @@ class Server(object):
         
         parser.set_defaults(loglevel="info")
         self.options = parser.parse_args()
+        # parsed here, beside the argument that carries it: the site only receives the Bag
+        self.options.experimental_config = experimentalConfig(self.options.xpr) if self.options.xpr else None
         if hasattr(self.options, 'config_path') and self.options.config_path:
             self.config_path = self.options.config_path
         else:
@@ -274,6 +314,36 @@ class Server(object):
         else:
             self.site_path = os.path.dirname(os.path.realpath(site_script))
         self.init_options()
+
+    def start_probe(self):
+        """Turn request collection on when --collect asked for it.
+
+        Called before GnrWsgiSite is built, and that is a requirement rather
+        than a preference: the site's __init__ forces its register into
+        existence, so a recorder assigned afterwards would patch a name the
+        site has already read.
+
+        The import lives here, inside the branch the flag opens, so a server
+        started without --collect imports nothing and genropy takes no
+        dependency on gnrprobe.
+
+        Under --reload the parent process never serves - it builds 'FakeApp' -
+        so only the reloader child collects, and each restart is a new process
+        attaching to the same archive.
+        """
+        if not getattr(self.options, 'collect', False):
+            return None
+        if self.reloader and not is_running_from_reloader():
+            return None
+        try:
+            from gnrprobe.collector import Probe
+        except ImportError:
+            logger.error('--collect requires gnrprobe: pip install gnrprobe')
+            return None
+        return Probe.start(label='dev', sitename=self.site_name,
+                           server='development', host=self.options.host,
+                           port=self.options.port, debug=self.debug,
+                           reload=bool(self.reloader))
 
     def site_name_to_path(self, site_name):
         return PathResolver().site_name_to_path(site_name)
@@ -342,6 +412,7 @@ class Server(object):
                         reason='auto-spawned because siteconfig declares websockets=true')
 
         ssl_context = None
+        probe = self.start_probe()
         if not self.debugpy and self.reloader and not is_running_from_reloader():
             gnrServer = 'FakeApp'
         else:
@@ -361,6 +432,9 @@ class Server(object):
                 extra_info.append('Debug mode: On')
             else:
                 extra_info.append('Debug mode: Off')
+            if probe:
+                gnrServer = probe.wrap(gnrServer)
+                extra_info.append(f'Collecting into {probe.path}')
 
             if self.options.ssl:
                 cert_path = os.path.join(self.config_path, 'localhost.pem')
@@ -368,12 +442,12 @@ class Server(object):
                 if os.path.exists(cert_path) and os.path.exists(key_path):
                     ssl_context = (cert_path, key_path)
                 extra_info.append('SSL mode: On')
-                app_scheme = 'https'
+                self.app_scheme = 'https'
+                
             if self.options.ssl_cert and self.options.ssl_key:
                 ssl_context = (self.options.ssl_cert, self.options.ssl_key)
-                extra_info.append(f'SSL mode: On {ssl_context}')
-                app_scheme = 'https'
-                self.app_host = self.options.ssl_cert.split('/')[-1].split('.pem')[0]
+                extra_info.append(f'SSL mode: On (Cert: {ssl_context[0]}, Key {ssl_context[1]}')
+                self.app_scheme = 'https'
 
             logger.info(f"Started server on {self.app_host}:{self.app_port}\t%s", ",".join(extra_info))
             logger.info(f"Connect at {self.app_url}")
@@ -430,12 +504,16 @@ class Server(object):
             logger.error("'gnr' entrypoint not found on PATH; async subprocess disabled")
             return
         try:
-            child = subprocess.Popen([gnr_bin, 'web', 'async', site_name, '-p', str(async_port)])
+            async_server_cmd = [gnr_bin, 'web', 'async', site_name, '-p', str(async_port)]
+            if self.options.ssl_cert and self.options.ssl_key:
+                async_server_cmd.extend(['-c', self.options.ssl_cert,
+                                         '-k', self.options.ssl_key])
+            child = subprocess.Popen(async_server_cmd)
         except Exception:
             logger.exception('failed to spawn gnr web async subprocess')
             return
         if reason:
-            logger.info('gnr web async subprocess started on port %s (%s) — pid=%s, instance=%s',
+            logger.info('gnr web async subprocess started on port %s (%s) - pid=%s, instance=%s',
                         async_port, reason, child.pid, site_name)
         else:
             logger.info('gnr web async subprocess started (pid=%s) for instance %s on port %s',

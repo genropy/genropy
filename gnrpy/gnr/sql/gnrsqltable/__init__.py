@@ -154,6 +154,18 @@ class GnrSqlNotExistingColumnException(GnrSqlException):
     )
 
 
+class GnrSqlInvalidFilterValueException(GnrSqlException):
+    """Raised when a filter value cannot be converted to the column dtype.
+
+    * **code**: GNRSQL-082
+    """
+    code = 'GNRSQL-082'
+    description = '!!Genro SQL Invalid Filter Value Exception'
+    caption = (
+        "!!Value %(value)s is not valid for column %(column)s"
+    )
+
+
 # ---------------------------------------------------------------------------
 #  Exception registry
 # ---------------------------------------------------------------------------
@@ -167,6 +179,7 @@ EXCEPTIONS = {
     'business_logic': GnrSqlBusinessLogicException,
     'standard': GnrSqlStandardException,
     'not_existing_column': GnrSqlNotExistingColumnException,
+    'invalid_filter_value': GnrSqlInvalidFilterValueException,
 }
 
 
@@ -197,6 +210,7 @@ __all__ = [
     'GnrSqlBusinessLogicException',
     'GnrSqlStandardException',
     'GnrSqlNotExistingColumnException',
+    'GnrSqlInvalidFilterValueException',
     'EXCEPTIONS',
     # Version
     '__version__',

@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 # encoding: utf-8
+from urllib.parse import urljoin, urlsplit
+
 from gnr.app.gnrdbo import GnrDboTable, GnrDboPackage
 
 class Package(GnrDboPackage):
@@ -16,17 +18,55 @@ class Package(GnrDboPackage):
         
 class Table(GnrDboTable):
     
+    def _absoluteLocation(self, location):
+        """Give scheme and host to a host-relative documentation url.
+
+        The documentation may be served by a different host than the instance, so
+        a redirect Location and a link out of the instance must carry the docs host
+        explicitly. handbook_url is normally absolute (the sphinx export builds it
+        from the docu.sphinx_baseurl preference), but a relative one is resolved
+        here against that same preference."""
+        if urlsplit(location).netloc:
+            return location
+        base_url = self.db.application.getPreference('.sphinx_baseurl', pkg='docu') or ''
+        if not urlsplit(base_url).netloc:
+            return location
+        return urljoin(base_url, location)
+
+    def _distinctAncestors(self, rows):
+        """Collapse the ancestors rows of calculateExternalUrl to one row per document.
+
+        ``@handbooks`` is a one-to-many relation: nothing forbids two handbooks
+        from sharing a docroot (a published one and a local zipped one, or a
+        leftover duplicate), and the join then repeats that ancestor once per
+        handbook. The repeated row is not recognized as the handbook root and
+        ends up among the path segments, doubling the handbook root name in the
+        url. Local handbooks are downloadable zips with no published site, so
+        they never name a url and their rows count as plain path segments."""
+        merged = {}
+        for row in rows:
+            row = dict(row)
+            if row.get('handbook_is_local'):
+                row['handbook_url'] = None
+                row['handbook_toc_roots'] = None
+            pkey = row.get('id') or row.get('pkey')
+            previous = merged.get(pkey)
+            if previous is None or (row.get('handbook_url') and not previous.get('handbook_url')):
+                merged[pkey] = row
+        return list(merged.values())
+
     def calculateExternalUrl(self, doc_record):
         pkey = doc_record.get('id') or doc_record.get('pkey')
         if not pkey:
             return
         ancestors = self.db.table('docu.documentation').hierarchicalHandler.getAncestors(
                         pkey=pkey, meToo=True,
-                        columns='$id,$name,$child_count,@handbooks.handbook_url AS handbook_url,@handbooks.toc_roots AS handbook_toc_roots',
+                        columns='$id,$name,$child_count,@handbooks.handbook_url AS handbook_url,@handbooks.toc_roots AS handbook_toc_roots,@handbooks.is_local_handbook AS handbook_is_local',
                         order_by='$hlevel')
         if not ancestors:
             return
         rows = ancestors.output('dictlist') if hasattr(ancestors, 'output') else ancestors
+        rows = self._distinctAncestors(rows)
         base_url = doc_record.get('root_handbook_url')
         segments = []
         collecting = False

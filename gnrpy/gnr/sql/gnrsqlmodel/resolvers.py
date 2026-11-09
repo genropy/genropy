@@ -191,12 +191,12 @@ class RelationTreeResolver(BagResolver):
                     'tbl_name': un_tbl,
                     'pkg_name': un_sch,
                     'path': path + ['*O', un_schtbl],
-                    'parentpath': parentpath + [col],
+                    'parentpath': parentpath + [vcol],
                     'cacheTime': self.cacheTime,
                 }
                 child = RelationTreeResolver(**child_kwargs)
                 child.setDbroot(self.dbroot)
-                result.setItem(lbl, child, col.attributes, joiner=relpars)
+                result.setItem(lbl, child, vcol.attributes, joiner=relpars)
         for label, relpars, relcol in manyrels:
             sch, tbl, col = relpars['many_relation'].split('.')
             schtbl = '%s_%s' % (sch, tbl)

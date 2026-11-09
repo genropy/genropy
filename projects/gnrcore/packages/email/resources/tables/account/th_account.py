@@ -77,11 +77,11 @@ class Form(BaseComponent):
     def smtp_parameters(self, bc):
         fb = bc.contentPane(region='center', padding='10px').formbuilder(cols=2,border_spacing='4px')
         fb.field('smtp_host')
-        fb.field('smtp_from_address')
+        fb.field('smtp_from_address',validate_notnull='^.smtp_host')
         fb.field('smtp_reply_to')
-        fb.field('smtp_username')
-        fb.field('smtp_password',tag='passwordTextBox')
-        fb.field('smtp_port')
+        fb.field('smtp_username',validate_notnull='^.smtp_host')
+        fb.field('smtp_password',tag='passwordTextBox',validate_notnull='^.smtp_host')
+        fb.field('smtp_port',validate_notnull='^.smtp_host')
         fb.field('smtp_timeout')
         fb.field('smtp_tls')
         fb.field('smtp_ssl')
@@ -110,10 +110,9 @@ class Form(BaseComponent):
                                         host='=.smtp_host', from_address='=.smtp_from_address',
                                         username='=.smtp_username', password='=.smtp_password',
                                         port='=.smtp_port', tls='=.smtp_tls', ssl='=.smtp_ssl',
-                                        reply_to='=.smtp_reply_to',
+                                        reply_to='=.smtp_reply_to', to_address='=gnr.avatar.email',
                                         _ask=dict(title="!![en]Send test e-mail",
-                                                  fields=[dict(name="to_address",lbl="To address",
-                                                              default='^gnr.avatar.email')]))
+                                                  fields=[dict(name="to_address",lbl="To address")]))
         return bar
     
     def account_users(self, pane):

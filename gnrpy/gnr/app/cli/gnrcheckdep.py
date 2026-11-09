@@ -2,7 +2,7 @@
 import sys
 
 from gnr.core.cli import GnrCliArgParse
-from gnr.app.gnrapp import GnrApp
+from gnr.app.gnrapp import GnrApp, GnrUnresolvedPackageException
 
 description = "verify if all the dependencies are installed"
 
@@ -24,11 +24,42 @@ def main():
                         dest="verbose",
                         action="store_true",
                         help="Be verbose")
+    parser.add_argument("-s", "--strict",
+                        dest="strict",
+                        action="store_true",
+                        help="Fail when the packages section of instanceconfig.xml does not"
+                             " declare every package reached through required_packages()")
+    parser.add_argument("-r", "--requirements",
+                        dest="requirements",
+                        metavar="FILE",
+                        help="Write to FILE the requirements of the whole package closure,"
+                             " read without importing package code, and fail naming any"
+                             " package whose required_packages cannot be read")
     
     parser.add_argument("instance_name")
     options = parser.parse_args()
+    if options.requirements:
+        app = GnrApp(options.instance_name, checkdepcli=True, static_closure=True)
+        try:
+            app.write_requirements_file(options.requirements)
+        except GnrUnresolvedPackageException:
+            print(app.unresolved_packages_report(), file=sys.stderr)
+            sys.exit(5)
+        return
     app = GnrApp(options.instance_name, checkdepcli=True)
     instance_deps = app.instance_packages_dependencies
+
+    if options.verbose:
+        print("Packages loaded are")
+        for entry in app.package_closure().values():
+            declared = "declared" if entry['declared'] else "required by " + ", ".join(sorted(entry['required_by']))
+            print(f"* {entry['code']} ({declared})")
+        print(" ")
+    if app.undeclared_packages:
+        print(app.undeclared_packages_report())
+        print(" ")
+        if options.strict:
+            sys.exit(4)
     
     if options.verbose:
         print("Required dependencies are")

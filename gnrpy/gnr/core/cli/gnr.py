@@ -15,6 +15,8 @@ import importlib.util
 from pathlib import Path
 from collections import defaultdict
 
+from gnr.core.gnrlang import GnrException
+
 import gnr
 
 class CommandManager():
@@ -205,10 +207,19 @@ class CommandManager():
 
                 # measure execution time
                 start_time = time.time()
-                if self.instance:
-                    cmd_module.main(self.instance)
-                else:
-                    cmd_module.main()
+                try:
+                    if self.instance:
+                        cmd_module.main(self.instance)
+                    else:
+                        cmd_module.main()
+                except GnrException as e:
+                    # an exception genropy raises on purpose carries its
+                    # explanation in the message. Anything else is a crash and
+                    # keeps its traceback, which is where the frames answer
+                    if os.environ.get('GNR_TRACEBACK'):
+                        raise
+                    print(e, file=sys.stderr)
+                    sys.exit(1)
                     
                 end_time = time.time() - start_time
                 

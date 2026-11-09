@@ -209,7 +209,7 @@ class DbColumnObj(DbBaseColumnObj):
         """
         base_sqlname = self.attributes.get('sqlname', self.name)
         if self.attributes.get('localized'):
-            default_language = self.db.currentEnv.get('default_language')
+            default_language = self.dbroot.default_language
             current_language = self.db.currentEnv.get('current_language')
             if default_language and current_language and current_language != default_language:
                 return f"{base_sqlname}_{current_language}"

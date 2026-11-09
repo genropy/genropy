@@ -28,6 +28,9 @@ WORKDATE = datetime.date(2026, 6, 30)
 TAG_ADMIN = 'ZZADMIN'
 TAG_SUPERADMIN = 'SUPERZZADMIN'
 TAG_OTHER = 'ZZOTHER'
+# A tag whose htag is flagged require_2fa: it counts only for a user who has
+# a 2fa secret of their own.
+TAG_2FA = 'ZZ2FA'
 # Same trick for the groups: GROUP_ADMIN is a substring of GROUP_SUPERADMIN, and
 # $all_groups is a comma-join with no delimiter at the string boundaries.
 GROUP_ADMIN = 'ZZADMG'
@@ -65,13 +68,13 @@ class TestNotificationAudience(object):
         self.db.commit()
         return rec['id']
 
-    def _tag_id(self, code):
+    def _tag_id(self, code, require_2fa=None):
         """The pkey of an adm.htag, created on first use."""
         tbl = self.db.table('adm.htag')
         existing = tbl.query(where='$code=:c', c=code, columns='$id').fetch()
         if existing:
             return existing[0]['id']
-        rec = tbl.newrecord(code=code, description=code)
+        rec = tbl.newrecord(code=code, description=code, require_2fa=require_2fa)
         tbl.insert(rec)
         self.db.commit()
         return rec['id']
@@ -119,6 +122,14 @@ class TestNotificationAudience(object):
                                         nid=notification_id,
                                         columns='$user_id').fetch()
         return {r['user_id'] for r in rows}
+
+    def _linked_rows(self, notification_id):
+        """The adm.user_notification rows of a notification, by user: the pkey
+        is what tells a row that survived an alignment from a re-created one."""
+        rows = self.usernotif_tbl.query(where='$notification_id=:nid',
+                                        nid=notification_id,
+                                        columns='$id,$user_id,$confirmed').fetch()
+        return {r['user_id']: r for r in rows}
 
     def _login(self, user_id):
         self.usernotif_tbl.updateGenericNotification(user_id)
@@ -369,3 +380,105 @@ class TestNotificationAudience(object):
             rec['end_date'] = WORKDATE + datetime.timedelta(days=10)
         self.db.commit()
         assert self.usernotif_tbl.nextUserNotification(user_id=user_id) is not None
+
+    # --- differential alignment -------------------------------------------
+
+    def test_criteria_change_keeps_the_row_of_a_user_that_stays(self):
+        """The alignment is differential: a user in the audience both before
+        and after the edit must keep the very row they had. Dropping every
+        pending row and re-creating the whole audience is what made saving a
+        notification cost one write per user of the installation."""
+        staying = self._tagged_user('notif_diff_staying', [TAG_ADMIN, TAG_OTHER])
+        leaving = self._tagged_user('notif_diff_leaving', [TAG_ADMIN])
+        joining = self._tagged_user('notif_diff_joining', [TAG_OTHER])
+        notif_id = self._insert_notification(title='differential alignment',
+                                             tag_rule=TAG_ADMIN, dynamic_list=False)
+        before = self._linked_rows(notif_id)
+        assert staying in before
+        assert leaving in before
+        assert joining not in before
+
+        with self.notif_tbl.recordToUpdate(notif_id) as rec:
+            rec['tag_rule'] = TAG_OTHER
+        self.db.commit()
+
+        after = self._linked_rows(notif_id)
+        assert joining in after, "a user entering the audience must be enrolled"
+        assert leaving not in after, "a user leaving the audience must lose their row"
+        assert staying in after
+        assert after[staying]['id'] == before[staying]['id'], \
+            "the row of a user who stays in the audience must not be rewritten"
+
+    def test_confirmed_row_survives_a_criteria_change_and_is_not_duplicated(self):
+        """A user who already answered is out of the alignment: their row is
+        neither dropped when they leave the audience nor created a second time
+        when they are still in it."""
+        answered_in = self._tagged_user('notif_diff_confirmed_in',
+                                        [TAG_ADMIN, TAG_OTHER])
+        answered_out = self._tagged_user('notif_diff_confirmed_out', [TAG_ADMIN])
+        notif_id = self._insert_notification(title='confirmed rows',
+                                             tag_rule=TAG_ADMIN, dynamic_list=False)
+        rows = self._linked_rows(notif_id)
+        for user_id in (answered_in, answered_out):
+            with self.usernotif_tbl.recordToUpdate(rows[user_id]['id']) as rec:
+                rec['confirmed'] = True
+        self.db.commit()
+
+        with self.notif_tbl.recordToUpdate(notif_id) as rec:
+            rec['tag_rule'] = TAG_OTHER
+        self.db.commit()
+
+        linked = self.usernotif_tbl.query(where='$notification_id=:nid', nid=notif_id,
+                                          columns='$id,$user_id,$confirmed').fetch()
+        for user_id in (answered_in, answered_out):
+            own = [r for r in linked if r['user_id'] == user_id]
+            assert len(own) == 1, "a confirmed row must not be duplicated"
+            assert own[0]['confirmed'], "a confirmed row must not be dropped"
+
+    # --- batched tag resolution -------------------------------------------
+
+    def test_batched_tags_match_the_pycolumn(self):
+        """`allTagsByUser` is what the audience is evaluated on, so it must
+        return what the `$all_tags` pyColumn returns user by user. The tags
+        are compared as sets: their order is a detail of the query, and
+        `checkResourcePermission` reads them as a membership list."""
+        user_tbl = self.db.table('adm.user')
+        group_code = self._insert_group('ZZBATCHG')
+        self._assign_tag(TAG_OTHER, group_code=group_code)
+        direct = self._tagged_user('notif_batch_direct', [TAG_ADMIN])
+        in_group = self._insert_user('notif_batch_group', group_code=group_code)
+        untagged = self._insert_user('notif_batch_untagged')
+
+        user_ids = [direct, in_group, untagged]
+        rows = user_tbl.query(where='$id IN :user_ids', user_ids=user_ids,
+                              columns='$id,$group_code,$avatar_secret_2fa').fetch()
+        batched = user_tbl.allTagsByUser(rows)
+        assert set(batched) == set(user_ids)
+        for user_id in user_ids:
+            # The pyColumn resolves the tags on the row it is handed, so the
+            # selection has to carry the columns it reads -- the same '*' the
+            # avatar query uses.
+            one_by_one = user_tbl.query(where='$id=:uid', uid=user_id,
+                                        columns='*,$all_tags').fetch()[0]['all_tags']
+            assert set(batched[user_id].split(',')) == set(one_by_one.split(',')), \
+                "the batched resolution must not change the effective tags"
+
+    def test_require_2fa_tag_counts_only_for_a_user_with_a_secret(self):
+        """A tag flagged require_2fa reaches only the users who have a 2fa
+        secret: the condition is per user, and the batched resolution has to
+        apply it row by row as the per-user query did."""
+        self._tag_id(TAG_2FA, require_2fa=True)
+        with_secret = self._insert_user('notif_2fa_with_secret')
+        without_secret = self._insert_user('notif_2fa_without_secret')
+        with self.db.table('adm.user').recordToUpdate(with_secret) as rec:
+            rec['avatar_secret_2fa'] = 'ZZSECRET'
+        self.db.commit()
+        self._assign_tag(TAG_2FA, user_id=with_secret)
+        self._assign_tag(TAG_2FA, user_id=without_secret)
+
+        notif_id = self._insert_notification(title='2fa tag rule',
+                                             tag_rule=TAG_2FA, dynamic_list=True)
+        linked = self._linked_users(notif_id)
+        assert with_secret in linked
+        assert without_secret not in linked, \
+            "a require_2fa tag must not count for a user without a 2fa secret"

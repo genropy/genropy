@@ -39,7 +39,7 @@ This module provides:
 
 from gnr.core import gnrstring
 from gnr.core.gnrbag import Bag, BagResolver
-from gnr.sql.gnrsqldata.compiler import SqlQueryCompiler
+from gnr.sql.gnrsqldata.compiler_factory import queryCompilerClass
 from gnr.sql.gnrsql_exceptions import SelectionExecutionError, RecordDuplicateError, \
     RecordNotExistingError, RecordSelectionError
 
@@ -49,19 +49,19 @@ class SqlRelatedRecordResolver(BagResolver):
 
     Attached as resolver on ``@relation_name`` nodes inside a record Bag.
     When the node is accessed, ``load()`` creates a ``SqlRecord`` for the
-    target table/field and returns its output in the requested *mode*.
+    target table/field and returns its output in the requested *output_mode*.
 
     Attributes:
         target_fld: Fully-qualified field reference ``pkg.table.column``
             that identifies the foreign-key target.
         relation_value: The value used to match ``target_fld``.
-        mode: Output mode forwarded to ``SqlRecord.output()`` (typically
+        output_mode: Output mode forwarded to ``SqlRecord.output()`` (typically
             ``'bag'``).
     """
     classKwargs = {'cacheTime': 0,
                    'readOnly': True,
                    'db': None,
-                   'mode': None,
+                   'output_mode': None,
                    'joinConditions': None,
                    'sqlContextName': None,
                    'virtual_columns': None,
@@ -96,7 +96,7 @@ class SqlRelatedRecordResolver(BagResolver):
 
         Splits ``target_fld`` into *pkg.table.column*, builds a
         ``SqlRecord`` with the appropriate parameters, and returns its
-        output in the configured ``mode``.
+        output in the configured ``output_mode``.
 
         Returns:
             Bag or other: The record output in the requested mode.
@@ -113,7 +113,7 @@ class SqlRelatedRecordResolver(BagResolver):
                            ignoreMissing=self.ignoreMissing, ignoreDuplicate=self.ignoreDuplicate,
                            virtual_columns=self.virtual_columns,
                            bagFields=self.bagFields, **recordpars)
-        return record.output(self.mode)
+        return record.output(self.output_mode)
 
 
 class SqlRelatedSelectionResolver(BagResolver):
@@ -128,10 +128,10 @@ class SqlRelatedSelectionResolver(BagResolver):
         relation_value: The value used to filter the many-side rows.
         condition: Optional extra WHERE condition.
         columns: Columns to select (defaults to ``'*'``).
-        mode: Output mode for the resulting ``SqlSelection``.
+        output_mode: Output mode for the resulting ``SqlSelection``.
     """
     classKwargs = {'cacheTime': 0, 'readOnly': True, 'db': None,
-                   'columns': None, 'mode': None, 'sqlparams': None, 'joinConditions': None, 'sqlContextName': None,
+                   'columns': None, 'output_mode': None, 'sqlparams': None, 'joinConditions': None, 'sqlContextName': None,
                    'target_fld': None, 'relation_value': None, 'condition': None, 'bagFields': None,'virtual_columns':None}
 
     # REVIEW: resolverSerialize() is nearly identical to
@@ -158,7 +158,7 @@ class SqlRelatedSelectionResolver(BagResolver):
 
         Builds a ``relatedQuery`` on the target table filtered by
         ``relation_value`` and returns the selection output in the
-        configured ``mode``.
+        configured ``output_mode``.
 
         Returns:
             Bag or other: The selection output in the requested mode.
@@ -167,7 +167,7 @@ class SqlRelatedSelectionResolver(BagResolver):
         dbtable = '%s.%s' % (pkg, tbl)
         query = self.db.table(dbtable).relatedQuery(field=related_field,value=self.relation_value,where=self.condition,
                                                     sqlContextName=self.sqlContextName, **self.sqlparams)
-        return query.selection().output(self.mode, recordResolver=(self.mode == 'grid'),virtual_columns=self.virtual_columns)
+        return query.selection().output(self.output_mode, recordResolver=(self.output_mode == 'grid'),virtual_columns=self.virtual_columns)
 
 class SqlRecord(object):
     """Compile and execute a single-record query, producing a hierarchical Bag.
@@ -303,7 +303,7 @@ class SqlRecord(object):
             where = '$pkey = :pkey'
         else:
             where = ' AND '.join([f'"{self.aliasPrefix}0".{k}=:{k}' for k in self.sqlparams.keys() if self.dbtable.column(k) is not None])
-        compiler = SqlQueryCompiler(self.dbtable.model, sqlparams=self.sqlparams,
+        compiler = queryCompilerClass(self.db)(self.dbtable.model, sqlparams=self.sqlparams,
                                   joinConditions=self.joinConditions,
                                   sqlContextName=self.sqlContextName,aliasPrefix=self.aliasPrefix)
         return compiler.compiledRecordQuery(where=where,relationDict=self.relationDict,bagFields=self.bagFields,
@@ -592,7 +592,7 @@ class SqlRecord(object):
                 columns='*', db=self.db, cacheTime=-1,
                 target_fld=target_fld,
                 relation_value=info['_relation_value'],
-                mode='grid', joinConditions=self.joinConditions,
+                output_mode='grid', joinConditions=self.joinConditions,
                 sqlContextName=self.sqlContextName,
                 virtual_columns=virtual_columns,
                 sqlparams=sqlparams)
@@ -633,7 +633,7 @@ class SqlRecord(object):
         value = SqlRelatedRecordResolver(db=self.db, cacheTime=-1,
                                          target_fld=info['_target_fld'],
                                          relation_value=relation_value,
-                                         mode='bag',
+                                         output_mode='bag',
                                          bagFields=True,
                                          ignoreMissing=True,
                                          virtual_columns=virtual_columns,
@@ -673,7 +673,7 @@ class SqlRecord(object):
         value=SqlRelatedRecordResolver(db=self.db, cacheTime=-1,
                                              target_fld=info['_target_fld'],
                                              relation_value=relation_value,
-                                             mode='bag', virtual_columns=virtual_columns,
+                                             output_mode='bag', virtual_columns=virtual_columns,
                                              bagFields=True,
                                              ignoreMissing=True,
                                              joinConditions=self.joinConditions,

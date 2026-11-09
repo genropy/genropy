@@ -41,6 +41,9 @@ class Table(object):
         tbl.bagItemColumn('detail_color', bagcolumn='$details',
                           itempath='specs.color', dtype='T',
                           name_long='Detail Color')
+        tbl.bagItemColumn('detail_price', bagcolumn='$details',
+                          itempath='specs.price', dtype='money',
+                          name_long='Detail Price')
         tbl.formulaColumn('concat_code_desc',
                           sql_formula="CONCAT($code, ' - ', $description)",
                           dtype='T', name_long='Concat Code Desc')

@@ -10,6 +10,8 @@ import os
 
 import inspect
 import glob
+from collections import OrderedDict
+from threading import Lock
 
 from gnr.core.gnrbag import Bag, DirectoryResolver
 from gnr.core.gnrlang import gnrImport, classMixin, cloneClass,clonedClassMixin
@@ -23,6 +25,18 @@ from gnr.core.gnrclasses import GnrMixinError,GnrMixinNotFound
 from gnr.core.gnrlang import uniquify
 from gnr.web import logger
 
+# Experimental page-class cache (instanceconfig.xml
+# ``<experimental><page page_class_cache="True"/></experimental>``): a page's
+# class is a function of values fixed at the page's birth (module, main
+# package, plugin/custom mixins), so the first build can serve every later
+# request of the same page. Entries are keyed by ``(page_id, module_path)``:
+# a page_id is validated against the connection, never against the url it is
+# posted to, so the module path keeps a request that names another page's
+# page_id from reading - or, worse, from depositing - a class built for a
+# different url. The cache is dropped on page close and LRU-bounded for
+# whatever escapes that.
+PAGE_CLASS_CACHE_MAXSIZE = 2000
+
 
 class ResourceLoader(object):
     """Base class to load :ref:`intro_resources`"""
@@ -35,7 +49,47 @@ class ResourceLoader(object):
         self.gnr_static_handler = self.site.getStatic('gnr')
         self.page_factories = {}
         self.default_path = self.site.default_page and self.site.default_page.split('/')
-    
+        self._page_class_cache = OrderedDict()
+        self._page_class_cache_lock = Lock()
+        self._page_class_cache_enabled = self.gnrapp.experimentalFlag('page', 'page_class_cache')
+
+    def page_class_cache_enabled(self):
+        """The experimental flag, fixed for the life of the process."""
+        return self._page_class_cache_enabled
+
+    def load_page_class_cache(self, cache_key):
+        """The cached class of a live page, or None on a miss."""
+        with self._page_class_cache_lock:
+            page_class = self._page_class_cache.get(cache_key)
+            if page_class is not None:
+                self._page_class_cache.move_to_end(cache_key)
+            return page_class
+
+    def page_class_cache_entries(self):
+        """A snapshot of the cache: (page_id, module_path, class_name) per entry."""
+        with self._page_class_cache_lock:
+            return [(page_id, module_path, page_class.__name__)
+                    for (page_id, module_path), page_class in self._page_class_cache.items()]
+        
+    def store_page_class_cache(self, cache_key, page_class):
+        """Deposit a freshly built class under its ``(page_id, module_path)``, LRU-bounded."""
+        with self._page_class_cache_lock:
+            self._page_class_cache[cache_key] = page_class
+            self._page_class_cache.move_to_end(cache_key)
+            while len(self._page_class_cache) > PAGE_CLASS_CACHE_MAXSIZE:
+                self._page_class_cache.popitem(last=False)
+
+    def drop_page_class_cache(self, page_id):
+        """Forget a closed page: every entry keyed on its page_id, whatever the url."""
+        with self._page_class_cache_lock:
+            for cache_key in [k for k in self._page_class_cache if k[0] == page_id]:
+                self._page_class_cache.pop(cache_key)
+
+    def clear_page_class_cache(self):
+        """Empty the cache (an explicit reset)."""
+        with self._page_class_cache_lock:
+            self._page_class_cache.clear()
+
     @property
     def gnrapp(self):
         return self.site.gnrapp
@@ -79,6 +133,10 @@ class ResourceLoader(object):
         page_class = self.get_page_class(basepath=info.basepath,relpath=info.relpath, pkg=info.pkg,
                                         avoid_module_cache=_avoid_module_cache,
                                         request_args=info.request_args,request_kwargs=request_kwargs)
+        if getattr(page_class, '__gramlot_page__', False):
+            from gnr.web.gramlotpage import GramlotPage
+            if issubclass(page_class, GramlotPage):
+                return page_class(site=self.site, request_args=info.request_args)
         class_info = dict(basepath=info.basepath,relpath=info.relpath, pkg=info.pkg,
                             request_args=info.request_args,request_kwargs=request_kwargs)
         page = page_class(site=self.site, request=request, response=response,
@@ -108,15 +166,34 @@ class ResourceLoader(object):
 
 
     def get_page_class(self, basepath=None,relpath=None, pkg=None, plugin=None,avoid_module_cache=None,request_args=None,request_kwargs=None, page_factory=None):
-        """TODO
-        
+        """Build the page class for a request — or serve the page's cached one.
+
+        With the experimental ``page_class_cache`` flag on, a request
+        that names a ``page_id`` reuses the class built at that page's birth,
+        provided it asks for the same module: the key is the pair, because a
+        page_id is only ever validated against the connection. An explicit
+        ``page_factory`` bypasses the cache (``instantiate_page`` forces
+        ``GnrSimplePage``: a different base class under the same page_id), and
+        so does ``avoid_module_cache`` (the dev reload).
+
         :param path: TODO
         :param pkg: the :ref:`package <packages>` object"""
-
         module_path = os.path.join(basepath,relpath)
+        page_id = (request_kwargs or {}).get('page_id')
+        cache_key = (page_id, module_path)
+        use_cache = (page_id and page_factory is None and not avoid_module_cache
+                     and self.page_class_cache_enabled())
+        if use_cache:
+            cached_class = self.load_page_class_cache(cache_key)
+            if cached_class is not None:
+                return cached_class
         page_module = gnrImport(module_path, avoidDup=True,silent=False,avoid_module_cache=avoid_module_cache)
         page_factory = page_factory or getattr(page_module, 'page_factory', GnrWebPage)
         custom_class = getattr(page_module, 'GnrCustomWebPage')
+        if getattr(custom_class, '__gramlot_page__', False):
+            from gnr.web.gramlotpage import GramlotPage
+            if issubclass(custom_class, GramlotPage):
+                return custom_class
         mainPkg = pkg
         if hasattr(custom_class,'getMainPackage'):
             kw = dict()
@@ -171,6 +248,8 @@ class ResourceLoader(object):
         self.page_class_plugin_mixin(page_class, plugin_webpage_classes)
         self.page_class_custom_mixin(page_class, relpath, pkg=mainPkg)
         self.page_factories[module_path] = page_class
+        if use_cache:
+            self.store_page_class_cache(cache_key, page_class)
         return page_class
         
     def page_class_base_mixin(self, page_class, pkg=None):
@@ -491,7 +570,7 @@ class ResourceLoader(object):
         js_requires = getattr(component,'js_requires',[])
         for css in css_requires:
             if css and css not in page.envelope_css_requires and css not in page.css_requires:
-                page.envelope_css_requires[css] = page.getResourceUri(css,'css',add_mtime=True,pkg=pkg)
+                page.envelope_css_requires[css] = self.getResourceUriCascade(page, css, 'css', pkg=pkg)
         for js in js_requires:
             if js and js not in page.envelope_js_requires and js not in page.js_requires:
                 page.envelope_js_requires[js] = page.getResourceUri(js,'js',add_mtime=True,pkg=pkg)
@@ -501,6 +580,15 @@ class ResourceLoader(object):
         page.mixin_set.add(((tuple(path),tuple(kwargs.items()))))
         return component
         
+    def getResourceUriCascade(self, page, path, ext, pkg=None):
+        """Return the uri of every ``path`` resource found along the resource dirs,
+        like the page-level ``css_requires`` served by ``get_css_path``: each package
+        shipping a same-named file contributes its own. None when nothing is found."""
+        resourceDirs = self.package_resourceDirs(pkg) if pkg else page.resourceDirs
+        uris = [page.resolveResourceUri(f, add_mtime=True, pkg=pkg)
+                for f in self.getResourceList(resourceDirs, path, ext)]
+        return [uri for uri in uris if uri] or None
+
     def _loadTableScript_getclass(self,modPathList,class_name):
         modPathList.reverse()
         basePath = modPathList.pop(0)

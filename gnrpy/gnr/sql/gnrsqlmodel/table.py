@@ -41,7 +41,7 @@ from gnr.sql.gnrsql_exceptions import (
 from gnr.sql.gnrsqlmodel.obj import DbModelObj
 from gnr.sql.gnrsqlmodel.columns import DbVirtualColumnObj, AliasColumnWrapper
 from gnr.sql.gnrsqlmodel.resolvers import RelationTreeResolver
-from gnr.sql.gnrsqlmodel.helpers import bagItemFormula
+from gnr.sql.gnrsqlmodel.helpers import bagItemFormula, baseDtype
 from gnr.sql.gnrsqltable import SqlTable
 
 
@@ -749,7 +749,8 @@ class DbTableObj(DbModelObj):
         kwargs: dict[str, Any] | None = None,
     ) -> str:
         """Delegate to the module-level ``bagItemFormula`` helper."""
-        return bagItemFormula(bagcolumn=bagcolumn, itempath=itempath, dtype=dtype, kwargs=kwargs)
+        return bagItemFormula(bagcolumn=bagcolumn, itempath=itempath,
+                              dtype=baseDtype(self.pkg, dtype), kwargs=kwargs)
 
     def getJoiner(self, related_table: str) -> dict[str, Any] | None:
         """Find the joiner dict connecting this table to another.

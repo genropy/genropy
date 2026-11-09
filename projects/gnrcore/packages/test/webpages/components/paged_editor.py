@@ -28,10 +28,7 @@ class GnrCustomWebPage(object):
                         border='1px solid silver',
                         letterhead_id='^.htmlbag.letterhead_id',
                         extra_bottom=10,
-                        editor_constrain_width='210mm',
-                        editor_constrain_min_height='297mm',
-                        editor_constrain_border='1px solid silver',
-                        editor_constrain_margin='4px')
+                        editor_bodyStyle='width:210mm;min-height:297mm;border:1px solid silver;margin:4px')
 
     @public_method
     def getHTMLDoc(self, fattura_id=None,record_template=None,**kwargs):

@@ -1,7 +1,7 @@
 # encoding: utf-8
 
 from gnr.core.gnrbag import Bag
-from gnr.core.gnrdatetime import datetime
+from gnr.core.gnrdatetime import datetime, localnow
 from gnr.web.gnrtask import USE_ASYNC_TASKS
 from gnr.app import pkglog as logger
 
@@ -119,7 +119,7 @@ class Table(object):
             return '*'
         if task['frequency']:
             last_scheduled_ts = task['last_scheduled_ts']
-            if last_scheduled_ts is None or (timestamp-last_scheduled_ts).seconds/60.>=task['frequency']:
+            if last_scheduled_ts is None or (timestamp-last_scheduled_ts).total_seconds()/60.>=task['frequency']:
                 return '*'
             else:
                 return False
@@ -145,7 +145,11 @@ class Table(object):
         return result
 
     def findTasks(self, timestamp=None):
-        timestamp = timestamp or datetime.now()
+        # The month/day/hour/minute columns are local wall clock time as
+        # entered by the user, so the schedule must be evaluated against a
+        # timestamp carrying the local offset. last_scheduled_ts stays UTC:
+        # it is the same instant, just written with a different offset.
+        timestamp = timestamp or localnow()
         all_tasks = self.query(where='$stopped IS NOT TRUE').fetch()
         tasks_to_run = []
         for task in all_tasks:

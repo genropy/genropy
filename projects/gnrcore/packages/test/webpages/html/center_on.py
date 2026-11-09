@@ -4,7 +4,7 @@
 "genro.dom.centerOn"
 
 class GnrCustomWebPage(object):
-    py_requires = "gnrcomponents/testhandler:TestHandlerBase"
+    py_requires = "gnrcomponents/testhandler:TestHandlerFull"
     
     def test_0_parentContentPane(self, pane):
         "Push 'move' button to move FLOATING BLOCK. Position is relative to other block"

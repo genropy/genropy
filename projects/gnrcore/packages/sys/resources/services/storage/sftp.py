@@ -2,7 +2,6 @@
 #
 #  Copyright (c) 2013 Softwell. All rights reserved.
 
-import hashlib
 import _thread
 from threading import RLock
 import stat
@@ -114,16 +113,6 @@ class Service(StorageService):
         f_stat = self._stat(*args)
         return stat.S_ISREG(f_stat.st_mode) if f_stat else False
 
-
-    def md5hash(self,*args):
-        BLOCKSIZE = 65536
-        hasher = hashlib.new('md5', usedforsecurity=False)
-        with self.open(*args, mode='rb') as afile:
-            buf = afile.read(BLOCKSIZE)
-            while len(buf) > 0:
-                hasher.update(buf)
-                buf = afile.read(BLOCKSIZE)
-        return hasher.hexdigest()
 
     def exists(self, *args):
         return self._stat(*args) is not None

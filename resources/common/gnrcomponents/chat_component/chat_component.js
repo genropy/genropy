@@ -35,8 +35,14 @@ ct_chat_utils.fill_title = function(roombag) {
     }
     roombag.setItem('title', title);
 };
+ct_chat_utils.escape_user = function(user){
+    // usernames may contain dots (Bag path separators) or @ (email-style):
+    // the label travels escaped — the same [.@] -> _ rule connected_users_bag
+    // uses — and the real name rides in the `user` attribute
+    return user.replace(/[.@]/g, '_');
+};
 ct_chat_utils.key_from_users = function(users){
-    var user = genro._('gnr.avatar.user');
+    var user = ct_chat_utils.escape_user(genro._('gnr.avatar.user'));
     var user_list = users.digest('#k').sort();
     var idx = dojo.indexOf(user_list,user);
     if(idx>=0){
@@ -51,7 +57,7 @@ ct_chat_utils.open_chat = function(roomId, users,roomtitle) {
     var user_name = genro._('gnr.avatar.user_name') || user;
     var roomsNode = genro.nodeById('ct_chat_rooms');
     var user_name_list = users.digest('#a.user_name').sort();
-    users.setItem(user, null, {user_name:user_name,user:user});
+    users.setItem(ct_chat_utils.escape_user(user), null, {user_name:user_name,user:user});
     var roompath = 'gnr.chat.rooms.' + roomId;
     var roombag = new gnr.GnrBag({'users':users,user_name:user_name,user:user,roomtitle:roomtitle});
     ct_chat_utils.fill_title(roombag);
@@ -116,7 +122,7 @@ ct_chat_utils.read_msg = function(msgbag) {
     genro.fireEvent('gnr.chat.calc_unread');
     users = roombag.getItem('users');
     if (disconnect) {
-        users.popNode(from_user);
+        users.popNode(ct_chat_utils.escape_user(from_user));
     }
     ct_chat_utils.fill_title(roombag);
     roomNode.updAttributes({'user_room_key':this.key_from_users(users)});
@@ -176,8 +182,8 @@ ct_chat_utils.prepare_usersbag = function(userstring){
     var n;
     var users = new gnr.GnrBag();
     dojo.forEach(userlist,function(username){
-        n = connectedUsers.getNode(username);
-        users.setItem(n.attr.user,null,{user_name:n.attr.user_name,user:n.attr.user});
+        n = connectedUsers.getNode(ct_chat_utils.escape_user(username));
+        users.setItem(ct_chat_utils.escape_user(n.attr.user),null,{user_name:n.attr.user_name,user:n.attr.user});
     });
     return users;
 };

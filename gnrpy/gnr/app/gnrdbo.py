@@ -16,6 +16,7 @@ from gnr.core.gnrdecorator import public_method,extract_kwargs
 from gnr.core.gnrdict import dictExtract
 
 from gnr.app import logger
+from gnr.app.gnrsqltable_proxy.selection import SelectionProxy
 
 mimetypes.init() # Required for python 2.6 (fixes a multithread bug)
 
@@ -378,7 +379,8 @@ class TableBase(object):
             self.sysFields_protectionTag(tbl,protectionTag=useProtectionTag,group=group)
         if hierarchical:
             hierarchical = 'pkey' if hierarchical is True else '%s,pkey' %hierarchical
-            assert id,'You must use automatic id in order to use hierarchical feature in sysFields'
+            if not id:
+                raise ValueError('You must use automatic id in order to use hierarchical feature in sysFields')
             tblname = tbl.parentNode.label
             pkg = tbl.attributes['pkg']
             tbl.column('parent_id',size='22',name_long='!![en]Parent id',
@@ -445,11 +447,12 @@ class TableBase(object):
         if counter:
             tbl.attributes['counter'] = counter
             if hierarchical:
-                assert counter is True, 'in hierarchical counter is not relative to a foreignkey'
+                if counter is not True:
+                    raise ValueError('in hierarchical counter is not relative to a foreignkey')
                 tbl.column('_h_count',group=group,_sysfield=True)
                 tbl.column('_parent_h_count',group=group,_sysfield=True) 
                 tbl.column('_row_count', dtype='L', name_long='!![en]Counter', counter=True,group=group,_sysfield=True)
-                default_order_by = '$_h_count' if hierarchical == 'pkey' else " COALESCE($_h_count,$%s) " %hierarchical.split(',')[0]
+                default_order_by = '$_h_count' if hierarchical == 'pkey' else " COALESCE($_h_count,$%s) " %hfields[0]
                 tbl.formulaColumn('_h_sortcol',default_order_by,_sysfield=True, group=group)
                 tbl.attributes.setdefault('order_by','$_h_sortcol')
             else:
@@ -632,6 +635,19 @@ class TableBase(object):
         for m in [k for k in dir(self) if k.startswith('sysFields_extra_') and not k[-1]=='_']:
             getattr(self,m)(tbl,**kwargs)
 
+    def selectionProxy(self):
+        """Return the selection proxy of this table.
+
+        The proxy holds the table level part of the getSelection flow. It is a
+        method and not a property because ``instanceMixin`` copies only
+        callables onto the table instance.
+        """
+        proxy = getattr(self, '_selection_proxy', None)
+        if proxy is None:
+            proxy = SelectionProxy(self)
+            self._selection_proxy = proxy
+        return proxy
+
     def hasProtectionColumns(self):
         result = False
         if [r for r in list(self.model.virtual_columns.keys()) if r.startswith('__protected_by_')] or self.attributes.get('protectionColumn'):
@@ -646,7 +662,7 @@ class TableBase(object):
         for field in [r for r in list(self.model.virtual_columns.keys()) if r.startswith('__protected_by_')]:
             protections.append("""( CASE WHEN $%s IS TRUE THEN '%s' ELSE NULL END )  """ %(field,field[15:]))
         if protections:
-            return "array_to_string(ARRAY[%s],',')"   %','.join(protections)
+            return self.db.adapter.string_join(protections, ',')
         else:
             return " NULL "
 
@@ -661,7 +677,7 @@ class TableBase(object):
         for field in [r for r in self.model.virtual_columns.keys() if r.startswith('__invalid_by_')]:
             invalids.append("""( CASE WHEN $%s IS TRUE THEN '%s' ELSE NULL END )  """ %(field,field[13:]))
         if invalids:
-            return "array_to_string(ARRAY[%s],',')"   %','.join(invalids)
+            return self.db.adapter.string_join(invalids, ',')
         else:
             return " NULL "
 
@@ -717,13 +733,13 @@ class TableBase(object):
 
     def variantColumn_hlv(self,field,**kwargs):
         """hierarchical_last_value"""
-        if not self.hierarchicalHandler:
+        if not self.attributes.get('hierarchical'):
             raise Exception('hlv variant only for hierarchical table')
         return self.hierarchicalHandler.variantColumn_hlv(field,**kwargs)
 
     def variantColumn_hdepth(self,field,**kwargs):
-        """hierarchical_last_value"""
-        if not self.hierarchicalHandler:
+        """hierarchical_depth: one column per level of the hierarchical path"""
+        if not self.attributes.get('hierarchical'):
             raise Exception('hdepth variant only for hierarchical table')
         return self.hierarchicalHandler.variantColumn_hdepth(field,**kwargs)
 
@@ -1093,15 +1109,23 @@ class TableBase(object):
         querable = Bag()
         df_caption_field = caption_field or df_table.attributes.get('caption_field')
         fetch = df_table.dbtable.query(columns='$%s,$df_fields' %df_caption_field,**kwargs).fetch()
-        typeconverter = {'T':'text','P':'text', 'N': 'numeric','B': 'boolean',
-                         'D': 'date', 'H': 'time without time zone','L': 'bigint', 'R': 'real'}
+        # keep in sync with the dtype->SQL map in
+        # gnr.sql.gnrsqlmodel.helpers.bagItemFormula (issue #22):
+        # unknown dtypes fall back to text instead of raising KeyError
+        typeconverter = {'T': 'text', 'A': 'text', 'C': 'text', 'P': 'text',
+                         'X': 'text', 'Z': 'text',
+                         'N': 'numeric', 'B': 'boolean', 'D': 'date',
+                         'H': 'time without time zone', 'HZ': 'time with time zone',
+                         'DH': 'timestamp without time zone',
+                         'DHZ': 'timestamp with time zone',
+                         'I': 'integer', 'L': 'bigint', 'R': 'real', 'F': 'real'}
         for r in fetch:
             df_fields = Bag(r['df_fields'])
             for v in list(df_fields.values()):
                 if v['querable']:
-                    dtype = dtype=v['data_type']
+                    dtype = v['data_type']
                     sql_formula = """ (xpath('/GenRoBag/%s/text()', CAST($%s as XML) ) )[1] """ %(v['code'],field)
-                    sql_formula = """CAST ( ( %s ) AS %s) """ %(sql_formula,typeconverter[dtype])
+                    sql_formula = """CAST ( ( %s ) AS %s) """ %(sql_formula,typeconverter.get(dtype, 'text'))
                     c = slugify(r[df_caption_field]).replace('-','_')
                     if grouped:
                         fcode ='%s_%s_%s' %(field,c,v['code'])

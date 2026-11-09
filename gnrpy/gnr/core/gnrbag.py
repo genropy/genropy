@@ -2184,7 +2184,8 @@ class Bag(GnrObject):
             if hasattr(v, '_deepIndex'):
                 if not v in exploredItems:
                     exploredItems.append(v)
-                    v._deepIndex(path + [node.label], resList, exploredItems)
+                    v._deepIndex(path + [node.label], resList, exploredItems,
+                                 excludeFolders=excludeFolders)
                     
     def getIndexList(self, asText=False):
         """Return the Bag index as a plan list of the Nodes paths

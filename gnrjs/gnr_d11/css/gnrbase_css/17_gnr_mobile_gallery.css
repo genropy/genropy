@@ -1,6 +1,6 @@
 /* ==========================================================================
    17_gnr_mobile_gallery.css — Mobile templates, scroll wrapper, gallery,
-   showcase, detached placeholder, dropUploader
+   showcase, detached placeholder, dropUploader, modalUploader
    ========================================================================== */
 
 /* --- Scroll wrapper (mobile fix) --- */
@@ -73,6 +73,21 @@
     right: 0;
     bottom: 0;
     line-height: 30px;
+}
+
+/* --- Modal uploader --- */
+.modalUploader{
+    width: var(--modaluploader-width);
+}
+
+.modalUploader_preview{
+    aspect-ratio: var(--modaluploader-preview-ratio);
+}
+
+.modalUploader_fill .modalUploader_preview{
+    aspect-ratio: auto;
+    flex: 1;
+    min-height: 0;
 }
 
 /* --- Inner label toggle --- */

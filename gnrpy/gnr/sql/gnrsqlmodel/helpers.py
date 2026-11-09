@@ -77,14 +77,31 @@ def bagItemFormula(
     # backends.  Consider using adapter-level type mapping.
     typeconverter = {
         'T': 'text', 'A': 'text', 'C': 'text', 'P': 'text',
+        'X': 'text', 'Z': 'text',
         'N': 'numeric', 'B': 'boolean', 'D': 'date',
-        'H': 'time without time zone', 'L': 'bigint', 'R': 'real',
-        'X': 'text',
+        'H': 'time without time zone', 'HZ': 'time with time zone',
+        'DH': 'timestamp without time zone',
+        'DHZ': 'timestamp with time zone',
+        'I': 'integer', 'L': 'bigint', 'R': 'real', 'F': 'real',
     }
-    desttype = typeconverter[dtype]
+    desttype = typeconverter.get(dtype, 'text')
     if desttype != 'text':
         return "CAST ( ( %s ) AS %s) " % (sql_formula, desttype)
     return sql_formula
+
+
+def baseDtype(pkgobj: Any, dtype: str | None) -> str | None:
+    """Resolve a package custom dtype to its base dtype.
+
+    Custom dtypes are declared as ``custom_type_<dtype>`` hooks on the
+    package object (the same hooks consumed by ``DbBaseColumnObj.doInit``):
+    the hook returns a dict whose ``dtype`` entry is the base data type.
+    Unknown dtypes are returned unchanged.
+    """
+    handler = getattr(pkgobj, 'custom_type_%s' % dtype, None) if (pkgobj and dtype) else None
+    if handler:
+        return dict(handler()).get('dtype', dtype)
+    return dtype
 
 
 def toolFormula(

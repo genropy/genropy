@@ -176,8 +176,12 @@ FrameIndex webpage variables
     * *index_url*: string. Allow to specify the url of your index page. For more information
       check the :ref:`fi_example_index_url`
     * *indexTab*: by default it is set to ``False``; you can write a string in place of
-      ``False`` to allow to see your index page (defined through the ``index_url`` attribute)
-      as a first button of the ``pages buttons`` in the :ref:`fi_topbar` of the FrameIndex page
+      ``False`` with the path (or URL) of a webpage, and it will be opened automatically as
+      an iframe tab and selected when the FrameIndex starts with no restored tabs and no
+      external windows. It is not the index page and is unrelated to the ``index_url``
+      attribute; prefer an absolute ``/package/page`` form. It is ignored whenever any
+      favorite or start page is restored, so for new code prefer the menu's ``openOnStart``
+      attribute instead
     * *hideLeftPlugins*: boolean. If ``True``, allow to start a page with the :ref:`fi_leftbar`
       hidden. By default it is ``False``
     * *preferenceTags*: TODO By default it is ``admin``
