@@ -333,6 +333,7 @@ def test_weasyprint_zero_margins_beat_document_margins(tmp_path):
 # --- Arial Narrow falling back to a wide font (#1825) ------------------------
 
 WIDE_FONT_FAMILIES = ('DejaVu Sans', 'Liberation Sans', 'Arial', 'Verdana', 'Helvetica')
+NARROW_FONT_WARNING = 'fonts-liberation-sans-narrow'
 
 #one line in Arial Narrow across the 208mm footer, two in Arial and wider fonts
 FOOTER_NOTES = ('Chart of accounts for internal review only: balances are in euro and the '
@@ -375,16 +376,50 @@ def wide_font_config(tmp_path):
     return config, family
 
 
-def render_in_subprocess(tmp_path, fonts_config, source, targets, timeout=60):
+def render_in_subprocess(tmp_path, fonts_config, source, targets, path=None, timeout=60):
     """Render through the real weasyprint service in a fresh interpreter: fontconfig
-    reads FONTCONFIG_FILE once, at startup."""
+    reads FONTCONFIG_FILE once, at startup, and the warning is due once per process.
+    An empty GENRO_GNRFOLDER keeps the default logging on stdout."""
     gnr_folder = tmp_path / 'gnr'
     gnr_folder.mkdir(exist_ok=True)
     env = dict(os.environ, FONTCONFIG_FILE=str(fonts_config), GENRO_GNRFOLDER=str(gnr_folder),
                PYTHONPATH=os.pathsep.join(os.path.abspath(entry) for entry in sys.path))
     env.pop('GNR_LOGLEVEL', None)
+    if path is not None:
+        env['PATH'] = path
     return subprocess.run([sys.executable, '-c', RENDER_SCRIPT, str(tmp_path), source, *targets],
                           env=env, capture_output=True, text=True, timeout=timeout)
+
+
+def narrow_font_warnings(result):
+    return [line for line in result.stdout.splitlines() if NARROW_FONT_WARNING in line]
+
+
+def test_weasyprint_warns_once_when_arial_narrow_falls_back_to_a_wide_font(tmp_path):
+    pytest.importorskip('weasyprint')
+    fonts_config, family = wide_font_config(tmp_path)
+    (tmp_path / 'src.html').write_text(DOC_NO_PAGE_RULE)
+    result = render_in_subprocess(tmp_path, fonts_config, 'src.html', ['first.pdf', 'second.pdf'])
+    assert result.returncode == 0, result.stderr
+    warnings = narrow_font_warnings(result)
+    assert len(warnings) == 1, result.stdout
+    assert family in warnings[0]
+    assert (tmp_path / 'first.pdf').stat().st_size and (tmp_path / 'second.pdf').stat().st_size
+
+
+def test_weasyprint_prints_without_fontconfig_tools(tmp_path):
+    """Without fc-match on the PATH there is nothing to warn about, and the print
+    must go on as before."""
+    pytest.importorskip('weasyprint')
+    fonts_config, _family = wide_font_config(tmp_path)
+    no_tools = tmp_path / 'bin'
+    no_tools.mkdir()
+    (tmp_path / 'src.html').write_text(DOC_NO_PAGE_RULE)
+    result = render_in_subprocess(tmp_path, fonts_config, 'src.html', ['out.pdf'],
+                                  path=str(no_tools))
+    assert result.returncode == 0, result.stderr
+    assert narrow_font_warnings(result) == []
+    assert (tmp_path / 'out.pdf').stat().st_size
 
 
 class _NotesFooterPrint(BagToHtml):
