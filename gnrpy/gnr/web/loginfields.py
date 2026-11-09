@@ -116,6 +116,37 @@ def _count_check(attr):
             return check, field
 
 
+def form_value_keys(nodes):
+    """The rootenv keys the fields among ``nodes`` edit (``value='^.x'``), skipping forbidden subtrees."""
+    keys = []
+
+    def walk(node_list):
+        for node in node_list:
+            if node.attr.get('__forbidden__'):
+                continue
+            key = _rootenv_key(node.attr.get('value'))
+            if key and key not in keys:
+                keys.append(key)
+            value = node.getValue()
+            if isinstance(value, Bag):
+                walk(value.nodes)
+
+    walk(nodes)
+    return keys
+
+
+def trusted_rootenv(page_rootenv, checked_rootenv, sent_rootenv, field_keys):
+    """The rootenv a login stores: the page's and the one the server built at the avatar check,
+    with from the client only the values of the login form fields."""
+    rootenv = Bag(page_rootenv or {})
+    rootenv.update(Bag(checked_rootenv or {}))
+    sent_rootenv = sent_rootenv or Bag()
+    for key in field_keys or []:
+        if key in sent_rootenv:
+            rootenv[key] = sent_rootenv[key]
+    return rootenv
+
+
 def collect_login_rpcs(nodes, field_prefix='f'):
     """Record the calls the struct ``nodes`` declare and redirect dbSelect and duplicate checks.
 
@@ -124,18 +155,7 @@ def collect_login_rpcs(nodes, field_prefix='f'):
     methods = []
     dbselects = []
     counts = []
-    form_values = set()
-
-    def values(node_list):
-        for node in node_list:
-            if node.attr.get('__forbidden__'):
-                continue
-            key = _rootenv_key(node.attr.get('value'))
-            if key:
-                form_values.add(key)
-            value = node.getValue()
-            if isinstance(value, Bag):
-                values(value.nodes)
+    form_values = set(form_value_keys(nodes))
 
     def walk(node_list):
         for node in node_list:
@@ -174,7 +194,6 @@ def collect_login_rpcs(nodes, field_prefix='f'):
             if isinstance(value, Bag):
                 walk(value.nodes)
 
-    values(nodes)
     walk(nodes)
     return Bag(dict(methods=methods, dbselects=dbselects, counts=counts))
 

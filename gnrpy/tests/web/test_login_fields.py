@@ -9,7 +9,7 @@ own and records its table, structure and condition parameters;
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdecorator import public_method
 from gnr.web.loginfields import (collect_login_rpcs, without_field_rpcs, dbselect_kwargs,
-                                 declared_method, rpc_name)
+                                 declared_method, rpc_name, form_value_keys, trusted_rootenv)
 
 
 class LoginComponent(object):
@@ -163,3 +163,23 @@ def test_declared_methods_are_matched_by_exact_name():
     assert not declared_method('plain', recorded)
     assert not declared_method('*|other:Component;login_sedi', recorded)
     assert not declared_method('login_sedi', None)
+
+
+def test_form_value_keys_are_the_fields_of_the_form():
+    keys = form_value_keys(_fields().nodes)
+    assert keys == ['consultorio_id', 'sede_id', 'sede_bis_id', 'code', 'username', 'email', 'x']
+
+
+def test_the_login_rootenv_takes_from_the_client_only_the_form_fields():
+    page = Bag(dict(language='it'))
+    checked = Bag(dict(user_id='U1', operatore_id='OP1', accesso_globale=False, consultorio_id='C1'))
+    sent = Bag(dict(user_id='ADMIN', operatore_id='OTHER', accesso_globale=True, user_local_tags='admin',
+                    allowed_consultorio_id=['C1', 'C2'], consultorio_id='C2', workdate='2026-01-01'))
+    rootenv = trusted_rootenv(page, checked, sent, ['consultorio_id', 'workdate'])
+    assert rootenv.asDict() == dict(language='it', user_id='U1', operatore_id='OP1', accesso_globale=False,
+                                    consultorio_id='C2', workdate='2026-01-01')
+
+
+def test_without_a_checked_rootenv_nothing_reserved_comes_from_the_client():
+    rootenv = trusted_rootenv(None, None, Bag(dict(user_local_tags='admin', workdate='d')), ['workdate'])
+    assert rootenv.asDict() == dict(workdate='d')

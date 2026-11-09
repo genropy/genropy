@@ -14,7 +14,7 @@ from gnr.app import pkglog as logger
 from gnr.app.gnrapp import GnrRestrictedAccessException
 from gnr.web.gnrwebpage import BaseComponent
 from gnr.web.gnrwebstruct import struct_method
-from gnr.web.loginfields import collect_login_rpcs
+from gnr.web.loginfields import collect_login_rpcs, form_value_keys, trusted_rootenv
 
 CONFIRMABLE_STATUSES = ('invt', 'new', 'wait')
 
@@ -164,7 +164,9 @@ class LoginComponent(BaseComponent):
             valid_token = self.db.table('sys.external_token').check_token(gnrtoken)
         hooks_start = len(fb.getNodes())
         self.callPackageHooks('rootenvForm',fb)
-        self.pageStore().setItem('login_field_rpcs', collect_login_rpcs(fb.getNodes()[hooks_start:]))
+        with self.pageStore() as ps:
+            ps.setItem('login_field_rpcs', collect_login_rpcs(fb.getNodes()[hooks_start:]))
+            ps.setItem('login_rootenv_fields', form_value_keys(fb.getNodes()[start:]))
         for flnode in fb.getNodes()[start:]:
             node_value = flnode.attr.get('value')
             if node_value:
@@ -240,6 +242,9 @@ class LoginComponent(BaseComponent):
             return {'error':'Invalid login'}
         kwargs.pop('authenticate',None)
         kwargs.pop('guestName',None)
+        page_store = self.pageStore()
+        rootenv = trusted_rootenv(self.rootenv, page_store.getItem('login_checked_rootenv'), rootenv,
+                                  page_store.getItem('login_rootenv_fields'))
         self.doLogin(login=login,rootenv=rootenv,**kwargs)
         if login['error']:
             return dict(error=login['error'])
