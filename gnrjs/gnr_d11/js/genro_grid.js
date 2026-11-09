@@ -1957,7 +1957,7 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
     },
 
     columnFilterByDefault:function(cell){
-        return !(this.columnFilterComposite(cell) || cell.calculated || cell.values || cell.checkBoxColumn ||
+        return !(this.columnFilterComposite(cell) || cell.calculated || cell.checkBoxColumn ||
                  cell.userSets || cell.format_isbutton || cell.format_buttonclass);
     },
 
@@ -4789,6 +4789,11 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
         var caption = (cell._filterCaptionFromValue || cell.filterField_aggr)? null:rowdata[cell.field_getter];
         if(caption===undefined || caption===null){
             caption = value;
+        }
+        if(cell.values && cell._customGetter && caption!==null && caption!==undefined){
+            var keyrow = {};
+            keyrow[cell.field_getter] = caption;
+            caption = cell._customGetter.call(cell,keyrow) || caption;
         }
         return (caption===null || caption===undefined || typeof(caption)=='string')? caption:_F(caption,null,cell.dtype);
     },
