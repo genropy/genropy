@@ -50,9 +50,14 @@ def _is_dynamic(value):
 
 def _rootenv_key(value):
     """The rootenv key a ``^.x`` / ``=.x`` / ``=gnr.rootenv.x`` path reads, or None."""
-    if not _is_dynamic(value):
+    if _is_dynamic(value):
+        return _path_key(value[1:])
+
+
+def _path_key(path):
+    """The rootenv key of a ``.x`` / ``gnr.rootenv.x`` path, or None."""
+    if not isinstance(path, str):
         return
-    path = value[1:]
     if path.startswith('.'):
         key = path[1:]
     elif path.startswith('gnr.rootenv.'):
@@ -61,6 +66,16 @@ def _rootenv_key(value):
         return
     if key and not any(c in key for c in '.?#'):
         return key
+
+
+def _selected(attr):
+    """(column, path) of each ``selected_<column>='path'`` / ``selected_x='path=column'`` of a dbSelect."""
+    result = []
+    for key, value in attr.items():
+        if key.startswith('selected_') and value:
+            path, _, column = value.partition('=')
+            result.append((column or key[len('selected_'):], path))
+    return result
 
 
 def _dbselect_spec(attr, form_values=()):
@@ -74,8 +89,7 @@ def _dbselect_spec(attr, form_values=()):
         if _is_dynamic(attr[key]):
             return
         structure[key] = attr[key]
-    selected = [value.split('=')[1] if '=' in value else key[len('selected_'):]
-                for key, value in attr.items() if key.startswith('selected_') and value]
+    selected = [column for column, path in _selected(attr)]
     if selected:
         hidden = [c for c in (structure.get('hiddenColumns') or '').split(',') if c]
         structure['hiddenColumns'] = ','.join(hidden + [c for c in selected if c not in hidden])
@@ -135,10 +149,55 @@ def form_value_keys(nodes):
     return keys
 
 
-def trusted_rootenv(page_rootenv, checked_rootenv, sent_rootenv, field_keys):
-    """The rootenv a login stores: the page's and the one the server built at the avatar check,
-    with from the client only the values of the login form fields."""
+def _selected_field(attr):
+    """What a dbSelect copies in the rootenv from the record chosen, or None."""
+    key = _rootenv_key(attr.get('value'))
+    dbtable = attr.get('dbtable') or attr.get('table')
+    alternate_pkey = attr.get('alternatePkey')
+    columns = [(column, _path_key(path)) for column, path in _selected(attr)]
+    columns = [(column, target) for column, target in columns if target]
+    if key and columns and dbtable and not _is_dynamic(dbtable) and not _is_dynamic(alternate_pkey):
+        return dict(key=key, dbtable=dbtable, pkey=alternate_pkey, columns=columns)
+
+
+def form_derived_values(nodes):
+    """The rootenv keys the fields among ``nodes`` fill without the user typing them.
+
+    ``constants`` are the (key, value) of the ``data`` nodes, ``selected`` the columns each
+    dbSelect copies from the record chosen (``selected_*``). The form does both on the client:
+    the login takes them from here, never from what the client sends."""
+    constants = []
+    selected = []
+
+    def walk(node_list):
+        for node in node_list:
+            attr = node.attr
+            if attr.get('__forbidden__'):
+                continue
+            tag = (attr.get('tag') or '').lower()
+            value = node.getValue()
+            if tag == 'data':
+                key = _path_key(attr.get('path'))
+                if key and value is not None:
+                    constants.append((key, value))
+                continue
+            if tag in DBSELECT_TAGS:
+                field = _selected_field(attr)
+                if field:
+                    selected.append(field)
+            if isinstance(value, Bag):
+                walk(value.nodes)
+
+    walk(nodes)
+    return Bag(dict(constants=constants, selected=selected))
+
+
+def trusted_rootenv(page_rootenv, checked_rootenv, sent_rootenv, field_keys, constants=None):
+    """The rootenv a login stores: the page's, the ``constants`` its form declared and the one
+    the server built at the avatar check, with from the client only the values of the login form fields."""
     rootenv = Bag(page_rootenv or {})
+    for key, value in constants or []:
+        rootenv[key] = value
     rootenv.update(Bag(checked_rootenv or {}))
     sent_rootenv = sent_rootenv or Bag()
     for key in field_keys or []:
