@@ -18,6 +18,8 @@ class _Page(object):
     _mixinRequestedComponent = GnrWebPage._mixinRequestedComponent
     _mixedByPage = GnrWebPage._mixedByPage
     getWsMethod = GnrWebPage.getWsMethod
+    resolveWsMethod = GnrWebPage.resolveWsMethod
+    _resolvePublicMethod = GnrWebPage._resolvePublicMethod
 
     def _checkAuth(self, method=None, **kwargs):
         return AUTH_OK
@@ -119,3 +121,9 @@ def test_logged_user_is_unchanged():
     page = _Page(user='someone')
     assert page._mixinRequestedComponent('*|other:Component;anyMethod') == 'anyMethod'
     assert page.mixed == [('other:Component',)]
+
+
+def test_a_component_without_package_marker_is_refused():
+    page = _Page(stored=[LOGIN])
+    assert page._mixinRequestedComponent('login:LoginComponent;login_checkAvatar') is None
+    assert page.mixed == []
