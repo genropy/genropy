@@ -164,8 +164,8 @@ class _AppProxy(object):
 
 def _recorded(dbtable, method=None, count=None):
     return Bag(dict(methods=[callable_key(method)] if method else [],
-                    dbselects=[dict(dbtable=dbtable, structure=dict(columns='$code', condition='$code=:c'),
-                                    dynamic=[], params=['c'])],
+                    dbselects=[dict(dbtable=dbtable, structure=dict(columns='$code', condition='$code=:c AND $u=:env_u'),
+                                    dynamic=[], params=['c', 'env_u'], pinned=dict(env_u='user_id'))],
                     counts=[count] if count else []))
 
 
@@ -216,7 +216,7 @@ def test_login_page_dbselect_is_served_to_anybody_with_its_own_structure():
     sent = dict(dbtable='adm.htag', columns='$md5pwd', condition='$code IS NOT NULL',
                 ignorePartition=True, _storename='other', c='G1', _querystring='g')
     assert page.getSessionlessMethod('login_fieldSelect')(**sent) == 'rows'
-    assert page.app.calls == [dict(dbtable='adm.htag', columns='$code', condition='$code=:c',
+    assert page.app.calls == [dict(dbtable='adm.htag', columns='$code', condition='$code=:c AND $u=:env_u',
                                    c='G1', _querystring='g')]
 
 
@@ -225,8 +225,9 @@ def test_rootenvform_dbselect_waits_for_the_avatar_check():
     page = _FieldPage()
     assert page.login_fieldSelect(**sent) == Bag()
     assert page.app.calls == []
-    page = _FieldPage(store=CHECKED)
-    assert page.login_fieldSelect(**sent) == 'rows'
+    page = _FieldPage(store=dict(CHECKED, login_checked_rootenv=Bag(dict(user_id='U1'))))
+    assert page.login_fieldSelect(env_u='OTHER', **sent) == 'rows'
+    assert page.app.calls[-1]['env_u'] == 'U1'
     page = _FieldPage(store=dict(CHECKED, waiting2fa='user_id'))
     assert page.login_fieldSelect(**sent) == Bag()
 

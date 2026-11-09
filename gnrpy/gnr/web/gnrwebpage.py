@@ -1350,16 +1350,17 @@ class GnrWebPage(GnrBaseWebPage):
             return handler
         if self.connection.loggedUser:
             return
-        if any(declared_method(handler, method, recorded) for recorded in self._loginRecorded()):
+        if any(declared_method(handler, method, recorded) for recorded, rootenv in self._loginRecorded()):
             return handler
 
     def _loginRecorded(self):
+        """(recorded calls, rootenv for their parameters) the login page serves now."""
         page_store = self.pageStore()
-        recorded = [page_store.getItem('login_page_rpcs')]
+        recorded = [(page_store.getItem('login_page_rpcs'), None)]
         if self.connection.loggedUser or (page_store.getItem('login_checked')
                                           and not page_store.getItem('waiting2fa')):
-            recorded.append(page_store.getItem('login_field_rpcs'))
-        return [r for r in recorded if r]
+            recorded.append((page_store.getItem('login_field_rpcs'), page_store.getItem('login_checked_rootenv')))
+        return [(r, rootenv) for r, rootenv in recorded if r]
 
     def _recordLoginPage(self, root):
         page_store = self.pageStore()
@@ -1369,8 +1370,8 @@ class GnrWebPage(GnrBaseWebPage):
     @public_method(sessionless=True)
     def login_fieldSelect(self, **kwargs):
         """The dbSelect of a login page field, with the table, columns and condition the field declared."""
-        for recorded in self._loginRecorded():
-            served = dbselect_kwargs(recorded, kwargs)
+        for recorded, rootenv in self._loginRecorded():
+            served = dbselect_kwargs(recorded, kwargs, rootenv)
             if served:
                 return self.app.dbSelect(**served)
         return Bag()
@@ -1378,7 +1379,7 @@ class GnrWebPage(GnrBaseWebPage):
     @public_method(sessionless=True)
     def login_fieldCount(self, value=None, login_field=None, login_check=None, **kwargs):
         """The validate_nodup / validate_exist of a login page field, on the field it declared."""
-        if not any(login_field in (recorded['counts'] or []) for recorded in self._loginRecorded()):
+        if not any(login_field in (recorded['counts'] or []) for recorded, rootenv in self._loginRecorded()):
             return Bag(dict(errorcode='not_allowed'))
         if value in (None, ''):
             return True

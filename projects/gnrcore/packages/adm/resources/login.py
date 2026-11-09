@@ -287,7 +287,12 @@ class LoginComponent(BaseComponent):
         except GnrRestrictedAccessException as e:
             logger.exception(e)
             return Bag(login_error_msg=e.description)
-        self.login_setChecked(user,group_code,default_group_code=getattr(avatar,'group_code',None))
+        checked_rootenv = Bag(result['rootenv'])
+        for key in ('user','user_id'):
+            if checked_rootenv[key] is None:
+                checked_rootenv[key] = getattr(avatar,key,None)
+        self.login_setChecked(user,group_code,default_group_code=getattr(avatar,'group_code',None),
+                              rootenv=checked_rootenv)
         result['avatar.login_groups'] = self.login_selectableGroups(avatar,result['rootenv.all_groups'])
         if self.login_require2fa(avatar):
             result['waiting2fa'] = avatar.user_id
@@ -299,11 +304,12 @@ class LoginComponent(BaseComponent):
         logger.info("User %s logged in", user)
         return result
     
-    def login_setChecked(self,user,group_code=None,default_group_code=None):
+    def login_setChecked(self,user,group_code=None,default_group_code=None,rootenv=None):
         checked = Bag(dict(user=user,group_code=group_code or None,
                            default_group_code=default_group_code or None)) if user else None
         with self.pageStore() as ps:
             ps.setItem('login_checked',checked)
+            ps.setItem('login_checked_rootenv',Bag(rootenv) if user and rootenv is not None else None)
 
     def login_isChecked(self,login):
         checked = self.pageStore().getItem('login_checked')

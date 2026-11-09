@@ -14,7 +14,8 @@ recorded:
 Generic app rpcs are never opened. A dbSelect is redirected to the page's
 ``login_fieldSelect`` and runs with the table, columns and condition its field
 declared, taking from the client only the search text, the key and the
-condition values; ``validate_nodup`` / ``validate_exist`` become a
+condition values chosen in the form (those read from the rootenv come from
+the rootenv the server built at the avatar check); ``validate_nodup`` / ``validate_exist`` become a
 ``validate_remote`` on ``login_fieldCount``, which counts only on the declared
 field. Public callables the struct references (dataRpc, validate_remote) are
 served by name.
@@ -41,7 +42,22 @@ def _is_dynamic(value):
     return isinstance(value, str) and value[:1] in ('^', '=')
 
 
-def _dbselect_spec(attr):
+def _rootenv_key(value):
+    """The rootenv key a ``^.x`` / ``=.x`` / ``=gnr.rootenv.x`` path reads, or None."""
+    if not _is_dynamic(value):
+        return
+    path = value[1:]
+    if path.startswith('.'):
+        key = path[1:]
+    elif path.startswith('gnr.rootenv.'):
+        key = path[len('gnr.rootenv.'):]
+    else:
+        return
+    if key and not any(c in key for c in '.?#'):
+        return key
+
+
+def _dbselect_spec(attr, form_values=()):
     dbtable = attr.get('dbtable') or attr.get('table')
     if not dbtable or _is_dynamic(dbtable):
         return
@@ -60,7 +76,12 @@ def _dbselect_spec(attr):
         hidden = [c for c in (structure.get('hiddenColumns') or '').split(',') if c]
         structure['hiddenColumns'] = ','.join(hidden + [c for c in selected if c not in hidden])
     params = [key[len('condition_'):] for key in attr if key.startswith('condition_')]
-    return dict(dbtable=dbtable, structure=structure, dynamic=dynamic, params=params)
+    pinned = {}
+    for param in params:
+        key = _rootenv_key(attr['condition_%s' % param])
+        if key and key not in form_values:
+            pinned[param] = key
+    return dict(dbtable=dbtable, structure=structure, dynamic=dynamic, params=params, pinned=pinned)
 
 
 def callable_key(value):
@@ -92,13 +113,23 @@ def collect_login_rpcs(nodes):
     methods = []
     dbselects = []
     counts = []
+    form_values = set()
+
+    def values(node_list):
+        for node in node_list:
+            key = _rootenv_key(node.attr.get('value'))
+            if key:
+                form_values.add(key)
+            value = node.getValue()
+            if isinstance(value, Bag):
+                values(value.nodes)
 
     def walk(node_list):
         for node in node_list:
             attr = node.attr
             tag = (attr.get('tag') or '').lower()
             if tag in DBSELECT_TAGS and attr.get('method', DBSELECT_METHOD) == DBSELECT_METHOD:
-                spec = _dbselect_spec(attr)
+                spec = _dbselect_spec(attr, form_values)
                 if spec:
                     dbselects.append(spec)
                     attr['method'] = FIELD_SELECT_METHOD
@@ -123,6 +154,7 @@ def collect_login_rpcs(nodes):
             if isinstance(value, Bag):
                 walk(value.nodes)
 
+    values(nodes)
     walk(nodes)
     return Bag(dict(methods=methods, dbselects=dbselects, counts=counts))
 
@@ -135,8 +167,11 @@ def without_field_rpcs(page_rpcs, field_rpcs):
                     for key in RECORDED_KEYS))
 
 
-def dbselect_kwargs(recorded, kwargs):
-    """The kwargs of the dbSelect a recorded field declared for ``kwargs['dbtable']``, or None."""
+def dbselect_kwargs(recorded, kwargs, rootenv=None):
+    """The kwargs of the dbSelect a recorded field declared for ``kwargs['dbtable']``, or None.
+
+    A condition parameter that reads the rootenv (not a value chosen in the form)
+    takes its value from ``rootenv``, the one the server built at the avatar check."""
     specs = [s for s in recorded['dbselects'] or [] if s['dbtable'] == kwargs.get('dbtable')]
     if not specs:
         return
@@ -146,6 +181,9 @@ def dbselect_kwargs(recorded, kwargs):
     for key in DBSELECT_CLIENT_KEYS + tuple(spec['params']) + tuple(spec['dynamic']):
         if key in kwargs:
             served[key] = kwargs[key]
+    for param, key in (spec.get('pinned') or {}).items():
+        if rootenv is not None and rootenv[key] is not None:
+            served[param] = rootenv[key]
     served['dbtable'] = spec['dbtable']
     return served
 
