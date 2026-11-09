@@ -149,15 +149,22 @@ def form_value_keys(nodes):
     return keys
 
 
-def _selected_field(attr):
-    """What a dbSelect copies in the rootenv from the record chosen, or None."""
+def _selected_field(attr, form_values=()):
+    """What a dbSelect copies in the rootenv from the record chosen, or None.
+
+    Only a field keyed by a record of its table in the current store: not a dbCombobox, whose
+    value is the text typed, nor a field with a method of its own or bound to client data.
+    A target another field edits stays that field's."""
+    if (attr.get('tag') or '').lower() != 'dbselect' or attr.get('selectmethod') or attr.get('_storename') \
+            or attr.get('method', DBSELECT_METHOD) not in (DBSELECT_METHOD, FIELD_SELECT_METHOD) \
+            or not _dbselect_spec(attr):
+        return
     key = _rootenv_key(attr.get('value'))
-    dbtable = attr.get('dbtable') or attr.get('table')
-    alternate_pkey = attr.get('alternatePkey')
     columns = [(column, _path_key(path)) for column, path in _selected(attr)]
-    columns = [(column, target) for column, target in columns if target]
-    if key and columns and dbtable and not _is_dynamic(dbtable) and not _is_dynamic(alternate_pkey):
-        return dict(key=key, dbtable=dbtable, pkey=alternate_pkey, columns=columns)
+    columns = [(column, target) for column, target in columns if target and target not in form_values]
+    if key and columns:
+        return dict(key=key, dbtable=attr.get('dbtable') or attr.get('table'),
+                    pkey=attr.get('alternatePkey'), columns=columns)
 
 
 def form_derived_values(nodes):
@@ -168,6 +175,7 @@ def form_derived_values(nodes):
     the login takes them from here, never from what the client sends."""
     constants = []
     selected = []
+    form_values = form_value_keys(nodes)
 
     def walk(node_list):
         for node in node_list:
@@ -181,10 +189,9 @@ def form_derived_values(nodes):
                 if key and value is not None:
                     constants.append((key, value))
                 continue
-            if tag in DBSELECT_TAGS:
-                field = _selected_field(attr)
-                if field:
-                    selected.append(field)
+            field = _selected_field(attr, form_values)
+            if field:
+                selected.append(field)
             if isinstance(value, Bag):
                 walk(value.nodes)
 

@@ -247,9 +247,10 @@ class LoginComponent(BaseComponent):
         kwargs.pop('guestName',None)
         page_store = self.pageStore()
         derived = page_store.getItem('login_rootenv_derived') or Bag()
-        rootenv = trusted_rootenv(self.rootenv, page_store.getItem('login_checked_rootenv'), rootenv,
+        checked_rootenv = page_store.getItem('login_checked_rootenv') or Bag()
+        rootenv = trusted_rootenv(self.rootenv, checked_rootenv, rootenv,
                                   page_store.getItem('login_rootenv_fields'), constants=derived['constants'])
-        self.login_setSelectedRootenv(rootenv, derived['selected'])
+        self.login_setSelectedRootenv(rootenv, derived['selected'], checked_rootenv)
         self.doLogin(login=login,rootenv=rootenv,**kwargs)
         if login['error']:
             return dict(error=login['error'])
@@ -265,21 +266,23 @@ class LoginComponent(BaseComponent):
         self.connectionStore().setItem('defaultRootenv',rootenv) #no need to be locked because it's just one set
         return self.login_newWindow(rootenv=rootenv)
 
-    def login_setSelectedRootenv(self, rootenv, selected):
+    def login_setSelectedRootenv(self, rootenv, selected, checked_rootenv):
         for field in selected or []:
-            targets = [target for column, target in field['columns']]
-            values = [None for target in targets]
             chosen = rootenv[field['key']]
-            if chosen is not None:
-                tblobj = self.db.table(field['dbtable'])
-                columns = ','.join(column if column[:1] in ('$', '@') else '$%s' % column
-                                   for column, target in field['columns'])
-                values = tblobj.readColumns(columns=columns, where='$%s=:chosen' % (field['pkey'] or tblobj.pkey),
-                                            chosen=chosen)
-                if len(targets) == 1:
-                    values = [values]
-            for target, value in zip(targets, values):
-                rootenv[target] = value
+            if chosen == checked_rootenv[field['key']]:
+                # as on the client: a choice the user left as the avatar check set it selects nothing
+                continue
+            tblobj = self.db.table(field['dbtable'])
+            names = dict((column, column if column[:1] in ('$', '@') else '$%s' % column)
+                         for column, target in field['columns'])
+            readable = sorted(set(name for name in names.values() if tblobj.column(name) is not None))
+            values = {}
+            if readable and isinstance(chosen, (str, int)):
+                row = tblobj.readColumns(columns=','.join(readable), chosen=chosen,
+                                         where='$%s=:chosen' % (field['pkey'] or tblobj.pkey))
+                values = dict(zip(readable, [row] if len(readable) == 1 else row))
+            for column, target in field['columns']:
+                rootenv[target] = values.get(names[column])
 
     @public_method(sessionless=True)
     def login_checkAvatar(self,password=None,user=None,group_code=None,serverTimeDelta=None,**kwargs):

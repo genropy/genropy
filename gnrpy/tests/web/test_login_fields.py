@@ -206,3 +206,32 @@ def test_form_constants_yield_to_the_checked_rootenv_and_ignore_the_client():
                               Bag(dict(gst_factor=9, sede_desc='Forged')), [],
                               constants=[('gst_factor', 1.1), ('sede_desc', 'Default')])
     assert rootenv.asDict() == dict(gst_factor=1.1, sede_desc='Main')
+
+
+def _selected(**attr):
+    form = Bag()
+    form.setItem('f', None, **dict(dict(tag='dbSelect', value='^.sede_id', dbtable='dmt.sede',
+                                        selected_codice='.sede_codice'), **attr))
+    form.setItem('other', None, tag='textbox', value='^.note')
+    return form
+
+
+def test_a_target_another_field_edits_is_not_derived():
+    derived = form_derived_values(_selected(selected_memo='.note').nodes)
+    assert derived['selected'] == [dict(key='sede_id', dbtable='dmt.sede', pkey=None,
+                                        columns=[('codice', 'sede_codice')])]
+
+
+def test_only_a_dbselect_keyed_by_its_table_selects():
+    for attr in (dict(tag='dbCombobox'), dict(method='custom.select'), dict(selectmethod='pickSede'),
+                 dict(_storename='other'), dict(condition='^.cond'), dict(dbtable='^.tbl'),
+                 dict(value='^_login.sede_id')):
+        assert form_derived_values(_selected(**attr).nodes)['selected'] == [], attr
+
+
+def test_a_recorded_field_still_selects():
+    form = _selected(condition='$abilitata IS TRUE')
+    collect_login_rpcs(form.nodes)
+    assert form.getAttr('f')['method'] == 'login_fieldSelect'
+    assert [field['key'] for field in form_derived_values(form.nodes)['selected']] == ['sede_id']
+
