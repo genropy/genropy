@@ -42,6 +42,7 @@ def test_serverstore_changes_for_an_unknown_page_answer_false(caplog):
 def test_serverstore_changes_for_a_known_page_are_stored(caplog):
     sr = SiteRegister(_FakeServer(), sitename='testsite')
     sr.page_register.create('p1')
+    sr.page_register.subscribe_path('p1', 'rootenv.language')
     with caplog.at_level(logging.WARNING):
         assert sr.set_serverstore_changes('p1', {'rootenv.language': 'en'}) is True
     assert sr.page_register.get_item_data('p1')['rootenv.language'] == 'en'
@@ -62,6 +63,9 @@ def test_asking_about_a_ghost_leaves_no_timestamp_behind():
 def _page_register():
     sr = SiteRegister(_FakeServer(), sitename='testsite')
     sr.page_register.create('p1')
+    for serverpath in ('rootenv.language', 'rootenv.workdate', 'rootenv.context_subtables',
+                       'rootenv.current_sede_id'):
+        sr.page_register.subscribe_path('p1', serverpath)
     data = sr.page_register.get_item_data('p1')
     data.setItem('waiting2fa', 'user_id')
     data.setItem('confirm_user_id', 'user_id')
@@ -84,6 +88,7 @@ def test_client_changes_never_reach_server_only_paths(caplog):
               'confirm_user_id?x': '1', 'mixin_set': 'x', 'login_checked.user': 'victim',
               'login_page_rpcs': 'x', 'rootenv.user_local_tags': 'admin', 'rootenv': 'x', '': 'x',
               'rootenv.allowed_sede_id': 'x', 'rootenv.accesso_globale': True, 'rootenv.user_id': 'x',
+              'rootenv.current_operatore_id': 'other',
               'vb_filter?dbenv': 'allowed_sede_id', 'rootenv.language': 'it'}
     with caplog.at_level(logging.WARNING):
         assert sr.set_serverstore_changes('p1', forged) is True
@@ -96,6 +101,7 @@ def test_client_changes_never_reach_server_only_paths(caplog):
     assert data['rootenv.user_local_tags'] == 'base'
     assert data['rootenv.allowed_sede_id'] is None
     assert data['rootenv.accesso_globale'] is None
+    assert data['rootenv.current_operatore_id'] is None
     assert data.getNode('vb_filter') is None
     assert data['rootenv.language'] == 'it'
     assert len(caplog.records) == len(forged) - 1

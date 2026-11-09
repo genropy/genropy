@@ -37,13 +37,8 @@ from gnr.web import logger
 SERVER_ONLY_PATHS = ('waiting2fa', 'last_2fa_otp', 'confirm_user_id', 'mixin_set')
 SERVER_ONLY_PREFIXES = ('login_',)
 # the rootenv the server built at login (tags, allowed partitions, user scope) reaches every
-# query through the db env: a client syncs only these keys of it (serverpath='rootenv.x')
-CLIENT_ROOTENV_KEYS = ('language', 'workdate', 'context_subtables')
-CLIENT_ROOTENV_PREFIXES = ('current_',)
-
-
-def _client_rootenv_key(key):
-    return key in CLIENT_ROOTENV_KEYS or key.startswith(CLIENT_ROOTENV_PREFIXES)
+# query through the db env: a client changes it only where the page declared a serverpath
+SERVER_SCOPED_ROOTS = ('rootenv',)
 
 
 def is_server_only_path(path):
@@ -52,10 +47,8 @@ def is_server_only_path(path):
     if not path or attr == 'dbenv':
         return True
     head, _, rest = path.partition('.')
-    if head.startswith(SERVER_ONLY_PREFIXES):
+    if head.startswith(SERVER_ONLY_PREFIXES) or (head in SERVER_SCOPED_ROOTS and not rest):
         return True
-    if head == 'rootenv':
-        return not rest or not _client_rootenv_key(rest.split('.', 1)[0])
     return any(path == p or path.startswith(p + '.') or p.startswith(path + '.')
                for p in SERVER_ONLY_PATHS)
 
@@ -1148,12 +1141,21 @@ class SiteRegister(BaseRemoteObject):
         if not self.page_register.exists(page_id):
             return False
         page_item_data = self.page_register.get_item_data(page_id)
+        declared = self.page_register.get_item(page_id).get('subscribed_paths') or ()
         for k, v in list(datachanges.items()):
-            if is_server_only_path(k):
+            if is_server_only_path(k) or not self._declaredScopedPath(k, declared):
                 logger.warning('page %s: client change on server-only path %s refused', page_id, k)
                 continue
             page_item_data.setItem(k, self._parse_change_value(v))
         return True
+
+    @staticmethod
+    def _declaredScopedPath(path, declared):
+        """False for a path under a server-scoped root that no serverpath of the page covers."""
+        path = path.split('?', 1)[0]
+        if path.split('.', 1)[0] not in SERVER_SCOPED_ROOTS:
+            return True
+        return any(path == p or path.startswith(p + '.') for p in declared)
 
     def _parse_change_value(self, change_value):
         if isinstance(change_value, (bytes, str)):
