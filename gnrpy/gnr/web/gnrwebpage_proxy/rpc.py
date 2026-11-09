@@ -26,7 +26,7 @@ class GnrWebRpc(GnrBaseProxy):
         page = self.page
         error = None
         if _auth in (AUTH_FORBIDDEN, AUTH_EXPIRED) and method != 'main':
-            handler = page.getSessionlessMethod(method)
+            handler = page.getSessionlessMethod(method, kwargs)
             if not handler:
                 error = 'expired' if _auth == AUTH_EXPIRED else 'forbidden call'
         else:

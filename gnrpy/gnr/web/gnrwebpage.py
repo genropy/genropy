@@ -61,6 +61,7 @@ from gnr.web.gnrwebpage_proxy.menuproxy import GnrMenuProxy
 from gnr.web.gnrwebpage_proxy.apphandler import GnrWebAppHandler
 from gnr.web.gnrwebpage_proxy.apphandler.next import GnrWebAppHandlerNext
 from gnr.web.gnrwebpage_proxy.connection import GnrWebConnection
+from gnr.web.loginfields import field_rpc_call
 from gnr.web.gnrwebpage_proxy.serverbatch import GnrWebBatch
 from gnr.web.gnrwebpage_proxy.rpc import GnrWebRpc
 from gnr.web.gnrwebpage_proxy.developer import GnrWebDeveloper
@@ -1309,7 +1310,7 @@ class GnrWebPage(GnrBaseWebPage):
             submethod = method
         handler = getattr(proxy_object, submethod, None)
         if not handler or not getattr(handler, 'is_rpc', False):
-            handler = getattr(proxy_object, '%s_%s' % (prefix, submethod),None)
+            handler = getattr(proxy_object, '%s_%s' % (prefix, submethod),None) if prefix else None
         return handler
 
     def _verifiedHandler(self, handler, method):
@@ -1331,42 +1332,48 @@ class GnrWebPage(GnrBaseWebPage):
             raise verifier_error                
         return handler
 
-    def getSessionlessMethod(self, method):
+    def getSessionlessMethod(self, method, kwargs=None):
         """The handler of an rpc refused by ``_checkAuth`` that the page serves anyway, or None.
 
         A method declared ``@public_method(sessionless=True)`` authenticates or checks its
         input by itself. Before ``doLogin``, once the login dialog has checked the avatar,
-        also the methods without tags of their own are served: the fields that
-        ``rootenvForm_<pkg>`` hooks add to the dialog call them."""
+        the calls declared by the dialog fields are served too (``gnr.web.loginfields``)."""
         handler = self._resolvePublicMethod('rpc', method)
-        if self._servedWithoutAuth(handler, method):
-            return self._verifiedHandler(handler, method)
+        served = self._sessionlessHandler(handler, method, kwargs)
+        if served:
+            self._verifiedHandler(handler, method)
+            return served
 
-    def _servedWithoutAuth(self, handler, method):
+    def _sessionlessHandler(self, handler, method, kwargs):
         if not handler:
-            return False
+            return
         if getattr(handler, 'sessionless', False):
-            return True
-        if self.connection.loggedUser or self.pageAuthTags(method=method):
-            return False
+            return handler
+        if self.connection.loggedUser:
+            return
         page_store = self.pageStore()
-        return bool(page_store.getItem('login_checked')) and not page_store.getItem('waiting2fa')
+        if not page_store.getItem('login_checked') or page_store.getItem('waiting2fa'):
+            return
+        return field_rpc_call(handler, method, kwargs or {}, page_store.getItem('login_field_rpcs'))
 
     def getWsMethod(self, method):
         return self.resolveWsMethod(method)[0]
 
-    def resolveWsMethod(self, method):
+    def resolveWsMethod(self, method, kwargs=None):
         """The websocket handler of ``method`` and the error that refuses it, as the http rpc names it."""
         auth = self._checkAuth(method=method)
-        handler = self._resolvePublicMethod('rpc', method)
-        if auth != AUTH_OK and not self._servedWithoutAuth(handler, method):
-            return None, 'expired' if auth == AUTH_EXPIRED else 'forbidden call'
-        if not handler:
+        handler = self._resolvePublicMethod(None, method)
+        served = handler
+        if auth != AUTH_OK:
+            served = self._sessionlessHandler(handler, method, kwargs)
+            if not served:
+                return None, 'expired' if auth == AUTH_EXPIRED else 'forbidden call'
+        elif not handler:
             return None, 'missing handler: %s' % method
         if getattr(handler, 'tags',None):
             if not self.application.checkResourcePermission(handler.tags, self.userTags):
                 raise self.exception(GnrUserNotAllowed,method=method)
-        return handler, None
+        return served, None
 
     def exception(self, exception, **kwargs):
         """TODO

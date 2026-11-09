@@ -14,6 +14,7 @@ from gnr.app import pkglog as logger
 from gnr.app.gnrapp import GnrRestrictedAccessException
 from gnr.web.gnrwebpage import BaseComponent
 from gnr.web.gnrwebstruct import struct_method
+from gnr.web.loginfields import collect_field_rpcs
 
 CONFIRMABLE_STATUSES = ('invt', 'new', 'wait')
 
@@ -161,7 +162,9 @@ class LoginComponent(BaseComponent):
         valid_token = False
         if gnrtoken:
             valid_token = self.db.table('sys.external_token').check_token(gnrtoken)
+        hooks_start = len(fb.getNodes())
         self.callPackageHooks('rootenvForm',fb)
+        self.pageStore().setItem('login_field_rpcs', collect_field_rpcs(fb.getNodes()[hooks_start:]))
         for flnode in fb.getNodes()[start:]:
             node_value = flnode.attr.get('value')
             if node_value:
