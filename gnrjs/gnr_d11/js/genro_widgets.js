@@ -5136,6 +5136,16 @@ dojo.declare("gnr.widgets.BaseCombo", gnr.widgets.baseDojo, {
     },
     mixin_setValues:function(values){
         this.store =  this.gnr.storeFromValues(values);
+        var sourceNode = this.sourceNode;
+        var currvalue = sourceNode.getAttributeFromDatasource('value');
+        if(isNullOrBlank(currvalue)){
+            return;
+        }
+        this.store.fetchItemByIdentity({identity:currvalue,onItem:function(item){
+            if(item){
+                sourceNode.doUpdateAttrBuiltObj('value',{},'node');
+            }
+        }});
     },
     
   // patch__onBlur: function(){
