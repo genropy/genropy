@@ -33,17 +33,29 @@ from gnr.core.gnrclasses import GnrClassCatalog
 from gnr.web import logger
 
 # page store paths the server writes for itself (login state, 2FA, the components a
-# sessionless request may mix in, the tags a login grants): a client change never reaches them
-SERVER_ONLY_PATHS = ('waiting2fa', 'last_2fa_otp', 'confirm_user_id', 'mixin_set',
-                     'rootenv.user_local_tags')
+# sessionless request may mix in): a client change never reaches them
+SERVER_ONLY_PATHS = ('waiting2fa', 'last_2fa_otp', 'confirm_user_id', 'mixin_set')
 SERVER_ONLY_PREFIXES = ('login_',)
+# the rootenv the server built at login (tags, allowed partitions, user scope) reaches every
+# query through the db env: a client syncs only these keys of it (serverpath='rootenv.x')
+CLIENT_ROOTENV_KEYS = ('language', 'workdate', 'context_subtables')
+CLIENT_ROOTENV_PREFIXES = ('current_',)
+
+
+def _client_rootenv_key(key):
+    return key in CLIENT_ROOTENV_KEYS or key.startswith(CLIENT_ROOTENV_PREFIXES)
 
 
 def is_server_only_path(path):
     """True when a client change on ``path`` would write, or replace, a server-only path."""
-    path = (path or '').split('?', 1)[0]
-    if not path or path.split('.', 1)[0].startswith(SERVER_ONLY_PREFIXES):
+    path, _, attr = (path or '').partition('?')
+    if not path or attr == 'dbenv':
         return True
+    head, _, rest = path.partition('.')
+    if head.startswith(SERVER_ONLY_PREFIXES):
+        return True
+    if head == 'rootenv':
+        return not rest or not _client_rootenv_key(rest.split('.', 1)[0])
     return any(path == p or path.startswith(p + '.') or p.startswith(path + '.')
                for p in SERVER_ONLY_PATHS)
 

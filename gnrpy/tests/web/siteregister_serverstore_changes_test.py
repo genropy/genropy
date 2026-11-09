@@ -71,9 +71,11 @@ def _page_register():
 
 def test_client_changes_reach_the_paths_the_page_syncs():
     sr, data = _page_register()
-    assert sr.set_serverstore_changes('p1', {'rootenv.language': 'en', 'vb_filter.year': '2026'}) is True
-    assert data['rootenv.language'] == 'en'
-    assert data['vb_filter.year'] == '2026'
+    synced = {'rootenv.language': 'en', 'rootenv.workdate': '2026-01-01', 'rootenv.context_subtables': 'x',
+              'rootenv.current_sede_id': 'S1', 'vb_filter.year': '2026', 'dbenv.fine_mese': '1'}
+    assert sr.set_serverstore_changes('p1', synced) is True
+    for path, value in synced.items():
+        assert data[path] == value
 
 
 def test_client_changes_never_reach_server_only_paths(caplog):
@@ -81,7 +83,8 @@ def test_client_changes_never_reach_server_only_paths(caplog):
     forged = {'waiting2fa': '', 'last_2fa_otp': '1', 'confirm_user_id': 'victim',
               'confirm_user_id?x': '1', 'mixin_set': 'x', 'login_checked.user': 'victim',
               'login_page_rpcs': 'x', 'rootenv.user_local_tags': 'admin', 'rootenv': 'x', '': 'x',
-              'rootenv.language': 'it'}
+              'rootenv.allowed_sede_id': 'x', 'rootenv.accesso_globale': True, 'rootenv.user_id': 'x',
+              'vb_filter?dbenv': 'allowed_sede_id', 'rootenv.language': 'it'}
     with caplog.at_level(logging.WARNING):
         assert sr.set_serverstore_changes('p1', forged) is True
     assert data['waiting2fa'] == 'user_id'
@@ -91,5 +94,8 @@ def test_client_changes_never_reach_server_only_paths(caplog):
     assert data['login_checked'] is None
     assert data['login_page_rpcs'] is None
     assert data['rootenv.user_local_tags'] == 'base'
+    assert data['rootenv.allowed_sede_id'] is None
+    assert data['rootenv.accesso_globale'] is None
+    assert data.getNode('vb_filter') is None
     assert data['rootenv.language'] == 'it'
     assert len(caplog.records) == len(forged) - 1
