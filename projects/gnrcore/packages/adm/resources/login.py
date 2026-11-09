@@ -14,6 +14,7 @@ from gnr.app import pkglog as logger
 from gnr.app.gnrapp import GnrRestrictedAccessException
 from gnr.web.gnrwebpage import BaseComponent
 from gnr.web.gnrwebstruct import struct_method
+from gnr.web.loginfields import collect_login_rpcs, form_value_keys, trusted_rootenv
 
 CONFIRMABLE_STATUSES = ('invt', 'new', 'wait')
 
@@ -124,7 +125,7 @@ class LoginComponent(BaseComponent):
             """,
                 _changed_user='^_login.user',_userChanges=True
             )
-            fb.dataController("""if(user && pwd){
+            fb.dataController("""if(user && pwd && avatar_user==user){
                 FIRE do_login;
             }else{
                 user = user || tbuser.widget.getValue();
@@ -146,10 +147,12 @@ class LoginComponent(BaseComponent):
                         _onCalling="""
                         SET gnr.avatar = null;
                         kwargs.serverTimeDelta = genro.serverTimeDelta;
+                        this._explicitCheck = !!(_node && _node.label=='checkAvatar');
                         """,
                         _if='user&&password',
                         _fb = fb,
-                        _onResult="""LoginComponent.onCheckAvatar(kwargs._fb,result)""",
+                        _error_msg=self.login_error_msg,
+                        _onResult="""LoginComponent.onCheckAvatar(kwargs._fb,result,kwargs._error_msg,this._explicitCheck)""",
                         sync=True,_POST=True,
                         _userChanges=True)
             rpcmethod = self.login_doLogin    
@@ -161,7 +164,11 @@ class LoginComponent(BaseComponent):
         valid_token = False
         if gnrtoken:
             valid_token = self.db.table('sys.external_token').check_token(gnrtoken)
+        hooks_start = len(fb.getNodes())
         self.callPackageHooks('rootenvForm',fb)
+        with self.pageStore() as ps:
+            ps.setItem('login_field_rpcs', collect_login_rpcs(fb.getNodes()[hooks_start:]))
+            ps.setItem('login_rootenv_fields', form_value_keys(fb.getNodes()[start:]))
         for flnode in fb.getNodes()[start:]:
             node_value = flnode.attr.get('value')
             if node_value:
@@ -228,7 +235,7 @@ class LoginComponent(BaseComponent):
         return dlg
         
 
-    @public_method
+    @public_method(sessionless=True)
     def login_doLogin(self, rootenv=None,login=None, **kwargs):
         waiting2fa = self.pageStore().getItem('waiting2fa')
         if waiting2fa:
@@ -237,6 +244,9 @@ class LoginComponent(BaseComponent):
             return {'error':'Invalid login'}
         kwargs.pop('authenticate',None)
         kwargs.pop('guestName',None)
+        page_store = self.pageStore()
+        rootenv = trusted_rootenv(self.rootenv, page_store.getItem('login_checked_rootenv'), rootenv,
+                                  page_store.getItem('login_rootenv_fields'))
         self.doLogin(login=login,rootenv=rootenv,**kwargs)
         if login['error']:
             return dict(error=login['error'])
@@ -252,13 +262,14 @@ class LoginComponent(BaseComponent):
         self.connectionStore().setItem('defaultRootenv',rootenv) #no need to be locked because it's just one set
         return self.login_newWindow(rootenv=rootenv)
 
-    @public_method
+    @public_method(sessionless=True)
     def login_checkAvatar(self,password=None,user=None,group_code=None,serverTimeDelta=None,**kwargs):
         logger.info("Checking login for user: %s", user)
         result = Bag()
         self.login_setChecked(None)
         with self.pageStore() as ps:
             ps.setItem('confirm_user_id',None)
+            ps.setItem('waiting2fa',None)
         try:
             avatar = self.application.getAvatar(user, password=password,group_code=group_code,authenticate=True)
             if not avatar:
@@ -284,7 +295,12 @@ class LoginComponent(BaseComponent):
         except GnrRestrictedAccessException as e:
             logger.exception(e)
             return Bag(login_error_msg=e.description)
-        self.login_setChecked(user,group_code,default_group_code=getattr(avatar,'group_code',None))
+        checked_rootenv = Bag(result['rootenv'])
+        for key in ('user','user_id'):
+            if checked_rootenv[key] is None:
+                checked_rootenv[key] = getattr(avatar,key,None)
+        self.login_setChecked(user,group_code,default_group_code=getattr(avatar,'group_code',None),
+                              rootenv=checked_rootenv)
         result['avatar.login_groups'] = self.login_selectableGroups(avatar,result['rootenv.all_groups'])
         if self.login_require2fa(avatar):
             result['waiting2fa'] = avatar.user_id
@@ -296,11 +312,12 @@ class LoginComponent(BaseComponent):
         logger.info("User %s logged in", user)
         return result
     
-    def login_setChecked(self,user,group_code=None,default_group_code=None):
+    def login_setChecked(self,user,group_code=None,default_group_code=None,rootenv=None):
         checked = Bag(dict(user=user,group_code=group_code or None,
                            default_group_code=default_group_code or None)) if user else None
         with self.pageStore() as ps:
             ps.setItem('login_checked',checked)
+            ps.setItem('login_checked_rootenv',Bag(rootenv) if user and rootenv is not None else None)
 
     def login_isChecked(self,login):
         checked = self.pageStore().getItem('login_checked')
@@ -449,7 +466,7 @@ class LoginComponent(BaseComponent):
         footer.rightbox.button('!!Send',action='FIRE set_new_password',_class='login_confirm_btn',disabled='^new_password.password?=!#v',focusOnTab=True)
         return dlg
     
-    @public_method
+    @public_method(sessionless=True)
     def login_checkNodupUsername(self,value=None,**kwargs):
         if not value:
             return Bag(dict(errorcode='Insert username'))
@@ -457,7 +474,7 @@ class LoginComponent(BaseComponent):
             return Bag(dict(errorcode=f'Existing username {value}'))
         return True
 
-    @public_method
+    @public_method(sessionless=True)
     def login_validateNewPassword(self,value=None,**kwargs):
         return self.db.table('adm.user').validateNewPassword(value,**kwargs)
 
@@ -496,7 +513,7 @@ class LoginComponent(BaseComponent):
 
         return dlg
     
-    @public_method
+    @public_method(sessionless=True)
     def login_checkOTPCode(self,otp_code=None,otp_remember=None):
         user_id = self.pageStore().getItem('waiting2fa')
         last_2fa_otp = self.pageStore().getItem('last_2fa_otp')
@@ -585,7 +602,7 @@ class LoginComponent(BaseComponent):
         fb.textbox(value='^.email',lbl='!!Email',validate_notnull=True)
         fb.textbox(value='^.username',lbl='!!Username',validate_notnull=True,validate_remote=self.login_checkNodupUsername,validate_len='4:')
 
-    @public_method
+    @public_method(sessionless=True)
     def login_createNewUser(self,data=None,**kwargs):
         if not self.loginPreference('new_user'):
             return dict(error='!!New users are not allowed')
@@ -624,7 +641,7 @@ class LoginComponent(BaseComponent):
             return {'error' : ', '.join(err)}
         return result
 
-    @public_method
+    @public_method(sessionless=True)
     def login_confirmUser(self, email=None, **kwargs):
         user_id = self.pageStore().getItem('confirm_user_id')
         if not user_id:
@@ -653,7 +670,7 @@ class LoginComponent(BaseComponent):
             ps.setItem('confirm_user_id',None)
         return 'ok'
 
-    @public_method
+    @public_method(sessionless=True)
     def login_confirmNewPassword(self, email=None,username=None, **kwargs):
         usertbl = self.db.table('adm.user')
         if username:
@@ -691,7 +708,7 @@ class LoginComponent(BaseComponent):
         return 'ok'
             #self.sendMailTemplate('confirm_new_pwd.xml', recordBag['email'], recordBag)
 
-    @public_method
+    @public_method(sessionless=True)
     def login_changePassword(self,password=None,gnrtoken=None,current_password=None,newusername=None,**kwargs):
         if gnrtoken:
             method,args,kwargs,user_id = self.db.table('sys.external_token').use_token(gnrtoken)
