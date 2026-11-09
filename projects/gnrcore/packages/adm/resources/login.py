@@ -228,7 +228,7 @@ class LoginComponent(BaseComponent):
         return dlg
         
 
-    @public_method
+    @public_method(sessionless=True)
     def login_doLogin(self, rootenv=None,login=None, **kwargs):
         waiting2fa = self.pageStore().getItem('waiting2fa')
         if waiting2fa:
@@ -252,7 +252,7 @@ class LoginComponent(BaseComponent):
         self.connectionStore().setItem('defaultRootenv',rootenv) #no need to be locked because it's just one set
         return self.login_newWindow(rootenv=rootenv)
 
-    @public_method
+    @public_method(sessionless=True)
     def login_checkAvatar(self,password=None,user=None,group_code=None,serverTimeDelta=None,**kwargs):
         logger.info("Checking login for user: %s", user)
         result = Bag()
@@ -449,7 +449,7 @@ class LoginComponent(BaseComponent):
         footer.rightbox.button('!!Send',action='FIRE set_new_password',_class='login_confirm_btn',disabled='^new_password.password?=!#v',focusOnTab=True)
         return dlg
     
-    @public_method
+    @public_method(sessionless=True)
     def login_checkNodupUsername(self,value=None,**kwargs):
         if not value:
             return Bag(dict(errorcode='Insert username'))
@@ -457,7 +457,7 @@ class LoginComponent(BaseComponent):
             return Bag(dict(errorcode=f'Existing username {value}'))
         return True
 
-    @public_method
+    @public_method(sessionless=True)
     def login_validateNewPassword(self,value=None,**kwargs):
         return self.db.table('adm.user').validateNewPassword(value,**kwargs)
 
@@ -496,7 +496,7 @@ class LoginComponent(BaseComponent):
 
         return dlg
     
-    @public_method
+    @public_method(sessionless=True)
     def login_checkOTPCode(self,otp_code=None,otp_remember=None):
         user_id = self.pageStore().getItem('waiting2fa')
         last_2fa_otp = self.pageStore().getItem('last_2fa_otp')
@@ -585,7 +585,7 @@ class LoginComponent(BaseComponent):
         fb.textbox(value='^.email',lbl='!!Email',validate_notnull=True)
         fb.textbox(value='^.username',lbl='!!Username',validate_notnull=True,validate_remote=self.login_checkNodupUsername,validate_len='4:')
 
-    @public_method
+    @public_method(sessionless=True)
     def login_createNewUser(self,data=None,**kwargs):
         if not self.loginPreference('new_user'):
             return dict(error='!!New users are not allowed')
@@ -624,7 +624,7 @@ class LoginComponent(BaseComponent):
             return {'error' : ', '.join(err)}
         return result
 
-    @public_method
+    @public_method(sessionless=True)
     def login_confirmUser(self, email=None, **kwargs):
         user_id = self.pageStore().getItem('confirm_user_id')
         if not user_id:
@@ -653,7 +653,7 @@ class LoginComponent(BaseComponent):
             ps.setItem('confirm_user_id',None)
         return 'ok'
 
-    @public_method
+    @public_method(sessionless=True)
     def login_confirmNewPassword(self, email=None,username=None, **kwargs):
         usertbl = self.db.table('adm.user')
         if username:
@@ -691,7 +691,7 @@ class LoginComponent(BaseComponent):
         return 'ok'
             #self.sendMailTemplate('confirm_new_pwd.xml', recordBag['email'], recordBag)
 
-    @public_method
+    @public_method(sessionless=True)
     def login_changePassword(self,password=None,gnrtoken=None,current_password=None,newusername=None,**kwargs):
         if gnrtoken:
             method,args,kwargs,user_id = self.db.table('sys.external_token').use_token(gnrtoken)

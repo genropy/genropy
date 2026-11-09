@@ -84,15 +84,6 @@ AUTH_FORBIDDEN = -1
 PAGE_TIMEOUT = 60
 PAGE_REFRESH = 20
 LOGIN_COMPONENT = 'login:LoginComponent'
-# the login dialog calls them without a session: each one authenticates or checks its input by itself
-LOGIN_RPCS = ('login_checkAvatar', 'login_doLogin', 'login_checkOTPCode',
-              'login_confirmUser', 'login_confirmNewPassword', 'login_changePassword',
-              'login_createNewUser', 'login_checkNodupUsername', 'login_validateNewPassword')
-
-
-def isLoginRpc(method):
-    mixin_info, _, name = (method or '').rpartition(';')
-    return name in LOGIN_RPCS and mixin_info in ('', '*|%s' % LOGIN_COMPONENT)
 
 
 ATTRIBUTES_SIMPLEWEBPAGE = ('_workdate','_language','_call_args','_call_kwargs','user','connection_id','user_ip','dbstore','user_agent','siteName')
@@ -677,7 +668,7 @@ class GnrWebPage(GnrBaseWebPage):
             logger.warning('page %s vanished from the register: serverstore changes discarded (%s)',
                            self.page_id, ','.join(sorted(_serverstore_changes)))
         auth = AUTH_OK
-        if method not in ('doLogin', 'onClosePage', 'getRemoteTranslation') and not isLoginRpc(method):
+        if method not in ('doLogin', 'onClosePage', 'getRemoteTranslation'):
             auth = self._checkAuth(method=method, **kwargs)
             #if auth == AUTH_OK:
             #    auth = self._checkRootPage()
@@ -1273,6 +1264,8 @@ class GnrWebPage(GnrBaseWebPage):
 
     def _mixinRequestedComponent(self, method):
         mixin_info, method = method.split(';')
+        if '|' not in mixin_info:
+            return
         mixin_pkg, mixin_path = mixin_info.split('|')
         path = mixin_path.split('/')
         pkg = None if mixin_pkg == '*' else mixin_pkg
@@ -1298,25 +1291,28 @@ class GnrWebPage(GnrBaseWebPage):
         :param method: TODO"""
         if callable(method):
             return method
-        handler = None
+        handler = self._resolvePublicMethod(prefix, method)
+        if not handler:
+            self.clientPublish('floating_message',message='missing public method %s' %method,messageType='error')
+            return
+        return self._verifiedHandler(handler, method)
+
+    def _resolvePublicMethod(self, prefix, method):
         if ';' in method:
-            requested = method
             method = self._mixinRequestedComponent(method)
             if not method:
-                self.clientPublish('floating_message',message='missing public method %s' %requested,messageType='error')
                 return
         if '.' in method:
-            proxy_object,submethod = self._getProxyObject(method)                 
+            proxy_object,submethod = self._getProxyObject(method)
         else:
             proxy_object = self
             submethod = method
         handler = getattr(proxy_object, submethod, None)
         if not handler or not getattr(handler, 'is_rpc', False):
             handler = getattr(proxy_object, '%s_%s' % (prefix, submethod),None)
-    
-        if not handler:
-            self.clientPublish('floating_message',message='missing public method %s' %method,messageType='error')
-            return
+        return handler
+
+    def _verifiedHandler(self, handler, method):
         if getattr(handler,'signed',None):
             error = self.site.auth_token_generator.verify_url(self.request._request.url)
             if error:
@@ -1335,36 +1331,42 @@ class GnrWebPage(GnrBaseWebPage):
             raise verifier_error                
         return handler
 
+    def getSessionlessMethod(self, method):
+        """The handler of an rpc refused by ``_checkAuth`` that the page serves anyway, or None.
+
+        A method declared ``@public_method(sessionless=True)`` authenticates or checks its
+        input by itself. Before ``doLogin``, once the login dialog has checked the avatar,
+        also the methods without tags of their own are served: the fields that
+        ``rootenvForm_<pkg>`` hooks add to the dialog call them."""
+        handler = self._resolvePublicMethod('rpc', method)
+        if self._servedWithoutAuth(handler, method):
+            return self._verifiedHandler(handler, method)
+
+    def _servedWithoutAuth(self, handler, method):
+        if not handler:
+            return False
+        if getattr(handler, 'sessionless', False):
+            return True
+        if self.connection.loggedUser or self.pageAuthTags(method=method):
+            return False
+        page_store = self.pageStore()
+        return bool(page_store.getItem('login_checked')) and not page_store.getItem('waiting2fa')
 
     def getWsMethod(self, method):
-        """TODO
-        
-        :param prefix: The method prefix. It can be:
-                       
-                       * 'remote': this prefix is used for the :ref:`dataremote`
-                       * 'rpc': this prefix is used for the :ref:`datarpc`
-                       
-        :param method: TODO"""
-        if not isLoginRpc(method) and self._checkAuth(method=method) != AUTH_OK:
-            return
+        return self.resolveWsMethod(method)[0]
 
-        handler = None
-        if ';' in method:
-            method = self._mixinRequestedComponent(method)
-            if not method:
-                return
-        if '.' in method:
-            proxy_object,submethod = self._getProxyObject(method)
-        else:
-            proxy_object = self
-            submethod = method
-        handler = getattr(proxy_object, submethod, None)
-        if not handler or not getattr(handler, 'is_rpc', False):
-            return
+    def resolveWsMethod(self, method):
+        """The websocket handler of ``method`` and the error that refuses it, as the http rpc names it."""
+        auth = self._checkAuth(method=method)
+        handler = self._resolvePublicMethod('rpc', method)
+        if auth != AUTH_OK and not self._servedWithoutAuth(handler, method):
+            return None, 'expired' if auth == AUTH_EXPIRED else 'forbidden call'
+        if not handler:
+            return None, 'missing handler: %s' % method
         if getattr(handler, 'tags',None):
             if not self.application.checkResourcePermission(handler.tags, self.userTags):
                 raise self.exception(GnrUserNotAllowed,method=method)
-        return handler
+        return handler, None
 
     def exception(self, exception, **kwargs):
         """TODO
