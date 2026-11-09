@@ -20,8 +20,8 @@ from gnr.core.gnrbag import Bag
 from gnr.core.gnrdecorator import public_method, websocket_method
 
 from gnr.web.gnrwebpage import AUTH_EXPIRED, AUTH_FORBIDDEN, AUTH_NOT_LOGGED, AUTH_OK, GnrUserNotAllowed, GnrWebPage
+from gnr.web.gnrwebpage import GnrVerifier
 from gnr.web.gnrwebpage_proxy.rpc import GnrWebRpc
-from gnr.web.loginfields import callable_key
 
 
 class _Application(object):
@@ -150,7 +150,9 @@ class _AppProxy(object):
     @public_method
     def dbSelect(self, **kwargs):
         self.calls.append(kwargs)
-        return 'rows'
+        if kwargs.get('_id') == 'outside':
+            return 'outside row', dict(errors='current value does not fit condition')
+        return 'rows', {}
 
     @public_method
     def getRecordCount(self, field=None, value=None, **kwargs):
@@ -162,10 +164,11 @@ class _AppProxy(object):
         return 'all rows'
 
 
-def _recorded(dbtable, method=None, count=None):
-    return Bag(dict(methods=[callable_key(method)] if method else [],
-                    dbselects=[dict(dbtable=dbtable, structure=dict(columns='$code', condition='$code=:c AND $u=:env_u'),
-                                    dynamic=[], params=['c', 'env_u'], pinned=dict(env_u='user_id'))],
+def _recorded(dbtable, field_id, method=None, count=None):
+    return Bag(dict(methods=[method] if method else [],
+                    dbselects=[dict(id=field_id, dbtable=dbtable,
+                                    structure=dict(columns='$code', condition='$code=:c AND $u=:env_u'),
+                                    params=['c', 'env_u'], pinned=dict(env_u='user_id'))],
                     counts=[count] if count else []))
 
 
@@ -174,8 +177,8 @@ class _FieldPage(_Page):
     adm.user.username; its rootenvForm fields a dbSelect on adm.group and rpcMethod."""
 
     def __init__(self, store=None, **kwargs):
-        store = dict(login_page_rpcs=_recorded('adm.htag', count='adm.user.username'),
-                     login_field_rpcs=_recorded('adm.group', method=_Page.rpcMethod), **(store or {}))
+        store = dict(login_page_rpcs=_recorded('adm.htag', 'p0', count='adm.user.username'),
+                     login_field_rpcs=_recorded('adm.group', 'f0', method='rpcMethod'), **(store or {}))
         super().__init__(main='user', store=store, **kwargs)
         self.app = _AppProxy()
 
@@ -213,20 +216,20 @@ def test_app_rpcs_are_never_opened_by_the_login_page():
 
 def test_login_page_dbselect_is_served_to_anybody_with_its_own_structure():
     page = _FieldPage()
-    sent = dict(dbtable='adm.htag', columns='$md5pwd', condition='$code IS NOT NULL',
+    sent = dict(dbtable='adm.htag', login_field='p0', columns='$md5pwd', condition='$code IS NOT NULL',
                 ignorePartition=True, _storename='other', c='G1', _querystring='g')
-    assert page.getSessionlessMethod('login_fieldSelect')(**sent) == 'rows'
+    assert page.getSessionlessMethod('login_fieldSelect')(**sent) == ('rows', {})
     assert page.app.calls == [dict(dbtable='adm.htag', columns='$code', condition='$code=:c AND $u=:env_u',
                                    c='G1', _querystring='g')]
 
 
 def test_rootenvform_dbselect_waits_for_the_avatar_check():
-    sent = dict(dbtable='adm.group', c='G1')
+    sent = dict(dbtable='adm.group', login_field='f0', c='G1')
     page = _FieldPage()
     assert page.login_fieldSelect(**sent) == Bag()
     assert page.app.calls == []
     page = _FieldPage(store=dict(CHECKED, login_checked_rootenv=Bag(dict(user_id='U1'))))
-    assert page.login_fieldSelect(env_u='OTHER', **sent) == 'rows'
+    assert page.login_fieldSelect(env_u='OTHER', **sent) == ('rows', {})
     assert page.app.calls[-1]['env_u'] == 'U1'
     page = _FieldPage(store=dict(CHECKED, waiting2fa='user_id'))
     assert page.login_fieldSelect(**sent) == Bag()
@@ -234,8 +237,35 @@ def test_rootenvform_dbselect_waits_for_the_avatar_check():
 
 def test_undeclared_table_gets_no_rows():
     page = _FieldPage(store=CHECKED)
-    assert page.login_fieldSelect(dbtable='adm.user', _querystring='*') == Bag()
+    assert page.login_fieldSelect(dbtable='adm.user', login_field='f0', _querystring='*') == Bag()
+    assert page.login_fieldSelect(dbtable='adm.group', _querystring='*') == Bag()
     assert page.app.calls == []
+
+
+def test_a_key_outside_the_condition_gives_no_row():
+    page = _FieldPage()
+    assert page.login_fieldSelect(dbtable='adm.htag', login_field='p0', _id='outside') == (Bag(), {})
+    assert page.login_fieldSelect(dbtable='adm.htag', login_field='p0', _id='inside') == ('rows', {})
+
+
+class _RefusingVerifier(GnrVerifier):
+    def verify(self, **kwargs):
+        return GnrUserNotAllowed(method='refused')
+
+
+def test_websocket_applies_the_verifiers_of_a_served_method():
+    page = _FieldPage(store=CHECKED)
+    _Page.rpcMethod.verifier = _RefusingVerifier
+    try:
+        with pytest.raises(GnrUserNotAllowed):
+            page.resolveWsMethod('rpcMethod')
+    finally:
+        del _Page.rpcMethod.verifier
+    _Page.rpcMethod.signed = True
+    try:
+        assert page.resolveWsMethod('rpcMethod') == (None, 'expired')
+    finally:
+        del _Page.rpcMethod.signed
 
 
 def test_field_count_checks_only_the_declared_field():

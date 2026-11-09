@@ -12,20 +12,26 @@ recorded:
   checked the avatar (``login_field_rpcs``).
 
 Generic app rpcs are never opened. A dbSelect is redirected to the page's
-``login_fieldSelect`` and runs with the table, columns and condition its field
-declared, taking from the client only the search text, the key and the
-condition values chosen in the form (those read from the rootenv come from
-the rootenv the server built at the avatar check); ``validate_nodup`` / ``validate_exist`` become a
+``login_fieldSelect`` with an id of its own and runs with the table, columns and
+condition its field declared, taking from the client only the search text, the
+key and the condition values chosen in the form (those read from the rootenv
+come from the rootenv the server built at the avatar check); a field whose
+structure is bound to client data is not served, and a key outside the
+condition gives no row; ``validate_nodup`` / ``validate_exist`` become a
 ``validate_remote`` on ``login_fieldCount``, which counts only on the declared
 field. Public callables the struct references (dataRpc, validate_remote) are
-served by name.
+served by the exact name the client gets for them. Subtrees the user may not
+see (``__forbidden__``) are skipped, as the serializer does.
 """
 from gnr.core.gnrbag import Bag
+from gnr.core.gnrlang import serializedFuncName
 
 DBSELECT_TAGS = ('dbselect', 'dbcombobox')
 DBSELECT_METHOD = 'app.dbSelect'
 FIELD_SELECT_METHOD = 'login_fieldSelect'
 FIELD_COUNT_METHOD = 'login_fieldCount'
+FIELD_ID_PARAM = 'login_field'
+GENERIC_PREFIXES = ('app.',)
 RPC_KEYS = ('method', 'validate_remote')
 COUNT_CHECKS = ('nodup', 'exist')
 DBSELECT_STRUCTURE = ('columns', 'auxColumns', 'hiddenColumns', 'alternatePkey', 'rowcaption',
@@ -62,14 +68,12 @@ def _dbselect_spec(attr, form_values=()):
     if not dbtable or _is_dynamic(dbtable):
         return
     structure = {}
-    dynamic = []
     for key in DBSELECT_STRUCTURE:
         if key not in attr:
             continue
         if _is_dynamic(attr[key]):
-            dynamic.append(key)
-        else:
-            structure[key] = attr[key]
+            return
+        structure[key] = attr[key]
     selected = [value.split('=')[1] if '=' in value else key[len('selected_'):]
                 for key, value in attr.items() if key.startswith('selected_') and value]
     if selected:
@@ -81,14 +85,20 @@ def _dbselect_spec(attr, form_values=()):
         key = _rootenv_key(attr['condition_%s' % param])
         if key and key not in form_values:
             pinned[param] = key
-    return dict(dbtable=dbtable, structure=structure, dynamic=dynamic, params=params, pinned=pinned)
+    return dict(dbtable=dbtable, structure=structure, params=params, pinned=pinned)
 
 
-def callable_key(value):
-    func = getattr(value, '__func__', value)
-    qualname = getattr(func, '__qualname__', None)
-    if qualname:
-        return '%s:%s' % (getattr(func, '__module__', ''), qualname)
+def rpc_name(value):
+    """The method name the client gets for a public callable, as the struct serializes it."""
+    try:
+        return serializedFuncName(value)
+    except AttributeError:
+        return None
+
+
+def _servable(name):
+    return bool(name) and not name.startswith(GENERIC_PREFIXES) \
+        and name not in (DBSELECT_METHOD, FIELD_SELECT_METHOD, FIELD_COUNT_METHOD)
 
 
 def _count_check(attr):
@@ -106,10 +116,11 @@ def _count_check(attr):
             return check, field
 
 
-def collect_login_rpcs(nodes):
+def collect_login_rpcs(nodes, field_prefix='f'):
     """Record the calls the struct ``nodes`` declare and redirect dbSelect and duplicate checks.
 
-    Returns a Bag ready for the page store."""
+    ``field_prefix`` keeps the dbSelect ids of two recordings apart. Returns a Bag
+    ready for the page store."""
     methods = []
     dbselects = []
     counts = []
@@ -117,6 +128,8 @@ def collect_login_rpcs(nodes):
 
     def values(node_list):
         for node in node_list:
+            if node.attr.get('__forbidden__'):
+                continue
             key = _rootenv_key(node.attr.get('value'))
             if key:
                 form_values.add(key)
@@ -127,12 +140,16 @@ def collect_login_rpcs(nodes):
     def walk(node_list):
         for node in node_list:
             attr = node.attr
+            if attr.get('__forbidden__'):
+                continue
             tag = (attr.get('tag') or '').lower()
             if tag in DBSELECT_TAGS and attr.get('method', DBSELECT_METHOD) == DBSELECT_METHOD:
                 spec = _dbselect_spec(attr, form_values)
                 if spec:
+                    spec['id'] = '%s%i' % (field_prefix, len(dbselects))
                     dbselects.append(spec)
                     attr['method'] = FIELD_SELECT_METHOD
+                    attr['condition_%s' % FIELD_ID_PARAM] = spec['id']
             count = _count_check(attr)
             if count:
                 check, field = count
@@ -146,10 +163,13 @@ def collect_login_rpcs(nodes):
                     attr['validate_remote_error'] = error
             for key, value in list(attr.items()):
                 if callable(value) and getattr(value, 'is_rpc', False):
-                    methods.append(callable_key(value))
-                elif key in RPC_KEYS and isinstance(value, str) \
-                        and value not in (DBSELECT_METHOD, FIELD_SELECT_METHOD, FIELD_COUNT_METHOD):
-                    methods.append(value)
+                    name = rpc_name(value)
+                elif key in RPC_KEYS and isinstance(value, str):
+                    name = value
+                else:
+                    continue
+                if _servable(name):
+                    methods.append(name)
             value = node.getValue()
             if isinstance(value, Bag):
                 walk(value.nodes)
@@ -168,17 +188,16 @@ def without_field_rpcs(page_rpcs, field_rpcs):
 
 
 def dbselect_kwargs(recorded, kwargs, rootenv=None):
-    """The kwargs of the dbSelect a recorded field declared for ``kwargs['dbtable']``, or None.
+    """The kwargs of the recorded dbSelect field ``kwargs['login_field']`` on ``kwargs['dbtable']``, or None.
 
     A condition parameter that reads the rootenv (not a value chosen in the form)
     takes its value from ``rootenv``, the one the server built at the avatar check."""
-    specs = [s for s in recorded['dbselects'] or [] if s['dbtable'] == kwargs.get('dbtable')]
-    if not specs:
+    spec = next((s for s in recorded['dbselects'] or []
+                 if s['id'] == kwargs.get(FIELD_ID_PARAM) and s['dbtable'] == kwargs.get('dbtable')), None)
+    if not spec:
         return
-    sent = set(kwargs)
-    spec = next((s for s in specs if set(s['params']) <= sent), specs[0])
     served = dict(spec['structure'])
-    for key in DBSELECT_CLIENT_KEYS + tuple(spec['params']) + tuple(spec['dynamic']):
+    for key in DBSELECT_CLIENT_KEYS + tuple(spec['params']):
         if key in kwargs:
             served[key] = kwargs[key]
     for param, key in (spec.get('pinned') or {}).items():
@@ -188,9 +207,6 @@ def dbselect_kwargs(recorded, kwargs, rootenv=None):
     return served
 
 
-def declared_method(handler, method, recorded):
-    """True when a recorded struct references ``handler`` or names ``method``."""
-    if not handler or not recorded:
-        return False
-    methods = recorded['methods'] or []
-    return method in methods or callable_key(handler) in methods
+def declared_method(method, recorded):
+    """True when a recorded struct declares exactly ``method``."""
+    return bool(recorded) and _servable(method) and method in (recorded['methods'] or [])

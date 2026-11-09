@@ -1350,7 +1350,7 @@ class GnrWebPage(GnrBaseWebPage):
             return handler
         if self.connection.loggedUser:
             return
-        if any(declared_method(handler, method, recorded) for recorded, rootenv in self._loginRecorded()):
+        if any(declared_method(method, recorded) for recorded, rootenv in self._loginRecorded()):
             return handler
 
     def _loginRecorded(self):
@@ -1364,7 +1364,7 @@ class GnrWebPage(GnrBaseWebPage):
 
     def _recordLoginPage(self, root):
         page_store = self.pageStore()
-        page_rpcs = collect_login_rpcs(root.nodes)
+        page_rpcs = collect_login_rpcs(root.nodes, field_prefix='p')
         page_store.setItem('login_page_rpcs', without_field_rpcs(page_rpcs, page_store.getItem('login_field_rpcs')))
 
     @public_method(sessionless=True)
@@ -1373,7 +1373,11 @@ class GnrWebPage(GnrBaseWebPage):
         for recorded, rootenv in self._loginRecorded():
             served = dbselect_kwargs(recorded, kwargs, rootenv)
             if served:
-                return self.app.dbSelect(**served)
+                result, resultAttrs = self.app.dbSelect(**served)
+                if served.get('_id') and resultAttrs.get('errors'):
+                    # app.dbSelect retries a key without the condition: before login the condition is the point
+                    return Bag(), {}
+                return result, resultAttrs
         return Bag()
 
     @public_method(sessionless=True)
@@ -1398,8 +1402,12 @@ class GnrWebPage(GnrBaseWebPage):
         served = handler
         if auth != AUTH_OK:
             served = self._sessionlessHandler(handler, method)
-            if not served:
+            if not served or getattr(handler, 'signed', None):
                 return None, 'expired' if auth == AUTH_EXPIRED else 'forbidden call'
+            verifier_class = getattr(handler, 'verifier', None)
+            verifier_error = verifier_class(self)() if verifier_class else None
+            if verifier_error:
+                raise verifier_error
         elif not handler:
             return None, 'missing handler: %s' % method
         if getattr(handler, 'tags',None):
