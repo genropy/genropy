@@ -112,6 +112,11 @@ dojo.declare("gnr.widgets.baseHtml", null, {
             return;
         }
         genro.setInStorage('session',path,value,true);
+        //a value bound to an attribute ('path?attr') writes that attribute only: the widget's
+        //valueAttr (dtype, _formattedValue...) describe the attribute, not the node holding it
+        if(path.indexOf('?')>=0){
+            valueAttr = null;
+        }
         genro._data.setItem(path, value, valueAttr, {'doTrigger':sourceNode,lazySet:true});
         sourceNode.publish('onSetValueInData',value);
     },
