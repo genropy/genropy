@@ -17,6 +17,9 @@ They are skipped when weasyprint or pymupdf are not importable.
 """
 
 import os
+import shutil
+import subprocess
+import sys
 
 import pytest
 
@@ -325,3 +328,106 @@ def test_weasyprint_zero_margins_beat_document_margins(tmp_path):
                                 margin_left=0, margin_right=0))
     assert x0 < 5 * MM_TO_PT
     assert y0 < 5 * MM_TO_PT
+
+
+# --- Arial Narrow falling back to a wide font (#1825) ------------------------
+
+WIDE_FONT_FAMILIES = ('DejaVu Sans', 'Liberation Sans', 'Arial', 'Verdana', 'Helvetica')
+
+#one line in Arial Narrow across the 208mm footer, two in Arial and wider fonts
+FOOTER_NOTES = ('Chart of accounts for internal review only: balances are in euro and the '
+                'closing figures are those of December 31st, before the audit')
+
+RENDER_SCRIPT = """
+import sys
+from core.pdfsite import make_pdf_site
+from gnr.lib.services import BaseServiceType
+site = make_pdf_site(sys.argv[1])
+service = BaseServiceType(site=site, service_type='htmltopdf').getServiceFactory('weasyprint')(site)
+for target in sys.argv[3:]:
+    service.writePdf(sys.argv[2], target)
+"""
+
+
+def wide_font_config(tmp_path):
+    """A fontconfig file exposing a single installed font that is not narrow, so
+    that "Arial Narrow" falls back to it whatever the machine has installed.
+
+    :returns: the path of the configuration file and the family of the font"""
+    fc_list = shutil.which('fc-list')
+    if not fc_list:
+        pytest.skip('the fontconfig tools are not installed')
+    listing = subprocess.run([fc_list, '--format=%{family[0]}\t%{file}\n', ':style=Regular'],
+                             capture_output=True, text=True, check=True).stdout
+    files = {}
+    for line in listing.splitlines():
+        family, _, path = line.partition('\t')
+        files.setdefault(family, path)
+    family = next((name for name in WIDE_FONT_FAMILIES if name in files), None)
+    if family is None:
+        pytest.skip('none of %s is installed' % ', '.join(WIDE_FONT_FAMILIES))
+    fonts = tmp_path / 'fonts'
+    fonts.mkdir()
+    shutil.copy(files[family], fonts)
+    config = tmp_path / 'fonts.conf'
+    config.write_text('<?xml version="1.0"?>\n<fontconfig><dir>%s</dir><cachedir>%s</cachedir>'
+                      '</fontconfig>\n' % (fonts, tmp_path / 'fontcache'))
+    return config, family
+
+
+def render_in_subprocess(tmp_path, fonts_config, source, targets, timeout=60):
+    """Render through the real weasyprint service in a fresh interpreter: fontconfig
+    reads FONTCONFIG_FILE once, at startup."""
+    gnr_folder = tmp_path / 'gnr'
+    gnr_folder.mkdir(exist_ok=True)
+    env = dict(os.environ, FONTCONFIG_FILE=str(fonts_config), GENRO_GNRFOLDER=str(gnr_folder),
+               PYTHONPATH=os.pathsep.join(os.path.abspath(entry) for entry in sys.path))
+    env.pop('GNR_LOGLEVEL', None)
+    return subprocess.run([sys.executable, '-c', RENDER_SCRIPT, str(tmp_path), source, *targets],
+                          env=env, capture_output=True, text=True, timeout=timeout)
+
+
+class _NotesFooterPrint(BagToHtml):
+    """A grid print closed by a labelled footer cell at the bottom of every page.
+
+    The label content is a positioned box holding its text directly: once a wider
+    fallback font wraps that text past the page edge, weasyprint 66 to 69 never
+    end paginating the document and 70 adds a page after each one."""
+    row_mode = 'attribute'
+    doc_footer_height = 9
+    grid_columns = [dict(field='code', mm_width=25, name='Code'),
+                    dict(field='descr', mm_width=0, name='Description')]
+
+    def __init__(self):
+        super().__init__(templateLoader=lambda **kwargs: None)
+
+    def gridData(self):
+        rows = Bag()
+        for i in range(150):
+            rows.setItem('r%i' % i, None, code='%02i.%03i' % (i // 40, i % 40),
+                         descr='Account %i' % i)
+        return rows
+
+    def docFooter(self, footer, lastPage=None):
+        layout = footer.layout(name='doc_footer', um='mm', top=0, bottom=0, left=0, right=0,
+                               lbl_height=3, border_width=0)
+        layout.row().cell(FOOTER_NOTES, lbl='Notes')
+
+
+def test_weasyprint_paginates_a_grid_print_with_a_wide_fallback_font(tmp_path):
+    pytest.importorskip('weasyprint')
+    fitz = pytest.importorskip('fitz')
+    fonts_config, family = wide_font_config(tmp_path)
+    printer = _NotesFooterPrint()
+    printer(folder=str(tmp_path), filename='grid.html')
+    assert printer.builder.calcRowsNumber(FOOTER_NOTES, width_mm=208, font_name='Arial Narrow',
+                                          font_size=11) == 1
+    assert printer.builder.calcRowsNumber(FOOTER_NOTES, width_mm=208, font_name='Arial',
+                                          font_size=11) == 2
+    try:
+        result = render_in_subprocess(tmp_path, fonts_config, 'grid.html', ['grid.pdf'])
+    except subprocess.TimeoutExpired:
+        pytest.fail('weasyprint never ended paginating the print with %s' % family)
+    assert result.returncode == 0, result.stderr
+    with fitz.open(str(tmp_path / 'grid.pdf')) as document:
+        assert document.page_count == printer.current_page_number + 1
