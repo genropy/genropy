@@ -59,7 +59,7 @@ dependencies = [
 	     "unidecode",
 	     "vobject",
 	     "watchfiles", # used in asyncio for autoreload
-	     "weasyprint",
+	     "weasyprint<66", # 66-69 never end paginating text overflowing a page, 70 adds pages (#1825)
 	     "werkzeug>=2.3.8,!=3.1.4",
 	     "xlrd",
 	     "xlwt"

@@ -24,22 +24,18 @@ AUTH_NOT_LOGGED = 1
 class GnrWebRpc(GnrBaseProxy):
     def __call__(self, method=None, _auth=AUTH_FORBIDDEN,**kwargs):
         page = self.page
-        if _auth == AUTH_FORBIDDEN and method != 'main':
-            result = None
-            error = 'forbidden call'
-        elif _auth == AUTH_EXPIRED:
-            result = None
-            error = 'expired'
+        error = None
+        if _auth in (AUTH_FORBIDDEN, AUTH_EXPIRED) and method != 'main':
+            handler = page.getSessionlessMethod(method)
+            if not handler:
+                error = 'expired' if _auth == AUTH_EXPIRED else 'forbidden call'
         else:
             handler = page.getPublicMethod('rpc', method)
             if method == 'main':
                 kwargs['_auth'] = _auth
-            if handler:
-                result = handler(**kwargs)
-                error = None
-            else:
-                result = None
+            if not handler:
                 error = 'missing handler: %s' % method
+        result = handler(**kwargs) if handler else None
         if error:
             self.error = error
         return result
