@@ -125,7 +125,7 @@ class LoginComponent(BaseComponent):
             """,
                 _changed_user='^_login.user',_userChanges=True
             )
-            fb.dataController("""if(user && pwd){
+            fb.dataController("""if(user && pwd && avatar_user==user){
                 FIRE do_login;
             }else{
                 user = user || tbuser.widget.getValue();
@@ -147,10 +147,12 @@ class LoginComponent(BaseComponent):
                         _onCalling="""
                         SET gnr.avatar = null;
                         kwargs.serverTimeDelta = genro.serverTimeDelta;
+                        this._explicitCheck = !!(_node && _node.label=='checkAvatar');
                         """,
                         _if='user&&password',
                         _fb = fb,
-                        _onResult="""LoginComponent.onCheckAvatar(kwargs._fb,result)""",
+                        _error_msg=self.login_error_msg,
+                        _onResult="""LoginComponent.onCheckAvatar(kwargs._fb,result,kwargs._error_msg,this._explicitCheck)""",
                         sync=True,_POST=True,
                         _userChanges=True)
             rpcmethod = self.login_doLogin    
@@ -267,6 +269,7 @@ class LoginComponent(BaseComponent):
         self.login_setChecked(None)
         with self.pageStore() as ps:
             ps.setItem('confirm_user_id',None)
+            ps.setItem('waiting2fa',None)
         try:
             avatar = self.application.getAvatar(user, password=password,group_code=group_code,authenticate=True)
             if not avatar:

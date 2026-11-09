@@ -1,5 +1,5 @@
 const LoginComponent = {
-    onCheckAvatar:(sourceNode,result)=>{
+    onCheckAvatar:(sourceNode,result,error_msg,explicitCheck)=>{
         let avatar = result.getItem('avatar');
         let error_message = result.getItem('login_error_msg');
         if(error_message){
@@ -9,6 +9,9 @@ const LoginComponent = {
         }
         if (!avatar){
             sourceNode.setRelativeData('gnr.avatar', null);
+            if(explicitCheck){
+                genro.publish('failed_login_msg',{'message':error_msg});
+            }
             return;
         }
         if(avatar.getItem('status')=='bann'){
@@ -19,6 +22,10 @@ const LoginComponent = {
         if(avatar.getItem('status')!='conf'){
             sourceNode.setRelativeData('gnr.avatar', avatar);
             genro.publish('confirmUserDialog');
+            return;
+        }
+        if(result.getItem('waiting2fa') && !explicitCheck){
+            sourceNode.setRelativeData('gnr.avatar', null);
             return;
         }
         let newenv = result.getItem('rootenv');
@@ -50,7 +57,7 @@ const LoginComponent = {
         if(result.getItem('waiting2fa')){
             sourceNode.setRelativeData('waiting2fa',true);
             genro.publish('getOtpDialog');
-        }else if(extraEditableFields.length==0){
+        }else if(explicitCheck && extraEditableFields.length==0){
             genro.fireEvent('do_login',true);
         }
     },

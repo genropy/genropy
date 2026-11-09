@@ -249,3 +249,13 @@ def test_checked_avatar_logs_in_with_its_default_group(application):
     result = page.login_checkAvatar(user='lg_single', password='secret')
     assert result['avatar.group_code'] == 'LGMAIN'
     assert page.login_isChecked(_login('lg_single', 'LGMAIN'))
+
+
+def test_a_new_check_clears_a_pending_code(application):
+    page = _bind(_AppPage(application), 'login_checkAvatar', 'login_setChecked', 'login_isChecked', 'login_doLogin',
+                 'login_completeRootEnv', 'login_selectableGroups', 'login_require2fa', 'login_canSetWorkdate')
+    with page.pageStore() as ps:
+        ps.setItem('waiting2fa', 'previous_user_id')
+    page.login_checkAvatar(user='lg_single', password='secret')
+    page.login_doLogin(rootenv=Bag(), login=_login('lg_single', 'LGMAIN'))
+    assert page.logged == ['lg_single']
