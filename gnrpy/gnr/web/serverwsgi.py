@@ -156,6 +156,15 @@ def experimentalConfig(xpr):
     return result
 
 
+def _reloader_type():
+    try:
+        from watchdog.version import VERSION_MAJOR
+    except ImportError:
+        return 'auto'
+    # Watchdog 7 matches Werkzeug's "*.py" pattern against the entire absolute path.
+    return 'stat' if VERSION_MAJOR == 7 else 'auto'
+
+
 def host_binding_address(host):
     """
     Type validator for command line
@@ -482,7 +491,7 @@ class Server(object):
             run_with_reloader(
                 srv.serve_forever,
                 interval=1,
-                reloader_type="auto",
+                reloader_type=_reloader_type(),
             )
         else:
             try:
