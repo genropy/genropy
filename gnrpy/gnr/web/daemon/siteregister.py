@@ -1087,7 +1087,9 @@ class SiteRegister(BaseRemoteObject):
                 child_lastRpc = v.pop('_lastRpc', None)
                 child_pageProfilers = v.pop('_pageProfilers', None)
                 if v:
-                    self.set_serverstore_changes(k, v)
+                    self.set_serverstore_changes(k, v, source_page_id=page_id)
+                if not self._sameConnection(page_id, k):
+                    continue
                 if child_lastUserEventTs:
                     child_lastUserEventTs = catalog.fromTypedText(child_lastUserEventTs)
                 if child_lastRpc:
@@ -1122,7 +1124,7 @@ class SiteRegister(BaseRemoteObject):
                                change_ts=change.change_ts, change_delete=change.delete)
         return result
 
-    def set_serverstore_changes(self, page_id=None, datachanges=None):
+    def set_serverstore_changes(self, page_id=None, datachanges=None, source_page_id=None):
         """File the client's serverstore changes on the page's register item.
 
         Answers whether they were filed. `get_item_data` builds a detached Bag
@@ -1132,13 +1134,25 @@ class SiteRegister(BaseRemoteObject):
         available answer is to report. Whether absence is exceptional depends on
         the caller, so this one does not log.
 
+        A sender reaches another page only within its own connection: its
+        iframes and its parent share the connection cookie, so a target outside
+        it is no legitimate client's and the refusal is logged here, as for a
+        server-only path.
+
         `exists` rather than `get_item`: the latter stamps `itemsTS` before
         testing, which would leak a timestamp for a page that never existed.
 
         :param page_id: id of the target page
         :param datachanges: the changes to file, as sent by the client
-        :returns: True when filed, False when the page is not in the register"""
+        :param source_page_id: id of the sending page, when the client chose the target
+        :returns: True when filed, False when the page is not in the register
+                  or not in the connection of `source_page_id`"""
         if not self.page_register.exists(page_id):
+            return False
+        if (source_page_id not in (None, page_id)
+                and not self._sameConnection(source_page_id, page_id)):
+            logger.warning('page %s: client changes for page %s of another connection refused (%s)',
+                           source_page_id, page_id, ','.join(sorted(datachanges)))
             return False
         page_item_data = self.page_register.get_item_data(page_id)
         declared = self.page_register.get_item(page_id).get('subscribed_paths') or ()
@@ -1148,6 +1162,16 @@ class SiteRegister(BaseRemoteObject):
                 continue
             page_item_data.setItem(k, self._parse_change_value(v))
         return True
+
+    def _sameConnection(self, page_id, other_page_id):
+        """True when both pages are in the register under one connection.
+
+        `registerItems` rather than `get_item`, which stamps `itemsTS` even on a miss."""
+        items = self.page_register.registerItems
+        page, other = items.get(page_id), items.get(other_page_id)
+        if not page or not other or not page.get('connection_id'):
+            return False
+        return page['connection_id'] == other.get('connection_id')
 
     @staticmethod
     def _declaredScopedPath(path, declared):

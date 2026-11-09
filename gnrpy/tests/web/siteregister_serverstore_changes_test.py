@@ -12,6 +12,10 @@ cleanup race and worth a line; the third is the children loop of ``handle_ping``
 ids come from the browser's own walk over ``window.frames`` with no check at all, and
 whose absence repeats on every ping carrying changes for a dead child.
 
+Both client-addressed routes -- the ``pageId`` of ``rpc_setInServer`` and the children
+ids of ``handle_ping`` -- reach only pages of the sender's own connection (#1837): its
+iframes and its parent share the connection cookie, so no legitimate client crosses it.
+
 The register is a real ``SiteRegister`` built with a stand-in server -- its constructor
 only needs ``server.daemon.register`` -- as in ``subscribed_tables_index_test.py``.
 """
@@ -144,3 +148,56 @@ def test_set_in_server_never_reaches_server_only_paths(caplog):
     assert data['rootenv.user_local_tags'] == 'base'
     assert data['thermo_t1_stop'] is True
     assert len(caplog.records) == 3
+
+
+def _two_connections():
+    """p1 and its iframe f1 in anna's connection, v1 in bruno's."""
+    sr = _InProcessRegister(_FakeServer(), sitename='testsite')
+    sr.new_connection('conn-a', user='anna')
+    sr.new_connection('conn-b', user='bruno')
+    for page_id, connection_id, user in (('p1', 'conn-a', 'anna'), ('f1', 'conn-a', 'anna'),
+                                         ('v1', 'conn-b', 'bruno')):
+        sr.new_page(page_id, connection_id=connection_id, user=user)
+    return sr
+
+
+def test_set_in_server_reaches_a_page_of_the_same_connection(caplog):
+    sr = _two_connections()
+    with caplog.at_level(logging.WARNING):
+        _Page(sr).rpc_setInServer('vb_filter.year', value='2026', pageId='f1')
+    assert sr.page_register.get_item_data('f1')['vb_filter.year'] == '2026'
+    assert not caplog.records
+
+
+def test_set_in_server_from_an_iframe_reaches_its_source_page():
+    sr = _two_connections()
+    page = _Page(sr)
+    page.page_id, page.sourcepage_id = 'f1', 'p1'
+    page.rpc_setInServer('vb_filter.year', value='2026')
+    assert sr.page_register.get_item_data('p1')['vb_filter.year'] == '2026'
+
+
+def test_set_in_server_never_reaches_a_page_of_another_connection(caplog):
+    sr = _two_connections()
+    with caplog.at_level(logging.WARNING):
+        _Page(sr).rpc_setInServer('vb_filter.year', value='2026', pageId='v1')
+    assert sr.page_register.get_item_data('v1')['vb_filter.year'] is None
+    assert len(caplog.records) == 1
+
+
+def test_ping_children_reach_pages_of_the_same_connection(caplog):
+    sr = _two_connections()
+    with caplog.at_level(logging.WARNING):
+        sr.handle_ping(page_id='p1', _children_pages_info={'f1': {'vb_filter.year': '2026'}})
+    assert sr.page_register.get_item_data('f1')['vb_filter.year'] == '2026'
+    assert sr.page_register.registerItems['f1']['last_refresh_ts'] is not None
+    assert not caplog.records
+
+
+def test_ping_children_never_reach_pages_of_another_connection(caplog):
+    sr = _two_connections()
+    with caplog.at_level(logging.WARNING):
+        sr.handle_ping(page_id='p1', _children_pages_info={'v1': {'vb_filter.year': '2026'}})
+    assert sr.page_register.get_item_data('v1')['vb_filter.year'] is None
+    assert sr.page_register.registerItems['v1'].get('last_refresh_ts') is None
+    assert len(caplog.records) == 1
