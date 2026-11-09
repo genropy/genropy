@@ -40,6 +40,7 @@ from gnr.web import logger
 from gnr.web.gnrmanual import ManualCache
 from gnr.web.gnrwebapp import GnrWsgiWebApp
 from gnr.web.gnrwebpage import GnrUnsupportedBrowserException
+from gnr.web.gnrwebreqresp import GnrWebRequest
 from gnr.web.gnrwsgisite_proxy.gnrresourceloader import ResourceLoader
 from gnr.web.gnrwsgisite_proxy.gnrstoragehandler import GenroStorageHandler, LegacyStorageHandler
 from gnr.web.gnrwsgisite_proxy.gnrstatichandler import StaticHandlerManager
@@ -2100,6 +2101,9 @@ class GnrWsgiSite(object):
 
     def serve_ping(self, response, environ, start_response, page_id=None, reason=None, **kwargs):
         response.content_type = "text/xml"
+        cookie = GnrWebRequest(self.currentRequest).get_cookie(
+            self.currentDomainIdentifier, 'marshal', secret=self.config['secret'])
+        kwargs['connection_id'] = dict(cookie).get('connection_id') if cookie else None
         result = self.register.handle_ping(page_id=page_id,reason=reason,**kwargs)
         if result is False:
             return self.failed_exception('no longer existing page %s' % page_id, environ, start_response)

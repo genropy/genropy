@@ -1068,7 +1068,17 @@ class SiteRegister(BaseRemoteObject):
                         store_datachanges.append(change)
         return external_datachanges + store_datachanges
 
-    def handle_ping(self, page_id=None, reason=None, _serverstore_changes=None, **kwargs):
+    def handle_ping(self, page_id=None, reason=None, _serverstore_changes=None, connection_id=None,
+                    **kwargs):
+        """Run the ping of a page of `connection_id`, the connection of the request.
+
+        A page outside it answers False like a page that is not in the register,
+        so a ping cannot tell a page of another connection from a missing one."""
+        page_connection_id = self._pageConnection(page_id)
+        if not connection_id or page_connection_id != connection_id:
+            if page_connection_id:
+                logger.warning('page %s: ping from another connection refused', page_id)
+            return False
         _children_pages_info = kwargs.get('_children_pages_info')
         _lastUserEventTs = kwargs.get('_lastUserEventTs')
         _lastRpc = kwargs.get('_lastRpc')
@@ -1081,6 +1091,7 @@ class SiteRegister(BaseRemoteObject):
             # refresh answered above, so the page went while this ping travelled
             logger.warning('page %s vanished from the register: serverstore changes discarded (%s)',
                            page_id, ','.join(sorted(_serverstore_changes)))
+        children = []
         if _children_pages_info:
             for k, v in list(_children_pages_info.items()):
                 child_lastUserEventTs = v.pop('_lastUserEventTs', None)
@@ -1090,6 +1101,7 @@ class SiteRegister(BaseRemoteObject):
                     self.set_serverstore_changes(k, v, source_page_id=page_id)
                 if not self._sameConnection(page_id, k):
                     continue
+                children.append(k)
                 if child_lastUserEventTs:
                     child_lastUserEventTs = catalog.fromTypedText(child_lastUserEventTs)
                 if child_lastRpc:
@@ -1100,11 +1112,10 @@ class SiteRegister(BaseRemoteObject):
         datachanges = self.handle_ping_get_datachanges(page_id, user=user)
         if datachanges:
             envelope.setItem('dataChanges', datachanges)
-        if _children_pages_info:
-            for k in list(_children_pages_info.keys()):
-                datachanges = self.handle_ping_get_datachanges(k, user=user)
-                if datachanges:
-                    envelope.setItem('childDataChanges.%s' % k, datachanges)
+        for k in children:
+            datachanges = self.handle_ping_get_datachanges(k, user=user)
+            if datachanges:
+                envelope.setItem('childDataChanges.%s' % k, datachanges)
         user_register_data = self.user_register.get_item_data(user)
         lastBatchUpdate = user_register_data.getItem('lastBatchUpdate')
         if lastBatchUpdate:
@@ -1163,15 +1174,17 @@ class SiteRegister(BaseRemoteObject):
             page_item_data.setItem(k, self._parse_change_value(v))
         return True
 
-    def _sameConnection(self, page_id, other_page_id):
-        """True when both pages are in the register under one connection.
+    def _pageConnection(self, page_id):
+        """The connection of a page in the register, None for a page that is not.
 
         `registerItems` rather than `get_item`, which stamps `itemsTS` even on a miss."""
-        items = self.page_register.registerItems
-        page, other = items.get(page_id), items.get(other_page_id)
-        if not page or not other or not page.get('connection_id'):
-            return False
-        return page['connection_id'] == other.get('connection_id')
+        page = self.page_register.registerItems.get(page_id)
+        return page.get('connection_id') if page else None
+
+    def _sameConnection(self, page_id, other_page_id):
+        """True when both pages are in the register under one connection."""
+        connection_id = self._pageConnection(page_id)
+        return connection_id is not None and connection_id == self._pageConnection(other_page_id)
 
     @staticmethod
     def _declaredScopedPath(path, declared):
