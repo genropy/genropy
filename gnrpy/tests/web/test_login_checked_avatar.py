@@ -99,7 +99,7 @@ def _bind(page, *names):
 
 
 def _page():
-    return _bind(_Page(), 'login_doLogin', 'login_setChecked', 'login_isChecked')
+    return _bind(_Page(), 'login_doLogin', 'login_setChecked', 'login_isChecked', 'login_setSelectedRootenv')
 
 
 def setup_module(module):
@@ -168,6 +168,70 @@ def test_login_stores_the_checked_rootenv_and_only_the_form_fields_of_the_client
     sent = Bag(dict(user_id='ADMIN', user_local_tags='admin', sede_id='S2', workdate='2026-01-01'))
     page.login_doLogin(rootenv=sent, login=_login('alice'))
     assert page.do_login_kwargs['rootenv'].asDict() == dict(user_id='U1', sede_id='S2', workdate='2026-01-01')
+
+
+def _derived_page(application, checked, **selected):
+    page = _bind(_AppPage(application), 'login_doLogin', 'login_setChecked', 'login_isChecked',
+                 'login_setSelectedRootenv')
+    page.login_setChecked('alice', rootenv=Bag(checked))
+    with page.pageStore() as ps:
+        ps.setItem('login_rootenv_fields', ['group_code', 'who'])
+        ps.setItem('login_rootenv_derived', Bag(dict(
+            constants=[('gst_factor', 1.1)],
+            selected=[dict(dict(key='group_code', dbtable='adm.group', pkey=None,
+                                columns=[('description', 'group_name'), ('require_2fa', 'strong')]), **selected)])))
+    return page
+
+
+def test_login_reads_on_the_server_what_the_form_derives(application):
+    page = _derived_page(application, dict(group_code='LGMAIN', group_name='Main'))
+    sent = Bag(dict(group_code='LG2FA', group_name='Forged', strong=False, gst_factor=9))
+    page.login_doLogin(rootenv=sent, login=_login('alice'))
+    assert page.do_login_kwargs['rootenv'].asDict() == dict(group_code='LG2FA', group_name='Strong', strong=True,
+                                                            gst_factor=1.1)
+
+
+def test_an_empty_or_unknown_choice_clears_what_it_selects(application):
+    for chosen in (None, 'MISSING'):
+        page = _derived_page(application, dict(group_code='LGMAIN', group_name='Main'))
+        page.login_doLogin(rootenv=Bag(dict(group_code=chosen, group_name='Forged')), login=_login('alice'))
+        rootenv = page.do_login_kwargs['rootenv']
+        assert (rootenv['group_code'], rootenv['group_name'], rootenv['strong']) == (chosen, None, None)
+
+
+def test_a_choice_left_as_the_check_set_it_selects_nothing(application):
+    page = _derived_page(application, dict(group_code='LGMAIN', group_name='Set by the hook'))
+    page.login_doLogin(rootenv=Bag(dict(group_code='LGMAIN', group_name='Forged')), login=_login('alice'))
+    rootenv = page.do_login_kwargs['rootenv']
+    assert (rootenv['group_name'], rootenv['gst_factor']) == ('Set by the hook', 1.1)
+    assert 'strong' not in rootenv
+
+
+def test_a_column_selected_twice_fills_each_target(application):
+    page = _derived_page(application, {}, columns=[('description', 'a'), ('$description', 'b'), ('code', 'c')])
+    page.login_doLogin(rootenv=Bag(dict(group_code='LG2FA')), login=_login('alice'))
+    rootenv = page.do_login_kwargs['rootenv']
+    assert (rootenv['a'], rootenv['b'], rootenv['c']) == ('Strong', 'Strong', 'LG2FA')
+
+
+def test_related_columns_are_read_and_unknown_ones_left_empty(application):
+    page = _derived_page(application, {}, key='who', dbtable='adm.user', pkey='username',
+                         columns=[('@group_code.description', 'group_desc'), ('caption', 'x'), ('$email', 'mail')])
+    page.login_doLogin(rootenv=Bag(dict(who='lg_single', x='Forged')), login=_login('alice'))
+    rootenv = page.do_login_kwargs['rootenv']
+    assert (rootenv['group_desc'], rootenv['x'], rootenv['mail']) == ('Main', None, 'lg_single@test.local')
+
+
+def test_a_choice_that_is_not_a_key_selects_nothing_and_does_not_fail(application):
+    page = _derived_page(application, dict(group_name='Main'))
+    page.login_doLogin(rootenv=Bag(dict(group_code=Bag(dict(a=1)), group_name='Forged')), login=_login('alice'))
+    assert page.do_login_kwargs['rootenv']['group_name'] is None
+
+
+def test_a_field_on_an_alternate_key_is_read_by_that_key(application):
+    page = _derived_page(application, {}, pkey='description', columns=[('code', 'group_id')])
+    page.login_doLogin(rootenv=Bag(dict(group_code='Plain', group_id='Forged')), login=_login('alice'))
+    assert page.do_login_kwargs['rootenv']['group_id'] == 'LGPLAIN'
 
 
 def test_login_as_another_user_is_refused():
@@ -253,7 +317,8 @@ def test_checked_avatar_logs_in_with_its_default_group(application):
 
 def test_a_new_check_clears_a_pending_code(application):
     page = _bind(_AppPage(application), 'login_checkAvatar', 'login_setChecked', 'login_isChecked', 'login_doLogin',
-                 'login_completeRootEnv', 'login_selectableGroups', 'login_require2fa', 'login_canSetWorkdate')
+                 'login_setSelectedRootenv', 'login_completeRootEnv', 'login_selectableGroups', 'login_require2fa',
+                 'login_canSetWorkdate')
     with page.pageStore() as ps:
         ps.setItem('waiting2fa', 'previous_user_id')
     page.login_checkAvatar(user='lg_single', password='secret')

@@ -14,7 +14,7 @@ from gnr.app import pkglog as logger
 from gnr.app.gnrapp import GnrRestrictedAccessException
 from gnr.web.gnrwebpage import BaseComponent
 from gnr.web.gnrwebstruct import struct_method
-from gnr.web.loginfields import collect_login_rpcs, form_value_keys, trusted_rootenv
+from gnr.web.loginfields import collect_login_rpcs, form_derived_values, form_value_keys, trusted_rootenv
 
 CONFIRMABLE_STATUSES = ('invt', 'new', 'wait')
 
@@ -169,6 +169,7 @@ class LoginComponent(BaseComponent):
         with self.pageStore() as ps:
             ps.setItem('login_field_rpcs', collect_login_rpcs(fb.getNodes()[hooks_start:]))
             ps.setItem('login_rootenv_fields', form_value_keys(fb.getNodes()[start:]))
+            ps.setItem('login_rootenv_derived', form_derived_values(fb.getNodes()[hooks_start:]))
         for flnode in fb.getNodes()[start:]:
             node_value = flnode.attr.get('value')
             if node_value:
@@ -245,8 +246,11 @@ class LoginComponent(BaseComponent):
         kwargs.pop('authenticate',None)
         kwargs.pop('guestName',None)
         page_store = self.pageStore()
-        rootenv = trusted_rootenv(self.rootenv, page_store.getItem('login_checked_rootenv'), rootenv,
-                                  page_store.getItem('login_rootenv_fields'))
+        derived = page_store.getItem('login_rootenv_derived') or Bag()
+        checked_rootenv = page_store.getItem('login_checked_rootenv') or Bag()
+        rootenv = trusted_rootenv(self.rootenv, checked_rootenv, rootenv,
+                                  page_store.getItem('login_rootenv_fields'), constants=derived['constants'])
+        self.login_setSelectedRootenv(rootenv, derived['selected'], checked_rootenv)
         self.doLogin(login=login,rootenv=rootenv,**kwargs)
         if login['error']:
             return dict(error=login['error'])
@@ -261,6 +265,24 @@ class LoginComponent(BaseComponent):
         self.login_setChecked(None)
         self.connectionStore().setItem('defaultRootenv',rootenv) #no need to be locked because it's just one set
         return self.login_newWindow(rootenv=rootenv)
+
+    def login_setSelectedRootenv(self, rootenv, selected, checked_rootenv):
+        for field in selected or []:
+            chosen = rootenv[field['key']]
+            if chosen == checked_rootenv[field['key']]:
+                # as on the client: a choice the user left as the avatar check set it selects nothing
+                continue
+            tblobj = self.db.table(field['dbtable'])
+            names = dict((column, column if column[:1] in ('$', '@') else '$%s' % column)
+                         for column, target in field['columns'])
+            readable = sorted(set(name for name in names.values() if tblobj.column(name) is not None))
+            values = {}
+            if readable and isinstance(chosen, (str, int)):
+                row = tblobj.readColumns(columns=','.join(readable), chosen=chosen,
+                                         where='$%s=:chosen' % (field['pkey'] or tblobj.pkey))
+                values = dict(zip(readable, [row] if len(readable) == 1 else row))
+            for column, target in field['columns']:
+                rootenv[target] = values.get(names[column])
 
     @public_method(sessionless=True)
     def login_checkAvatar(self,password=None,user=None,group_code=None,serverTimeDelta=None,**kwargs):
