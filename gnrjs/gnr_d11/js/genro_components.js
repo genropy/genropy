@@ -217,6 +217,9 @@ dojo.declare("gnr.widgets.TooltipPane", gnr.widgets.gnrwdg, {
         var left = parseFloat(wrapper.style.left) || 0;
         var top = parseFloat(wrapper.style.top) || 0;
         var onScroll = function(e){
+            if(wrapper.contains(e.target)){
+                return;
+            }
             if(!anchor.isConnected){
                 genro.publish({topic:'close',nodeId:ddbId},{evt:e});
                 return;
@@ -4341,35 +4344,105 @@ dojo.declare("gnr.widgets.DropUploaderGrid", gnr.widgets.gnrwdg, {
         uploaderKw.uploadPath = uploaderKw.uploadPath || 'page:'+nodeId;
         var label = objectPop(kw,'label');
         var containerKw = objectExtract(kw,'position,top,left,right,bottom,height,width,border,rounded,_class,style,region');
-        var rootbc = sourceNode._('bordercontainer',containerKw);
-        
-        var grid = rootbc._('contentPane',{'region':'center'})._('quickGrid',{value:kw.storepath || '^gnr.uploadedFiles',
+        containerKw._class = (containerKw._class? containerKw._class+' ':'')+'dropUploaderGrid';
+        containerKw.nodeId = nodeId+'_stack';
+        var stack = sourceNode._('stackContainer',containerKw);
+        var showPage = function(pageName){
+            genro.nodeById(containerKw.nodeId).widget.switchPage(pageName);
+        };
+        var addFiles = function(files){
+            var filebag = genro.nodeById(nodeId).widget.storebag();
+            for(let f of files){
+                let row = {_name:f.name,_size:f.size,_type:f.type,_file:f,_uploaderId:nodeId};
+                let ll = (f.name+'_'+f.size+'_'+f.type).replace(/\W/g,'_');
+                if(filebag.index(ll)<0){
+                    filebag.addItem(ll,new gnr.GnrBag(row));
+                }
+            }
+            if(filebag.len()){
+                showPage('files');
+            }
+        };
+
+        var dropPane = stack._('contentPane',{pageName:'dropArea',_class:'dropUploaderGrid_dropPane'});
+        var fakeinput = dropPane._('input',{hidden:true,type:'file',multiple:true,
+            connect_onchange:function(evt){
+                addFiles(evt.target.files);
+                this.domNode.value = null;
+            }
+        });
+        var makeDropArea = function(pane,_class,text){
+            var area = pane._('div',{_class:_class,dropTarget:true,dropTypes:'Files',
+                                     onDrop:function(dropInfo,files){addFiles(files);},
+                                     [genro.isMobile?'connect_onclick':'connect_ondblclick']:function(){
+                                         fakeinput.getParentNode().domNode.click();
+                                     }});
+            area._('div',{_class:'google_icon upload dropUploaderArea_icon'});
+            area._('div',{_class:'dropUploaderArea_label',innerHTML:text});
+        };
+        makeDropArea(dropPane,'dropUploaderArea',
+                     _T(label || (genro.isMobile?'!!Press to choose the files to upload':
+                                  '!!Drop the files here or double-click to choose them'),true));
+
+        var filesBc = stack._('borderContainer',{pageName:'files'});
+        makeDropArea(filesBc._('contentPane',{region:'bottom',_class:'dropUploaderGrid_stripPane'}),
+                     'dropUploaderArea dropUploaderArea_compact',
+                     _T(genro.isMobile?'!!Press to add more files':
+                                       '!!Drop more files here or double-click to choose them'));
+        var escapeHtml = function(s){
+            return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+        };
+        var grid = filesBc._('contentPane',{region:'center',overflow:'hidden'})._('quickGrid',{value:kw.storepath || '^gnr.uploadedFiles',
                                         nodeId:nodeId,
                                         dropTarget_grid:'Files',
                                         dropTypes:'Files',
                                         selfsubscribe_doUpload:function(){
-                                            
                                             genro.rpc.uploadMultipartFiles(this.widget.storebag(),
                                                                     {onResult:funcCreate(uploaderKw.onResult,'result',this),
                                                                     uploadPath:uploaderKw.uploadPath,uploaderId:nodeId});
                                         },
-                                        onDrop:function(dropInfo,files){
+                                        selfsubscribe_delfile:function(kw){
                                             var filebag = this.widget.storebag();
-                                            for(let f of files){
-                                                let row = {_name:f.name,_size:f.size,_type:f.type,_file:f,_uploaderId:nodeId};
-                                                let ll = (f.name+'_'+f.size+'_'+f.type).replace(/\W/g,'_');
-                                                if(filebag.index(ll)<0){
-                                                    filebag.addItem(ll,new gnr.GnrBag(row));
-                                                }
+                                            filebag.popNode(this.widget.rowByIndex(kw.rowIndex)._pkey);
+                                            if(!filebag.len()){
+                                                showPage('dropArea');
                                             }
+                                        },
+                                        onDrop:function(dropInfo,files){
+                                            addFiles(files);
                                         }});
-        grid._('column',{name:_T('Filename'),field:'_name',width:'15em',edit:true});
-        grid._('column',{name:_T('Size'),field:'_size',width:'5em','dtype':'L'});
-        grid._('column',{name:_T('Type'),field:'_type',width:'10em'});
-        grid._('column',{name:_T('Status'),field:'_status',width:'10em'});
-        grid._('tools',{tools:'delrow',title:label || _T('Drop here files to upload')});
+        grid._('column',{name:_T('Filename'),field:'_name',width:'auto',
+                         _customGetter:function(row){
+                            var ext = (row._name || '').split('.');
+                            ext = ext.length>1? ext.pop().slice(0,4):'';
+                            return '<div class="dropUploaderGrid_file"><span class="dropUploaderGrid_ext">'+escapeHtml(ext)+'</span>'+
+                                   '<span class="dropUploaderGrid_name">'+escapeHtml(row._name || '')+'</span></div>';
+                         }});
+        grid._('column',{name:_T('Size'),field:'_size',width:'7em',cellClasses:'dropUploaderGrid_muted',
+                         _customGetter:function(row){
+                            var size = row._size || 0;
+                            var units = ['B','KB','MB','GB'];
+                            var i = 0;
+                            while(size>=1024 && i<units.length-1){
+                                size = size/1024;
+                                i++;
+                            }
+                            return (i? size.toFixed(1):size)+' '+units[i];
+                         }});
+        grid._('column',{name:_T('Status'),field:'_status',width:'9em',
+                         _customGetter:function(row){
+                            var m = /(\d+)\s*%/.exec(row._status || '');
+                            if(!m){
+                                return '';
+                            }
+                            return '<div class="dropUploaderGrid_progress"><div style="width:'+m[1]+'%"></div></div>';
+                         }});
+        grid._('column',{name:' ',field:'_delete',width:'36px',calculated:true,
+                         format_isbutton:true,format_buttonclass:'iconbox trash dropUploaderGrid_delete',
+                         format_tip:_T('!!Remove'),
+                         format_onclick:"this.publish('delfile',{rowIndex:$1.rowIndex});"});
 
-        return rootbc;
+        return stack;
     }
 });
 
@@ -4421,17 +4494,35 @@ dojo.declare("gnr.widgets.DropUploader", gnr.widgets.gnrwdg, {
         if(onResult){
             onResult = funcCreate(onResult,'evt',sourceNode);
         }
-        uploaderKw.onResult = function(evt){
+        var uploadFinished = function(sender){
             if(uploaderKw._lockScreen){
                 genro.lockScreen(false,nodeId);
             }
+            var d = sender && sender._progressDiv;
+            if(d && d.parentNode){
+                d.parentNode.removeChild(d);
+            }
+            var idx = gnrwdg.pendingHandlers.indexOf(sender);
+            if(idx >= 0){
+                gnrwdg.pendingHandlers.splice(idx,1);
+            }
+        };
+        uploaderKw.onResult = function(evt){
+            uploadFinished(evt && evt.currentTarget);
             if(onResult){
                 return onResult(evt);
             }
         };
-        if(uploaderKw.onError){
-            uploaderKw.onError = funcCreate(uploaderKw.onError,'evt',sourceNode);
+        var onError = uploaderKw.onError;
+        if(onError){
+            onError = funcCreate(onError,'evt',sourceNode);
         }
+        uploaderKw.onError = function(evt){
+            uploadFinished(this);
+            if(onError){
+                return onError(evt);
+            }
+        };
         if(uploaderKw.onAbort){
             uploaderKw.onAbort = funcCreate(uploaderKw.onAbort,'evt',sourceNode);
         }
@@ -4442,10 +4533,6 @@ dojo.declare("gnr.widgets.DropUploader", gnr.widgets.gnrwdg, {
                 var d = evt._sender._progressDiv;
                 if(d){
                     d.style.width = (evt.loaded *100) /evt.total +'%';
-                    if(evt.loaded == evt.total){
-                        gnrwdg.rootNode.domNode.removeChild(d);
-                        gnrwdg.pendingHandlers.splice(evt._sender._counter,1);
-                    }
                 }
             };
         }
@@ -8216,6 +8303,7 @@ dojo.declare("gnr.stores.Selection",gnr.stores.AttributesBagRows,{
 
     onLoaded:function(result){
         delete this.pendingLoading;
+        this.selectionName = result && result.attr? result.attr.selectionName:null;
         this.storeNode.setRelativeData(this.storepath,result,null,null,'loadData');
         return result;
     }

@@ -234,6 +234,34 @@
     color: var(--text-color);
     font: inherit;
 }
+.gridColumnFilterPane .gcf_search::-webkit-search-cancel-button{
+    display: none;
+}
+.gridColumnFilterPane .gcf_searchclear{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    width: 24px;
+    height: 24px;
+    margin-right: -7px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+.gridColumnFilterPane .gcf_searchclear:hover{
+    color: var(--accent-color);
+}
+.gridColumnFilterPane .gcf_searchclear[hidden]{
+    display: none;
+}
+.gridColumnFilterPane .gcf_searchbox .gcf_searchclear svg{
+    width: 12px;
+    height: 12px;
+}
 .gridColumnFilterPane .gcf_list{
     max-height: 280px;
     overflow: auto;
@@ -288,23 +316,39 @@
 .gridColumnFilterPane .gcf_more[hidden]{
     display: none;
 }
+.gridColumnFilterPane .gcf_showempty{
+    align-self: flex-start;
+    border: 0;
+    background: none;
+    padding: 0 6px;
+    color: var(--accent-color);
+    font: inherit;
+    font-size: .9em;
+    cursor: pointer;
+}
+.gridColumnFilterPane .gcf_showempty[hidden]{
+    display: none;
+}
 .gridColumnFilterPane .gcf_foot{
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
+    gap: 4px 10px;
     min-height: 20px;
     padding: 6px 6px 0;
     border-top: 1px solid var(--menu-separator-color);
 }
-.gridColumnFilterPane .gcf_clear{
+.gridColumnFilterPane .gcf_action{
     border: 0;
     background: none;
     padding: 0;
     color: var(--accent-color);
     font: inherit;
     font-weight: 600;
+    white-space: nowrap;
     cursor: pointer;
 }
-.gridColumnFilterPane .gcf_clear[hidden]{
+.gridColumnFilterPane .gcf_action[hidden]{
     display: none;
 }
 .gridColumnFilterPane .gcf_rowcount{

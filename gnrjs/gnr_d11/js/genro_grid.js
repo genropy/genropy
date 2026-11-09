@@ -1957,7 +1957,7 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
     },
 
     columnFilterByDefault:function(cell){
-        return !(this.columnFilterComposite(cell) || cell.calculated || cell.values || cell.checkBoxColumn ||
+        return !(this.columnFilterComposite(cell) || cell.calculated || cell.checkBoxColumn ||
                  cell.userSets || cell.format_isbutton || cell.format_buttonclass);
     },
 
@@ -4790,6 +4790,11 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
         if(caption===undefined || caption===null){
             caption = value;
         }
+        if(cell.values && cell._customGetter && caption!==null && caption!==undefined){
+            var keyrow = {};
+            keyrow[cell.field_getter] = caption;
+            caption = cell._customGetter.call(cell,keyrow) || caption;
+        }
         return (caption===null || caption===undefined || typeof(caption)=='string')? caption:_F(caption,null,cell.dtype);
     },
 
@@ -5478,6 +5483,8 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
             kwargs.struct =  this.getExportStruct();
         }
         var store = this.collectionStore();
+        var groupedRows = store.selectionName && store.storeNode.attr.groupByStore && !kwargs.columns?
+                            this.currentData(allRows?'all':null,true,true).getNodes():null;
         if (store.storeType=='VirtualSelection'){
             kwargs['selectionName'] = store.selectionName;
             kwargs['selectedRowidx'] = allRows?[]:this.getSelectedRowidx();
@@ -5485,6 +5492,11 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
                 kwargs.limit = 0;
                 kwargs.sortBy = store.sortedBy;
             }
+        }else if(groupedRows && groupedRows.length){
+            //the grouped rows are frozen on the server: send their rowidx, not the rows
+            kwargs['selectionName'] = store.selectionName;
+            kwargs['selectedRowidx'] = groupedRows.length==store.len()?[]:groupedRows.map(function(n){return n.attr.rowidx;});
+            kwargs.sortBy = store.sortedBy;
         }else if(!kwargs.columns){
             kwargs['data'] = this.currentData(allRows?'all':null , useRawData,true);
         }

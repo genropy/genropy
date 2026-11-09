@@ -5,7 +5,28 @@ const {test} = require('node:test');
 const vm = require('node:vm');
 
 function createContext() {
-    const context = {console, File: function() {}, gnr: {}, genro: {}, setTimeout, setInterval, clearInterval,
+    const pending = new Set();
+    const trackedSetTimeout = (callback, delay, ...args) => {
+        const handle = setTimeout(() => {
+            pending.delete(handle);
+            callback(...args);
+        }, delay);
+        pending.add(handle);
+        return handle;
+    };
+    const trackedClearTimeout = handle => {
+        pending.delete(handle);
+        clearTimeout(handle);
+    };
+    // resolves once the timeouts of the sources have run, including the ones they chain
+    const settled = async () => {
+        for (let round = 0; pending.size; round++) {
+            if (round == 1000) throw new Error(`${pending.size} timeouts still pending`);
+            await new Promise(resolve => setTimeout(resolve, 1));
+        }
+    };
+    const context = {console, File: function() {}, gnr: {}, genro: {}, setTimeout: trackedSetTimeout,
+                     clearTimeout: trackedClearTimeout, setInterval, clearInterval,
                      navigator: {}, window: {}, document: {}};
     context.dojo = {
         Deferred: function() {},
@@ -39,14 +60,14 @@ function createContext() {
         vm.runInContext(readFileSync(path.join(sourceDir, filename), 'utf8'), context, {filename});
     }
     context._T = str => str;
-    return context;
+    return {gnr: context.gnr, genro: context.genro, settled};
 }
 
 // A NewIncludedView over a real store; the store bag 'del' triggers reach the grid as its ^storepath does.
 // db: a Selection store (th grids, liveUpdate); bag: a ValuesBagRows store edited by a GridEditor (bagGrid).
 function createGrid({kind = 'db', codes = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'], selected = 'C',
                      attr = {}, autoSelect, autoInsert, excluded} = {}) {
-    const {gnr, genro} = createContext();
+    const {gnr, genro, settled} = createContext();
     const serverCalls = [];
     Object.assign(genro, {
         compareDict: {'==': (a, b) => a == b},
@@ -130,14 +151,13 @@ function createGrid({kind = 'db', codes = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H
     if (selected !== null) {
         grid.selection.select(grid.indexByRowAttr('_pkey', selected));
     }
-    const tick = () => new Promise(resolve => setTimeout(resolve, 10));
     return {
-        grid, store, rows, serverCalls, tick, makeRows,
+        grid, store, rows, serverCalls, settled, makeRows,
         selected: () => (selection.index >= 0 ? grid.rowIdByIndex(selection.index) : null),
         // a db event: the rows of delKeys are deleted, the rows of leftKeys no longer match the query
         dbEvent: async ({delKeys = [], leftKeys = []}) => {
             store.checkExternalChange(delKeys, leftKeys, {}, {});
-            await new Promise(resolve => setTimeout(resolve, 10));
+            await settled();
         }
     };
 }
@@ -257,7 +277,7 @@ test('deleting the selected row of a db grid with many rows lands on the next ro
 test('deleting the selected row from a bagGrid lands on the next row', async () => {
     const g = createGrid({kind: 'bag'});
     g.grid.deleteSelectedRows();
-    await g.tick();
+    await g.settled();
     assert.equal(g.store.len(), 7);
     assert.equal(g.selected(), 'D');
     assert.equal(g.grid.gridEditor.deletedRows.len(), 1);
@@ -266,14 +286,14 @@ test('deleting the selected row from a bagGrid lands on the next row', async () 
 test('deleting the last row from a bagGrid lands on the new last row', async () => {
     const g = createGrid({kind: 'bag', selected: 'H'});
     g.grid.deleteSelectedRows();
-    await g.tick();
+    await g.settled();
     assert.equal(g.selected(), 'G');
 });
 
 test('a programmatic delete of a row above the selected one keeps the selection', async () => {
     const g = createGrid({kind: 'bag'});
     g.grid.gridEditor.deleteSelectedRows(['A']);
-    await g.tick();
+    await g.settled();
     assert.equal(g.store.len(), 7);
     assert.equal(g.selected(), 'C');
 });
@@ -281,7 +301,7 @@ test('a programmatic delete of a row above the selected one keeps the selection'
 test('pruning the empty autoInsert row on blur keeps the selection', async () => {
     const g = createGrid({kind: 'bag', codes: ['A', 'B', 'C', 'D', ''], selected: 'B', autoInsert: true});
     g.grid.changedFocus(false);
-    await g.tick();
+    await g.settled();
     assert.equal(g.store.len(), 4);
     assert.equal(g.selected(), 'B');
 });
@@ -290,7 +310,7 @@ test('pruning the selected empty autoInsert row on blur selects the row before i
     const g = createGrid({kind: 'bag', codes: ['A', 'B', 'C', 'D', ''], selected: null, autoInsert: true});
     g.grid.selection.select(4);
     g.grid.changedFocus(false);
-    await g.tick();
+    await g.settled();
     assert.equal(g.store.len(), 4);
     assert.equal(g.selected(), 'D');
 });
