@@ -32,6 +32,21 @@ from gnr.web.gnrwebpage import ClientDataChange
 from gnr.core.gnrclasses import GnrClassCatalog
 from gnr.web import logger
 
+# page store paths the server writes for itself (login state, 2FA, the components a
+# sessionless request may mix in, the tags a login grants): a client change never reaches them
+SERVER_ONLY_PATHS = ('waiting2fa', 'last_2fa_otp', 'confirm_user_id', 'mixin_set',
+                     'rootenv.user_local_tags')
+SERVER_ONLY_PREFIXES = ('login_',)
+
+
+def is_server_only_path(path):
+    """True when a client change on ``path`` would write, or replace, a server-only path."""
+    path = (path or '').split('?', 1)[0]
+    if not path or path.split('.', 1)[0].startswith(SERVER_ONLY_PREFIXES):
+        return True
+    return any(path == p or path.startswith(p + '.') or p.startswith(path + '.')
+               for p in SERVER_ONLY_PATHS)
+
 if hasattr(Pyro4.config, 'METADATA'):
     Pyro4.config.METADATA = False
 if hasattr(Pyro4.config, 'REQUIRE_EXPOSE'):
@@ -1122,6 +1137,9 @@ class SiteRegister(BaseRemoteObject):
             return False
         page_item_data = self.page_register.get_item_data(page_id)
         for k, v in list(datachanges.items()):
+            if is_server_only_path(k):
+                logger.warning('page %s: client change on server-only path %s refused', page_id, k)
+                continue
             page_item_data.setItem(k, self._parse_change_value(v))
         return True
 

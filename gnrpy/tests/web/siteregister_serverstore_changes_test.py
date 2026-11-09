@@ -57,3 +57,39 @@ def test_asking_about_a_ghost_leaves_no_timestamp_behind():
     sr.set_serverstore_changes('ghost', {'rootenv.language': 'en'})
     assert 'ghost' not in sr.page_register.itemsTS
     assert 'ghost' not in sr.page_register.itemsData
+
+
+def _page_register():
+    sr = SiteRegister(_FakeServer(), sitename='testsite')
+    sr.page_register.create('p1')
+    data = sr.page_register.get_item_data('p1')
+    data.setItem('waiting2fa', 'user_id')
+    data.setItem('confirm_user_id', 'user_id')
+    data.setItem('rootenv.user_local_tags', 'base')
+    return sr, data
+
+
+def test_client_changes_reach_the_paths_the_page_syncs():
+    sr, data = _page_register()
+    assert sr.set_serverstore_changes('p1', {'rootenv.language': 'en', 'vb_filter.year': '2026'}) is True
+    assert data['rootenv.language'] == 'en'
+    assert data['vb_filter.year'] == '2026'
+
+
+def test_client_changes_never_reach_server_only_paths(caplog):
+    sr, data = _page_register()
+    forged = {'waiting2fa': '', 'last_2fa_otp': '1', 'confirm_user_id': 'victim',
+              'confirm_user_id?x': '1', 'mixin_set': 'x', 'login_checked.user': 'victim',
+              'login_page_rpcs': 'x', 'rootenv.user_local_tags': 'admin', 'rootenv': 'x', '': 'x',
+              'rootenv.language': 'it'}
+    with caplog.at_level(logging.WARNING):
+        assert sr.set_serverstore_changes('p1', forged) is True
+    assert data['waiting2fa'] == 'user_id'
+    assert data['confirm_user_id'] == 'user_id'
+    assert data['last_2fa_otp'] is None
+    assert data['mixin_set'] is None
+    assert data['login_checked'] is None
+    assert data['login_page_rpcs'] is None
+    assert data['rootenv.user_local_tags'] == 'base'
+    assert data['rootenv.language'] == 'it'
+    assert len(caplog.records) == len(forged) - 1
