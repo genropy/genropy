@@ -126,19 +126,24 @@ def db_sqlite(sqlite_temp_dir):
 
 
 def _pg_dbname(request, implementation):
-    """Database name unique to the requesting module and implementation.
+    """Database name unique to the requesting module, implementation and run.
 
     get_pg_config() returns an already running server whenever the tests run
     against a shared postgres (CI, or GNR_TEST_PG_*).  There every one of
     these module-scoped fixtures would land on the same database and import
     the CSV data on top of the previous module's rows, so the second module
     onwards died on a duplicate key.
+
+    The process id keeps two pytest runs on the same server apart: without
+    it they would create, populate and drop the same database underneath
+    each other, and a database left behind by an interrupted run would
+    break the next one.
     """
     module = request.module.__name__.rsplit('.', 1)[-1]
-    return '%s_%s' % (module, implementation)
+    return '%s_%s_%s' % (module, implementation, os.getpid())
 
 
-def _db_pg(request, implementation):
+def _db_pg(request, implementation, instance='test_invoice'):
     """A module's postgres database, built fresh and dropped afterwards.
 
     No skip on failure: postgres is a required part of this suite, and a run
@@ -149,7 +154,7 @@ def _db_pg(request, implementation):
     dbname = _pg_dbname(request, implementation)
     app = None
     try:
-        app = GnrApp('test_invoice', db_attrs=dict(
+        app = GnrApp(instance, db_attrs=dict(
             implementation=implementation,
             dbname=dbname,
             **pg_conf,

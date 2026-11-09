@@ -112,6 +112,11 @@ dojo.declare("gnr.widgets.baseHtml", null, {
             return;
         }
         genro.setInStorage('session',path,value,true);
+        //a value bound to an attribute ('path?attr') writes that attribute only: the widget's
+        //valueAttr (dtype, _formattedValue...) describe the attribute, not the node holding it
+        if(path.indexOf('?')>=0){
+            valueAttr = null;
+        }
         genro._data.setItem(path, value, valueAttr, {'doTrigger':sourceNode,lazySet:true});
         sourceNode.publish('onSetValueInData',value);
     },
@@ -3638,6 +3643,10 @@ dojo.declare("gnr.widgets.Menu", gnr.widgets.baseDojo, {
             return;
         }
         var sourceNode = this.sourceNode;
+        var attachedWidget = sourceNode.attr.attachTo && sourceNode.attr.attachTo.widget;
+        if(attachedWidget && (attachedWidget.readOnly || attachedWidget.disabled)){
+            return;
+        }
         var wdg = sourceNode.widget;
         if( (wdg.modifiers || wdg.validclass ) && !(genro.wdg.filterEvent(e, wdg.modifiers, wdg.validclass)) ){
             return;
@@ -4569,6 +4578,7 @@ dojo.declare("gnr.widgets.DateTextBox", gnr.widgets._BaseTextBox, {
                 if(constraints.selector=='datetime'){
                     hours = parseInt(match[4] || '0');
                     minutes = parseInt(match[5] || '0');
+                    seconds = parseInt(match[6] || '0');
                     if(match[6]=='AM' || match[6]=='PM'){
                         seconds = 0;
                         if(match[6]=='PM'){
@@ -5131,6 +5141,16 @@ dojo.declare("gnr.widgets.BaseCombo", gnr.widgets.baseDojo, {
     },
     mixin_setValues:function(values){
         this.store =  this.gnr.storeFromValues(values);
+        var sourceNode = this.sourceNode;
+        var currvalue = sourceNode.getAttributeFromDatasource('value');
+        if(isNullOrBlank(currvalue)){
+            return;
+        }
+        this.store.fetchItemByIdentity({identity:currvalue,onItem:function(item){
+            if(item){
+                sourceNode.doUpdateAttrBuiltObj('value',{},'node');
+            }
+        }});
     },
     
   // patch__onBlur: function(){

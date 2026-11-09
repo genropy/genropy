@@ -91,3 +91,19 @@ class ViewColumnFilter(BaseComponent):
 
     def th_options(self):
         return dict(virtualStore=False)
+
+
+class ViewColumnFilterDefault(BaseComponent):
+    def th_struct(self, struct):
+        r = struct.view().rows()
+        r.fieldcell('nome', width='100%')
+        r.fieldcell('sigla', width='4em')
+        r.fieldcell('regione', width='12em')
+        r.fieldcell('zona_regione', name='Zone', width='10em',
+                    values='Nord-ovest:North-west,Nord-est:North-east,Centro:Centre,Sud:South,Isole:Islands')
+
+    def th_order(self):
+        return 'nome'
+
+    def th_options(self):
+        return dict(virtualStore=False)

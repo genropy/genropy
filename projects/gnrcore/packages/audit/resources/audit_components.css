@@ -1,0 +1,38 @@
+.audit_detail_pane{
+    padding:8px 10px;
+}
+.audit_detail_title{
+    font-weight:600;
+    margin-bottom:8px;
+}
+.audit_detail_section{
+    font-size:11px;
+    font-weight:600;
+    color:#6b7280;
+    text-transform:uppercase;
+    margin:8px 0 4px;
+}
+.audit_kv{
+    display:grid;
+    grid-template-columns:140px 1fr;
+    font-size:12px;
+}
+.audit_kv_label,.audit_kv_value{
+    padding:2px 6px;
+    border-bottom:1px solid #f0f1f3;
+    overflow-wrap:anywhere;
+}
+.audit_kv_label{
+    background:#eceef1;
+    color:#555;
+}
+.audit_kv_changed{
+    background:#fff7e0;
+}
+.audit_detail_deleted{
+    background:#fbe9e9;
+    color:#7f1d1d;
+    padding:4px 6px;
+    border-radius:3px;
+    margin-bottom:6px;
+}

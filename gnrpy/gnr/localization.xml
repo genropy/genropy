@@ -225,7 +225,7 @@
 <en_template_not_yet_created base="Template not yet created" it="Template non ancora creato"></en_template_not_yet_created>
 <en_double_click_to_create_it base="Double-click to create it" it="Fai doppio clic per crearlo"></en_double_click_to_create_it>
 <en_filename base="Filename" it="Nome file" en="Filename"></en_filename>
-<en_size base="Size" de="Größe" en="Size" fr="Taille" it="Taglia"></en_size>
+<en_size base="Size" de="Größe" en="Size" fr="Taille" it="Dimensione"></en_size>
 <en_type fr="Type" de="Art" en="Type" it="Tipo" base="Type"></en_type>
 <en_status fr="Statut" de="Status" en="Status" it="Stato" base="Status"></en_status>
 <en_drop_here_files_to_upload base="Drop here files to upload"></en_drop_here_files_to_upload>
@@ -252,6 +252,11 @@
 <en_records_to_delete base="Records to delete" it="Record da eliminare"></en_records_to_delete>
 <en_duplicate_rows base="Duplicate rows"></en_duplicate_rows>
 <en_you_are_going_to_duplicate base="You are going to duplicate"></en_you_are_going_to_duplicate>
+<en_drop_the_files_here_or_double_click_to_choose_them base="Drop the files here or double-click to choose them" it="Trascina qui i file o fai doppio clic per sceglierli"></en_drop_the_files_here_or_double_click_to_choose_them>
+<en_press_to_choose_the_files_to_upload base="Press to choose the files to upload" it="Premi per scegliere i file da caricare"></en_press_to_choose_the_files_to_upload>
+<en_drop_more_files_here_or_double_click_to_choose_them base="Drop more files here or double-click to choose them" it="Trascina qui altri file o fai doppio clic per sceglierli"></en_drop_more_files_here_or_double_click_to_choose_them>
+<en_press_to_add_more_files base="Press to add more files" it="Premi per aggiungere altri file"></en_press_to_add_more_files>
+<en_remove base="Remove" it="Rimuovi"></en_remove>
 <en_records base="records" it="Record"></en_records></genro_components>
 <genro_dev path="gnrjs/gnr_d11/js/genro_dev.js" ext="js"><en_mover base="Mover" de="Antragsteller" en="Mover" fr="Déménageur" it="Motore"></en_mover>
 <en_save fr="Sauvegarder" de="Speichern" en="Save" it="Salva" base="Save"></en_save>
@@ -279,7 +284,7 @@
 <genro_dlg path="gnrjs/gnr_d11/js/genro_dlg.js" ext="js"><en_drop_the_file_to_import_here base="Drop the file to import here" it="Trascina qui il file da importare"></en_drop_the_file_to_import_here>
 <en_drop_the_file_to_import_here_or_dblclick_to_open_the_file_explorer base="Drop the file to import here or dblclick to open the file explorer" it="Trascina qui il file da importare o fai doppio clic per aprire la finestra di selezione"></en_drop_the_file_to_import_here_or_dblclick_to_open_the_file_explorer>
 <en_press_to_open_the_file_explorer base="Press to open the file explorer" it="Premi per aprire la finestra di selezione"></en_press_to_open_the_file_explorer>
-<en_upload_files base="Upload files" en="Upload files" it="Caricare files"></en_upload_files>
+<en_upload_files base="Upload files" en="Upload files" it="Carica i file"></en_upload_files>
 <en_close base="Close" de="Schließen" en="Close" fr="Près" it="Chiudi"></en_close>
 <en_change_file base="Change file"></en_change_file>
 <en_confirm fr="Confirmer" en="Confirm" de="Bestätigen" it="Conferma" base="Confirm" zh="确认"></en_confirm>
@@ -535,7 +540,7 @@
 <en_latest base="Latest" en=""></en_latest></documentiframe>
 <drop_uploader path="resources/common/gnrcomponents/drop_uploader.py" ext="py"><en_upload base="Upload" de="Hochladen" en="Upload" fr="Télécharger" it="Carica"></en_upload>
 <en_file_name base="File name" de="Dateiname" en="File name" fr="Nom du fichier" it="Nome del file"></en_file_name>
-<en_size base="Size" de="Größe" en="Size" fr="Taille" it="Taglia"></en_size>
+<en_size base="Size" de="Größe" en="Size" fr="Taille" it="Dimensione"></en_size>
 <en_type fr="Type" de="Art" en="Type" it="Tipo" base="Type"></en_type>
 <en_uploader base="Uploader" de="Uploader" en="Uploader" fr="Uploader" it="Uploader"></en_uploader>
 <en_preview base="Preview" de="Vorschau" en="Preview" fr="Avant-première" it="Anteprima"></en_preview>
@@ -599,7 +604,7 @@
 <filepicker path="resources/common/gnrcomponents/filepicker.py" ext="py"><en_image base="Image" de="Bild" en="Image" fr="Image" it="Immagine"></en_image>
 <en_title base="Title" de="Titel" en="Title" fr="Titre" it="Titolo"></en_title>
 <en_created base="Created" de="Erstellt" en="Created" fr="Établi" it="Creato"></en_created>
-<en_size base="Size" de="Größe" en="Size" fr="Taille" it="Taglia"></en_size></filepicker>
+<en_size base="Size" de="Größe" en="Size" fr="Taille" it="Dimensione"></en_size></filepicker>
 <formhandler path="resources/common/gnrcomponents/formhandler.py" ext="py"><en_navigation base="Navigation" de="Navigation" en="Navigation" fr="Navigation" it="Navigazione"></en_navigation>
 <en_form_commands base="Form Commands" de="Form-Befehle" en="Form Commands" fr="Commandes Formulaire" it="Modulo Comandi"></en_form_commands>
 <en_dismiss base="Dismiss" de="Entlassen" en="Dismiss" fr="Rejeter" it="Esci"></en_dismiss>

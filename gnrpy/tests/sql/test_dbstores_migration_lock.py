@@ -42,8 +42,10 @@ def store_db(request, pg_config, tmp_path):
     db.inTransactionDaemon = False
     pkg = db.model.src.package('hosting', sqlschema='hosting')
     workspace = pkg.table('workspace', pkey='id', multidb='one',
-                          logicalDeletionField='deleted_at')
+                          logicalDeletionField='deleted_at',
+                          partition_office_id='office_id')
     workspace.column('id', dtype='A', size=':22')
+    workspace.column('office_id', dtype='A', size=':22')
     workspace.column('dbstore', dtype='A', size=':30')
     workspace.column('deleted_at', dtype='DH')
     workspace.column('provisioning_status', dtype='A', size=':20')
@@ -113,3 +115,11 @@ def test_store_discovery_keeps_workspace_filters(store_db, status, deleted, visi
     db.commit()
     expected = {'tenant': dict(database=child)} if visible else {}
     assert db.dbstores == expected
+
+
+@pytest.mark.parametrize('env', [dict(current_office_id='other'),
+                                 dict(allowed_office_id=('other',))])
+def test_store_discovery_ignores_the_user_partition(store_db, env):
+    db, child = store_db
+    with db.tempEnv(**env):
+        assert db.dbstores == {'tenant': dict(database=child)}

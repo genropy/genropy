@@ -2497,6 +2497,34 @@ class TestPartitionAllowedStates:
         assert count == CUSTOMER_COUNT
 
 
+class TestPartitionCurrentWithinAllowed:
+    """current_invc_state comes from the client: it narrows allowed_invc_state, never widens it."""
+
+    def _count(self, db, current, allowed):
+        db.currentEnv['current_invc_state'] = current
+        db.currentEnv['allowed_invc_state'] = allowed
+        try:
+            return db.table('invc.customer').query().count()
+        finally:
+            del db.currentEnv['current_invc_state']
+            del db.currentEnv['allowed_invc_state']
+
+    def test_current_inside_allowed_narrows_pg(self, db_pg):
+        assert self._count(db_pg, 'NSW', ['NSW', 'VIC']) == CUSTOMER_NSW_COUNT
+
+    def test_current_inside_allowed_narrows_sqlite(self, db_sqlite):
+        assert self._count(db_sqlite, 'NSW', ['NSW', 'VIC']) == CUSTOMER_NSW_COUNT
+
+    def test_current_outside_allowed_falls_back_to_allowed_pg(self, db_pg):
+        assert self._count(db_pg, 'QLD', ['NSW', 'VIC']) == CUSTOMER_NSW_COUNT + CUSTOMER_VIC_COUNT
+
+    def test_current_outside_allowed_falls_back_to_allowed_sqlite(self, db_sqlite):
+        assert self._count(db_sqlite, 'QLD', ['NSW', 'VIC']) == CUSTOMER_NSW_COUNT + CUSTOMER_VIC_COUNT
+
+    def test_allowed_as_comma_string_sqlite(self, db_sqlite):
+        assert self._count(db_sqlite, 'NSW', 'NSW,VIC') == CUSTOMER_NSW_COUNT
+
+
 class TestStaffBasic:
     """Basic staff table queries — VC and cross-package relation."""
 

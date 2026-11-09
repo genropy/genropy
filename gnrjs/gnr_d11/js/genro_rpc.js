@@ -1093,19 +1093,38 @@ dojo.declare("gnr.GnrRpcHandler", null, {
             content.append(key, params[key]);
         }
         var sender = new XMLHttpRequest();
-        var errorCb = function() {
-            console.log(arguments);
+        var filename = kw.filename || (file && file.name) || '';
+        var onError = kw.onError;
+        var failed = false;
+        var uploadFailed = function(evt){
+            if(failed){
+                return;
+            }
+            failed = true;
+            var status = sender.status;
+            var reason;
+            if(!status){
+                reason = _T('the connection was lost');
+            }else if(status == 413){
+                reason = _T('the file is too large for the server');
+            }else if([429, 502, 503, 504].indexOf(status) >= 0){
+                reason = _T('the server is busy or not responding, try again');
+            }else{
+                reason = _T('server error') + ' ' + status + ' ' + httpStatusText(status, sender.statusText);
+            }
+            genro.toast.show({title: _T('Upload failed'), message: filename + ': ' + reason,
+                              level: 'error', centered: true, duration: 0});
+            evt = evt || {};
+            evt._sender = sender;
+            evt.status = status;
+            evt.reason = reason;
+            if(onError) onError.call(sender, evt);
         };
-        //if (kw.onResult) sender.upload.addEventListener("load", kw.onResult, false);
+        sender.addEventListener('error', uploadFailed, false);
+        sender.addEventListener('timeout', uploadFailed, false);
         if (kw.onProgress){
             sender.upload.addEventListener("progress", function(evt){evt._sender = sender; kw.onProgress(evt)}, false)
         }
-        if (kw.onError){
-            sender.upload.addEventListener("error", function(evt){
-                evt._sender = sender;
-                (kw.onError || errorCb)(evt)
-            }, false)
-        };
         if (kw.onAbort){
             sender.upload.addEventListener("abort",function(evt){
                 evt._sender = sender;
@@ -1120,8 +1139,11 @@ dojo.declare("gnr.GnrRpcHandler", null, {
             content.append('file_handle',file);
         }
         sender.open("POST", genro.rpc.pageIndexUrl(), true);
-        var onError = kw.onError;
-        sender.onload = function() {
+        sender.onload = function(evt) {
+            if (sender.status < 200 || sender.status >= 300) {
+                uploadFailed(evt);
+                return;
+            }
             var responseXML = sender.responseXML;
             if (responseXML) {
                 var envelope = new gnr.GnrBag();
@@ -1135,7 +1157,7 @@ dojo.declare("gnr.GnrRpcHandler", null, {
                 if (error) {
                     var envNode = envelope.getNode('result');
                     genro.dev.handleRpcError(error, envNode);
-                    if (onError) onError(error);
+                    if (onError) onError.call(sender, error);
                     return;
                 }
             }

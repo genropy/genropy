@@ -44,6 +44,8 @@ class _FakeServer:
 
 
 class _Page(object):
+    rootenv = Bag()
+
     def __init__(self):
         self.register = SiteRegister(_FakeServer(), sitename='testsite')
         self.register.page_register.create('p1')
@@ -158,6 +160,16 @@ def test_checked_login_goes_through():
     assert page.logged == ['alice']
 
 
+def test_login_stores_the_checked_rootenv_and_only_the_form_fields_of_the_client():
+    page = _page()
+    page.login_setChecked('alice', rootenv=Bag(dict(user_id='U1', sede_id='S1')))
+    with page.pageStore() as ps:
+        ps.setItem('login_rootenv_fields', ['sede_id', 'workdate'])
+    sent = Bag(dict(user_id='ADMIN', user_local_tags='admin', sede_id='S2', workdate='2026-01-01'))
+    page.login_doLogin(rootenv=sent, login=_login('alice'))
+    assert page.do_login_kwargs['rootenv'].asDict() == dict(user_id='U1', sede_id='S2', workdate='2026-01-01')
+
+
 def test_login_as_another_user_is_refused():
     page = _page()
     page.login_setChecked('alice')
@@ -237,3 +249,13 @@ def test_checked_avatar_logs_in_with_its_default_group(application):
     result = page.login_checkAvatar(user='lg_single', password='secret')
     assert result['avatar.group_code'] == 'LGMAIN'
     assert page.login_isChecked(_login('lg_single', 'LGMAIN'))
+
+
+def test_a_new_check_clears_a_pending_code(application):
+    page = _bind(_AppPage(application), 'login_checkAvatar', 'login_setChecked', 'login_isChecked', 'login_doLogin',
+                 'login_completeRootEnv', 'login_selectableGroups', 'login_require2fa', 'login_canSetWorkdate')
+    with page.pageStore() as ps:
+        ps.setItem('waiting2fa', 'previous_user_id')
+    page.login_checkAvatar(user='lg_single', password='secret')
+    page.login_doLogin(rootenv=Bag(), login=_login('lg_single', 'LGMAIN'))
+    assert page.logged == ['lg_single']

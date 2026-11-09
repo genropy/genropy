@@ -40,6 +40,7 @@ from gnr.web import logger
 from gnr.web.gnrmanual import ManualCache
 from gnr.web.gnrwebapp import GnrWsgiWebApp
 from gnr.web.gnrwebpage import GnrUnsupportedBrowserException
+from gnr.web.gnrwebreqresp import GnrWebRequest
 from gnr.web.gnrwsgisite_proxy.gnrresourceloader import ResourceLoader
 from gnr.web.gnrwsgisite_proxy.gnrstoragehandler import GenroStorageHandler, LegacyStorageHandler
 from gnr.web.gnrwsgisite_proxy.gnrstatichandler import StaticHandlerManager
@@ -80,6 +81,11 @@ class GnrSiteException(GnrException):
     code = 'GNRSITE-001'
     description = '!!Genro Site exception'
     caption = "!! Site Error : %(message)s"
+
+class GnrUploadException(GnrException):
+    code = 'GNRSITE-002'
+    description = '!!Upload failed'
+    caption = '!!Upload of %(filename)s failed: %(reason)s'
 
 class GnrWebServerError(Exception):
     pass
@@ -2095,6 +2101,9 @@ class GnrWsgiSite(object):
 
     def serve_ping(self, response, environ, start_response, page_id=None, reason=None, **kwargs):
         response.content_type = "text/xml"
+        cookie = GnrWebRequest(self.currentRequest).get_cookie(
+            self.currentDomainIdentifier, 'marshal', secret=self.config['secret'])
+        kwargs['connection_id'] = dict(cookie).get('connection_id') if cookie else None
         result = self.register.handle_ping(page_id=page_id,reason=reason,**kwargs)
         if result is False:
             return self.failed_exception('no longer existing page %s' % page_id, environ, start_response)
@@ -2178,6 +2187,9 @@ class GnrWsgiSite(object):
         if not file_ext:
             filename = '%s%s' %(filename,original_ext)
             file_ext = original_ext
+        if not content:
+            raise GnrUploadException(filename=filename, reason='!!the file is empty',
+                                     localizer=self.gnrapp.localizer)
         file_node = self.storageNode(uploadPath, filename,autocreate=-1)
         service = file_node.service
         storage_params = self.storage_handler.getStorageParameters(service.service_name) or {}
@@ -2189,6 +2201,9 @@ class GnrWsgiSite(object):
         file_url = file_node.internal_url()
         with file_node.open(mode='wb') as outfile:
             outfile.write(content)
+        if not file_node.exists or file_node.size != len(content):
+            raise GnrUploadException(filename=filename, reason='!!the file was not stored completely',
+                                     localizer=self.gnrapp.localizer)
         return file_path,file_url
 
     def zipFiles(self, file_list=None, zipPath=None):

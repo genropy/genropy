@@ -577,7 +577,8 @@ class ResourceLoader(object):
         page.mixin(component,**kwargs)
         if not hasattr(page,'mixin_set'):
             page.mixin_set = set()
-        page.mixin_set.add(((tuple(path),tuple(kwargs.items()))))
+        stored_kwargs = tuple(kwargs.items()) + ((('pkg', pkg),) if pkg else ())
+        page.mixin_set.add((tuple(path), stored_kwargs))
         return component
         
     def getResourceUriCascade(self, page, path, ext, pkg=None):

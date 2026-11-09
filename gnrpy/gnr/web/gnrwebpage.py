@@ -61,6 +61,7 @@ from gnr.web.gnrwebpage_proxy.menuproxy import GnrMenuProxy
 from gnr.web.gnrwebpage_proxy.apphandler import GnrWebAppHandler
 from gnr.web.gnrwebpage_proxy.apphandler.next import GnrWebAppHandlerNext
 from gnr.web.gnrwebpage_proxy.connection import GnrWebConnection
+from gnr.web.loginfields import collect_login_rpcs, without_field_rpcs, dbselect_kwargs, declared_method
 from gnr.web.gnrwebpage_proxy.serverbatch import GnrWebBatch
 from gnr.web.gnrwebpage_proxy.rpc import GnrWebRpc
 from gnr.web.gnrwebpage_proxy.developer import GnrWebDeveloper
@@ -84,13 +85,6 @@ AUTH_FORBIDDEN = -1
 PAGE_TIMEOUT = 60
 PAGE_REFRESH = 20
 LOGIN_COMPONENT = 'login:LoginComponent'
-# they authenticate by themselves, so the login dialog can call them without a session
-LOGIN_RPCS = ('login_checkAvatar', 'login_doLogin', 'login_checkOTPCode')
-
-
-def isLoginRpc(method):
-    mixin_info, _, name = (method or '').rpartition(';')
-    return name in LOGIN_RPCS and mixin_info in ('', '*|%s' % LOGIN_COMPONENT)
 
 
 ATTRIBUTES_SIMPLEWEBPAGE = ('_workdate','_language','_call_args','_call_kwargs','user','connection_id','user_ip','dbstore','user_agent','siteName')
@@ -675,7 +669,7 @@ class GnrWebPage(GnrBaseWebPage):
             logger.warning('page %s vanished from the register: serverstore changes discarded (%s)',
                            self.page_id, ','.join(sorted(_serverstore_changes)))
         auth = AUTH_OK
-        if method not in ('doLogin', 'onClosePage') and not isLoginRpc(method):
+        if method not in ('doLogin', 'onClosePage', 'getRemoteTranslation'):
             auth = self._checkAuth(method=method, **kwargs)
             #if auth == AUTH_OK:
             #    auth = self._checkRootPage()
@@ -715,11 +709,11 @@ class GnrWebPage(GnrBaseWebPage):
         
     def _checkAuth(self, method=None, **parameters):
         pageTags = self.pageAuthTags(method=method, **parameters)
+        if not self.connection.loggedUser and method not in (None, 'main'):
+            return AUTH_EXPIRED if pageTags or self.pageAuthTags(method='main') else AUTH_OK
         if not pageTags:
             return AUTH_OK
         if not self.connection.loggedUser:
-            if method != 'main':
-                return AUTH_EXPIRED
             return AUTH_NOT_LOGGED
         if not self.application.checkResourcePermission(pageTags, self.userTags):
             return AUTH_FORBIDDEN
@@ -1269,6 +1263,24 @@ class GnrWebPage(GnrBaseWebPage):
                     proxy_object = getattr(proxy_object,subproxy)
         return proxy_object, submethod
 
+    def _mixinRequestedComponent(self, method):
+        mixin_info, method = method.split(';')
+        if '|' not in mixin_info:
+            return
+        mixin_pkg, mixin_path = mixin_info.split('|')
+        path = mixin_path.split('/')
+        pkg = None if mixin_pkg == '*' else mixin_pkg
+        if not self.connection.loggedUser and not self._mixedByPage(path, pkg):
+            return
+        self.mixinComponent(*path, pkg=pkg)
+        return method
+
+    def _mixedByPage(self, path, pkg=None):
+        mixin_set = list(self.pageStore().getItem('mixin_set') or ()) + list(getattr(self, 'mixin_set', ()))
+        # a path recorded as one 'a/b:C' string or as ('a', 'b:C') is the same component
+        return ('/'.join(path), pkg) in [('/'.join(mixin_path), dict(kwargs).get('pkg'))
+                                         for mixin_path, kwargs in mixin_set]
+
     def getPublicMethod(self, prefix, method):
         """TODO
         
@@ -1280,26 +1292,28 @@ class GnrWebPage(GnrBaseWebPage):
         :param method: TODO"""
         if callable(method):
             return method
-        handler = None
+        handler = self._resolvePublicMethod(prefix, method)
+        if not handler:
+            self.clientPublish('floating_message',message='missing public method %s' %method,messageType='error')
+            return
+        return self._verifiedHandler(handler, method)
+
+    def _resolvePublicMethod(self, prefix, method):
         if ';' in method:
-            mixin_info, method = method.split(';')
-            __mixin_pkg, __mixin_path = mixin_info.split('|')
-            if __mixin_pkg=='*':
-                __mixin_pkg=None
-            __mixin_path_list = __mixin_path.split('/')
-            self.mixinComponent(*__mixin_path_list, pkg=__mixin_pkg)
+            method = self._mixinRequestedComponent(method)
+            if not method:
+                return
         if '.' in method:
-            proxy_object,submethod = self._getProxyObject(method)                 
+            proxy_object,submethod = self._getProxyObject(method)
         else:
             proxy_object = self
             submethod = method
         handler = getattr(proxy_object, submethod, None)
         if not handler or not getattr(handler, 'is_rpc', False):
-            handler = getattr(proxy_object, '%s_%s' % (prefix, submethod),None)
-    
-        if not handler:
-            self.clientPublish('floating_message',message='missing public method %s' %method,messageType='error')
-            return
+            handler = getattr(proxy_object, '%s_%s' % (prefix, submethod),None) if prefix else None
+        return handler
+
+    def _verifiedHandler(self, handler, method):
         if getattr(handler,'signed',None):
             error = self.site.auth_token_generator.verify_url(self.request._request.url)
             if error:
@@ -1318,34 +1332,88 @@ class GnrWebPage(GnrBaseWebPage):
             raise verifier_error                
         return handler
 
+    def getSessionlessMethod(self, method):
+        """The handler of an rpc refused by ``_checkAuth`` that the page serves anyway, or None.
+
+        A method declared ``@public_method(sessionless=True)`` authenticates or checks its
+        input by itself; the login page serves also the calls its struct declared
+        (``gnr.web.loginfields``)."""
+        handler = self._resolvePublicMethod('rpc', method)
+        served = self._sessionlessHandler(handler, method)
+        if served:
+            return self._verifiedHandler(served, method)
+
+    def _sessionlessHandler(self, handler, method):
+        if not handler:
+            return
+        if getattr(handler, 'sessionless', False):
+            return handler
+        if self.connection.loggedUser:
+            return
+        if any(declared_method(method, recorded) for recorded, rootenv in self._loginRecorded()):
+            return handler
+
+    def _loginRecorded(self):
+        """(recorded calls, rootenv for their parameters) the login page serves now."""
+        page_store = self.pageStore()
+        recorded = [(page_store.getItem('login_page_rpcs'), None)]
+        if self.connection.loggedUser or (page_store.getItem('login_checked')
+                                          and not page_store.getItem('waiting2fa')):
+            recorded.append((page_store.getItem('login_field_rpcs'), page_store.getItem('login_checked_rootenv')))
+        return [(r, rootenv) for r, rootenv in recorded if r]
+
+    def _recordLoginPage(self, root):
+        page_store = self.pageStore()
+        page_rpcs = collect_login_rpcs(root.nodes, field_prefix='p')
+        page_store.setItem('login_page_rpcs', without_field_rpcs(page_rpcs, page_store.getItem('login_field_rpcs')))
+
+    @public_method(sessionless=True)
+    def login_fieldSelect(self, **kwargs):
+        """The dbSelect of a login page field, with the table, columns and condition the field declared."""
+        for recorded, rootenv in self._loginRecorded():
+            served = dbselect_kwargs(recorded, kwargs, rootenv)
+            if served:
+                result, resultAttrs = self.app.dbSelect(**served)
+                if served.get('_id') and resultAttrs.get('errors'):
+                    # app.dbSelect retries a key without the condition: before login the condition is the point
+                    return Bag(), {}
+                return result, resultAttrs
+        return Bag()
+
+    @public_method(sessionless=True)
+    def login_fieldCount(self, value=None, login_field=None, login_check=None, **kwargs):
+        """The validate_nodup / validate_exist of a login page field, on the field it declared."""
+        if not any(login_field in (recorded['counts'] or []) for recorded, rootenv in self._loginRecorded()):
+            return Bag(dict(errorcode='not_allowed'))
+        if value in (None, ''):
+            return True
+        count = self.app.getRecordCount(field=login_field, value=value)
+        if login_check == 'exist':
+            return True if count else Bag(dict(errorcode='missing'))
+        return Bag(dict(errorcode='duplicated_value')) if count else True
 
     def getWsMethod(self, method):
-        """TODO
-        
-        :param prefix: The method prefix. It can be:
-                       
-                       * 'remote': this prefix is used for the :ref:`dataremote`
-                       * 'rpc': this prefix is used for the :ref:`datarpc`
-                       
-        :param method: TODO"""
-        handler = None
-        if ';' in method:
-            mixin_info, method = method.split(';')
-            __mixin_pkg, __mixin_path = mixin_info.split('|')
-            if __mixin_pkg=='*':
-                __mixin_pkg=None
-            __mixin_path_list = __mixin_path.split('/')
-            self.mixinComponent(*__mixin_path_list, pkg=__mixin_pkg)
-        if '.' in method:
-            proxy_object,submethod = self._getProxyObject(method)                 
-        else:
-            proxy_object = self
-            submethod = method
-        handler = getattr(proxy_object, submethod, None)
-        if handler and getattr(handler, 'tags',None):
+        return self.resolveWsMethod(method)[0]
+
+    def resolveWsMethod(self, method):
+        """The websocket handler of ``method`` and the error that refuses it, as the http rpc names it."""
+        auth = self._checkAuth(method=method)
+        handler = self._resolvePublicMethod(None, method)
+        served = handler
+        if auth != AUTH_OK:
+            served = self._sessionlessHandler(handler, method)
+            if not served or getattr(handler, 'signed', None):
+                return None, 'expired' if auth == AUTH_EXPIRED else 'forbidden call'
+            verifier_class = getattr(handler, 'verifier', None)
+            verifier_error = verifier_class(self)() if verifier_class else None
+            if verifier_error:
+                raise verifier_error
+        elif not handler:
+            return None, 'missing handler: %s' % method
+        if getattr(handler, 'tags',None):
             if not self.application.checkResourcePermission(handler.tags, self.userTags):
                 raise self.exception(GnrUserNotAllowed,method=method)
-        return handler
+        return served, None
 
     def exception(self, exception, **kwargs):
         """TODO
@@ -2456,6 +2524,7 @@ class GnrWebPage(GnrBaseWebPage):
         self._db = None #resetting db property after setting dbenv
         google_mapkey = self.application.config['google?mapkey']
         api_keys = Bag(self.application.config['api_keys'])
+        api_keys.pop('private')
         if 'google' not in api_keys and google_mapkey:
             api_keys.setItem('google',None,mapkey = google_mapkey)
         page.data('gnr.api_keys',api_keys)
@@ -2615,9 +2684,13 @@ class GnrWebPage(GnrBaseWebPage):
             if hasattr(self,'deferredMainPageAuthTags'):
                 _auth = AUTH_OK if self.deferredMainPageAuthTags(page) else AUTH_FORBIDDEN
         if _auth == AUTH_NOT_LOGGED:
+            redirect = self.notLoggedRedirectPage
+            if redirect:
+                return (page,dict(redirect=redirect))
             root.clear()
             self.mixinComponent(LOGIN_COMPONENT,safeMode=True,only_callables=False)
             self.loginDialog(root, **kwargs)
+            self._recordLoginPage(root)
         elif _auth == AUTH_FORBIDDEN:
             redirect = self._forbiddenRedirectUrl()
             if redirect:
@@ -2813,7 +2886,8 @@ class GnrWebPage(GnrBaseWebPage):
         :param path: TODO
         :param value: TODO. 
         :param pageId: TODO. """
-        self.pageStore(pageId).setItem(path, value)
+        self.site.register.set_serverstore_changes(pageId or self.sourcepage_id or self.page_id,
+                                                   {path: value}, source_page_id=self.page_id)
             
     #def rpc_setViewColumns(self, contextTable=None, gridId=None, relation_path=None, contextName=None,
     #                       query_columns=None, **kwargs):
@@ -3076,6 +3150,14 @@ class GnrWebPage(GnrBaseWebPage):
     def permissionPars(self):
         return dict(user=self.user,user_group=getattr(self.avatar,'group_code',None))
     
+    @property
+    def notLoggedRedirectPage(self):
+        """Where a page without a logged user sends the browser instead of showing
+        the login dialog: the url returned by a ``not_logged_redirect`` method,
+        provided by a package (e.g. an external authentication), or None."""
+        if hasattr(self,'not_logged_redirect'):
+            return self.not_logged_redirect()
+
     @property
     def forbiddenRedirectPage(self):
         if hasattr(self,'forbidden_redirect'):
