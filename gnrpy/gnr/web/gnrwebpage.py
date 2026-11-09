@@ -61,7 +61,7 @@ from gnr.web.gnrwebpage_proxy.menuproxy import GnrMenuProxy
 from gnr.web.gnrwebpage_proxy.apphandler import GnrWebAppHandler
 from gnr.web.gnrwebpage_proxy.apphandler.next import GnrWebAppHandlerNext
 from gnr.web.gnrwebpage_proxy.connection import GnrWebConnection
-from gnr.web.loginfields import field_rpc_call
+from gnr.web.loginfields import collect_login_rpcs, without_field_rpcs, dbselect_kwargs, declared_method
 from gnr.web.gnrwebpage_proxy.serverbatch import GnrWebBatch
 from gnr.web.gnrwebpage_proxy.rpc import GnrWebRpc
 from gnr.web.gnrwebpage_proxy.developer import GnrWebDeveloper
@@ -1332,40 +1332,71 @@ class GnrWebPage(GnrBaseWebPage):
             raise verifier_error                
         return handler
 
-    def getSessionlessMethod(self, method, kwargs=None):
+    def getSessionlessMethod(self, method):
         """The handler of an rpc refused by ``_checkAuth`` that the page serves anyway, or None.
 
         A method declared ``@public_method(sessionless=True)`` authenticates or checks its
-        input by itself. Before ``doLogin``, once the login dialog has checked the avatar,
-        the calls declared by the dialog fields are served too (``gnr.web.loginfields``)."""
+        input by itself; the login page serves also the calls its struct declared
+        (``gnr.web.loginfields``)."""
         handler = self._resolvePublicMethod('rpc', method)
-        served = self._sessionlessHandler(handler, method, kwargs)
+        served = self._sessionlessHandler(handler, method)
         if served:
-            self._verifiedHandler(handler, method)
-            return served
+            return self._verifiedHandler(served, method)
 
-    def _sessionlessHandler(self, handler, method, kwargs):
+    def _sessionlessHandler(self, handler, method):
         if not handler:
             return
         if getattr(handler, 'sessionless', False):
             return handler
         if self.connection.loggedUser:
             return
+        if any(declared_method(handler, method, recorded) for recorded in self._loginRecorded()):
+            return handler
+
+    def _loginRecorded(self):
         page_store = self.pageStore()
-        if not page_store.getItem('login_checked') or page_store.getItem('waiting2fa'):
-            return
-        return field_rpc_call(handler, method, kwargs or {}, page_store.getItem('login_field_rpcs'))
+        recorded = [page_store.getItem('login_page_rpcs')]
+        if self.connection.loggedUser or (page_store.getItem('login_checked')
+                                          and not page_store.getItem('waiting2fa')):
+            recorded.append(page_store.getItem('login_field_rpcs'))
+        return [r for r in recorded if r]
+
+    def _recordLoginPage(self, root):
+        page_store = self.pageStore()
+        page_rpcs = collect_login_rpcs(root.nodes)
+        page_store.setItem('login_page_rpcs', without_field_rpcs(page_rpcs, page_store.getItem('login_field_rpcs')))
+
+    @public_method(sessionless=True)
+    def login_fieldSelect(self, **kwargs):
+        """The dbSelect of a login page field, with the table, columns and condition the field declared."""
+        for recorded in self._loginRecorded():
+            served = dbselect_kwargs(recorded, kwargs)
+            if served:
+                return self.app.dbSelect(**served)
+        return Bag()
+
+    @public_method(sessionless=True)
+    def login_fieldCount(self, value=None, login_field=None, login_check=None, **kwargs):
+        """The validate_nodup / validate_exist of a login page field, on the field it declared."""
+        if not any(login_field in (recorded['counts'] or []) for recorded in self._loginRecorded()):
+            return Bag(dict(errorcode='not_allowed'))
+        if value in (None, ''):
+            return True
+        count = self.app.getRecordCount(field=login_field, value=value)
+        if login_check == 'exist':
+            return True if count else Bag(dict(errorcode='missing'))
+        return Bag(dict(errorcode='duplicated_value')) if count else True
 
     def getWsMethod(self, method):
         return self.resolveWsMethod(method)[0]
 
-    def resolveWsMethod(self, method, kwargs=None):
+    def resolveWsMethod(self, method):
         """The websocket handler of ``method`` and the error that refuses it, as the http rpc names it."""
         auth = self._checkAuth(method=method)
         handler = self._resolvePublicMethod(None, method)
         served = handler
         if auth != AUTH_OK:
-            served = self._sessionlessHandler(handler, method, kwargs)
+            served = self._sessionlessHandler(handler, method)
             if not served:
                 return None, 'expired' if auth == AUTH_EXPIRED else 'forbidden call'
         elif not handler:
@@ -2647,6 +2678,7 @@ class GnrWebPage(GnrBaseWebPage):
             root.clear()
             self.mixinComponent(LOGIN_COMPONENT,safeMode=True,only_callables=False)
             self.loginDialog(root, **kwargs)
+            self._recordLoginPage(root)
         elif _auth == AUTH_FORBIDDEN:
             redirect = self._forbiddenRedirectUrl()
             if redirect:

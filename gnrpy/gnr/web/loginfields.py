@@ -1,17 +1,32 @@
-"""The rpcs the login dialog fields declare, served before doLogin.
+"""The calls the login page declares, served to a request without a session.
 
-Between ``login_checkAvatar`` and ``doLogin`` the page has no logged user, yet
-the fields that ``rootenvForm_<pkg>`` hooks add to the dialog call the server:
-dbSelect lookups, dataRpc, validate_remote. When the dialog is built their
-calls are recorded in the page store; in that window only those are served,
-and a dbSelect runs with the table, columns and condition the field declared,
-taking from the client only the search text, the key and the condition values.
+A protected page shows the login dialog to a visitor without a session, and
+everything that dialog contains calls the server before anybody is logged:
+the login buttons of extension packages, the new user and password forms,
+the fields ``rootenvForm_<pkg>`` hooks add. When the page is built its struct
+is walked: the calls are recorded in the page store and served only as
+recorded:
+
+- the calls of the login page, to anybody (``login_page_rpcs``);
+- the calls of the ``rootenvForm`` fields, once ``login_checkAvatar`` has
+  checked the avatar (``login_field_rpcs``).
+
+Generic app rpcs are never opened. A dbSelect is redirected to the page's
+``login_fieldSelect`` and runs with the table, columns and condition its field
+declared, taking from the client only the search text, the key and the
+condition values; ``validate_nodup`` / ``validate_exist`` become a
+``validate_remote`` on ``login_fieldCount``, which counts only on the declared
+field. Public callables the struct references (dataRpc, validate_remote) are
+served by name.
 """
 from gnr.core.gnrbag import Bag
 
 DBSELECT_TAGS = ('dbselect', 'dbcombobox')
-RPC_KEYS = ('method', 'validate_remote')
 DBSELECT_METHOD = 'app.dbSelect'
+FIELD_SELECT_METHOD = 'login_fieldSelect'
+FIELD_COUNT_METHOD = 'login_fieldCount'
+RPC_KEYS = ('method', 'validate_remote')
+COUNT_CHECKS = ('nodup', 'exist')
 DBSELECT_STRUCTURE = ('columns', 'auxColumns', 'hiddenColumns', 'alternatePkey', 'rowcaption',
                       'order_by', 'preferred', 'invalidItemCondition', 'subtable', 'condition',
                       'selectmethod', 'applymethod', 'weakCondition', 'excludeDraft',
@@ -19,6 +34,7 @@ DBSELECT_STRUCTURE = ('columns', 'auxColumns', 'hiddenColumns', 'alternatePkey',
                       'emptyLabel_class', '_storename')
 DBSELECT_CLIENT_KEYS = ('_id', '_querystring', 'querystring', 'limit', 'exclude',
                         'ignoreCase', 'notnull')
+RECORDED_KEYS = ('methods', 'dbselects', 'counts')
 
 
 def _is_dynamic(value):
@@ -47,15 +63,35 @@ def _dbselect_spec(attr):
     return dict(dbtable=dbtable, structure=structure, dynamic=dynamic, params=params)
 
 
-def _callable_name(value):
-    if callable(value) and getattr(value, 'is_rpc', False):
-        return getattr(value, '__qualname__', None)
+def callable_key(value):
+    func = getattr(value, '__func__', value)
+    qualname = getattr(func, '__qualname__', None)
+    if qualname:
+        return '%s:%s' % (getattr(func, '__module__', ''), qualname)
 
 
-def collect_field_rpcs(nodes):
-    """The rpcs the struct ``nodes`` declare, as a Bag ready for the page store."""
+def _count_check(attr):
+    """(check, field) of a validate_nodup / validate_exist the login page can serve, or None."""
+    for check in COUNT_CHECKS:
+        key = 'validate_%s' % check
+        if key not in attr or 'validate_remote' in attr:
+            continue
+        if any(k.startswith('%s_' % key) and k != '%s_error' % key for k in attr):
+            return
+        field = attr[key]
+        if field is True:
+            field = attr.get('dbfield')
+        if isinstance(field, str) and field.count('.') == 2 and not _is_dynamic(field):
+            return check, field
+
+
+def collect_login_rpcs(nodes):
+    """Record the calls the struct ``nodes`` declare and redirect dbSelect and duplicate checks.
+
+    Returns a Bag ready for the page store."""
     methods = []
     dbselects = []
+    counts = []
 
     def walk(node_list):
         for node in node_list:
@@ -65,21 +101,47 @@ def collect_field_rpcs(nodes):
                 spec = _dbselect_spec(attr)
                 if spec:
                     dbselects.append(spec)
-            for key, value in attr.items():
-                name = _callable_name(value)
-                if name:
-                    methods.append(name)
-                elif key in RPC_KEYS and isinstance(value, str) and value != DBSELECT_METHOD:
+                    attr['method'] = FIELD_SELECT_METHOD
+            count = _count_check(attr)
+            if count:
+                check, field = count
+                counts.append(field)
+                attr.pop('validate_%s' % check)
+                error = attr.pop('validate_%s_error' % check, None)
+                attr['validate_remote'] = FIELD_COUNT_METHOD
+                attr['validate_login_field'] = field
+                attr['validate_login_check'] = check
+                if error:
+                    attr['validate_remote_error'] = error
+            for key, value in list(attr.items()):
+                if callable(value) and getattr(value, 'is_rpc', False):
+                    methods.append(callable_key(value))
+                elif key in RPC_KEYS and isinstance(value, str) \
+                        and value not in (DBSELECT_METHOD, FIELD_SELECT_METHOD, FIELD_COUNT_METHOD):
                     methods.append(value)
             value = node.getValue()
             if isinstance(value, Bag):
                 walk(value.nodes)
 
     walk(nodes)
-    return Bag(dict(methods=methods, dbselects=dbselects))
+    return Bag(dict(methods=methods, dbselects=dbselects, counts=counts))
 
 
-def _dbselect_kwargs(spec, kwargs):
+def without_field_rpcs(page_rpcs, field_rpcs):
+    """``page_rpcs`` less the calls of ``field_rpcs``, which wait for the avatar check."""
+    if not field_rpcs:
+        return page_rpcs
+    return Bag(dict((key, [item for item in page_rpcs[key] or [] if item not in (field_rpcs[key] or [])])
+                    for key in RECORDED_KEYS))
+
+
+def dbselect_kwargs(recorded, kwargs):
+    """The kwargs of the dbSelect a recorded field declared for ``kwargs['dbtable']``, or None."""
+    specs = [s for s in recorded['dbselects'] or [] if s['dbtable'] == kwargs.get('dbtable')]
+    if not specs:
+        return
+    sent = set(kwargs)
+    spec = next((s for s in specs if set(s['params']) <= sent), specs[0])
     served = dict(spec['structure'])
     for key in DBSELECT_CLIENT_KEYS + tuple(spec['params']) + tuple(spec['dynamic']):
         if key in kwargs:
@@ -88,18 +150,9 @@ def _dbselect_kwargs(spec, kwargs):
     return served
 
 
-def field_rpc_call(handler, method, kwargs, recorded):
-    """``handler`` bound to what a recorded login field may send, or None when no field declares this call."""
+def declared_method(handler, method, recorded):
+    """True when a recorded struct references ``handler`` or names ``method``."""
     if not handler or not recorded:
-        return
-    if method == DBSELECT_METHOD:
-        specs = [s for s in recorded['dbselects'] or [] if s['dbtable'] == (kwargs or {}).get('dbtable')]
-        if not specs:
-            return
-        sent = set(kwargs)
-        spec = next((s for s in specs if set(s['params']) <= sent), specs[0])
-        served = _dbselect_kwargs(spec, kwargs)
-        return lambda **ignored: handler(**served)
+        return False
     methods = recorded['methods'] or []
-    if method in methods or getattr(handler, '__qualname__', None) in methods:
-        return handler
+    return method in methods or callable_key(handler) in methods

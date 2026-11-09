@@ -8,7 +8,8 @@ expired, whatever tags the RPC itself declares. Public pages and page renders
 The websocket gets a handler under the same rule, and only for public methods.
 A refused call is served anyway when its method is declared sessionless, or,
 before doLogin, when the login dialog has checked the avatar (no 2FA pending)
-and a field of the dialog declared that call (see test_login_fields.py).
+and a field of the dialog declared that call; the login page itself serves the
+calls its struct declared, to anybody (see test_login_fields.py).
 """
 import types
 
@@ -20,6 +21,7 @@ from gnr.core.gnrdecorator import public_method, websocket_method
 
 from gnr.web.gnrwebpage import AUTH_EXPIRED, AUTH_FORBIDDEN, AUTH_NOT_LOGGED, AUTH_OK, GnrUserNotAllowed, GnrWebPage
 from gnr.web.gnrwebpage_proxy.rpc import GnrWebRpc
+from gnr.web.loginfields import callable_key
 
 
 class _Application(object):
@@ -37,6 +39,9 @@ class _Page(object):
     _sessionlessHandler = GnrWebPage._sessionlessHandler
     getSessionlessMethod = GnrWebPage.getSessionlessMethod
     _verifiedHandler = GnrWebPage._verifiedHandler
+    _loginRecorded = GnrWebPage._loginRecorded
+    login_fieldSelect = GnrWebPage.login_fieldSelect
+    login_fieldCount = GnrWebPage.login_fieldCount
 
     @public_method
     def rpcMethod(self):
@@ -148,18 +153,29 @@ class _AppProxy(object):
         return 'rows'
 
     @public_method
+    def getRecordCount(self, field=None, value=None, **kwargs):
+        self.calls.append(dict(field=field, value=value, **kwargs))
+        return 1 if value == 'taken' else 0
+
+    @public_method
     def getSelection(self, **kwargs):
         return 'all rows'
 
 
+def _recorded(dbtable, method=None, count=None):
+    return Bag(dict(methods=[callable_key(method)] if method else [],
+                    dbselects=[dict(dbtable=dbtable, structure=dict(columns='$code', condition='$code=:c'),
+                                    dynamic=[], params=['c'])],
+                    counts=[count] if count else []))
+
+
 class _FieldPage(_Page):
-    """A protected page whose login dialog declared a dbSelect on adm.group and rpcMethod."""
+    """A protected login page: the dialog declared a dbSelect on adm.htag and a nodup on
+    adm.user.username; its rootenvForm fields a dbSelect on adm.group and rpcMethod."""
 
     def __init__(self, store=None, **kwargs):
-        recorded = Bag(dict(methods=['_Page.rpcMethod'], dbselects=[dict(
-            dbtable='adm.group', structure=dict(columns='$code', condition='$code=:c'),
-            dynamic=[], params=['c'])]))
-        store = dict(login_field_rpcs=recorded, **(store or {}))
+        store = dict(login_page_rpcs=_recorded('adm.htag', count='adm.user.username'),
+                     login_field_rpcs=_recorded('adm.group', method=_Page.rpcMethod), **(store or {}))
         super().__init__(main='user', store=store, **kwargs)
         self.app = _AppProxy()
 
@@ -188,6 +204,51 @@ def test_sessionless_method_is_served_on_a_guarded_page():
     assert page.getSessionlessMethod('login_checkAvatar') == page.login_checkAvatar
 
 
+def test_app_rpcs_are_never_opened_by_the_login_page():
+    page = _FieldPage(store=CHECKED)
+    for method in ('app.dbSelect', 'app.getRecordCount', 'app.getSelection'):
+        assert page.getSessionlessMethod(method) is None
+        assert page.resolveWsMethod(method) == (None, 'expired')
+
+
+def test_login_page_dbselect_is_served_to_anybody_with_its_own_structure():
+    page = _FieldPage()
+    sent = dict(dbtable='adm.htag', columns='$md5pwd', condition='$code IS NOT NULL',
+                ignorePartition=True, _storename='other', c='G1', _querystring='g')
+    assert page.getSessionlessMethod('login_fieldSelect')(**sent) == 'rows'
+    assert page.app.calls == [dict(dbtable='adm.htag', columns='$code', condition='$code=:c',
+                                   c='G1', _querystring='g')]
+
+
+def test_rootenvform_dbselect_waits_for_the_avatar_check():
+    sent = dict(dbtable='adm.group', c='G1')
+    page = _FieldPage()
+    assert page.login_fieldSelect(**sent) == Bag()
+    assert page.app.calls == []
+    page = _FieldPage(store=CHECKED)
+    assert page.login_fieldSelect(**sent) == 'rows'
+    page = _FieldPage(store=dict(CHECKED, waiting2fa='user_id'))
+    assert page.login_fieldSelect(**sent) == Bag()
+
+
+def test_undeclared_table_gets_no_rows():
+    page = _FieldPage(store=CHECKED)
+    assert page.login_fieldSelect(dbtable='adm.user', _querystring='*') == Bag()
+    assert page.app.calls == []
+
+
+def test_field_count_checks_only_the_declared_field():
+    page = _FieldPage()
+    assert page.login_fieldCount(value='taken', login_field='adm.user.username', login_check='nodup') \
+        == Bag(dict(errorcode='duplicated_value'))
+    assert page.login_fieldCount(value='free', login_field='adm.user.username', login_check='nodup') is True
+    assert page.login_fieldCount(value='taken', login_field='adm.user.username', login_check='exist') is True
+    assert page.login_fieldCount(value='free', login_field='adm.user.username', login_check='exist') \
+        == Bag(dict(errorcode='missing'))
+    assert page.login_fieldCount(value='x', login_field='adm.user.md5pwd') == Bag(dict(errorcode='not_allowed'))
+    assert [c['field'] for c in page.app.calls] == ['adm.user.username'] * 4
+
+
 def test_checked_avatar_serves_a_declared_method():
     page = _FieldPage(store=CHECKED)
     assert page.getSessionlessMethod('rpcMethod') == page.rpcMethod
@@ -197,19 +258,7 @@ def test_checked_avatar_serves_a_declared_method():
 def test_checked_avatar_refuses_what_no_field_declared():
     page = _FieldPage(store=CHECKED)
     assert page.getSessionlessMethod('wsMethod') is None
-    assert page.getSessionlessMethod('app.getSelection', dict(dbtable='adm.group')) is None
-    assert page.getSessionlessMethod('app.dbSelect', dict(dbtable='adm.user')) is None
-    assert page.resolveWsMethod('app.getSelection') == (None, 'expired')
-
-
-def test_checked_avatar_runs_the_declared_dbselect_with_its_own_structure():
-    page = _FieldPage(store=CHECKED)
-    sent = dict(dbtable='adm.group', columns='$md5pwd', condition='$code IS NOT NULL',
-                ignorePartition=True, _storename='other', c='G1', _querystring='g')
-    handler = page.getSessionlessMethod('app.dbSelect', sent)
-    assert handler(**sent) == 'rows'
-    assert page.app.calls == [dict(dbtable='adm.group', columns='$code', condition='$code=:c',
-                                   c='G1', _querystring='g')]
+    assert page.resolveWsMethod('plainMethod') == (None, 'expired')
 
 
 def test_checked_avatar_waiting_for_2fa_is_expired():
@@ -218,14 +267,14 @@ def test_checked_avatar_waiting_for_2fa_is_expired():
     assert page.resolveWsMethod('rpcMethod') == (None, 'expired')
 
 
-def test_checked_avatar_does_not_open_tagged_handlers():
+def test_declared_method_keeps_its_tags():
     page = _FieldPage(store=CHECKED)
-    page.app.dbSelect.__func__.tags = 'admin'
+    _Page.rpcMethod.tags = 'admin'
     try:
         with pytest.raises(GnrUserNotAllowed):
-            page.resolveWsMethod('app.dbSelect', dict(dbtable='adm.group'))
+            page.resolveWsMethod('rpcMethod')
     finally:
-        del page.app.dbSelect.__func__.tags
+        del _Page.rpcMethod.tags
 
 
 def test_checked_avatar_does_not_lift_a_forbidden_logged_user():
@@ -262,7 +311,7 @@ class _RpcPage(object):
         self.sessionless = sessionless
         self.public = public
 
-    def getSessionlessMethod(self, method, kwargs=None):
+    def getSessionlessMethod(self, method):
         return self.sessionless
 
     def getPublicMethod(self, prefix, method):

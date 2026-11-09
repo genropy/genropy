@@ -1,12 +1,15 @@
-"""The calls of the login dialog fields, recorded at build time and served before doLogin.
+"""The calls the login page declares, recorded and redirected when the page is built.
 
-The fields are struct nodes as ``rootenvForm_<pkg>`` hooks add them: a dbSelect
-records its table, structure and condition parameters, a public callable in
-any attribute (dataRpc method, validate_remote) records its qualified name.
+The struct nodes are what the login dialog and the ``rootenvForm_<pkg>``
+hooks add: a dbSelect is redirected to ``login_fieldSelect`` and records its
+table, structure and condition parameters; ``validate_nodup`` /
+``validate_exist`` become a ``validate_remote`` on ``login_fieldCount``; a public
+callable in any attribute records its module and qualified name.
 """
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdecorator import public_method
-from gnr.web.loginfields import collect_field_rpcs, field_rpc_call
+from gnr.web.loginfields import (collect_login_rpcs, without_field_rpcs, dbselect_kwargs,
+                                 declared_method, callable_key)
 
 
 class LoginComponent(object):
@@ -35,72 +38,67 @@ def _fields():
     box = Bag()
     box.setItem('code', None, tag='textbox', value='^.code', validate_remote='login_checkCode',
                 validate_onAccept=COMPONENT.plain)
+    box.setItem('username', None, tag='textbox', value='^.username',
+                validate_nodup='adm.user.username', validate_nodup_error='Taken')
+    box.setItem('email', None, tag='textbox', value='^.email', validate_exist=True, dbfield='adm.user.email')
+    box.setItem('relative', None, tag='textbox', value='^.x', validate_nodup='adm.user.code',
+                validate_nodup_relative='group_code')
     box.setItem('remote', None, tag='dataRemote', method='_table.dmt.sede.lookup')
     form.setItem('box', box, tag='div')
     return form
 
 
-def test_fields_record_dbselects_and_public_callables():
-    recorded = collect_field_rpcs(_fields().nodes)
-    assert recorded['methods'] == ['LoginComponent.login_sedi', 'login_checkCode', '_table.dmt.sede.lookup']
+def test_the_struct_is_recorded_and_redirected():
+    form = _fields()
+    recorded = collect_login_rpcs(form.nodes)
+    assert recorded['methods'] == [callable_key(COMPONENT.login_sedi), 'login_checkCode',
+                                   '_table.dmt.sede.lookup']
+    assert recorded['counts'] == ['adm.user.username', 'adm.user.email']
     consultorio, sede = recorded['dbselects']
     assert consultorio == dict(dbtable='dmt.consultorio',
                                structure=dict(condition='$abilitato IS TRUE AND $op=:env_op',
                                               hiddenColumns='codice'),
                                dynamic=[], params=['env_op'])
-    assert sede == dict(dbtable='dmt.sede',
-                        structure=dict(auxColumns='$indirizzo', condition='$consultorio_id=:c'),
-                        dynamic=[], params=['c'])
+    assert sede['params'] == ['c']
+    assert form.getAttr('consultorio')['method'] == 'login_fieldSelect'
+    assert form.getAttr('sede')['method'] == 'login_fieldSelect'
+    username = form.getAttr('box.username')
+    assert 'validate_nodup' not in username
+    assert (username['validate_remote'], username['validate_login_field'], username['validate_login_check'],
+            username['validate_remote_error']) == ('login_fieldCount', 'adm.user.username', 'nodup', 'Taken')
+    assert form.getAttr('box.email')['validate_login_check'] == 'exist'
+    assert form.getAttr('box.relative')['validate_nodup'] == 'adm.user.code'
 
 
-class _App(object):
-    def __init__(self):
-        self.calls = []
-
-    @public_method
-    def dbSelect(self, **kwargs):
-        self.calls.append(kwargs)
-
-
-def _recorded():
-    return collect_field_rpcs(_fields().nodes)
+def test_a_second_pass_records_nothing_new():
+    form = _fields()
+    first = collect_login_rpcs(form.nodes)
+    again = without_field_rpcs(collect_login_rpcs(form.nodes), first)
+    assert (again['methods'], again['dbselects'], again['counts']) == ([], [], [])
 
 
 def test_dbselect_runs_with_the_declared_structure_and_client_values_only():
-    app = _App()
     sent = dict(dbtable='dmt.sede', condition='1=1', auxColumns='$secret', hiddenColumns='$pwd',
                 ignorePartition=True, subtable='*', _storename='other', selectmethod='app.getSelection',
                 c='C1', _id='S1', limit=0, unexpected='x')
-    call = field_rpc_call(app.dbSelect, 'app.dbSelect', sent, _recorded())
-    call(**sent)
-    assert app.calls == [dict(dbtable='dmt.sede', auxColumns='$indirizzo', condition='$consultorio_id=:c',
-                              c='C1', _id='S1', limit=0)]
+    assert dbselect_kwargs(collect_login_rpcs(_fields().nodes), sent) == dict(
+        dbtable='dmt.sede', auxColumns='$indirizzo', condition='$consultorio_id=:c', c='C1', _id='S1', limit=0)
 
 
 def test_dbselect_on_an_undeclared_table_is_refused():
-    app = _App()
-    assert field_rpc_call(app.dbSelect, 'app.dbSelect', dict(dbtable='adm.user'), _recorded()) is None
+    assert dbselect_kwargs(collect_login_rpcs(_fields().nodes), dict(dbtable='adm.user')) is None
 
 
 def test_a_dynamic_structure_attribute_keeps_the_client_value():
     form = Bag()
     form.setItem('f', None, tag='dbSelect', dbtable='dmt.sede', condition='^.cond')
-    app = _App()
-    call = field_rpc_call(app.dbSelect, 'app.dbSelect', dict(dbtable='dmt.sede', condition='$x=1'),
-                          collect_field_rpcs(form.nodes))
-    call()
-    assert app.calls == [dict(dbtable='dmt.sede', condition='$x=1')]
+    assert dbselect_kwargs(collect_login_rpcs(form.nodes), dict(dbtable='dmt.sede', condition='$x=1')) \
+        == dict(dbtable='dmt.sede', condition='$x=1')
 
 
-def test_declared_methods_are_served_by_name_or_qualified_name():
-    recorded = _recorded()
-    assert field_rpc_call(COMPONENT.login_sedi, '*|login:LoginComponent;login_sedi', {}, recorded) \
-        == COMPONENT.login_sedi
-    lookup = object()
-    assert field_rpc_call(lookup, '_table.dmt.sede.lookup', {}, recorded) is lookup
-
-
-def test_undeclared_methods_are_refused():
-    recorded = _recorded()
-    assert field_rpc_call(COMPONENT.plain, 'plain', {}, recorded) is None
-    assert field_rpc_call(COMPONENT.login_sedi, 'login_sedi', {}, None) is None
+def test_declared_methods_are_served_by_name_or_callable():
+    recorded = collect_login_rpcs(_fields().nodes)
+    assert declared_method(COMPONENT.login_sedi, '*|login:LoginComponent;login_sedi', recorded)
+    assert declared_method(object(), '_table.dmt.sede.lookup', recorded)
+    assert not declared_method(COMPONENT.plain, 'plain', recorded)
+    assert not declared_method(COMPONENT.login_sedi, 'login_sedi', None)
