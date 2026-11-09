@@ -14,6 +14,12 @@ from gnr.web.gnrwebpage import isLoginRpc
     '*|login:LoginComponent;login_checkAvatar',
     '*|login:LoginComponent;login_doLogin',
     '*|login:LoginComponent;login_checkOTPCode',
+    '*|login:LoginComponent;login_confirmUser',
+    '*|login:LoginComponent;login_confirmNewPassword',
+    '*|login:LoginComponent;login_changePassword',
+    '*|login:LoginComponent;login_createNewUser',
+    '*|login:LoginComponent;login_checkNodupUsername',
+    '*|login:LoginComponent;login_validateNewPassword',
     'login_checkAvatar',
 ])
 def test_login_rpcs_skip_page_auth(method):
@@ -26,8 +32,8 @@ def test_login_rpcs_skip_page_auth(method):
     'main',
     'app.getSelection',
     '*|login:LoginComponent;app.getSelection',
-    '*|login:LoginComponent;login_confirmUser',
-    '*|login:LoginComponent;login_createNewUser',
+    '*|login:LoginComponent;login_newWindow',
+    '*|login:LoginComponent;login_checkPwd',
     '*|other:Component;login_checkAvatar',
     'login:LoginComponent;login_checkAvatar',
     'pkg|login:LoginComponent;login_checkAvatar',

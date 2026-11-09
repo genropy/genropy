@@ -84,8 +84,10 @@ AUTH_FORBIDDEN = -1
 PAGE_TIMEOUT = 60
 PAGE_REFRESH = 20
 LOGIN_COMPONENT = 'login:LoginComponent'
-# they authenticate by themselves, so the login dialog can call them without a session
-LOGIN_RPCS = ('login_checkAvatar', 'login_doLogin', 'login_checkOTPCode')
+# the login dialog calls them without a session: each one authenticates or checks its input by itself
+LOGIN_RPCS = ('login_checkAvatar', 'login_doLogin', 'login_checkOTPCode',
+              'login_confirmUser', 'login_confirmNewPassword', 'login_changePassword',
+              'login_createNewUser', 'login_checkNodupUsername', 'login_validateNewPassword')
 
 
 def isLoginRpc(method):
@@ -675,7 +677,7 @@ class GnrWebPage(GnrBaseWebPage):
             logger.warning('page %s vanished from the register: serverstore changes discarded (%s)',
                            self.page_id, ','.join(sorted(_serverstore_changes)))
         auth = AUTH_OK
-        if method not in ('doLogin', 'onClosePage') and not isLoginRpc(method):
+        if method not in ('doLogin', 'onClosePage', 'getRemoteTranslation') and not isLoginRpc(method):
             auth = self._checkAuth(method=method, **kwargs)
             #if auth == AUTH_OK:
             #    auth = self._checkRootPage()
@@ -715,11 +717,11 @@ class GnrWebPage(GnrBaseWebPage):
         
     def _checkAuth(self, method=None, **parameters):
         pageTags = self.pageAuthTags(method=method, **parameters)
+        if not self.connection.loggedUser and method not in (None, 'main'):
+            return AUTH_EXPIRED if pageTags or self.pageAuthTags(method='main') else AUTH_OK
         if not pageTags:
             return AUTH_OK
         if not self.connection.loggedUser:
-            if method != 'main':
-                return AUTH_EXPIRED
             return AUTH_NOT_LOGGED
         if not self.application.checkResourcePermission(pageTags, self.userTags):
             return AUTH_FORBIDDEN
@@ -1269,6 +1271,22 @@ class GnrWebPage(GnrBaseWebPage):
                     proxy_object = getattr(proxy_object,subproxy)
         return proxy_object, submethod
 
+    def _mixinRequestedComponent(self, method):
+        mixin_info, method = method.split(';')
+        mixin_pkg, mixin_path = mixin_info.split('|')
+        path = mixin_path.split('/')
+        pkg = None if mixin_pkg == '*' else mixin_pkg
+        if not self.connection.loggedUser and not self._mixedByPage(path, pkg):
+            return
+        self.mixinComponent(*path, pkg=pkg)
+        return method
+
+    def _mixedByPage(self, path, pkg=None):
+        mixin_set = list(self.pageStore().getItem('mixin_set') or ()) + list(getattr(self, 'mixin_set', ()))
+        # a path recorded as one 'a/b:C' string or as ('a', 'b:C') is the same component
+        return ('/'.join(path), pkg) in [('/'.join(mixin_path), dict(kwargs).get('pkg'))
+                                         for mixin_path, kwargs in mixin_set]
+
     def getPublicMethod(self, prefix, method):
         """TODO
         
@@ -1282,12 +1300,11 @@ class GnrWebPage(GnrBaseWebPage):
             return method
         handler = None
         if ';' in method:
-            mixin_info, method = method.split(';')
-            __mixin_pkg, __mixin_path = mixin_info.split('|')
-            if __mixin_pkg=='*':
-                __mixin_pkg=None
-            __mixin_path_list = __mixin_path.split('/')
-            self.mixinComponent(*__mixin_path_list, pkg=__mixin_pkg)
+            requested = method
+            method = self._mixinRequestedComponent(method)
+            if not method:
+                self.clientPublish('floating_message',message='missing public method %s' %requested,messageType='error')
+                return
         if '.' in method:
             proxy_object,submethod = self._getProxyObject(method)                 
         else:
@@ -1328,21 +1345,23 @@ class GnrWebPage(GnrBaseWebPage):
                        * 'rpc': this prefix is used for the :ref:`datarpc`
                        
         :param method: TODO"""
+        if not isLoginRpc(method) and self._checkAuth(method=method) != AUTH_OK:
+            return
+
         handler = None
         if ';' in method:
-            mixin_info, method = method.split(';')
-            __mixin_pkg, __mixin_path = mixin_info.split('|')
-            if __mixin_pkg=='*':
-                __mixin_pkg=None
-            __mixin_path_list = __mixin_path.split('/')
-            self.mixinComponent(*__mixin_path_list, pkg=__mixin_pkg)
+            method = self._mixinRequestedComponent(method)
+            if not method:
+                return
         if '.' in method:
-            proxy_object,submethod = self._getProxyObject(method)                 
+            proxy_object,submethod = self._getProxyObject(method)
         else:
             proxy_object = self
             submethod = method
         handler = getattr(proxy_object, submethod, None)
-        if handler and getattr(handler, 'tags',None):
+        if not handler or not getattr(handler, 'is_rpc', False):
+            return
+        if getattr(handler, 'tags',None):
             if not self.application.checkResourcePermission(handler.tags, self.userTags):
                 raise self.exception(GnrUserNotAllowed,method=method)
         return handler
