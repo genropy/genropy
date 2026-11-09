@@ -73,32 +73,44 @@ class ColumnsMixin(SqlTableBaseMixin):
         if ignorePartition:
             return
         partitionParameters = self.partitionParameters
-        if partitionParameters:
-            env = self.db.currentEnv
-            if env.get('current_%(path)s' % partitionParameters):
+        if not partitionParameters:
+            return
+        env = self.db.currentEnv
+        current = env.get('current_%(path)s' % partitionParameters)
+        allowed = env.get('allowed_%(path)s' % partitionParameters)
+        # the current partition comes from the client (rootenv.current_*): it narrows what the
+        # server allowed at login, it never widens it
+        if allowed:
+            if current and current in self._partitionValues(allowed):
                 return "$%(field)s =:env_current_%(path)s" % partitionParameters
-            elif env.get('allowed_%(path)s' % partitionParameters):
-                return (
-                    "( $%(field)s IS NULL OR $%(field)s IN :env_allowed_%(path)s )"
-                    % partitionParameters
-                )
-            else:
-                partitionColumn = self.column(partitionParameters["field"])
-                relation_path = (
-                    getattr(partitionColumn, 'relation_path', None)
-                    or partitionParameters["field"]
-                )
-                allowedPartitionField = [
-                    f'@{c}' if not c.startswith('@') else c
-                    for c in relation_path.split('.')
-                ] + ['__allowed_partition']
-                allowedPartitionField = '.'.join(allowedPartitionField)
-                try:
-                    allowedPartitionColumn = self.column(allowedPartitionField)
-                except Exception:  # REVIEW: bare except — should catch specific column-lookup errors
-                    allowedPartitionColumn = None
-                if allowedPartitionColumn is not None:
-                    return f'{allowedPartitionField} IS TRUE'
+            return "( $%(field)s IS NULL OR $%(field)s IN :env_allowed_%(path)s )" % partitionParameters
+        allowed_condition = self._allowedPartitionColumnCondition(partitionParameters)
+        if current:
+            current_condition = "$%(field)s =:env_current_%(path)s" % partitionParameters
+            return f'{current_condition} AND {allowed_condition}' if allowed_condition else current_condition
+        return allowed_condition
+
+    def _allowedPartitionColumnCondition(self, partitionParameters):
+        partitionColumn = self.column(partitionParameters["field"])
+        relation_path = (
+            getattr(partitionColumn, 'relation_path', None)
+            or partitionParameters["field"]
+        )
+        allowedPartitionField = [
+            f'@{c}' if not c.startswith('@') else c
+            for c in relation_path.split('.')
+        ] + ['__allowed_partition']
+        allowedPartitionField = '.'.join(allowedPartitionField)
+        try:
+            allowedPartitionColumn = self.column(allowedPartitionField)
+        except Exception:  # REVIEW: bare except — should catch specific column-lookup errors
+            allowedPartitionColumn = None
+        if allowedPartitionColumn is not None:
+            return f'{allowedPartitionField} IS TRUE'
+
+    @staticmethod
+    def _partitionValues(allowed):
+        return allowed.split(',') if isinstance(allowed, str) else list(allowed)
 
     @property
     def partitionParameters(self):

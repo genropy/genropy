@@ -131,6 +131,9 @@ class ApplicationCache(object):
     def updatedItem(self,key):
         self.cache.pop(key,None)
 
+    def discardLocalItem(self,key):
+        self.cache.pop(key,None)
+
     def expiredItem(self,key):
         return key not in self.cache
 
@@ -199,6 +202,8 @@ class DbStoresHandler(object):
     def __init__(self, db):
         self.db = db
         self.auxstores = {}
+        self._dbstores_checked_at = 0
+        self._provisioning_status_migrated = False
         instance_dbstores = db.application.config['dbstores'] if db.application.config else None
         if instance_dbstores:
             for n in instance_dbstores:
@@ -207,20 +212,46 @@ class DbStoresHandler(object):
     @property
     def dbstores(self):
         with self.db.tempEnv(storename=False):
+            # Registers are per pod, so other pods' changes need a local expiry;
+            # a shared invalidation here would make every worker recompute.
+            if time.monotonic() - self._dbstores_checked_at >= 5:
+                self.db.application.cache.discardLocalItem('MULTI_DBSTORES')
+                self._dbstores_checked_at = time.monotonic()
             return self.db.application.cache.getItem('MULTI_DBSTORES',defaultFactory=self._calculate_multidbstores)
 
     def _calculate_multidbstores(self):
         result = {}
         if self.db.storetable:    
             dbdict = self.get_dbdict()
-            dbstores = self.db.table(self.db.storetable).query(
-                where='$dbstore IN :databases',
-                databases=list(dbdict.keys()),columns="$dbstore").fetch()
+            if not dbdict:
+                return result
+            condition = '$dbstore IN :databases'
+            if self._has_provisioning_status():
+                condition += " AND ($provisioning_status IS NULL OR $provisioning_status='ready')"
+            # The store list is cached for the whole application: the current
+            # user's partition must not filter it, and raw_fetch would not
+            # supply the partition's env parameters anyway.
+            query = self.db.table(self.db.storetable).query(
+                where=condition, ignorePartition=True,
+                databases=list(dbdict.keys()),columns="$dbstore")
+            # Discovery must release its read lock before schema migration on
+            # another connection, without committing the caller's pending work.
+            dbstores = self.db.adapter.raw_fetch(query.sqltext, query.sqlparams)
             for r in dbstores:
                 storename = r['dbstore']
                 result[storename] = dict(database=dbdict[storename])
         return result
     
+    def _has_provisioning_status(self):
+        # The main schema must remain readable while upgrading older instances;
+        # once migrated the column stays, so only a positive answer is cached.
+        if not self._provisioning_status_migrated:
+            table = self.db.table(self.db.storetable)
+            self._provisioning_status_migrated = any(
+                col['name'] == 'provisioning_status' for col in
+                self.db.adapter.getColInfo(table.model.sqlname, table.model.sqlschema))
+        return self._provisioning_status_migrated
+
     def get_dbdict(self):
         existing_databases = self.db.adapter.listElements('databases',manager=True)
         if self.db.dbname not in existing_databases:
@@ -869,9 +900,10 @@ class GnrApp(object):
     12"""
     def __init__(self, instanceFolder=None, custom_config=None,
                  debug=False, restorepath=None,
-                 enabled_packages=None, db_attrs=None, **kwargs):
+                 enabled_packages=None, db_attrs=None, config_only=False, **kwargs):
         self.aux_instances = {}
-        self.gnr_config = getGnrConfig(set_environment=True)
+        self.config_only = config_only
+        self.gnr_config = getGnrConfig(set_environment=not config_only)
         self.path_resolver = PathResolver(gnr_config=self.gnr_config)
         self.debug=debug
         self.remote_db = None
@@ -896,9 +928,11 @@ class GnrApp(object):
             if os.path.exists(os.path.join(self.instanceFolder,'config','instanceconfig.xml')):
                 self.instanceFolder = os.path.join(self.instanceFolder,'config')
 
-            self.load_logging_conf()
-            
-        sys.meta_path.insert(0,self.get_modulefinder())
+            if not config_only:
+                self.load_logging_conf()
+
+        if not config_only:
+            sys.meta_path.insert(0,self.get_modulefinder())
         self.pluginFolder = os.path.normpath(os.path.join(self.instanceFolder, 'plugin'))
         self.kwargs = kwargs
         self.packages = Bag()
@@ -906,11 +940,15 @@ class GnrApp(object):
         self._declared_packages = None
         self._package_closure = None
         self.config = self.load_instance_config()
+        self.build_package_path()
+        if self.enabled_packages:
+            self.restrict_to_enabled_packages()
+        if config_only:
+            return
         self.config_locale = self.config('default?server_locale')
         if self.config_locale :
             os.environ['GNR_LOCALE'] = self.config_locale
         self.cache = ApplicationCache(self)
-        self.build_package_path()
         db_settings_path = os.path.join(self.instanceFolder, 'dbsettings.xml')
         if os.path.isfile(db_settings_path):
             db_credential = Bag(db_settings_path)
@@ -973,10 +1011,7 @@ class GnrApp(object):
             if config['packages']:
                 packages = Bag()
                 for n in config['packages']:
-                    pkgid = n.attr.get('pkgcode') or n.label
-                    if self.enabled_packages and pkgid not in self.enabled_packages:
-                        continue
-                    packages.setItem(pkgid, n.value, n.attr)
+                    packages.setItem(n.attr.get('pkgcode') or n.label, n.value, n.attr)
                 config['packages']  = packages
             return config
         
@@ -1044,8 +1079,6 @@ class GnrApp(object):
         # load the packages
         for pkgid,pkgattrs,pkgcontent in self.config['packages'].digest('#k,#a,#v'):
             self.addPackage(pkgid,pkgattrs=pkgattrs,pkgcontent=pkgcontent)
-        if self.undeclared_packages:
-            logger.warning(self.undeclared_packages_report())
 
         dbattrs = dict(self.config.getAttr('db') or {})
         dbattrs['implementation'] = dbattrs.get('implementation') or 'sqlite'
@@ -1193,7 +1226,7 @@ class GnrApp(object):
         if self._package_closure is None:
             closure = {}
             todo = [(code, dict(attrs or {}), None)
-                    for code, attrs in self.config['packages'].digest('#k,#a')]
+                    for code, attrs in (self.config['packages'] or Bag()).digest('#k,#a')]
             while todo:
                 code, attrs, required_by = todo.pop(0)
                 project, pkgid = code.split(':') if ':' in code else (None, code)
@@ -1219,6 +1252,31 @@ class GnrApp(object):
                     todo.append((reqcode, {}, pkgid))
             self._package_closure = closure
         return self._package_closure
+
+    def restrict_to_enabled_packages(self):
+        """Keep in the packages section only the ``enabled_packages`` of the closure,
+        the declared ones with their attributes: a process loading part of the instance
+        gets a package also when it is reached through ``required_packages()`` only."""
+        enabled = set(code.split(':')[-1] for code in self.enabled_packages)
+        declared = self.config['packages'] or Bag()
+        packages = Bag()
+        for entry in self.package_closure().values():
+            if entry['pkgid'] in enabled:
+                node = declared.getNode(entry['code'])
+                packages.setItem(entry['code'], node.value if node else None,
+                                 dict(node.attr) if node else None)
+        self.config['packages'] = packages
+        self._declared_packages = None
+        self._package_closure = None
+
+    def has_primary_sys_package(self):
+        """``gnrcore:sys`` is in the closure, declared or required, and is not declared
+        ``secondary``: the instance runs the task scheduler and the task workers."""
+        entry = self.package_closure().get('sys')
+        if not entry or not entry['path']:
+            return False
+        attrs = self.config['packages'].getAttr(entry['code']) or {}
+        return not attrs.get('secondary')
 
     @property
     def undeclared_packages(self):
@@ -1249,7 +1307,8 @@ class GnrApp(object):
                  ' packages section of instanceconfig.xml:']
         for e in self.undeclared_packages:
             lines.append('  %s (required by %s)' % (e['code'], ', '.join(sorted(e['required_by']))))
-        lines.append('Declare them there to have their python dependencies checked:')
+        lines.append('Their python dependencies are checked through the package closure.'
+                     ' To declare them explicitly:')
         for e in self.undeclared_packages:
             lines.append('  <%s pkgcode="%s"/>' % (e['code'].replace(':', '_'), e['code']))
         return '\n'.join(lines)

@@ -127,6 +127,24 @@ def test_forbiddenRedirectUrl_without_target():
     assert GnrWebPage._forbiddenRedirectUrl(page) is None
 
 
+class _NotLoggedPageStub(object):
+    pass
+
+
+class _NotLoggedRedirectPageStub(object):
+    def not_logged_redirect(self):
+        return 'https://auth.example.com/realms/r/protocol/openid-connect/auth?client_id=c'
+
+
+def test_notLoggedRedirectPage_without_provider_keeps_login_dialog():
+    assert GnrWebPage.notLoggedRedirectPage.fget(_NotLoggedPageStub()) is None
+
+
+def test_notLoggedRedirectPage_uses_provider_url():
+    url = GnrWebPage.notLoggedRedirectPage.fget(_NotLoggedRedirectPageStub())
+    assert url == 'https://auth.example.com/realms/r/protocol/openid-connect/auth?client_id=c'
+
+
 class _RegisterCapture(object):
     def __init__(self):
         self.data = None

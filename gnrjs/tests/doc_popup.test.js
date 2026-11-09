@@ -171,6 +171,29 @@ test('a manual section shows the icon to everybody, red only where nothing docum
     assert.ok(shown(none) && empty(none) && !empty(manual));
 });
 
+test('the pages of a session share the answers until they expire, a failed request is not kept', async () => {
+    const main = createPage();
+    const frame = createPage();
+    frame.genro.mainGenroWindow = {genro: main.genro};
+    main.responses.push([200, {docs: {'field:adm.user:username': {language: 'it', mtime: 1}}, editable: []}]);
+    main.genro.dlg.docTrack(main.newIcon(), 'field:adm.user:username');
+    await settle();
+    const known = frame.newIcon();
+    frame.genro.dlg.docTrack(known, 'field:adm.user:username');
+    assert.ok(shown(known) && frame.requests.length === 0, 'an iframe reads what the main window learned');
+    frame.responses.push([500, null]);
+    frame.genro.dlg.docTrack(frame.newIcon(), 'field:adm.user:email');
+    await settle();
+    assert.equal(frame.requests[0].params.addresses, 'field:adm.user:email', 'only what the session does not know');
+    frame.genro.dlg.docTrack(frame.newIcon(), 'field:adm.user:email');
+    await settle();
+    assert.equal(frame.requests.length, 2, 'a failed answer is asked again');
+    main.genro.dlg._docStates['field:adm.user:username'].expires = Date.now() - 1;
+    frame.genro.dlg.docTrack(frame.newIcon(), 'field:adm.user:username');
+    await settle();
+    assert.equal(frame.requests.at(-1).params.addresses, 'field:adm.user:username', 'an expired answer is asked again');
+});
+
 test('the help panel shows the manual section, a link to the manual and the customer note', () => {
     const page = createPage();
     let edited = 0;

@@ -24,7 +24,8 @@ import datetime
 import pytz
 from decimal import Decimal
 
-from gnr.core.gnrlocale import localize, parselocal, localize_boolean
+from gnr.core.gnrlocale import (localize, parselocal, localize_boolean, localize_date,
+                                localize_datetime, localize_time)
 
 class TestLocalize(object):
     def setup_class(cls):
@@ -184,6 +185,20 @@ class TestLocalize(object):
 
     def test_timeLocaleFormat(self):
         assert localize(self.time, locale='en', format='a h:m:s--A') == 'PM 12:23:44--44624059'
+
+    def test_localize_date_locale_separators(self):
+        for loc in ('it-IT', 'it-it', 'it_IT', 'it'):
+            assert localize_date(self.date, loc, 'EEE dd MMM') == 'lun 10 dic'
+        assert localize_date(self.date, 'en-GB', 'EEE dd MMM') == 'Mon 10 Dec'
+
+    def test_localize_datetime_locale_separators(self):
+        for loc in ('it-IT', 'it-it', 'it_IT', 'it'):
+            assert localize_datetime(self.datetime, loc, 'short') == '10/12/07, 22:15'
+        assert localize_datetime(self.datetime, 'en-GB', 'short') == '10/12/2007, 22:15'
+
+    def test_localize_time_locale_separators(self):
+        for loc in ('en-US', 'en-us', 'en_US', 'en'):
+            assert localize_time(self.time, loc, 'short') == '12:23 PM'
 
     def test_none(self):
         assert localize(None) == ''

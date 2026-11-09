@@ -1658,7 +1658,7 @@ dojo.declare("gnr.GnrDomHandler", null, {
     
     centerOn: function(what, where,xRatio,yRatio) {
         var whatDomNode = this.getDomNode(what);
-        var whereDomNode = where ? this.getDomNode(where) : whatDomNode.parentNode;
+        var whereDomNode = (where && this.getDomNode(where)) || whatDomNode.parentNode;
         var viewport = dojo.coords(whereDomNode);
         var mb = dojo.marginBox(whatDomNode);
         var result = {};
@@ -1691,7 +1691,7 @@ dojo.declare("gnr.GnrDomHandler", null, {
     
     sizedOn:function(what, where){
         var whatDomNode = this.getDomNode(what);
-        var whereDomNode = where ? this.getDomNode(where) : whatDomNode.parentNode;
+        var whereDomNode = (where && this.getDomNode(where)) || whatDomNode.parentNode;
         wherecoords = dojo.coords(whereDomNode);
         if(what.sourceNode){
             if(what.sourceNode.widget && what.sourceNode.widget.resize()){

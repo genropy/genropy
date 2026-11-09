@@ -197,7 +197,7 @@ dojo.declare("gnr.GnrDevHandler", null, {
                 message: envNode.getValue(),
                 level: 'error',
                 centered: true,
-                duration:3000
+                duration: 0
             });
             return;
         }else if (error=='server_exception'){

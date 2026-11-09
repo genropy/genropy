@@ -23,6 +23,9 @@ class MockCache:
         if key in self._cache:
             del self._cache[key]
 
+    def discardLocalItem(self, key):
+        self._cache.pop(key, None)
+
 
 class MockApplication:
     """Mock application for testing GnrSqlDb and GnrSqlAppDb"""

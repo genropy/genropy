@@ -74,7 +74,9 @@ var gnr_grouplet = {
         if (parentForm) {
             parentForm.childForms[stepForm.formId] = stepForm;
             // the step edits the parent's record: its dialogs name that record
+            // and are skipped when the parent skips its own
             stepForm.table_name = parentForm.table_name;
+            stepForm.avoidPendingChangesDialog = parentForm.avoidPendingChangesDialog;
         }
     },
 

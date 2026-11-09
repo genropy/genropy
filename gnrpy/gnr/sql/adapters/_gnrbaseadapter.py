@@ -25,6 +25,7 @@ import warnings
 import re
 import shutil
 import inspect
+from contextlib import nullcontext
 from decimal import Decimal
 
 import pytz
@@ -243,6 +244,13 @@ class SqlDbAdapter(object):
         The returned connection MUST provide cursors accessible by col number or col name (as list or as dict)
         @return: a new connection object"""
         raise AdapterMethodNotImplemented()
+
+    def databaseLock(self, dbname):
+        """Provisioning scope; PostgreSQL overrides this with a database lock.
+
+        Other adapters retain their existing, uncoordinated behavior.
+        """
+        return nullcontext()
 
     def connection(self,manager=False, storename=None):
         """
@@ -513,6 +521,25 @@ class SqlDbAdapter(object):
         """Returns SQL to retrieve table constraints."""
         raise AdapterMethodNotImplemented()
 
+    def struct_get_sql_md5_sql(self):
+        """
+        Generate SQL code to retrieve the md5 of the applied sqlCode() scripts
+        """
+        raise AdapterMethodNotImplemented()
+
+    def struct_get_sql_md5(self, schemas):
+        """
+        Return the md5 of the applied sqlCode() scripts as a list of
+        (schema_name, table_name, md5)
+        """
+        raise AdapterMethodNotImplemented()
+
+    def struct_sql_md5_comment_sql(self, schema_name, table_name=None, md5=None):
+        """
+        Generate the statement that records the md5 of the sqlCode() scripts
+        """
+        raise AdapterMethodNotImplemented()
+
     def struct_get_event_triggers(self):
         """
         Return the list of triggers 
@@ -770,30 +797,28 @@ class SqlDbAdapter(object):
 
         connection = self._managerConnection() if manager else self.connect(autoCommit=autoCommit,
                                                                             storename=self.dbroot.currentStorename)
-        with connection.cursor() as cursor:
-            if isinstance(sqlargs,dict):
-                sql,sqlargs = self.prepareSqlText(sql,sqlargs)
-            cursor.execute(sql,sqlargs)
-        connection.close()
+        try:
+            with connection.cursor() as cursor:
+                if isinstance(sqlargs, dict):
+                    sql, sqlargs = self.prepareSqlText(sql, sqlargs)
+                cursor.execute(sql, sqlargs)
+        finally:
+            connection.close()
 
-        
     def raw_fetch(self, sql, sqlargs=None, manager=False, autoCommit=False):
-        """
-        Execute a sql statement on a new cursor from the connection of the selected
-        connection manager if provided, otherwise through a new connection.
-        sqlargs will be used for query params substitutions.
+        """Fetch rows using an owned connection, closed also on failure."""
+        connection = self._managerConnection() if manager else self.connect(
+            autoCommit=autoCommit, storename=self.dbroot.currentStorename)
+        try:
+            with connection.cursor() as cursor:
+                if isinstance(sqlargs, dict):
+                    sql, sqlargs = self.prepareSqlText(sql, sqlargs)
+                cursor.execute(sql, sqlargs)
+                return cursor.fetchall()
+        finally:
+            connection.close()
 
-        Returns all records returned by the SQL statement.
-        """
-        connection = self._managerConnection() if manager else self.connect(autoCommit=autoCommit,storename=self.dbroot.currentStorename)
-        with connection.cursor() as cursor:
-            if isinstance(sqlargs,dict):
-                sql,sqlargs = self.prepareSqlText(sql,sqlargs)
-            cursor.execute(sql, sqlargs)
-            result = cursor.fetchall()
-        connection.close()
-        return result
-                
+
     def insert(self, dbtable, record_data,**kwargs):
         """Insert a record in the db
         All fields in record_data will be added: all keys must correspond to a column in the db.
@@ -952,6 +977,24 @@ class SqlDbAdapter(object):
         Returns a string_agg() SQL statement, which can be overriden if needed.
         """
         return f"string_agg({fieldpath},'{separator}')"
+
+    def inCsvColumn(self, fieldpath, value, separator=','):
+        """Return a SQL predicate that is true when value is one of the items of a
+        separator delimited column. The match is case insensitive and the predicate
+        is NULL when the column is NULL, which can be overridden if needed.
+
+        Every argument is interpolated into the SQL text, so all three are expected
+        to be SQL-safe: neither the value nor the separator is escaped. The LIKE
+        wildcards are not escaped either, and which side they act on differs by
+        dialect -- here the column's items are the patterns and ``value`` is the
+        string being matched, while the sqlite form builds the pattern out of
+        ``value``. So a ``%`` stored in the data is a wildcard on postgres, and a
+        ``%`` in the value is a wildcard on sqlite.
+
+        :param fieldpath: the column holding the delimited list, as SQL or as ``$name``
+        :param value: the item to look for, as SQL, as ``$name`` or as a ``:name`` placeholder
+        :param separator: the character delimiting the items"""
+        return f"{value} ILIKE ANY(string_to_array({fieldpath},'{separator}'))"
 
     def string_join(self, expressions, separator):
         """

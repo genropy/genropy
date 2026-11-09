@@ -1,3 +1,5 @@
+from contextlib import closing, contextmanager
+import hashlib
 import threading
 import re
 from collections import defaultdict
@@ -114,7 +116,8 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
     CAPABILITIES = {
         Capabilities.MIGRATIONS,
         Capabilities.VECTOR,
-        Capabilities.SCHEMAS
+        Capabilities.SCHEMAS,
+        Capabilities.SQL_SCRIPTS
     }
     
     _lock = threading.Lock()
@@ -392,33 +395,53 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
                                      user=connection_params.get('user'), 
                                      password=connection_params.get('password'))
 
+    @contextmanager
+    def databaseLock(self, dbname):
+        """Serialize provisioning using a transaction on a dedicated connection.
+
+        The separate transaction survives application commits and also pins a
+        backend with transaction pooling. Closing the connection releases it.
+        """
+        key = int.from_bytes(hashlib.sha256(
+            ('genropy:provision:' + dbname).encode()).digest()[:8],
+            'big', signed=True)
+        with closing(self._managerConnection()) as conn:
+            with closing(conn.cursor()) as cursor:
+                cursor.execute('BEGIN')
+                cursor.execute('SELECT pg_try_advisory_xact_lock(%s)', (key,))
+                if not cursor.fetchone()[0]:
+                    raise DbAdapterException(
+                        f'Database {dbname}: provisioning is already running')
+            yield
+
     @classmethod
     def _createDb(cls, dbname=None, host=None, port=None,
-                  user=None, password=None, encoding='unicode'):
-        conn = cls._classConnection(host=host, user=user,
-                                    password=password, port=port)
-        curs = conn.cursor()
-        try:
-            curs.execute(cls.createDbSql(dbname, encoding))
-            conn.commit()
-        except:
-            raise DbAdapterException(f"Could not create database {dbname}")
-        finally:
-            curs.close()
-            conn.close()
-            curs = None
-            conn = None
+                  user=None, password=None, encoding='unicode', template=None):
+        with closing(cls._classConnection(host=host, user=user,
+                                          password=password, port=port)) as conn:
+            try:
+                with closing(conn.cursor()) as curs:
+                    curs.execute(cls.createDbSql(dbname, encoding, template=template))
+                conn.commit()
+            except Exception as exc:
+                raise DbAdapterException(
+                    f'Could not create database {dbname}: {exc}') from exc
 
     @classmethod
-    def createDbSql(self, dbname, encoding):
-        return """CREATE DATABASE "%s" ENCODING '%s';""" % (dbname, encoding)
+    def createDbSql(cls, dbname, encoding, template=None):
+        name = dbname.replace('"', '""')
+        encoding = encoding.replace("'", "''")
+        sql = f'CREATE DATABASE "{name}" ENCODING \'{encoding}\''
+        if template is not None:
+            template = template.replace('"', '""')
+            sql += f' TEMPLATE "{template}"'
+        return sql + ';'
 
-
-    def createDb(self, dbname=None, encoding='unicode'):
-        if not dbname:
-            dbname = self.dbroot.get_dbname()
+    def createDb(self, dbname=None, encoding='unicode', template=None):
+        dbname = dbname or self.dbroot.get_dbname()
         self._createDb(dbname=dbname, host=self.dbroot.host, port=self.dbroot.port,
-                       user=self.dbroot.user, password=self.dbroot.password)
+                       user=self.dbroot.user, password=self.dbroot.password,
+                       encoding=encoding, template=template)
 
     @classmethod
     def _dropDb(cls, dbname=None, host=None, port=None,
@@ -484,15 +507,10 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
 
 
     def dbExists(self, dbname):
-        conn = self._managerConnection()
-        curs = conn.cursor()
-        curs.execute(self._list_databases())
-        dbnames = [dbn[0] for dbn in curs.fetchall()]
-        curs.close()
-        conn.close()
-        curs = None
-        conn = None
-        return dbname in dbnames
+        with closing(self._managerConnection()) as conn:
+            with closing(conn.cursor()) as curs:
+                curs.execute(self._list_databases())
+                return dbname in [row[0] for row in curs.fetchall()]
 
     def _list_databases(self):
         return 'SELECT datname FROM pg_catalog.pg_database;'
@@ -1158,6 +1176,47 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
             }
 
         return event_triggers
+
+    SQL_MD5_PREFIX = 'gnr:md5='
+
+    def struct_get_sql_md5_sql(self):
+        """
+        Generate SQL code to retrieve the md5 of the applied sqlCode() scripts,
+        stored in the comment of their schema or table
+        """
+        return """
+        SELECT n.nspname, NULL, obj_description(n.oid, 'pg_namespace')
+        FROM pg_namespace n
+        WHERE n.nspname = ANY(%s)
+          AND obj_description(n.oid, 'pg_namespace') LIKE 'gnr:md5=%%'
+        UNION ALL
+        SELECT n.nspname, c.relname, obj_description(c.oid, 'pg_class')
+        FROM pg_class c
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE c.relkind IN ('r', 'p')
+          AND n.nspname = ANY(%s)
+          AND obj_description(c.oid, 'pg_class') LIKE 'gnr:md5=%%';
+        """
+
+    @time_measure
+    def struct_get_sql_md5(self, schemas):
+        """
+        Return the md5 of the applied sqlCode() scripts as a list of
+        (schema_name, table_name, md5); table_name is None for a schema script
+        """
+        query = self.struct_get_sql_md5_sql()
+        return [(schema_name, table_name, comment[len(self.SQL_MD5_PREFIX):])
+                for schema_name, table_name, comment in self.raw_fetch(query, (schemas, schemas))]
+
+    def struct_sql_md5_comment_sql(self, schema_name, table_name=None, md5=None):
+        """
+        Generate the COMMENT statement that records the md5 of the sqlCode() scripts
+        of a schema or table; md5=None clears it
+        """
+        target = (f'TABLE {self.adaptSqlName(schema_name)}.{self.adaptSqlName(table_name)}'
+                  if table_name else f'SCHEMA {self.adaptSqlName(schema_name)}')
+        value = f"'{self.SQL_MD5_PREFIX}{md5}'" if md5 else 'NULL'
+        return f'COMMENT ON {target} IS {value};'
 
     def get_primary_key_sql(self):
         """Return the SQL query for fetching primary key constraints."""

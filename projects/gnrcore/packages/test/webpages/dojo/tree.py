@@ -2,7 +2,7 @@
 
 """Serverpath"""
 
-from gnr.core.gnrbag import DirectoryResolver
+from gnr.core.gnrbag import Bag, DirectoryResolver
 
 class GnrCustomWebPage(object):
     py_requires = "gnrcomponents/testhandler:TestHandlerFull"
@@ -67,3 +67,16 @@ class GnrCustomWebPage(object):
         pane.div(height='20px',width='20px',
                     background='green',margin='20px'
                     ).tree(storepath='.tree',popup=dict(closeEvent='onClick'))
+
+    def test_6_treegrid_overflow(self, pane):
+        "Treegrid taller than its box, without footers: scrolled to the end, the last folder still expands"
+        root = Bag()
+        for i in range(30):
+            folder = Bag()
+            folder.setItem('child', None, caption='Child of folder %02i' % i, code='C%02i' % i)
+            root.setItem('folder_%02i' % i, folder, caption='Folder %02i' % i, code='F%02i' % i)
+        pane.data('.overflow', root)
+        box = pane.div(height='200px', width='400px', border='1px solid silver', position='relative')
+        tg = box.treeGrid(storepath='.overflow', headers=True)
+        tg.column('caption', header='Name')
+        tg.column('code', size=80, header='Code')

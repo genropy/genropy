@@ -1350,6 +1350,44 @@ class DbModelSrc(GnrStructData):
         child = self.child('index', 'indexes.%s' % name, columns=columns, unique=unique)
         return child
 
+    def sqlCode(
+        self,
+        text: str | None = None,
+        sql_file: str | None = None,
+        pkg: str | None = None,
+        **markers: Any,
+    ) -> Any:
+        """Attach a PostgreSQL script to a table or to a package.
+
+        The migrator runs the scripts of a table (or of a package) as one
+        idempotent script whenever the md5 of their expanded text differs
+        from the one stored in the comment of the table (or schema).
+        Several calls on the same node are joined in declaration order.
+
+        Args:
+            text: The script text.
+            sql_file: A file in the ``model`` folder of ``pkg``, used
+                instead of ``text``.
+            pkg: The package holding ``sql_file``. Defaults to the
+                package of the node.
+            **markers: Extra values for ``{name}`` markers in the text.
+
+        Returns:
+            The script source node.
+
+        Raises:
+            GnrSqlException: Unless exactly one of ``text`` and
+                ``sql_file`` is given.
+        """
+        if (text is None) == (sql_file is None):
+            raise GnrSqlException('sqlCode() needs either text or sql_file')
+        if 'sql_scripts' not in self:
+            self.child('sql_script_list', 'sql_scripts')
+        name = 's_%i' % len(self['sql_scripts'])
+        marker_attributes = {'marker_%s' % k: v for k, v in markers.items()}
+        return self.child('sql_script', 'sql_scripts.%s' % name, text=text,
+                          sql_file=sql_file, pkg=pkg, **marker_attributes)
+
     def relation(
         self,
         related_column: str | None = None,

@@ -789,7 +789,8 @@ class GroupletHandler(BaseComponent):
         # the step form saves even when incomplete, so Back keeps what was
         # typed: validity is checked by the wizard on Next and on Confirm.
         # As a child of the surrounding form, its pending changes are asked
-        # about when that form is dismissed or navigated away.
+        # about when that form is dismissed or navigated away, unless that
+        # form has form_avoidPendingChangesDialog (wizardRegisterStep).
         grouplet_kwargs.update(resource='^#ANCHOR.current_resource',
                            value=value,
                            loadOnBuilt=True, formId=step_form_id,
@@ -914,7 +915,8 @@ class GroupletHandler(BaseComponent):
                               saveOnNext=True, confirmedReadOnly=False,
                               draftConfirm=False, backToDraft=None,
                               saveDraftLabel=None, backToDraftLabel=None,
-                              confirmAsk=None, backToDraftAsk=None, **kwargs):
+                              confirmAsk=None, backToDraftAsk=None,
+                              keepToolbar=False, **kwargs):
         """The wizard as the mode of a th form, called from th_form: no toolbar,
         no padlock, a save on every advance, and the last step saves and closes.
         saveOnNext may name the steps (comma-separated) whose advance saves,
@@ -929,11 +931,14 @@ class GroupletHandler(BaseComponent):
         a confirmed record gets Back to draft in place of Back, if backToDraft
         allows it (True: everyone, a string: the user tags). On a table with no
         drafts, publishing <frameCode>_reopen with {step} opens a confirmed
-        record for editing on that step, locked again once saved."""
+        record for editing on that step, locked again once saved.
+        keepToolbar leaves the top bar th already built: with the th option
+        modal='navigation' a dialog form keeps Back and, on a list, Prev/Next.
+        Any other bar is kept too, the standard save/delete toolbar included."""
         confirmedReadOnly = confirmedReadOnly or draftConfirm
         # Emptied, not removed: later builds still insert into the slot.
         top = form.getNode('top')
-        if top is not None:
+        if top is not None and not keepToolbar:
             for label in list(top.value.keys()):
                 top.value.popNode(label)
         form.attributes['form_parentLock'] = False

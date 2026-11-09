@@ -127,7 +127,7 @@ class TableHandlerCommon(BaseComponent):
         else:
             enabled_packages = enabled_packages.split(',')
         for refpkg in enabled_packages:
-            if refpkg!=self.package.name:
+            if refpkg!=self.package.name and self.db.package(refpkg).attributes.get('th_override_scope')!='context':
                 found = self.mixinComponent('tables','_packages',pkg,tablename,resourcePath,pkg=refpkg,mangling_th=rootCode, pkgOnly=True,safeMode=True) or found
         found = self.mixinComponent('tables','_packages',pkg,tablename,resourcePath,pkg=self.package.name,mangling_th=rootCode, pkgOnly=True,safeMode=True) or found
         if not found:

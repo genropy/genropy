@@ -201,10 +201,14 @@ class SqlDbAdapter(PostgresSqlDbBaseAdapter):
     def _classConnection(cls, host=None, port=None,
                          user=None, password=None):
 
-        kwargs = dict(host=host, database='template1', user=user,
+        kwargs = dict(host=host, database='postgres', user=user,
                       password=password, port=port)
         kwargs = dict([(k, v) for k, v in list(kwargs.items()) if v != None])
-        conn = psycopg2.connect(**kwargs)
+        try:
+            conn = psycopg2.connect(**kwargs)
+        except psycopg2.OperationalError:
+            # 'postgres' may be dropped or not granted; template1 always exists.
+            conn = psycopg2.connect(**dict(kwargs, database='template1'))
         conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
         return conn
 
@@ -284,7 +288,8 @@ class SqlDbAdapter(PostgresSqlDbBaseAdapter):
         :returns: list of object names"""
         query = getattr(self, '_list_%s' % elType)()
         try:
-            result = self.raw_fetch(query, sqlargs=kwargs)
+            result = self.raw_fetch(query, sqlargs=kwargs,
+                                    manager=kwargs.pop('manager', False))
         except psycopg2.OperationalError:
             raise GnrNonExistingDbException(self.dbroot.dbname)
         if comment:

@@ -40,6 +40,9 @@ class WebApplicationCache(object):
         with self.register.globalStore() as gs:
             gs.setItem('CACHE_TS.%s' %key,datetime.now())
 
+    def discardLocalItem(self,key):
+        self.cache.pop(key,None)
+
     def expiredItem(self,key):
         item,ts = self.cache.get(key,(None,None))
         if item is None:
@@ -110,10 +113,11 @@ class GnrWsgiWebApp(GnrApp):
         if not currentEnv.get('env_transaction_id'):
             self.db.updateEnv(env_transaction_id= getUuid())
         broadcast = tblobj.attributes.get('broadcast')
-        if broadcast is not False and broadcast != '*old*' and self.subscribedTables(tblobj.fullname):
+        # recorded even when no page observes the table: Table.dbevents and db.autoCommit() read it
+        if broadcast is not False and broadcast != '*old*':
             dbevents=currentEnv.setdefault(dbeventKey,{})
             r=dict(dbevent=event,pkey=record.get(tblobj.pkey),old_pkey=old_record.get(tblobj.pkey) if old_record else None)
-            if broadcast and broadcast is not True:
+            if broadcast and broadcast is not True and self.subscribedTables(tblobj.fullname):
                 for field in broadcast.split(','):
                     newvalue = record.get(field)
                     r[field] = self.catalog.asTypedText(newvalue) #2011/01/01::D
@@ -124,7 +128,7 @@ class GnrWsgiWebApp(GnrApp):
             r['autoCommit'] = self.db.currentEnv.get('autoCommit')
             dbevents.setdefault(tblobj.fullname,[]).append(r)
         audit_mode = tblobj.attributes.get('audit')
-        if audit_mode:
+        if audit_mode and audit_mode != 'external':
             self.db.table('adm.audit').audit(tblobj,event,audit_mode=audit_mode,record=record, old_record=old_record)
                 
 
@@ -149,7 +153,9 @@ class GnrWsgiWebApp(GnrApp):
                 return
             subscribed_tables = self.site.register.page(page_id).get('subscribed_tables')
         else:
-            subscribed_tables = self.site.getSubscribedTables(tables)
+            subscribed_tables = tables
+        # a table missing from subscribedTables() was recorded without its broadcast columns
+        subscribed_tables = [t for t in subscribed_tables or () if self.subscribedTables(t)]
         if not subscribed_tables:
             return
         for table in set(tables).difference(subscribed_tables):

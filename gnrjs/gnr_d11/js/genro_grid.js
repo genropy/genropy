@@ -128,6 +128,16 @@ gnr.columnFilterKey = function(value){
     return ''+value;
 };
 
+gnr.columnFilterParts = function(value,separator){
+    if(!separator || typeof(value)!='string'){
+        return [value];
+    }
+    var parts = Array.from(new Set(value.split(separator).map(function(part){
+        return part.trim();
+    }).filter(function(part){return part!=='';})));
+    return parts.length? parts:[null];
+};
+
 gnr.columnFilterDay = function(value){
     if(value instanceof Date){
         return new Date(value.getTime()-value.getTimezoneOffset()*60000).toISOString().slice(0,10);
@@ -1947,7 +1957,7 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
     },
 
     columnFilterByDefault:function(cell){
-        return !(this.columnFilterComposite(cell) || cell.calculated || cell.values || cell.checkBoxColumn ||
+        return !(this.columnFilterComposite(cell) || cell.calculated || cell.checkBoxColumn ||
                  cell.userSets || cell.format_isbutton || cell.format_buttonclass);
     },
 
@@ -3184,17 +3194,26 @@ dojo.declare("gnr.widgets.VirtualStaticGrid", gnr.widgets.DojoGrid, {
                 } else if (kw.evt == 'del') {
                     if (parent_lv == 1) {
                         var currSelectedIdx = this.selection.selectedIndex;
-                        this.selection.unselectAll()
-                        var lastSelectable = this.storebag().len()-1;
-                        if(currSelectedIdx>lastSelectable){
-                            currSelectedIdx = lastSelectable;
+                        if(currSelectedIdx>=0){
+                            // the index filter is still the one before this removal
+                            var selectedAbsIdx = this.absIndex(currSelectedIdx);
+                            var selectedNode = selectedAbsIdx==kw.ind? kw.node:storebag.getNodes()[kw.ind<selectedAbsIdx? selectedAbsIdx-1:selectedAbsIdx];
+                            this._selectionOnRemoval = {idx:currSelectedIdx,node:selectedNode,autoRow:kw.reason=='autoRow'};
                         }
+                        this.selection.unselectAll()
                         this.filterToRebuild(true);
                         this.updateRowCount();
                         var that = this;
-                        if(currSelectedIdx>=0 && !this.sourceNode.attr._linkedFormId){
-                            setTimeout(function(){
-                                that.setSelectedIndex(currSelectedIdx);
+                        var pending = this._selectionOnRemoval;
+                        if(pending && !pending.timeout){
+                            pending.timeout = setTimeout(function(){
+                                that._selectionOnRemoval = null;
+                                var absIdx = that.storebag().getNodes().indexOf(pending.node);
+                                if(absIdx>=0){
+                                    that.setSelectedIndex(that.absIndex(absIdx,true));
+                                }else if(pending.autoRow || that.selectsNeighbourOnRemoval(that.rowIdentity(that.rowFromBagNode(pending.node)))){
+                                    that.setSelectedIndex(pending.idx);
+                                }
                             },1);
                         }
                         
@@ -3506,7 +3525,7 @@ dojo.declare("gnr.widgets.VirtualStaticGrid", gnr.widgets.DojoGrid, {
                 this._saved_selections = null;
             }
             if ((this.prevSelectedIdentifiers) && (this.prevSelectedIdentifiers.length > 0 )) {
-                let default_idx = this.sourceNode.attr._linkedFormId? -1:this.prevSelectedIdx;
+                let default_idx = this.selectsNeighbourOnRemoval(this.prevSelectedIdentifiers)? this.prevSelectedIdx:-1;
                 this.selectByRowAttr(this._identifier, this.prevSelectedIdentifiers,null,this.prevFirstVisibleRow,default_idx);
                 this.prevSelectedIdx = null;
                 this.prevSelectedIdentifiers = null;
@@ -3520,6 +3539,16 @@ dojo.declare("gnr.widgets.VirtualStaticGrid", gnr.widgets.DojoGrid, {
            //    this.prevFilterValue = null;
            //}
         }
+    },
+
+    mixin_selectsNeighbourOnRemoval:function(identifiers) {
+        if (this.sourceNode.attr._linkedFormId) {
+            return false;
+        }
+        var deleting = this._deletingPkeys || [];
+        return !!this.autoSelect || [].concat(identifiers).some(function(k) {
+            return deleting.indexOf(k) >= 0;
+        });
     },
 
     mixin_touchSelectedRows:function() {
@@ -4680,13 +4709,14 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
         return this.columnFilterCells().map(function(cell){
             var range = cell.filterRange;
             return cell.field+'='+(range? (range.from || '')+'..'+(range.to || ''):'')+
-                   (cell.filterValues? '|'+cell.filterValues.map(gnr.columnFilterKey).join('|'):'');
+                   (cell.filterValues? '|'+cell.filterValues.map(gnr.columnFilterKey).join('|'):'')+
+                   (cell.filterField_aggr? ';aggr:'+cell.filterField_aggr:'');
         }).join(';');
     },
 
     mixin_columnFilterCb:function(skipField){
         var filters = this.columnFilterCells(skipField).map(function(cell){
-            return {key:cell.filterField_key,range:cell.filterRange,
+            return {key:cell.filterField_key,range:cell.filterRange,separator:cell.filterField_aggr,
                     keys:cell.filterValues? new Set(cell.filterValues.map(gnr.columnFilterKey)):null};
         });
         if(!filters.length){
@@ -4695,7 +4725,9 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
         return function(rowdata){
             return filters.every(function(f){
                 return (!f.range || gnr.columnFilterInRange(rowdata[f.key],f.range)) &&
-                       (!f.keys || f.keys.has(gnr.columnFilterKey(rowdata[f.key])));
+                       (!f.keys || gnr.columnFilterParts(rowdata[f.key],f.separator).some(function(value){
+                           return f.keys.has(gnr.columnFilterKey(value));
+                       }));
             });
         };
     },
@@ -4754,9 +4786,14 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
     },
 
     mixin_columnFilterCaption:function(cell,rowdata,value){
-        var caption = cell._filterCaptionFromValue? null:rowdata[cell.field_getter];
+        var caption = (cell._filterCaptionFromValue || cell.filterField_aggr)? null:rowdata[cell.field_getter];
         if(caption===undefined || caption===null){
             caption = value;
+        }
+        if(cell.values && cell._customGetter && caption!==null && caption!==undefined){
+            var keyrow = {};
+            keyrow[cell.field_getter] = caption;
+            caption = cell._customGetter.call(cell,keyrow) || caption;
         }
         return (caption===null || caption===undefined || typeof(caption)=='string')? caption:_F(caption,null,cell.dtype);
     },
@@ -4766,21 +4803,23 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
         var filterCb = store.compileFilter(this,this.currentFilterValue,this.filterColumn,this.filterColumnType(),cell.field);
         var sn = this.sourceNode;
         var that = this;
-        var items = {};
+        var items = Object.create(null);
         var result = [];
         store.getItems().forEach(function(n,index){
             var rowidx = 'rowidx' in n.attr? n.attr.rowidx:index;
             var rowdata = store.rowFromItem(n);
-            var value = rowdata[cell.filterField_key];
-            var key = gnr.columnFilterKey(value);
-            var item = items[key];
-            if(!item){
-                item = items[key] = {value:key===''? null:value,caption:that.columnFilterCaption(cell,rowdata,value),count:0};
-                result.push(item);
-            }
-            if(!filterCb || filterCb.apply(sn,[rowdata,rowidx])){
-                item.count++;
-            }
+            var matches = !filterCb || filterCb.apply(sn,[rowdata,rowidx]);
+            gnr.columnFilterParts(rowdata[cell.filterField_key],cell.filterField_aggr).forEach(function(value){
+                var key = gnr.columnFilterKey(value);
+                var item = items[key];
+                if(!item){
+                    item = items[key] = {value:key===''? null:value,caption:that.columnFilterCaption(cell,rowdata,value),count:0};
+                    result.push(item);
+                }
+                if(matches){
+                    item.count++;
+                }
+            });
         });
         return result;
     },
@@ -5337,6 +5376,7 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
     
     mixin_deleteSelectedRows:function(){
         var pkeys = this.getSelectedPkeys();
+        this._deletingPkeys = pkeys;
         var protectPkeys;
         if(this.collectionStore().allowLogicalDelete){
             protectPkeys = this.getSelectedProtectedPkeys('delete');
@@ -5443,6 +5483,8 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
             kwargs.struct =  this.getExportStruct();
         }
         var store = this.collectionStore();
+        var groupedRows = store.selectionName && store.storeNode.attr.groupByStore && !kwargs.columns?
+                            this.currentData(allRows?'all':null,true,true).getNodes():null;
         if (store.storeType=='VirtualSelection'){
             kwargs['selectionName'] = store.selectionName;
             kwargs['selectedRowidx'] = allRows?[]:this.getSelectedRowidx();
@@ -5450,6 +5492,11 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
                 kwargs.limit = 0;
                 kwargs.sortBy = store.sortedBy;
             }
+        }else if(groupedRows && groupedRows.length){
+            //the grouped rows are frozen on the server: send their rowidx, not the rows
+            kwargs['selectionName'] = store.selectionName;
+            kwargs['selectedRowidx'] = groupedRows.length==store.len()?[]:groupedRows.map(function(n){return n.attr.rowidx;});
+            kwargs.sortBy = store.sortedBy;
         }else if(!kwargs.columns){
             kwargs['data'] = this.currentData(allRows?'all':null , useRawData,true);
         }
