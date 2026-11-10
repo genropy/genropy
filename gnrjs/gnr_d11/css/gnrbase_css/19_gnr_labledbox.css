@@ -171,6 +171,14 @@
     mask: url('/_rsrc/common/css_icons/google_icons/info_light.svg') center / contain no-repeat;
 }
 
+/* Doc button of a checkbox with no visible label box (alone on its formlet
+   row, or behind a placeholder label): beside its side label */
+.gnrcheckbox_wrapper>.gnrcheckbox_doc.innericonbox.iconbox{
+    display: inline-block;
+    vertical-align: middle;
+    margin: 0 0 0 4px;
+}
+
 /* helper.xml, without the inlinedoc experimental flag */
 .labledBox.emptyhelper>.labledBox_label> .helperbutton{
     display: none;

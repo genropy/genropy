@@ -4226,6 +4226,11 @@ dojo.declare("gnr.widgets.CheckBox", gnr.widgets.baseDojo, {
         var savedAttrs = objectExtract(attributes, 'action,callback');
         var toggle = objectPop(attributes, 'toggle');
         var label = objectPop(attributes, 'label');
+        // left on the checkbox by buildLblWrapper when no visible label box owns it
+        var docAddress = objectPop(attributes, 'docAddress');
+        if (docAddress && genro.startArgs.inlineDoc) {
+            savedAttrs['docAddress'] = docAddress;
+        }
         if (toggle){
             savedAttrs['toggle'] = toggle;
         }
@@ -4252,6 +4257,13 @@ dojo.declare("gnr.widgets.CheckBox", gnr.widgets.baseDojo, {
         gnrcheckbox_wrapper.setAttribute('class',wrapperClass)
         pn.replaceChild(gnrcheckbox_wrapper,dn);
         gnrcheckbox_wrapper.appendChild(dn);
+        // in a gridbox the wrapper is the grid item: it takes the checkbox placement (colspan, rowspan)
+        ['gridColumn','gridRow'].forEach(function(prop){
+            if(dn.style[prop]){
+                gnrcheckbox_wrapper.style[prop] = dn.style[prop];
+                dn.style[prop] = '';
+            }
+        });
         sourceNode._gnrcheckbox_wrapper = gnrcheckbox_wrapper;
         
         if (label) {
@@ -4266,12 +4278,36 @@ dojo.declare("gnr.widgets.CheckBox", gnr.widgets.baseDojo, {
             domnode.innerHTML = label;
             sourceNode._labelNode = domnode;
         }
+        if (savedAttrs['docAddress']) {
+            gnrcheckbox_wrapper.appendChild(this._docButton(sourceNode, savedAttrs['docAddress']));
+        }
         if (sourceNode.hasDynamicAttr('value')) {
             var value = sourceNode.getAttributeFromDatasource('value');
             //widget.setChecked(value);
             widget.setAttribute('checked', value);
         }
     },
+    _docButton: function(sourceNode, docAddress) {
+        // the doc button of a checkbox with no visible label box, beside its side label
+        var button = document.createElement('div');
+        button.className = 'helperbutton iconbox innericonbox gnrcheckbox_doc';
+        button.setAttribute('role', 'button');
+        button.tabIndex = 0;
+        var open = function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            genro.dlg.openDoc(button, docAddress, {title: sourceNode.getElementLabel(), tooltip: true});
+        };
+        button.addEventListener('click', open);
+        button.addEventListener('keydown', function(e) {
+            if (e.key == 'Enter' || e.key == ' ') {
+                open(e);
+            }
+        });
+        genro.dlg.docTrack(button, docAddress);
+        return button;
+    },
+
     mixin_setHidden: function(hidden) {
         if(!this.sourceNode._hiddenTargets){
             this.sourceNode._hiddenTargets = [this.sourceNode._gnrcheckbox_wrapper, this.domNode];
