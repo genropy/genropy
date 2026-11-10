@@ -89,7 +89,6 @@ dojo.declare("gnr.GnrFrmHandler", null, {
             'geocoderfield':null,
             'ckeditor':null,
             'joditeditor':null,
-            'tinymce':null,
             'mdeditor':null,
             'datetimetextbox':null
         };

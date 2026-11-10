@@ -537,24 +537,6 @@ class GenroWidgets:
         ...
 
     @element
-    def tinyMCE(self, **kwargs):
-        """TinyMCE rich text editor widget.
-
-        Args:
-            **kwargs: value, height, width, config.
-        """
-        ...
-
-    @element
-    def ExtendedTinyMCE(self, **kwargs):
-        """Extended TinyMCE with additional GenroPy integration.
-
-        Args:
-            **kwargs: value, height, width, config.
-        """
-        ...
-
-    @element
     def mdeditor(self, **kwargs):
         """Markdown editor widget with preview.
 
