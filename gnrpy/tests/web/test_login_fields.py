@@ -9,7 +9,8 @@ own and records its table, structure and condition parameters;
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdecorator import public_method
 from gnr.web.loginfields import (collect_login_rpcs, without_field_rpcs, dbselect_kwargs,
-                                 declared_method, rpc_name, form_value_keys, trusted_rootenv)
+                                 declared_method, rpc_name, form_value_keys, form_derived_values,
+                                 trusted_rootenv)
 
 
 class LoginComponent(object):
@@ -183,3 +184,54 @@ def test_the_login_rootenv_takes_from_the_client_only_the_form_fields():
 def test_without_a_checked_rootenv_nothing_reserved_comes_from_the_client():
     rootenv = trusted_rootenv(None, None, Bag(dict(user_local_tags='admin', workdate='d')), ['workdate'])
     assert rootenv.asDict() == dict(workdate='d')
+
+
+def test_derived_values_are_the_data_nodes_and_the_selected_columns():
+    form = _fields()
+    form.setItem('gst', 1.1, tag='data', path='.gst_factor')
+    form.setItem('note', 'x', tag='data', path='_login.note')
+    form.setItem('unset', None, tag='data', path='.unset')
+    form.setItem('store', None, tag='dbSelect', value='^.sede_id', dbtable='dmt.sede', alternatePkey='codice',
+                 selected_deposito='gnr.rootenv.deposito_id=deposito_principale_id', selected_nome='_login.nome')
+    form.setItem('admin.gst', 9, tag='data', path='.gst_factor')
+    derived = form_derived_values(form.nodes)
+    assert derived['constants'] == [('gst_factor', 1.1)]
+    assert derived['selected'] == [
+        dict(key='consultorio_id', dbtable='dmt.consultorio', pkey=None, columns=[('codice', 'codice')]),
+        dict(key='sede_id', dbtable='dmt.sede', pkey='codice', columns=[('deposito_principale_id', 'deposito_id')])]
+
+
+def test_form_constants_yield_to_the_checked_rootenv_and_ignore_the_client():
+    rootenv = trusted_rootenv(Bag(dict(gst_factor=1)), Bag(dict(sede_desc='Main')),
+                              Bag(dict(gst_factor=9, sede_desc='Forged')), [],
+                              constants=[('gst_factor', 1.1), ('sede_desc', 'Default')])
+    assert rootenv.asDict() == dict(gst_factor=1.1, sede_desc='Main')
+
+
+def _selected(**attr):
+    form = Bag()
+    form.setItem('f', None, **dict(dict(tag='dbSelect', value='^.sede_id', dbtable='dmt.sede',
+                                        selected_codice='.sede_codice'), **attr))
+    form.setItem('other', None, tag='textbox', value='^.note')
+    return form
+
+
+def test_a_target_another_field_edits_is_not_derived():
+    derived = form_derived_values(_selected(selected_memo='.note').nodes)
+    assert derived['selected'] == [dict(key='sede_id', dbtable='dmt.sede', pkey=None,
+                                        columns=[('codice', 'sede_codice')])]
+
+
+def test_only_a_dbselect_keyed_by_its_table_selects():
+    for attr in (dict(tag='dbCombobox'), dict(method='custom.select'), dict(selectmethod='pickSede'),
+                 dict(_storename='other'), dict(condition='^.cond'), dict(dbtable='^.tbl'),
+                 dict(value='^_login.sede_id')):
+        assert form_derived_values(_selected(**attr).nodes)['selected'] == [], attr
+
+
+def test_a_recorded_field_still_selects():
+    form = _selected(condition='$abilitata IS TRUE')
+    collect_login_rpcs(form.nodes)
+    assert form.getAttr('f')['method'] == 'login_fieldSelect'
+    assert [field['key'] for field in form_derived_values(form.nodes)['selected']] == ['sede_id']
+

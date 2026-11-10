@@ -904,11 +904,20 @@ dojo.declare('gnr.GenroClient', null, {
     },
 
 
+    // Topics whose payload ends in the page data or in a grid struct, where it is evaluated
+    // (selectIframePage relays its openKw to the page as a message of this origin):
+    // only a window of this origin sends them.
+    sameOriginMessageTopics:['th_external_query','selectIframePage','externalSetData'],
+
     windowMessageListener:function(){
         window.addEventListener("message", function(e){
                 if(e.data){
                     var kw = objectUpdate({},e.data);
                     var topic = objectPop(kw,'topic') || 'windowMessage';
+                    var topicName = (topic && typeof(topic)=='object')? topic.topic:topic;
+                    if(e.origin!==window.location.origin && genro.sameOriginMessageTopics.indexOf(topicName)>=0){
+                        return;
+                    }
                     genro.publish(topic,kw);
                 }
             }, false);

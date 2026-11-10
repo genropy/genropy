@@ -2504,32 +2504,32 @@ class TestPartitionAllowedStates:
         assert count == CUSTOMER_COUNT
 
 
-class TestPartitionCurrentWithinAllowed:
-    """current_invc_state comes from the client: it narrows allowed_invc_state, never widens it."""
+class TestPartitionAllowedPartitionColumn:
+    """invc.state.__allowed_partition excludes env denied_state: it applies only without a current partition."""
 
-    def _count(self, db, current, allowed):
+    def _count(self, db, table='invc.customer', current=None, denied=None):
         db.currentEnv['current_invc_state'] = current
-        db.currentEnv['allowed_invc_state'] = allowed
+        db.currentEnv['denied_state'] = denied
         try:
-            return db.table('invc.customer').query().count()
+            return db.table(table).query().count()
         finally:
             del db.currentEnv['current_invc_state']
-            del db.currentEnv['allowed_invc_state']
+            del db.currentEnv['denied_state']
 
-    def test_current_inside_allowed_narrows_pg(self, db_pg):
-        assert self._count(db_pg, 'NSW', ['NSW', 'VIC']) == CUSTOMER_NSW_COUNT
+    def test_no_current_uses_allowed_partition_pg(self, db_pg):
+        assert self._count(db_pg, denied='NSW') == CUSTOMER_COUNT - CUSTOMER_NSW_COUNT
 
-    def test_current_inside_allowed_narrows_sqlite(self, db_sqlite):
-        assert self._count(db_sqlite, 'NSW', ['NSW', 'VIC']) == CUSTOMER_NSW_COUNT
+    def test_no_current_uses_allowed_partition_sqlite(self, db_sqlite):
+        assert self._count(db_sqlite, denied='NSW') == CUSTOMER_COUNT - CUSTOMER_NSW_COUNT
 
-    def test_current_outside_allowed_falls_back_to_allowed_pg(self, db_pg):
-        assert self._count(db_pg, 'QLD', ['NSW', 'VIC']) == CUSTOMER_NSW_COUNT + CUSTOMER_VIC_COUNT
+    def test_no_current_uses_allowed_partition_through_relation_sqlite(self, db_sqlite):
+        assert self._count(db_sqlite, table='invc.invoice', denied='NSW') == INVOICE_COUNT - INVOICE_NSW_COUNT
 
-    def test_current_outside_allowed_falls_back_to_allowed_sqlite(self, db_sqlite):
-        assert self._count(db_sqlite, 'QLD', ['NSW', 'VIC']) == CUSTOMER_NSW_COUNT + CUSTOMER_VIC_COUNT
+    def test_current_without_allowed_ignores_allowed_partition_pg(self, db_pg):
+        assert self._count(db_pg, current='NSW', denied='NSW') == CUSTOMER_NSW_COUNT
 
-    def test_allowed_as_comma_string_sqlite(self, db_sqlite):
-        assert self._count(db_sqlite, 'NSW', 'NSW,VIC') == CUSTOMER_NSW_COUNT
+    def test_current_without_allowed_ignores_allowed_partition_sqlite(self, db_sqlite):
+        assert self._count(db_sqlite, current='NSW', denied='NSW') == CUSTOMER_NSW_COUNT
 
 
 class TestStaffBasic:

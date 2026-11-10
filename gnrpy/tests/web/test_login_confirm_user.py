@@ -24,7 +24,7 @@ from gnr.web.gnrwebpage import GnrWebPage
 LOGIN = (pathlib.Path(__file__).parents[3] / 'projects' / 'gnrcore'
          / 'packages' / 'adm' / 'resources' / 'login.py')
 
-LOGIN_METHODS = ('login_checkAvatar', 'login_setChecked', 'login_isChecked', 'login_doLogin',
+LOGIN_METHODS = ('login_checkAvatar', 'login_setChecked', 'login_isChecked', 'login_doLogin', 'login_setSelectedRootenv',
                  'login_completeRootEnv', 'login_selectableGroups', 'login_require2fa',
                  'login_canSetWorkdate', 'login_confirmUser', 'login_confirmNewPassword',
                  'loginPreference', '_immediate_message_parameters')
