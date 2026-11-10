@@ -211,17 +211,18 @@ test('a single-column formlet checkbox puts its lbl on the right and collapses t
     const {genro, fakeNode} = createPage(true);
     const field = genro.dev.formbuilder(fakeNode('div'), 1, {}).addField('checkbox', {value: '^.urgent', lbl: 'Urgent'});
     assert.equal(field.attr.label, 'Urgent');
-    assert.equal(field.attr.lbl, false);
+    assert.equal(field.attr.lbl, undefined);
     assert.equal(field.attr.box__class, undefined);
 });
 
-test('a multi-column formlet checkbox keeps a placeholder label to line up with its row', () => {
+test('a multi-column formlet checkbox leaves the placeholder label to its row', () => {
+    // buildLblWrapper adds it only beside a labeled field (formlet_checkbox_label.test.js)
     const {genro, fakeNode} = createPage(true);
     const fb = genro.dev.formbuilder(fakeNode('div'), 2, {});
     const byTag = fb.addField('checkbox', {value: '^.urgent', lbl: 'Urgent'});
     assert.equal(byTag.attr.label, 'Urgent');
-    assert.equal(byTag.attr.lbl, '&nbsp;');
-    assert.equal(byTag.attr.box__class, 'formlet_placeholder_label');
+    assert.equal(byTag.attr.lbl, undefined);
+    assert.equal(byTag.attr.box__class, undefined);
     const byDtype = fb.addField('textbox', {value: '^.done', lbl: 'Done', tag: 'checkbox'});
     assert.equal(byDtype.attr.label, 'Done');
     const ownLabel = fb.addField('checkbox', {value: '^.x', lbl: 'Top', label: 'Right'});
