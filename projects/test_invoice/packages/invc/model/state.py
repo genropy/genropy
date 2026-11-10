@@ -10,3 +10,5 @@ class Table(object):
         tbl.column('name' ,size=':100',name_long='!!Name')
         tbl.column('region_code', size=':5', name_long='!!Region').relation(
             'region.code', relation_name='states', mode='foreignkey', onDelete='raise')
+        tbl.formulaColumn('__allowed_partition', """(CASE WHEN COALESCE(:env_denied_state, '') = '' THEN TRUE
+                                                         ELSE $code <> :env_denied_state END)""", dtype='B')
