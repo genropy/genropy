@@ -54,6 +54,27 @@ SCHEDULER_RUN_INTERVAL = 1
 RETRY_LIMIT = 3 # amount of attempt in execution retries
 NOTIFY_ALIVE_INTERVAL = 2
 ACK_TIMEOUT = NOTIFY_ALIVE_INTERVAL * 3 # general timeout from worker
+WORKER_ID_PREFIX = "gnrworker"
+
+
+def build_worker_id(hostname, pid):
+    """Return the default worker id, gnrworker-<hostname>-<pid>"""
+    return f"{WORKER_ID_PREFIX}-{hostname}-{pid}"
+
+
+def parse_worker_id(worker_id):
+    """Split a worker id into (hostname, pid).
+
+    The hostname may contain hyphens, so the pid is taken from the right.
+    A custom id (GNR_WORKER_ID) that does not follow the default format
+    is returned whole as the hostname, with an empty pid.
+    """
+    prefix = f"{WORKER_ID_PREFIX}-"
+    if worker_id.startswith(prefix):
+        hostname, sep, pid = worker_id[len(prefix):].rpartition("-")
+        if sep and hostname and pid.isdigit():
+            return hostname, pid
+    return worker_id, ""
 
 
 class GnrTaskSchedulerClient:
@@ -700,7 +721,7 @@ class GnrTaskWorker:
     """
     def __init__(self, sitename, queue_name=None, processes=1):
         self.processes = processes
-        self.worker_id = os.environ.get("GNR_WORKER_ID", f"gnrworker-{socket.getfqdn()}-{os.getpid()}")
+        self.worker_id = os.environ.get("GNR_WORKER_ID", build_worker_id(socket.getfqdn(), os.getpid()))
         self.queue_name = queue_name or os.environ.get("GNR_WORKER_QUEUE_NAME", "general")
         self.sitename = sitename
         self.site = GnrWsgiSite(self.sitename)

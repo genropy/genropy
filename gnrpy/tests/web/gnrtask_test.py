@@ -775,3 +775,22 @@ class TestGnrTaskWorker(BaseGnrTest):
         assert shutdown_called["args"] == (True, False)
         assert all(task.done() for task in consumers)
         assert alive_task.cancelled()
+
+
+@pytest.mark.parametrize("worker_id,expected", [
+    ("gnrworker-localhost-1234", ("localhost", "1234")),
+    ("gnrworker-s-gnr-adm.example.com-1234", ("s-gnr-adm.example.com", "1234")),
+    ("gnrworker-my-host-1234", ("my-host", "1234")),
+    ("myworker", ("myworker", "")),
+    ("my-custom-worker", ("my-custom-worker", "")),
+    ("gnrworker-host-notapid", ("gnrworker-host-notapid", "")),
+    ("gnrworker-1234", ("gnrworker-1234", "")),
+])
+def test_parse_worker_id(worker_id, expected):
+    assert gnrtask.parse_worker_id(worker_id) == expected
+
+
+def test_parse_worker_id_roundtrip():
+    worker_id = gnrtask.build_worker_id("s-gnr-adm.example.com", 4321)
+    assert worker_id == "gnrworker-s-gnr-adm.example.com-4321"
+    assert gnrtask.parse_worker_id(worker_id) == ("s-gnr-adm.example.com", "4321")
