@@ -14,7 +14,8 @@ from gnr.app import pkglog as logger
 from gnr.app.gnrapp import GnrRestrictedAccessException
 from gnr.web.gnrwebpage import BaseComponent
 from gnr.web.gnrwebstruct import struct_method
-from gnr.web.loginfields import collect_login_rpcs, form_derived_values, form_value_keys, trusted_rootenv
+from gnr.web.loginfields import (client_only_keys, collect_login_rpcs, form_derived_values, form_value_keys,
+                                 trusted_rootenv)
 
 CONFIRMABLE_STATUSES = ('invt', 'new', 'wait')
 
@@ -248,9 +249,14 @@ class LoginComponent(BaseComponent):
         page_store = self.pageStore()
         derived = page_store.getItem('login_rootenv_derived') or Bag()
         checked_rootenv = page_store.getItem('login_checked_rootenv') or Bag()
-        rootenv = trusted_rootenv(self.rootenv, checked_rootenv, rootenv,
+        sent_rootenv = rootenv
+        rootenv = trusted_rootenv(self.rootenv, checked_rootenv, sent_rootenv,
                                   page_store.getItem('login_rootenv_fields'), constants=derived['constants'])
         self.login_setSelectedRootenv(rootenv, derived['selected'], checked_rootenv)
+        client_only = client_only_keys(sent_rootenv, rootenv)
+        if client_only:
+            logger.warning("Login of %s: rootenv keys sent by the client and not kept: %s",
+                           login['user'], ', '.join(client_only))
         self.doLogin(login=login,rootenv=rootenv,**kwargs)
         if login['error']:
             return dict(error=login['error'])

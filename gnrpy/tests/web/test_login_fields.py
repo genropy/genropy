@@ -10,7 +10,7 @@ from gnr.core.gnrbag import Bag
 from gnr.core.gnrdecorator import public_method
 from gnr.web.loginfields import (collect_login_rpcs, without_field_rpcs, dbselect_kwargs,
                                  declared_method, rpc_name, form_value_keys, form_derived_values,
-                                 trusted_rootenv)
+                                 trusted_rootenv, client_only_keys)
 
 
 class LoginComponent(object):
@@ -184,6 +184,17 @@ def test_the_login_rootenv_takes_from_the_client_only_the_form_fields():
 def test_without_a_checked_rootenv_nothing_reserved_comes_from_the_client():
     rootenv = trusted_rootenv(None, None, Bag(dict(user_local_tags='admin', workdate='d')), ['workdate'])
     assert rootenv.asDict() == dict(workdate='d')
+
+
+def test_client_only_keys_are_those_no_hook_and_no_field_gave_to_the_rootenv():
+    checked = Bag(dict(user_id='U1'))
+    checked.setItem('staff_id', None)
+    sent = Bag(dict(user_id='ADMIN', workdate='d', tecnico_id='T1'))
+    sent.setItem('staff_id', None)
+    sent.setItem('deposito_id', None)
+    rootenv = trusted_rootenv(None, checked, sent, ['workdate'])
+    assert client_only_keys(sent, rootenv) == ['tecnico_id', 'deposito_id']
+    assert client_only_keys(None, rootenv) == []
 
 
 def test_derived_values_are_the_data_nodes_and_the_selected_columns():

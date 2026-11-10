@@ -213,6 +213,12 @@ def trusted_rootenv(page_rootenv, checked_rootenv, sent_rootenv, field_keys, con
     return rootenv
 
 
+def client_only_keys(sent_rootenv, rootenv):
+    """The keys the client sent that the stored ``rootenv`` does not hold: no hook set them
+    and no field of the login form edits them, so they never reach the db env."""
+    return [key for key in (sent_rootenv or Bag()).keys() if key not in rootenv]
+
+
 def collect_login_rpcs(nodes, field_prefix='f'):
     """Record the calls the struct ``nodes`` declare and redirect dbSelect and duplicate checks.
 
