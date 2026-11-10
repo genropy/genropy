@@ -2873,6 +2873,9 @@ class GnrWebPage(GnrBaseWebPage):
                 if k.endswith('_path'):
                     kwargs[k[0:-5]] = kwargs.pop(k)[1:]
             handler(pane, **kwargs)
+            # not setPendingContext: it would write the declared value over the stored one
+            for serverpath, _value, _attr in self._pendingContext:
+                self.site.register.subscribe_path(self.page_id, serverpath, register_name='page')
             return pane
         
             
