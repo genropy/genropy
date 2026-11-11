@@ -1,3 +1,281 @@
+Release 26.11.11
+================
+
+Upgrade notes
+-------------
+
+Please read these before upgrading: this release closes several
+authentication flaws and removes the tinyMCE widget.
+
+* **Security fixes in login, RPC dispatch and the page store**:
+  upgrading is strongly recommended (see Security below). Changes that
+  can affect downstream code:
+
+  - RPCs of a login-protected page require a session. Before login,
+    only the calls the login page itself declares (its
+    ``LoginComponent`` rpcs, the ``rootenvForm`` fields, the buttons of
+    extension packages) are served; a method can also declare itself
+    with ``@public_method(sessionless=True)`` (#1828).
+  - A page method called over the websocket must be decorated with
+    ``public_method`` or ``websocket_method``: undecorated methods are
+    refused.
+  - A client changes the rootenv only on a ``serverpath`` the page
+    declared, and never writes server-only page-store paths; a refused
+    change is logged as a warning (#1830, #1851).
+  - At login, rootenv keys sent by the client that no
+    ``onUserSelected`` hook set and no login form field edits are
+    dropped, and their names are logged (#1828, #1851).
+
+* **tinyMCE widget removed** (#1793): ``tinyMCE`` and
+  ``ExtendedTinyMCE`` are gone together with the vendored TinyMCE
+  bundle; ``joditEditor`` is the only HTML editor (#1728) and the
+  ``theme.tinymce_beta`` sys preference is removed. Stored widget tags
+  that still name ``tinyMCE`` (e.g. survey questions) must be migrated
+  to ``joditEditor`` before upgrading.
+* **New default palette**: with no color variant selected, mimi and
+  joanna use a Carbon Cool Gray palette with a blue accent; it can
+  also be chosen explicitly as color variant ``gray``. Existing color
+  variants and custom variant files are unchanged.
+* ``tbl.sql()`` / ``pkg.sql()`` model scripts are named ``sqlCode()``;
+  they run on PostgreSQL only, and a model declaring them stops the
+  migration on other adapters.
+* **Dependencies**: ``weasyprint`` capped below 66, whose versions up
+  to 69 can paginate forever when Arial Narrow falls back to a wide
+  font (#1825); the ``sys`` package requires ``watchdog`` below 7
+  (#1844).
+
+New features
+------------
+
+Database and audit
+~~~~~~~~~~~~~~~~~~
+
+* External audit (new package ``gnrcore:audit``): ``audit='external'``
+  on a table installs PostgreSQL triggers that version records and
+  queue every change; ``gnr @<instance> audit batch`` turns the queue
+  into audit events, Bag columns diffed path by path. Field rules via
+  column ``audit=True/False`` and table ``audit_whitelist`` /
+  ``audit_blacklist``. Record History and Table History palettes on the
+  TH form and list.
+* SQL scripts in the model: ``tbl.sqlCode()`` and ``pkg.sqlCode()``
+  declare inline or file-based PostgreSQL scripts, with ``{name}``
+  placeholders for model properties; the migrator applies them in a
+  final phase when their md5 changes, one per tenant schema on
+  multi-tenant tables.
+* Multidb: hosting preferences on the storetable record override the
+  workspace preferences key by key, shown read-only in the workspace
+  preference page; PostgreSQL dbstore provisioning is resumable across
+  workers.
+
+Inline documentation (experimental)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Enabled with ``<experimental><gui inlinedoc="true"/></experimental>``.
+
+* Docs as MyST Markdown files in the private ``inlinedoc`` storage (a
+  folder of the instance when not configured), addressed by convention
+  (``field:``, ``grouplet:``, ``page:``, ``table:``, ``package:``) and
+  edited in place by users with the documenter tags.
+* The "?" of pages, views, forms, fields, cards and blocks opens the
+  doc in a popup or the matching section of the published Sphinx
+  manual in a resizable help panel; "Open in the manual" opens a
+  window of its own. The pages of a session share the doc icon states.
+
+Grids and table handlers
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+* External queries: a page can open a table page with conditions
+  loaded in its query editor (topic ``th_external_query``), with
+  order, limit, caption, search mode, a grid view or a grouped view,
+  and optionally the save query dialog open.
+* Customizable query menu: ``th_handlePyQueries``,
+  ``th_handleCustomQueryActions`` and the ``queryMenuItem`` hook.
+* A package can scope its ``_packages`` table handler overrides to its
+  own context with ``th_override_scope='context'``, in its
+  ``config_attributes`` or on its tag in ``instanceconfig.xml``
+  (#1299).
+* Column value filter: values in descending order, a period selector
+  on date columns (#1725); works on aggregated columns.
+* Row dragging in the grouped view grid.
+* A literal ``rowTemplate`` keeps its handlers (#1456).
+
+Grouplets
+~~~~~~~~~
+
+* ``groupletCard``: a grouplet with a chrome band (chevron, title, doc
+  icon, kebab, checkbox), standalone or inside a ``groupletGrid``;
+  collapsible, tinted when a field inside is in error.
+* ``groupletGrid``: copy and paste of rows (tab-separated, with
+  header), file-list-like selection on rows and cards across grids,
+  drag with a drop slot, Export Excel and Print presets for the
+  selected rows, ``defaultRow`` values from a datapath or ``==``
+  expressions, ``additem_focus``, ``fillRow`` and wide cards in a
+  responsive grid, tab label template and ordering, Italian catalogue.
+* ``groupletWizardForm``: ``keepToolbar`` keeps the th top bar.
+
+Forms and widgets
+~~~~~~~~~~~~~~~~~
+
+* ``joditEditor`` brought to parity with tinyMce (#1721).
+* dbSelect ``auxColumns`` menu switches to a multiline layout when too
+  wide (``auxColumns_multiline``) (#1767).
+* ``genro.dlg.prompt`` and dynamic forms can use a formlet layout
+  (``formlet=True``, default from ``<gui use_formlets="true"/>``)
+  (#1700, #1701).
+* ``multiUploaderDialog`` opens on a large drop area and lists files
+  like a file browser, with progress bars.
+* ``dynamicFieldsPane``: ``fld_*`` kwargs become defaults of every
+  dynamic field; placeholder when empty.
+* Validation error tooltip appears after 1.5s on hover.
+* Frameindex: New Window button next to the menu search box.
+
+Site, services and printing
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+* A package providing ``not_logged_redirect`` can redirect a page
+  without a logged user instead of showing the login dialog.
+* ``kajennprint`` htmltopdf implementation rendering on a kajenn print
+  server, selected by ``KAJENN_PRINT_URL`` (#1707).
+* The weasyprint service logs once when "Arial Narrow" falls back to a
+  font that is not metric-compatible, with the fix
+  (``fonts-liberation-sans-narrow``, as in the Docker image) (#1825).
+* Optional genro-storage backend for local, raw and aws_s3 mounts,
+  behind ``<experimental><storage use_genro_storage="true"/>`` and the
+  ``genro_storage`` extra (#1238).
+
+Security
+--------
+
+* Login: the user status (banned, new, waiting, invited) and 2FA are
+  enforced server side; ``login_confirmUser`` acts only on the user
+  verified by ``login_checkAvatar``; ``login_createNewUser`` honors
+  the ``new_user`` preference and accepts only the form fields;
+  password recovery mail goes to the stored address.
+* Login form calls (#1828, #1845): before ``doLogin`` only the calls
+  the login page declares are served; dbSelect fields run with the
+  recorded table, columns and condition, and condition parameters
+  that read the rootenv take their value from the server; rootenv
+  values derived by the form are read on the server.
+* 2FA (#1769): the "remember this device" cookie is signed and expires
+  after the configured days, re-enrolling or disabling 2FA revokes it;
+  ``confirmOTP`` writes only the logged user's record.
+* RPCs of a login-protected page require a session; without a session
+  only already used components, of the same package, can be mixed in.
+* Websocket calls follow the same auth rule and reach only public
+  methods.
+* Page store (#1830, #1837): client changes never reach server-only
+  paths (2FA state, the user to confirm, the mixin set, user local
+  tags); the rootenv changes only on declared serverpaths, so a
+  client can no longer pick a partition or identity key outside what
+  the server allowed; ``rpc_setInServer`` applies the same guard;
+  store changes and pings reach only pages of the caller's
+  connection.
+* Window messages that load data, queries or grid structures are
+  accepted only from the page's own origin (#1847).
+* ``api_keys.private`` kept server side in ``rpc_main`` (#1534).
+* prosemirror-view bumped to 1.42.9 (paste XSS, GHSA-c8x8-7fp4-3x9w).
+* inlinedoc: documenter tags resolved server side, private storage,
+  validated uploads.
+
+Bugfixes
+--------
+
+SQL and database
+
+* Migration creates indexes declared with ``tbl.index()`` (#1806).
+* Db-events are recorded again for every table, so ``autoCommit``
+  batches commit their writes (e.g. ``email.message.newMessage``)
+  (#1821).
+* Store-local table caches keyed on the current dbstore (#1794);
+  storetable query skipped when no store database exists (#1775);
+  store discovery ignores the user's partition (#1816); workspace
+  discovery locks released before migration; deleted workspace
+  register stopped only after commit; a multidomain store without its
+  ``_mainpref_`` row reads as empty preferences, so
+  ``gnr db migrate '<instance>.*' -u`` no longer fails on it (#1838).
+* Multidb sync handles tables with deferred foreign keys.
+* ``adm.userobject`` reads on sqlite (#1373); an empty Bag column is
+  copied in the old record so in-place changes reach
+  ``fieldsChanged``; ``sysRecord`` creates on the current connection
+  inside a transaction (#1625); attachment tables work in
+  ``gnr app cleanup`` (#1792).
+
+Forms, grids and widgets
+
+* Widgets bound to ``path?attr`` write only that attribute (#1827).
+* Widgets: a filteringSelect re-resolves its value when its values
+  change (#1812); a typed datetime keeps its value on blur (#1785); a
+  comboMenu does not open on a readOnly or disabled field (#1786).
+* Formlet: an unlabeled checkbox gets a placeholder label only beside
+  a labeled field, keeps its colspan and shows its own doc button
+  (#1850).
+* Grid: column filter on values columns, empty values and Select all;
+  the filter icon opens on every click and is never a resize or drag
+  area (#1722, #1742); a removed row no longer moves the selection;
+  treeGrid scroller off the last row (#1774); grouped view export from
+  its frozen selection (#1773).
+* Forms: a removed node takes its invalid fields with it; dynamic
+  required fields no longer block groupletGrid entry rows; a hidden
+  calculated field keeps its formula value (#1719); wizard steps
+  follow ``avoidPendingChangesDialog``; the linkerBox template wraps
+  again (#1404).
+* Stores: a selection store queues one reload while its query runs
+  (#1740); a node bound to a container recomputes on row insert or
+  delete (#1712).
+* A prompt opened while another closes keeps its data; prompt buttons
+  translated; searchbox filters on any text change; tooltipPane
+  follows its opener while scrolling (#1737); Dates from another
+  window stay Dates; dialog ``autoSize`` padding (#1704); labledbox
+  no longer double-wrapped; jodit loads values over ``maxLength``
+  (#1727); many theme and border fixes.
+
+Site, web and services
+
+* Remote content (lazy forms, dialogs) subscribes the serverpaths it
+  declares (#1851).
+* A failed upload is reported instead of treated as success (#1814);
+  uploaded files kept out of page registration (#1710); multipart
+  files closed with the response (#1684).
+* ``getRelatedSelection`` passes its columns to the query (#1374);
+  ``page.exception`` knows the sql exceptions (#1747); GnrException
+  messages localized with the given localizer (#1744) and their
+  warnings stay until closed; ``statusText`` correct over HTTP/2
+  (#1741); polling left to the root page (#1597).
+* Storage path segments with several ``:`` answer 404 (#1699); a
+  storage record changed by another process is reloaded (#1682);
+  relative storages rebuilt when the parent service changes.
+* Task scheduler starts when ``gnrcore:sys`` is reached only through
+  the package closure (#1612); ``gnrtaskworker --code`` honored again
+  (#1718); the development server reloads again with watchdog 7
+  (#1844).
+* Email: proxy record forgotten before retry (#1804), missing
+  attachment files fail fast (#1800), ``proxy_sync`` idle when
+  mailproxy is disabled (#1790), missing default account reported
+  (#1751).
+* Login: new window skips an empty dialog (#1743); ``loginExtra``
+  hooks run only on an actual login (#1732); the "Expired session"
+  dialog shows on the login page too (#1828).
+* Undeclared packages report and boot warnings clarified.
+
+Other
+
+* Bag XML entities decoded once; hyphenated locales normalized in
+  ``gnrlocale``; Bag ``_template_kwargs`` expanded in file sources
+  (#1660); data cleanup launched from the Data retention page (#1650);
+  an empty Custom Retention removes the override.
+
+Infrastructure
+--------------
+
+* Docker images: release images are built only from ``release-*``
+  tags (version and ``latest``), the ``develop`` image nightly at
+  04:00 UTC or on demand; both are built only when the Python and
+  JavaScript test suites pass, and a release reaches PyPI only after
+  its image is built.
+* PostgreSQL test database names are unique per run (#1366); pytest
+  pinned in CI; async fixture wrapper forwards ``delattr``.
+* wkhtmltopdf install and test removed.
+
 Release 26.10.28
 ================
 
