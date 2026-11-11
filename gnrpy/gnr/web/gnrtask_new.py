@@ -201,7 +201,12 @@ class GnrTask:
         result = '-'.join([str(y),str(m),str(d),str(int(key_hm/60)),str(key_hm%60)])
         return result
 
-    
+
+# Below the worker's 30 s /next-task client timeout: aiohttp keeps running a handler
+# whose client has gone, and that handler would take the next run.
+NEXT_TASK_TIMEOUT = 20
+
+
 class GnrTaskScheduler:
     """
     ASyncio application which load the scheduling configuration and
@@ -403,8 +408,12 @@ class GnrTaskScheduler:
         if worker_id:
             self.worker_alive(worker_id, queue_name)
             logger.info("Worker %s (queue %s) connected", worker_id, queue_name)
-            self.workers[worker_id]["worked_tasks"] += 1            
-            task = await self.queues[queue_name].get()
+            try:
+                task = await asyncio.wait_for(self.queues[queue_name].get(),
+                                              timeout=NEXT_TASK_TIMEOUT)
+            except asyncio.TimeoutError:
+                return web.Response(status=204)
+            self.workers[worker_id]["worked_tasks"] += 1
             self.pending_ack[task["run_id"]] = (task, datetime.now(timezone.utc), 0, worker_id)
             return web.json_response(task)
 
