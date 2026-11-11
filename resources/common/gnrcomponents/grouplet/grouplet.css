@@ -68,6 +68,11 @@
     font-size: 1.2em;
 }
 
+.grouplet_panel_title_bar > .helperbutton.innericonbox.iconbox {
+    flex: none;
+    margin: 0 0 0 8px;
+}
+
 /* --- Wizard stepper bar --- */
 .wizard_stepper_bar {
     display: flex;
