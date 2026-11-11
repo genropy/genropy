@@ -1,53 +1,40 @@
-name: Create docker images
+name: Nightly develop docker image
+
+# Builds ghcr.io/<repo>:develop from the develop branch, only when the test
+# suites pass. Release images are built by release-publish.yml.
 
 on:
-  push:
-    branches: ["master", "develop"]
+  schedule:
+    - cron: "0 4 * * *"  # 04:00 UTC, runs on the default branch (develop)
+  workflow_dispatch:
 
 permissions:
-  contents: write
-  packages: write
+  contents: read
 
 jobs:
-  build-and-push-image:
+  check-branch:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-      - name: Get branch name
-        run: echo "BRANCH=${GITHUB_REF##*/}" >> $GITHUB_ENV
-      - name: Get version
-        id: getversion
-        run: echo "GENROPY_VERSION=$(sed -n 's/^VERSION = \"\([0-9.]*\)\"/\1/p' gnrpy/gnr/__init__.py)" >> $GITHUB_ENV
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-      - name: Set up docker Buildx
-        uses: docker/setup-buildx-action@v3
-      - name: Log in to the Container registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-          
-      - name: Extract metadata (tags, labels) for Docker
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ghcr.io/${{ github.repository }}
-          tags: |
-            ${{ env.BRANCH == 'develop' && 'develop' || env.GENROPY_VERSION }}
-            ${{ env.BRANCH == 'master' && 'latest' || null }}
-          
-      - name: Build and push main Docker image
-        uses: docker/build-push-action@v5
-        with:
-          file: ./dockerfiles/genropy/Dockerfile
-          context: ./
-          push: true
-          tags: |
-            ${{ env.BRANCH == 'develop' && 'ghcr.io/genropy/genropy:develop' || format('ghcr.io/genropy/genropy:{0}', env.GENROPY_VERSION) }}
-            ${{ env.BRANCH == 'master' && 'ghcr.io/genropy/genropy:latest' || null }}
-          platforms: linux/amd64 ,linux/arm64
-          provenance: false
+      - name: Only develop can be built as the develop image
+        run: |
+          if [ "${{ github.ref }}" != "refs/heads/develop" ]; then
+            echo "This workflow builds the develop image: run it on develop, not ${{ github.ref }}" >&2
+            exit 1
+          fi
 
+  python-tests:
+    needs: check-branch
+    uses: ./.github/workflows/tests.yml
+
+  javascript-tests:
+    needs: check-branch
+    uses: ./.github/workflows/javascript-tests.yml
+
+  docker:
+    needs: [python-tests, javascript-tests]
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/docker-build.yml
+    with:
+      tag: develop
