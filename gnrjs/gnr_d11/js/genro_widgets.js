@@ -2655,6 +2655,11 @@ dojo.declare("gnr.widgets.TabContainer", gnr.widgets.StackContainer, {
                 var that = this;
                 this.switchPage(this.getChildIndex(otherChildren[0]));
             }
+        }else if(!hidden && !child.selected){
+            var selected = this.selectedChildWidget;
+            if(selected && selected.sourceNode.getAttributeFromDatasource('hidden')){
+                this.switchPage(this.getChildIndex(child));
+            }
         }
         genro.dom.toggleVisible(child.controlButton.domNode,!hidden);
         this.layout();
