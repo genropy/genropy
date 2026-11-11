@@ -450,6 +450,41 @@ class TestGnrTaskScheduler(BaseGnrTest):
         payload = json.loads(response.text)
         assert payload["run_id"] == "runX"
 
+    def test_next_task_on_empty_queue_returns_204_and_leaves_no_waiter(self, scheduler, monkeypatch):
+        monkeypatch.setattr(gnrtask, "NEXT_TASK_TIMEOUT", 0.05)
+        request = types.SimpleNamespace(query={"worker_id": "workerA", "queue_name": "general"})
+
+        async def runner():
+            loop = asyncio.get_running_loop()
+            started = loop.time()
+            response = await scheduler.next_task(request)
+            return response, loop.time() - started
+
+        response, elapsed = scheduler.run(runner())
+        assert response.status == 204
+        assert elapsed < 1
+        assert not scheduler.queues["general"]._getters
+        assert scheduler.pending_ack == {}
+        assert scheduler.workers["workerA"]["worked_tasks"] == 0
+
+    def test_next_task_after_timeout_delivers_later_task(self, scheduler, monkeypatch):
+        monkeypatch.setattr(gnrtask, "NEXT_TASK_TIMEOUT", 0.05)
+        item = {"run_id": "runY", "task_id": "taskY", "queue_name": "general"}
+        request = types.SimpleNamespace(query={"worker_id": "workerA", "queue_name": "general"})
+
+        async def runner():
+            first = await scheduler.next_task(request)
+            await scheduler.queues["general"].put(item)
+            second = await scheduler.next_task(request)
+            return first, second
+
+        first, second = scheduler.run(runner())
+        assert first.status == 204
+        assert json.loads(second.text)["run_id"] == "runY"
+        assert scheduler.pending_ack["runY"][3] == "workerA"
+        assert scheduler.workers["workerA"]["worked_tasks"] == 1
+        assert scheduler.queues["general"].empty()
+
     def test_next_task_without_worker_id_returns_none(self, scheduler):
         request = types.SimpleNamespace(query={})
 
