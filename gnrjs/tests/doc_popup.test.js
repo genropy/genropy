@@ -22,7 +22,9 @@ class FakeIcon {
 function createPage() {
     const icons = [];
     const docListeners = {};
-    const context = {console, gnr: {}, setTimeout, Promise, URLSearchParams, Set,
+    const context = {console, gnr: {}, setTimeout, Promise, URLSearchParams, URL, Set,
+                     window: {location: {href: 'https://erp.example.com/adm/user_page',
+                                         origin: 'https://erp.example.com'}},
                      document: {addEventListener: (evt, h) => { docListeners[evt] = h; },
                                 removeEventListener: (evt, h) => {
                                     if (docListeners[evt] === h) delete docListeners[evt];
@@ -292,13 +294,29 @@ test('Open in the manual shows the manual page in the widened panel, never leavi
     const frame = byClass(built, 'doc_help_panel_frame');
     assert.equal(frame.src, url, 'at the section');
     assert.equal(frame.externalSite, true, 'no page id appended to its url');
-    assert.ok(!/allow-same-origin|allow-top-navigation/.test(frame.sandbox), 'it can neither reach nor replace the page');
+    assert.ok(/(^| )allow-same-origin( |$)/.test(frame.sandbox), 'a manual of the site\'s storage keeps its fonts and localStorage');
+    assert.ok(!/allow-top-navigation/.test(frame.sandbox), 'it cannot replace the page');
     assert.equal(byClass(built, 'doc_help_panel_body'), undefined, 'the frame in place of the help');
     const [, [, newWindow]] = built.filter(([, attrs]) => attrs._class === 'doc_help_panel_tool');
     assert.deepEqual([newWindow.href, newWindow.target, newWindow.rel], [url, '_blank', 'noopener']);
     built.find(([, attrs]) => attrs.title === '!!Back to the help')[1].connect_onclick();
     assert.equal(byClass(page.panels[2], 'doc_help_manual').innerHTML, '<p>M</p>', 'back to the section');
     assert.equal(byClass(page.panels[2], 'doc_help_panel_frame'), undefined);
+});
+
+function manualFrame(url) {
+    const page = createPage();
+    page.genro.dlg.showManual('field:adm.user:email', {}, {manual: {title: 'Email', html: '<p>M</p>', url}}, url);
+    return byClass(page.panels[0], 'doc_help_panel_frame');
+}
+
+test('only a manual served by the site\'s own storage is framed with same-origin', () => {
+    assert.ok(/allow-same-origin/.test(manualFrame('https://erp.example.com/_storage/site/manual/users.html').sandbox),
+              'the site\'s storage');
+    assert.ok(!/allow-same-origin/.test(manualFrame('https://docs.example.org/_storage/site/manual/users.html').sandbox),
+              'another origin');
+    assert.ok(!/allow-same-origin/.test(manualFrame('/sys/manual/users.html').sandbox),
+              'another path of the site');
 });
 
 test('the help panel widens and narrows; a dragged width is used by the next panel', () => {
