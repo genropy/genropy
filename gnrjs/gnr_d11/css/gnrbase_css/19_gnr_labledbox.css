@@ -344,21 +344,34 @@
     box-shadow: inset var(--field-changed-bar-width) 0 0 var(--field-changed-bar-color);
 }
 
-/* a 24px target that does not raise the label row */
+/* the button takes no height in the row, so the field never moves when it
+   shows; its target (--field-restore-size, 24px) is an overlay */
 .labledBox_restore{
     display: none;
+    position: relative;
+    isolation: isolate;
     flex: none;
+    align-self: center;
     align-items: center;
     justify-content: center;
+    height: 0;
     min-width: var(--field-restore-size);
-    min-height: var(--field-restore-size);
-    margin: calc((1.2em - var(--field-restore-size)) / 2) 0 calc((1.2em - var(--field-restore-size)) / 2) auto;
-    border-radius: var(--radius-sm);
+    margin-left: auto;
     color: var(--field-restore-color);
     font-weight: normal;
     font-size: 1.3em;
-    line-height: 1;
+    line-height: 0;
     cursor: pointer;
+}
+
+.labledBox_restore::before{
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: calc(var(--field-restore-size) / -2);
+    height: var(--field-restore-size);
+    border-radius: var(--radius-sm);
 }
 
 .labledBox_overridden > .labledBox_label > .labledBox_restore,
@@ -366,11 +379,16 @@
     display: inline-flex;
 }
 
-.labledBox_restore:hover{
+.labledBox_restore:hover::before{
     background: var(--field-restore-hover-bg);
+    z-index: -1;
 }
 
 .labledBox_restore:focus-visible{
+    outline: none;
+}
+
+.labledBox_restore:focus-visible::before{
     outline: 2px solid var(--field-restore-color);
     outline-offset: 1px;
 }
