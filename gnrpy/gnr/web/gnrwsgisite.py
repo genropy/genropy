@@ -857,7 +857,7 @@ class GnrWsgiSite(object):
         path = '/'.join(path_list)
         node = self.storageNode('%s:%s'%(storage_name,path),_adapt=False)
         # checked on the node path: the legacy vol: form turns ':' into '/' only there
-        if node is not None and '..' in node.path.split('/'):
+        if node is not None and (node.path.startswith('/') or '..' in node.path.split('/')):
             return None
         return node
 

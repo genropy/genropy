@@ -1210,9 +1210,9 @@ class TestStorageHandler(BaseGnrDaemonTest):
         assert '200 ' in response['status']
         assert response['data'] == b'served content'
 
-    @pytest.mark.parametrize('url_form', ['prefixed', 'storage', 'symbolic', 'legacy_vol'])
+    @pytest.mark.parametrize('url_form', ['prefixed', 'storage', 'symbolic', 'legacy_vol', 'legacy_vol_absolute'])
     def test_served_path_never_leaves_its_storage(self, url_form):
-        """Test that a url with parent segments is not served, whatever its form."""
+        """Test that a url with parent segments or an absolute path is not served, whatever its form."""
         outside_path = os.path.realpath(os.path.join(self.test_dir, 'outside.txt'))
         with open(outside_path, 'w') as outside_file:
             outside_file.write('outside content')
@@ -1225,7 +1225,8 @@ class TestStorageHandler(BaseGnrDaemonTest):
         url = {'prefixed': '/site:%s' % relative_path,
                'storage': '/_storage/site/%s' % relative_path,
                'symbolic': '/_pkg/%s/%s' % (pkg, relative_path),
-               'legacy_vol': '/vol:site:%s' % relative_path.replace('/', ':')}[url_form]
+               'legacy_vol': '/vol:site:%s' % relative_path.replace('/', ':'),
+               'legacy_vol_absolute': '/vol:site:%s' % outside_path.replace('/', ':')}[url_form]
         response = self.client.get(url)
         assert '404 ' in response['status']
         assert b'outside content' not in response['data']
