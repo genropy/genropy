@@ -2013,13 +2013,7 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         let box_l_kw = objectExtract(attr,'box_l_*',null,true);
         let box_c_kw = objectExtract(attr,'box_c_*',null,true);
         let box_kw = objectExtract(attr,'box_*');
-        // the wrapper watches the field's value against its carryover (gnr.widgets.labledbox):
-        // the field itself is not told of the changes it makes
-        let carryover_kw = objectExtract(attr,'carryover*',null,true);
-        let carryover = 'carryover' in carryover_kw? carryover_kw.carryover : inherited_attr.carryover;
-        if(carryover && typeof(attr.value)=='string' && attr.value.startsWith('^') && !attr.datapath){
-            carryover_kw.carryover_field = attr.value;
-        }
+        let carryover_kw = this._carryoverAttr(attr,inherited_attr);
         attr._labelWrapper = wrp_attr._labelWrapperId;
         wrp_attr.side = side;
         wrp_attr._itemId = objectPop(attr,'_itemId');
@@ -2047,6 +2041,37 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
             }
         }
         return this._contentNode;
+    },
+
+    _carryoverAttr:function(attr,inherited_attr){
+        // the wrapper watches the field's value against its carryover (gnr.widgets.labledbox):
+        // the field itself is not told of the changes it makes. A formlet gives its fields
+        // carryover and carryover_* (its carryover_path + the field's value path is the carried
+        // value); a field's own attributes win
+        let result = objectExtract(attr,'carryover*',null,true);
+        let carryover_path = objectPop(result,'carryover_path') || inherited_attr.carryover_path;
+        delete result.carryover_states;
+        let value = attr.value;
+        if(typeof(value)!='string' || !value.startsWith('^') || attr.datapath){
+            return result;
+        }
+        if(!('carryover' in result)){
+            if(!isNullOrBlank(inherited_attr.carryover)){
+                result.carryover = inherited_attr.carryover;
+            }else if(carryover_path && value.startsWith('^.')){
+                result.carryover = '^'+carryover_path+value.slice(1);
+            }
+        }
+        if(!result.carryover){
+            return result;
+        }
+        for(let k of ['carryover_caption','carryover_class','carryover_display']){
+            if(!(k in result) && (k in inherited_attr)){
+                result[k] = inherited_attr[k];
+            }
+        }
+        result.carryover_field = value;
+        return result;
     },
 
     _formletNeedsPlaceholderLbl:function(){

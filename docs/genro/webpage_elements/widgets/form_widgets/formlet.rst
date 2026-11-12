@@ -488,9 +488,18 @@ Carried-over values (carryover)
           for every changed field until the record is saved. Nothing happens on
           a new record.
 
+    **carryover_path** (str, on the formlet): where the carried values are. A
+    field with value ``^.diabetes`` finds its own at
+    ``<carryover_path>.diabetes`` (``^.contacts.phone`` at
+    ``<carryover_path>.contacts.phone``). Absolute (``person.carried``) or
+    relative to the formlet's datapath.
+
+    ``carryover``, ``carryover_caption``, ``carryover_class`` and
+    ``carryover_display`` set on the formlet apply to all its fields; a field's
+    own attribute wins, and ``carryover=False`` on a field opts it out.
+
     **carryover_caption** (str): where the value comes from, shown as the
     tooltip and the ``aria-description`` of a carried field.
-    ``item_carryover_caption`` on the formlet sets it for every field.
 
     **carryover_class** (str or False): the class the field's labledBox takes
     in the state worth marking. With a carried value that state is *carried*
@@ -499,7 +508,7 @@ Carried-over values (carryover)
     is no class by default: the restore button is enough. The framework also
     provides ``carryover_changed`` (a bar on the changed field), to pass when
     a form wants it. ``False`` marks nothing; any other class is the
-    application's own. ``item_carryover_class`` sets it for every field.
+    application's own.
 
     **carryover_display** (str): a JS function body of ``value`` returning the
     text of the carried value in the restore tooltip. By default the caption
@@ -534,18 +543,21 @@ Carried-over values (carryover)
 
     .. code-block:: python
 
-        fl = pane.formlet(cols=4, carryover_states='#FORM.carryover',
-                          item_carryover_caption="Carried over from the person's data")
-        fl.filteringSelect(value='^.diabetes', lbl='Diabetes', values='N:no,S:yes',
-                           carryover='^.carried.diabetes')
-        fl.dateTextBox(value='^.last_visit', lbl='Last visit',
-                       carryover='^.carried.last_visit')
+        # every field finds its carried value under .carried
+        fl = pane.formlet(cols=4, carryover_path='.carried', carryover_states='#FORM.carryover',
+                          carryover_caption="Carried over from the person's data")
+        fl.filteringSelect(value='^.diabetes', lbl='Diabetes', values='N:no,S:yes')
+        fl.dateTextBox(value='^.last_visit', lbl='Last visit')
+        fl.textbox(value='^.code', lbl='Code', carryover=False)
+
+        # a single field
+        fl.textbox(value='^.city', lbl='City', carryover='^.person.city')
 
         # every field can go back to the value the record was loaded with
-        fl = pane.formlet(cols=3, item_carryover=True)
+        fl = pane.formlet(cols=3, carryover=True)
 
         # the same, with a bar on the changed fields
-        fl = pane.formlet(cols=3, item_carryover=True, item_carryover_class='carryover_changed')
+        fl = pane.formlet(cols=3, carryover=True, carryover_class='carryover_changed')
 
     Demo: ``webpages/gnrwdg/formlet.py::test_9_carryover`` (package ``test``).
 

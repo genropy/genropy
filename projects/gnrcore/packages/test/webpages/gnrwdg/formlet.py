@@ -732,47 +732,50 @@ class GnrCustomWebPage(object):
     def test_9_carryover(self, pane):
         """Carryover: a value carried over from elsewhere, overridden, restored
 
-        `carryover` on a field names the value the field was filled with from
-        somewhere else (here the `.source` Bag, standing for the person's data).
-        Carried and untouched, the field reads normal and only its text is
-        dimmed; changed or emptied, a restore button at the end of the label
-        row (beside the label of a checkbox) puts the carried value back.
-        A field without a carried value shows nothing. `carryover_states` on
-        the formlet keeps the state of every field, for the summary line.
-        Typing shows the restore button at once, except in a select, where
-        the typed text is a search. `carryover=True` (second form) restores
-        the value the record was loaded with: no mark until a field changes,
-        then the restore button; `carryover_class='carryover_changed'` (its
-        second row) adds a bar on the changed field.
+        `carryover_path` on the formlet names where the carried values are
+        (here `carryover_demo.person`, standing for the person's data): the
+        field with value `^.diabetes` finds its own at
+        `carryover_demo.person.diabetes`. A field can also name its own with
+        `carryover`, or opt out with `carryover=False`. Carried and untouched,
+        the field reads normal and only its text is dimmed; changed or
+        emptied, a restore button at the end of the label row (beside the
+        label of a checkbox) puts the carried value back. A field without a
+        carried value shows nothing. `carryover_states` keeps the state of
+        every field, for the summary line. Typing shows the restore button at
+        once, except in a select, where the typed text is a search.
+        `carryover=True` on a formlet (second form) restores the value the
+        record was loaded with: no mark until a field changes, then the
+        restore button; `carryover_class='carryover_changed'` (its second row)
+        adds a bar on the changed field.
         """
-        pane.data('.source', Bag(dict(maternal='N', paternal='N', diabetes='N', coagulopathy='N',
-                                      neoplasia='N', allergies=True, last_visit=datetime.date(2026, 3, 12),
-                                      notes='No family history reported.')))
+        pane.data('carryover_demo.person', Bag(dict(maternal='N', paternal='N', diabetes='N', coagulopathy='N',
+                                                    neoplasia='N', allergies=True,
+                                                    last_visit=datetime.date(2026, 3, 12),
+                                                    notes='No family history reported.')))
         pane.data('.visit', Bag(dict(maternal='N', paternal='N', diabetes='S', coagulopathy='N',
                                      allergies=True, last_visit=datetime.date(2026, 3, 12),
                                      notes='No family history reported.')))
-        fl = pane.formlet(cols=4, width='860px', margin='10px', carryover_states='.states',
-                          item_carryover_caption="Carried over from the person's data")
-        fl.checkbox(value='^.visit.negative', label='Negative family history')
+        fl = pane.formlet(cols=4, width='860px', margin='10px', datapath='.visit',
+                          carryover_path='carryover_demo.person', carryover_states='carryover_demo.states',
+                          carryover_caption="Carried over from the person's data")
+        fl.checkbox(value='^.negative', label='Negative family history')
         for field, lbl in (('maternal', 'Maternal hereditary diseases'), ('paternal', 'Paternal hereditary diseases'),
-                           ('diabetes', 'Diabetes'), ('coagulopathy', 'Coagulopathies'), ('neoplasia', 'Neoplasia')):
-            fl.filteringSelect(value='^.visit.%s' % field, lbl=lbl, values='N:no,S:yes',
-                               carryover='^.source.%s' % field)
-        fl.filteringSelect(value='^.visit.osteoporosis', lbl='Osteoporosis', values='N:no,S:yes')
-        fl.checkbox(value='^.visit.allergies', lbl='Allergies', carryover='^.source.allergies')
-        fl.dateTextBox(value='^.visit.last_visit', lbl='Last visit', carryover='^.source.last_visit')
-        fl.simpleTextArea(value='^.visit.notes', lbl='Hereditary disease notes', colspan=3, height='52px',
-                          carryover='^.source.notes')
+                           ('diabetes', 'Diabetes'), ('coagulopathy', 'Coagulopathies'), ('neoplasia', 'Neoplasia'),
+                           ('osteoporosis', 'Osteoporosis')):
+            fl.filteringSelect(value='^.%s' % field, lbl=lbl, values='N:no,S:yes')
+        fl.checkbox(value='^.allergies', lbl='Allergies')
+        fl.dateTextBox(value='^.last_visit', lbl='Last visit')
+        fl.simpleTextArea(value='^.notes', lbl='Hereditary disease notes', colspan=3, height='52px')
         pane.dataController("""var n = {carried:0, overridden:0};
             (states instanceof gnr.GnrBag? states.values() : []).forEach(function(s){if(s in n){n[s] += 1;}});
             var summary = [n.carried? n.carried + ' carried over' : null,
                            n.overridden? n.overridden + ' changed' : null].filter(Boolean).join(' · ');
             SET .summary = summary;""",
-                            states='^.states')
+                            states='^carryover_demo.states')
         bar = pane.div(margin='10px', display='flex', gap='12px', align_items='center')
         bar.div('^.summary', color='#666')
-        bar.button('Source: diabetes yes', action='SET .source.diabetes = "S";')
-        bar.button('Source: diabetes no', action='SET .source.diabetes = "N";')
+        bar.button('Source: diabetes yes', action='SET carryover_demo.person.diabetes = "S";')
+        bar.button('Source: diabetes no', action='SET carryover_demo.person.diabetes = "N";')
 
         pane.div('carryover=True: the value the record was loaded with', margin='20px 10px 4px', color='#666')
         pane.data('carryover_records', Bag(dict(r_0=Bag(dict(name='Mario', surname='Merola', city='Napoli',
@@ -781,11 +784,11 @@ class GnrCustomWebPage(object):
                               datapath='.recordform')
         form.top.slotToolbar('*,semaphore,4')
         center = form.center.contentPane(datapath='.record')
-        fl = center.formlet(cols=3, item_carryover=True)
+        fl = center.formlet(cols=3, carryover=True)
         fl.textbox(value='^.name', lbl='Name')
         fl.textbox(value='^.surname', lbl='Surname')
         fl.textbox(value='^.city', lbl='City')
-        fl = center.formlet(cols=3, item_carryover=True, item_carryover_class='carryover_changed')
+        fl = center.formlet(cols=3, carryover=True, carryover_class='carryover_changed')
         fl.textbox(value='^.phone', lbl='Phone (with bar)')
         fl.textbox(value='^.email', lbl='Email (with bar)')
         form.formstore(handler='memory')

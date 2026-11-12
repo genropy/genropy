@@ -132,6 +132,35 @@ test('item_carryover reaches every field, carryover=False opts one out', () => {
     assert.equal(name.attr.carryover_field, undefined);
 });
 
+test('a formlet carryover_path gives every field the carried value under its own value path', () => {
+    const [city, phone, notes, own] = serverFormlet({carryover_path: 'person.carried', carryover_caption: 'From the person'}, [
+        ['textbox', {lbl: 'City', value: '^.city'}],
+        ['textbox', {lbl: 'Phone', value: '^.contacts.phone'}],
+        ['textbox', {lbl: 'Notes', value: '^.notes', carryover: '^.other.notes', carryover_caption: 'Elsewhere'}],
+        ['textbox', {lbl: 'Code', value: '^.code', carryover: false}]
+    ]);
+    assert.equal(city.attr.carryover, '^person.carried.city');
+    assert.equal(city.attr.carryover_caption, 'From the person');
+    assert.equal(city.attr.carryover_field, '^.city');
+    assert.equal(phone.attr.carryover, '^person.carried.contacts.phone');
+    assert.equal(notes.attr.carryover, '^.other.notes');
+    assert.equal(notes.attr.carryover_caption, 'Elsewhere');
+    assert.equal(own.attr.carryover, false);
+    assert.equal(own.attr.carryover_field, undefined);
+    assert.equal(city.attr.carryover_path, undefined);
+});
+
+test('a formlet carryover=true makes every field restorable to its loaded value', () => {
+    const [name, city] = serverFormlet({carryover: true, carryover_class: 'carryover_changed'}, [
+        ['textbox', {lbl: 'Name', value: '^.name'}],
+        ['textbox', {lbl: 'City', value: '^.city', carryover_class: false}]
+    ]);
+    assert.equal(name.attr.carryover, true);
+    assert.equal(name.attr.carryover_class, 'carryover_changed');
+    assert.equal(name.attr.carryover_field, '^.name');
+    assert.equal(city.attr.carryover_class, false);
+});
+
 test('a field with a datapath of its own does not resolve its value like the wrapper', () => {
     const [city] = serverFormlet({}, [['textbox', {lbl: 'City', value: '^.city', datapath: '.other',
                                                   carryover: '^.carried.city'}]]);
