@@ -5,7 +5,7 @@ name: Nightly develop docker image
 
 on:
   schedule:
-    - cron: "0 4 * * *"  # 04:00 UTC, runs on the default branch (develop)
+    - cron: "23 4 * * *"  # 04:23 UTC, runs on the default branch (develop)
   workflow_dispatch:
 
 permissions:
