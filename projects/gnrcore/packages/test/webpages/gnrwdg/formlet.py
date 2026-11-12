@@ -739,8 +739,11 @@ class GnrCustomWebPage(object):
         row (beside the label of a checkbox) puts the carried value back.
         A field without a carried value shows nothing. `carryover_states` on
         the formlet keeps the state of every field, for the summary line.
-        `carryover=True` (second form) restores the value the record was
-        loaded with: no dimming, only the restore button once a field changes.
+        Typing shows the restore button at once, except in a select, where
+        the typed text is a search. `carryover=True` (second form) restores
+        the value the record was loaded with: no mark until a field changes,
+        then the restore button; `carryover_class='carryover_changed'` (its
+        second row) adds a bar on the changed field.
         """
         pane.data('.source', Bag(dict(maternal='N', paternal='N', diabetes='N', coagulopathy='N',
                                       neoplasia='N', allergies=True, last_visit=datetime.date(2026, 3, 12),
@@ -772,14 +775,19 @@ class GnrCustomWebPage(object):
         bar.button('Source: diabetes no', action='SET .source.diabetes = "N";')
 
         pane.div('carryover=True: the value the record was loaded with', margin='20px 10px 4px', color='#666')
-        pane.data('carryover_records', Bag(dict(r_0=Bag(dict(name='Mario', surname='Merola', city='Napoli')))))
-        form = pane.frameForm(frameCode='carryover_record', height='130px', width='860px', margin='10px',
+        pane.data('carryover_records', Bag(dict(r_0=Bag(dict(name='Mario', surname='Merola', city='Napoli',
+                                                             phone='081 123456', email='mario@example.com')))))
+        form = pane.frameForm(frameCode='carryover_record', height='190px', width='860px', margin='10px',
                               datapath='.recordform')
         form.top.slotToolbar('*,semaphore,4')
-        fl = form.center.contentPane(datapath='.record').formlet(cols=3, item_carryover=True)
+        center = form.center.contentPane(datapath='.record')
+        fl = center.formlet(cols=3, item_carryover=True)
         fl.textbox(value='^.name', lbl='Name')
         fl.textbox(value='^.surname', lbl='Surname')
         fl.textbox(value='^.city', lbl='City')
+        fl = center.formlet(cols=3, item_carryover=True, item_carryover_class='carryover_changed')
+        fl.textbox(value='^.phone', lbl='Phone (with bar)')
+        fl.textbox(value='^.email', lbl='Email (with bar)')
         form.formstore(handler='memory')
         form.dataController("this.form.store.setLocationPath('carryover_records.r_0'); this.form.load();",
                             _onStart=True)

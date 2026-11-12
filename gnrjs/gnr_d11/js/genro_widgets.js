@@ -968,6 +968,7 @@ dojo.declare("gnr.widgets.labledbox", gnr.widgets.baseHtml, {
             sourceNode.updateHelperClasses();
         }
         if(sourceNode._carryoverContent){
+            newobj.addEventListener('input',(evt)=>this.carryoverTyping(sourceNode,evt));
             this.refreshCarryover(sourceNode);
         }
     },
@@ -991,27 +992,32 @@ dojo.declare("gnr.widgets.labledbox", gnr.widgets.baseHtml, {
     },
 
     carryoverStatus:function(sourceNode){
+        // state: carried, overridden, same (carryover=true, unchanged) or null (nothing to carry)
         let fieldNode = sourceNode._carryoverContent? sourceNode._carryoverContent.getNodes()[0] : null;
         if(!fieldNode || sourceNode.isLostNode()){
             return null;
         }
         let value = fieldNode.getAttributeFromDatasource('value');
+        let loaded = sourceNode.attr.carryover===true;
         let prior;
-        if(sourceNode.attr.carryover===true){
+        if(loaded){
+            if(fieldNode.form && fieldNode.form.isNewRecord()){
+                return {fieldNode,state:null};
+            }
             let dataNode = genro.getDataNode(fieldNode.attrDatapath('value'));
-            if(!dataNode || !('_loadedValue' in dataNode.attr) || (fieldNode.form && fieldNode.form.isNewRecord())){
-                return {fieldNode};
+            if(!dataNode || !('_loadedValue' in dataNode.attr)){
+                return {fieldNode,state:'same',prior:value};
             }
             prior = dataNode.attr._loadedValue;
         }else{
             prior = sourceNode.getAttributeFromDatasource('carryover');
             if(isNullOrBlank(prior)){
-                return {fieldNode};
+                return {fieldNode,state:null};
             }
         }
         let checkbox = (fieldNode.attr.tag || '').toLowerCase()=='checkbox';
         if(checkbox? !!value===!!prior : this._carryoverEqual(value,prior)){
-            return {fieldNode,state:sourceNode.attr.carryover===true? null : 'carried'};
+            return {fieldNode,prior,state:loaded? 'same' : 'carried'};
         }
         return {fieldNode,prior,state:'overridden',cleared:!checkbox && isNullOrBlank(value)};
     },
@@ -1021,6 +1027,17 @@ dojo.declare("gnr.widgets.labledbox", gnr.widgets.baseHtml, {
             return isNullOrBlank(a) && isNullOrBlank(b);
         }
         return isEqual(a,b) || (!(a instanceof Date) && !(b instanceof Date) && String(a)==String(b));
+    },
+
+    carryoverClass:function(sourceNode){
+        let carryoverClass = sourceNode.attr.carryover_class;
+        if(carryoverClass===false){
+            return null;
+        }
+        if(isNullOrBlank(carryoverClass)){
+            return sourceNode.attr.carryover===true? null : 'carryover_inherited';
+        }
+        return carryoverClass;
     },
 
     carryoverDisplay:function(sourceNode,fieldNode,value){
@@ -1042,31 +1059,34 @@ dojo.declare("gnr.widgets.labledbox", gnr.widgets.baseHtml, {
         return _F(value,fieldNode.attr.format,fieldNode.attr.dtype);
     },
 
-    updateCarryover:function(sourceNode){
-        let status = this.carryoverStatus(sourceNode);
-        let domNode = sourceNode.domNode;
-        if(!status || !domNode){
+    carryoverTyping:function(sourceNode,evt){
+        // what is typed in a select is a search, not a value: it counts once chosen
+        let input = sourceNode._carryoverInput;
+        if(evt.target!==input || input.closest('.dijitComboBox')){
             return;
         }
-        genro.dom.setClass(domNode,'labledBox_carried',status.state=='carried');
-        genro.dom.setClass(domNode,'labledBox_overridden',status.state=='overridden');
+        if(input.value===sourceNode._carryoverText){
+            this.updateCarryover(sourceNode);
+            return;
+        }
+        let status = this.carryoverStatus(sourceNode);
+        if(status && (status.state=='carried' || status.state=='same')){
+            this.showCarryover(sourceNode,{fieldNode:status.fieldNode,prior:status.prior,
+                                           state:'overridden',cleared:input.value===''});
+        }
+    },
+
+    updateCarryover:function(sourceNode){
+        let status = this.carryoverStatus(sourceNode);
+        if(!status || !sourceNode.domNode){
+            return;
+        }
         let contentNode = sourceNode._carryoverContent.getParentNode().domNode;
-        let caption = sourceNode.getAttributeFromDatasource('carryover_caption');
-        if(status.state=='carried' && caption){
-            contentNode.setAttribute('title',caption);
-        }else{
-            contentNode.removeAttribute('title');
-        }
-        let restoreNode = sourceNode._carryoverRestore.domNode;
-        if(status.state=='overridden'){
-            let tip = [status.cleared? _T('!!Cleared') : _T('!!Changed'),
-                       _T('!!before')+': '+this.carryoverDisplay(sourceNode,status.fieldNode,status.prior),
-                       _T('!!restore')].join(' · ');
-            restoreNode.setAttribute('title',tip);
-            restoreNode.setAttribute('aria-label',tip);
-        }
+        sourceNode._carryoverInput = contentNode.querySelector('input:not([type=hidden]),textarea,select');
+        sourceNode._carryoverText = sourceNode._carryoverInput? sourceNode._carryoverInput.value : null;
+        this.showCarryover(sourceNode,status);
         let statesNode = sourceNode.attributeOwnerNode('carryover_states');
-        let state = status.state || null;
+        let state = status.state=='same'? null : status.state;
         if(statesNode && sourceNode._carryoverState!==state){
             // set on the Bag itself: an item genro.setData creates triggers no dataController
             let statesPath = statesNode.absDatapath(statesNode.attr.carryover_states);
@@ -1080,9 +1100,44 @@ dojo.declare("gnr.widgets.labledbox", gnr.widgets.baseHtml, {
         sourceNode._carryoverState = state;
     },
 
+    showCarryover:function(sourceNode,status){
+        let domNode = sourceNode.domNode;
+        genro.dom.setClass(domNode,'labledBox_carried',status.state=='carried');
+        genro.dom.setClass(domNode,'labledBox_overridden',status.state=='overridden');
+        let carryoverClass = this.carryoverClass(sourceNode);
+        if(carryoverClass){
+            let marked = sourceNode.attr.carryover===true? 'overridden' : 'carried';
+            genro.dom.setClass(domNode,carryoverClass,status.state==marked);
+        }
+        let contentNode = sourceNode._carryoverContent.getParentNode().domNode;
+        let caption = sourceNode.getAttributeFromDatasource('carryover_caption');
+        let input = sourceNode._carryoverInput;
+        if(status.state=='carried' && caption){
+            contentNode.setAttribute('title',caption);
+            if(input){
+                input.setAttribute('aria-description',caption);
+            }
+        }else{
+            contentNode.removeAttribute('title');
+            if(input){
+                input.removeAttribute('aria-description');
+            }
+        }
+        if(status.state=='overridden'){
+            let tip = [status.cleared? _T('!!Cleared') : _T('!!Changed'),
+                       _T('!!before')+': '+this.carryoverDisplay(sourceNode,status.fieldNode,status.prior),
+                       _T('!!restore')].join(' · ');
+            let restoreNode = sourceNode._carryoverRestore.domNode;
+            restoreNode.setAttribute('title',tip);
+            restoreNode.setAttribute('aria-label',tip);
+        }
+    },
+
     restoreCarryover:function(sourceNode){
         let status = this.carryoverStatus(sourceNode);
-        if(!status || status.state!='overridden'){
+        let input = sourceNode._carryoverInput;
+        let typed = input && input.value!==sourceNode._carryoverText;
+        if(!status || (status.state!='overridden' && !typed)){
             return;
         }
         let fieldNode = status.fieldNode;
@@ -1090,7 +1145,13 @@ dojo.declare("gnr.widgets.labledbox", gnr.widgets.baseHtml, {
                 || fieldNode.getAttributeFromDatasource('readOnly')){
             return;
         }
-        genro.setData(fieldNode.attrDatapath('value'),status.prior);
+        if(status.state=='overridden'){
+            genro.setData(fieldNode.attrDatapath('value'),status.prior);
+        }else{
+            // typed but not yet in the data, which still holds the carried value
+            input.value = sourceNode._carryoverText;
+            this.updateCarryover(sourceNode);
+        }
         let focusable = fieldNode.widget || fieldNode.domNode;
         if(focusable && focusable.focus){
             focusable.focus();

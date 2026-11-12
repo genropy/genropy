@@ -323,24 +323,36 @@
 }
 
 /* --- Carryover (carryover= on a field) ---
-   carried: the field holds a value carried over from elsewhere, untouched;
-   only its text is dimmed, never the field (it must not read as disabled).
-   overridden: the value differs from the carried one; the restore button
-   shows at the end of the label row, or beside a checkbox's own label. */
-.labledBox_carried > .labledBox_content input,
-.labledBox_carried > .labledBox_content textarea{
+   The wrapper carries the state (labledBox_carried / labledBox_overridden)
+   and, in the state worth marking, the carryover_class of the field:
+   carryover_inherited (default for a carried value: its text dimmed, never
+   the field, which must not read as disabled) or carryover_changed (opt-in:
+   a bar on the changed field). A theme or an application restyles these
+   classes or passes its own. The restore button of an overridden field sits
+   at the end of the label row, or beside a checkbox's own label. */
+.carryover_inherited > .labledBox_content input,
+.carryover_inherited > .labledBox_content textarea,
+.carryover_inherited > .labledBox_content select{
     color: var(--field-carryover-color);
 }
 
-.labledBox_carried > .labledBox_content .dijitCheckBox{
+.carryover_inherited > .labledBox_content .dijitCheckBox{
     color: var(--field-carryover-color);
 }
 
+.carryover_changed > .labledBox_content > :not(.gnrcheckbox_wrapper):not(.labledBox_restore){
+    box-shadow: inset var(--field-changed-bar-width) 0 0 var(--field-changed-bar-color);
+}
+
+/* a 24px target that does not raise the label row */
 .labledBox_restore{
     display: none;
     flex: none;
-    margin-left: auto;
-    padding: 0 .25em;
+    align-items: center;
+    justify-content: center;
+    min-width: var(--field-restore-size);
+    min-height: var(--field-restore-size);
+    margin: calc((1.2em - var(--field-restore-size)) / 2) 0 calc((1.2em - var(--field-restore-size)) / 2) auto;
     border-radius: var(--radius-sm);
     color: var(--field-restore-color);
     font-weight: normal;
@@ -351,7 +363,7 @@
 
 .labledBox_overridden > .labledBox_label > .labledBox_restore,
 .labledBox_overridden > .labledBox_content > .labledBox_restore{
-    display: inline-block;
+    display: inline-flex;
 }
 
 .labledBox_restore:hover{

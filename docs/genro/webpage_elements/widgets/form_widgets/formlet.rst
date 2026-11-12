@@ -489,8 +489,17 @@ Carried-over values (carryover)
           a new record.
 
     **carryover_caption** (str): where the value comes from, shown as the
-    tooltip of a carried field. ``item_carryover_caption`` on the formlet sets
-    it for every field.
+    tooltip and the ``aria-description`` of a carried field.
+    ``item_carryover_caption`` on the formlet sets it for every field.
+
+    **carryover_class** (str or False): the class the field's labledBox takes
+    in the state worth marking. With a carried value that state is *carried*
+    and the default class is ``carryover_inherited`` (the value's text dimmed
+    like a placeholder). With ``carryover=True`` it is *overridden* and there
+    is no class by default: the restore button is enough. The framework also
+    provides ``carryover_changed`` (a bar on the changed field), to pass when
+    a form wants it. ``False`` marks nothing; any other class is the
+    application's own. ``item_carryover_class`` sets it for every field.
 
     **carryover_display** (str): a JS function body of ``value`` returning the
     text of the carried value in the restore tooltip. By default the caption
@@ -501,20 +510,27 @@ Carried-over values (carryover)
     keyed by the last segment of the field's value path. Keep it outside the
     saved record.
 
-    The states, computed client side by the labledBox around the field:
+    The states, computed client side by the labledBox around the field, which
+    takes the class ``labledBox_carried`` or ``labledBox_overridden``:
 
         * **carried**: the field holds the carried value. It looks normal and
-          editable; only the text of its value is dimmed
-          (``--field-carryover-color``), the caption is its tooltip. Not used
-          with ``carryover=True``: the record's own data is not dimmed.
+          editable; with ``carryover_inherited`` only the text of its value is
+          dimmed (``--field-carryover-color``). Not used with
+          ``carryover=True``: the record's own data is not marked.
         * **overridden**: the value differs, or was emptied. A restore button
-          (``labledBox_restore``, ``--field-restore-color``) shows at the end of
-          the label row, beside the label of a checkbox. Click, Enter or Space
-          set the carried value back and focus the field. Hidden in a locked
-          form.
+          (``labledBox_restore``, ``--field-restore-color``,
+          ``--field-restore-size``) shows at the end of the label row, beside
+          the label of a checkbox. It shows while the user types, except in a
+          select and its kin (filteringSelect, dbSelect, comboBox), where the
+          typed text is a search. Click, Enter or Space set the carried value
+          back and focus the field. Hidden in a locked form.
         * no carried value: nothing.
 
-    For a checkbox, empty and ``False`` are the same value.
+    For a checkbox, empty and ``False`` are the same value. Every color and
+    size is a theme variable (``--field-carryover-color``,
+    ``--field-changed-bar-color``, ``--field-changed-bar-width``,
+    ``--field-restore-color``, ``--field-restore-hover-bg``,
+    ``--field-restore-size``); the classes can be restyled by a theme.
 
     .. code-block:: python
 
@@ -527,6 +543,9 @@ Carried-over values (carryover)
 
         # every field can go back to the value the record was loaded with
         fl = pane.formlet(cols=3, item_carryover=True)
+
+        # the same, with a bar on the changed fields
+        fl = pane.formlet(cols=3, item_carryover=True, item_carryover_class='carryover_changed')
 
     Demo: ``webpages/gnrwdg/formlet.py::test_9_carryover`` (package ``test``).
 

@@ -223,9 +223,12 @@
     --field-disabled-border: var(--gray-250); /* @theme */
     --field-disabled-bg: var(--gray-100);
     --field-disabled-color: var(--gray-500);
-    --field-carryover-color: #657380; /* @theme text of a carried-over value: dimmed, at least 4.5:1 on --field-bg */
+    --field-carryover-color: #95A1AC; /* @theme text of a carried-over value (carryover_inherited), dimmed like a placeholder */
+    --field-changed-bar-color: #2F6FB3; /* @theme bar of a changed field (carryover_changed) */
+    --field-changed-bar-width: 3px; /* @theme */
     --field-restore-color: #9A6A00; /* @theme the restore button of an overridden field, at least 4.5:1 on its background */
     --field-restore-hover-bg: #F3E6C4; /* @theme */
+    --field-restore-size: 24px; /* @theme the restore button's target */
     --field-disabled-opacity: 0.85;
     --field-readonly-border: var(--gray-200);
     --field-readonly-bg: var(--field-bg);
