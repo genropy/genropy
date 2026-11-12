@@ -11,6 +11,7 @@ LABEL org.opencontainers.image.url="https://www.genropy.org"
 LABEL org.opencontainers.image.vendor="Softwell Srl"
 
 RUN apt-get update && apt-get -y full-upgrade && apt-get install -y supervisor git procps iproute2 python3-psycopg weasyprint fonts-liberation fonts-liberation-sans-narrow && apt-get autoremove -y && apt-get clean
+ENV PIP_ROOT_USER_ACTION=ignore
 RUN pip install --upgrade pip
 RUN adduser --group --system --shell /bin/bash --home /home/genro genro
   
