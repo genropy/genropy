@@ -2611,6 +2611,10 @@ body.drag_started .grouplet_grid_container {
 .grouplet_card--collapsed {
     padding: var(--gc-band) 0 0 0;
 }
+/* the band's separator would stack on the card's own border */
+.grouplet_card--collapsed > .grouplet_card_band {
+    border-width: 0;
+}
 .grouplet_card--collapsed:is(.grouplet_card--chrome-left, .grouplet_card--chrome-right)
     > .grouplet_card_band {
     flex-direction: row;
@@ -2620,7 +2624,6 @@ body.drag_started .grouplet_grid_container {
     width: auto;
     height: var(--gc-band);
     padding: 0 10px 0 6px;
-    border-width: 0;
 }
 
 /* in a groupletGrid: the tile keeps its card box; the selectors outweigh
@@ -2667,7 +2670,6 @@ body.drag_started .grouplet_grid_container {
 }
 .grouplet_card--box.grouplet_card--collapsed > .grouplet_card_band {
     border-radius: calc(var(--radius-md) - 1px);
-    border-width: 0;
 }
 .grouplet_card--box > .grouplet_card_band > .grouplet_card_title {
     color: inherit;
