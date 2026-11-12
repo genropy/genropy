@@ -2284,17 +2284,21 @@ class GnrWebPage(GnrBaseWebPage):
         with self.site.storage('pkg').open(pkg,'tables',table,path,mode='w') as f:
             f.write(value)
 
-    def callTableScript(self, page=None, table=None, respath=None, class_name=None, runKwargs=None,returnURL=False, **kwargs):
+    def callTableScript(self, table=None, respath=None, class_name=None, runKwargs=None, **kwargs):
         """Call a script from a table's resources (e.g: ``_resources/tables/<table>/<respath>``).
 
-        This is typically used to customize prints and batch jobs for a particular installation
+        This is typically used to customize prints and batch jobs for a particular installation.
+        The script is loaded for this page; ``site.callTableScript`` is the twin to use
+        when the page has to be passed explicitly.
 
         :param table: the :ref:`database table <table>` name on which the query will be executed,
                       in the form ``packageName.tableName`` (packageName is the name of the
                       :ref:`package <packages>` to which the table belongs to)
         :param respath: TODO
         :param class_name: TODO
-        :param runKwargs: TODO"""
+        :param runKwargs: a dict merged into ``kwargs`` before the call, overriding them
+        :param kwargs: passed to the script call
+        :returns: whatever the script call returns"""
         script = self.loadTableScript(table=table, respath=respath, class_name=class_name)
         if runKwargs:
             for k, v in list(runKwargs.items()):
