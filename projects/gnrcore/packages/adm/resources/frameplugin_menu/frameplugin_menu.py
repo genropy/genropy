@@ -146,6 +146,9 @@ class MenuIframes(BaseComponent):
                                     // menu still resolving: the reloaded menu brings its own badges
                                     return;
                                 }
+                                // one request for all badges: their handlers share a per-request cache
+                                let badgeNodes = [];
+                                let badges = new gnr.GnrBag();
                                 store.walk(function(n){
                                     const titleCounter = n.attr.titleCounter;
                                     const menuLineBadge = n.attr.menuLineBadge;
@@ -184,12 +187,19 @@ class MenuIframes(BaseComponent):
                                     }
                                     if(objectNotEmpty(menuLineBadgeKW)){
                                         menuLineBadgeKW.table = menuLineBadgeKW.table || n.attr.table;
-                                        genro.serverCall('menu.getMenuLineBadge',menuLineBadgeKW,
-                                                            function(result){
-                                                                n.updAttributes({badgeContent:result});
-                                                            })
+                                        badges.setItem('r_'+badgeNodes.length,new gnr.GnrBag(menuLineBadgeKW));
+                                        badgeNodes.push(n);
                                     }
                                 },'static');
+                                if(!badgeNodes.length){
+                                    return;
+                                }
+                                genro.serverCall('menu.getMenuLineBadges',{badges:badges},
+                                                    function(result){
+                                                        badgeNodes.forEach(function(n,idx){
+                                                            n.updAttributes({badgeContent:result.getItem('r_'+idx)});
+                                                        });
+                                                    });
                                """,treeNode=tree,
                                dbChanges="^gnr.dbchanges")
 
