@@ -222,7 +222,7 @@ class GnrClassCatalog(object):
             try:
                 return self.fromJson(txt)
             except Exception as e:
-                logger.exception('error decoding json')
+                logger.exception('error decoding json: %r', txt[:200])
                 return txt
         
         f = self.parsers.get(clsname, None)
