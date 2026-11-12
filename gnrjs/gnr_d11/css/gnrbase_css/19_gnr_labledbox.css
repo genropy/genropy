@@ -321,3 +321,49 @@
     font-size: unset;
     font-weight: unset;
 }
+
+/* --- Carryover (carryover= on a field) ---
+   carried: the field holds a value carried over from elsewhere, untouched;
+   only its text is dimmed, never the field (it must not read as disabled).
+   overridden: the value differs from the carried one; the restore button
+   shows at the end of the label row, or beside a checkbox's own label. */
+.labledBox_carried > .labledBox_content input,
+.labledBox_carried > .labledBox_content textarea{
+    color: var(--field-carryover-color);
+}
+
+.labledBox_carried > .labledBox_content .dijitCheckBox{
+    color: var(--field-carryover-color);
+}
+
+.labledBox_restore{
+    display: none;
+    flex: none;
+    margin-left: auto;
+    padding: 0 .25em;
+    border-radius: var(--radius-sm);
+    color: var(--field-restore-color);
+    font-weight: normal;
+    font-size: 1.3em;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.labledBox_overridden > .labledBox_label > .labledBox_restore,
+.labledBox_overridden > .labledBox_content > .labledBox_restore{
+    display: inline-block;
+}
+
+.labledBox_restore:hover{
+    background: var(--field-restore-hover-bg);
+}
+
+.labledBox_restore:focus-visible{
+    outline: 2px solid var(--field-restore-color);
+    outline-offset: 1px;
+}
+
+.lockedContainer .labledBox_overridden > .labledBox_label > .labledBox_restore,
+.lockedContainer .labledBox_overridden > .labledBox_content > .labledBox_restore{
+    display: none;
+}

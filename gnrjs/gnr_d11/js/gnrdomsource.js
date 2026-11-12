@@ -2013,6 +2013,13 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         let box_l_kw = objectExtract(attr,'box_l_*',null,true);
         let box_c_kw = objectExtract(attr,'box_c_*',null,true);
         let box_kw = objectExtract(attr,'box_*');
+        // the wrapper watches the field's value against its carryover (gnr.widgets.labledbox):
+        // the field itself is not told of the changes it makes
+        let carryover_kw = objectExtract(attr,'carryover*',null,true);
+        let carryover = 'carryover' in carryover_kw? carryover_kw.carryover : inherited_attr.carryover;
+        if(carryover && typeof(attr.value)=='string' && attr.value.startsWith('^') && !attr.datapath){
+            carryover_kw.carryover_field = attr.value;
+        }
         attr._labelWrapper = wrp_attr._labelWrapperId;
         wrp_attr.side = side;
         wrp_attr._itemId = objectPop(attr,'_itemId');
@@ -2028,7 +2035,7 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         }
         wrp_attr.tag = 'labledbox'
         let gridbox_itemattr = objectExtract(attr,'grid_column,grid_row,colspan,rowspan');
-        this.attr = {...wrp_attr,...box_kw,...label_attr,...box_l_kw,...box_c_kw,...gridbox_itemattr};
+        this.attr = {...wrp_attr,...box_kw,...label_attr,...box_l_kw,...box_c_kw,...gridbox_itemattr,...carryover_kw};
         let original_label = this.label;
         this.label = wrp_attr._itemId || 'labled_'+original_label;
         let content = this._(tag,original_label,attr,{doTrigger:false});

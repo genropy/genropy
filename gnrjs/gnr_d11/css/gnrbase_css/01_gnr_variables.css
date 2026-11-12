@@ -223,6 +223,9 @@
     --field-disabled-border: var(--gray-250); /* @theme */
     --field-disabled-bg: var(--gray-100);
     --field-disabled-color: var(--gray-500);
+    --field-carryover-color: #657380; /* @theme text of a carried-over value: dimmed, at least 4.5:1 on --field-bg */
+    --field-restore-color: #9A6A00; /* @theme the restore button of an overridden field, at least 4.5:1 on its background */
+    --field-restore-hover-bg: #F3E6C4; /* @theme */
     --field-disabled-opacity: 0.85;
     --field-readonly-border: var(--gray-200);
     --field-readonly-bg: var(--field-bg);

@@ -469,6 +469,67 @@ Advanced example combining formlet with other containers.
                 frm=form.js_form,
                 _onStart=True)
 
+.. _formlet_carryover:
+
+Carried-over values (carryover)
+===============================
+
+    A field whose value was filled from somewhere else (the data of a person,
+    an earlier visit, a template) can say so with ``carryover``. The user may
+    change it and, with one click, put the carried value back. It works on
+    every formlet field with a ``lbl`` (and on a checkbox beside labeled
+    fields), and only when the field's ``value`` is a ``^`` path.
+
+    **carryover**: the value the field was filled with.
+
+        * a ``^`` path, a static value or a formula: the field compares its
+          own value against it;
+        * ``True``: the value the record was loaded with, which the form keeps
+          for every changed field until the record is saved. Nothing happens on
+          a new record.
+
+    **carryover_caption** (str): where the value comes from, shown as the
+    tooltip of a carried field. ``item_carryover_caption`` on the formlet sets
+    it for every field.
+
+    **carryover_display** (str): a JS function body of ``value`` returning the
+    text of the carried value in the restore tooltip. By default the caption
+    from the field's ``values``, yes/no for a boolean, else the formatted value.
+
+    **carryover_states** (str, on the formlet): a path where the formlet keeps a
+    Bag with the state of every field (``carried``, ``overridden`` or ``None``),
+    keyed by the last segment of the field's value path. Keep it outside the
+    saved record.
+
+    The states, computed client side by the labledBox around the field:
+
+        * **carried**: the field holds the carried value. It looks normal and
+          editable; only the text of its value is dimmed
+          (``--field-carryover-color``), the caption is its tooltip. Not used
+          with ``carryover=True``: the record's own data is not dimmed.
+        * **overridden**: the value differs, or was emptied. A restore button
+          (``labledBox_restore``, ``--field-restore-color``) shows at the end of
+          the label row, beside the label of a checkbox. Click, Enter or Space
+          set the carried value back and focus the field. Hidden in a locked
+          form.
+        * no carried value: nothing.
+
+    For a checkbox, empty and ``False`` are the same value.
+
+    .. code-block:: python
+
+        fl = pane.formlet(cols=4, carryover_states='#FORM.carryover',
+                          item_carryover_caption="Carried over from the person's data")
+        fl.filteringSelect(value='^.diabetes', lbl='Diabetes', values='N:no,S:yes',
+                           carryover='^.carried.diabetes')
+        fl.dateTextBox(value='^.last_visit', lbl='Last visit',
+                       carryover='^.carried.last_visit')
+
+        # every field can go back to the value the record was loaded with
+        fl = pane.formlet(cols=3, item_carryover=True)
+
+    Demo: ``webpages/gnrwdg/formlet.py::test_9_carryover`` (package ``test``).
+
 See Also
 ========
 

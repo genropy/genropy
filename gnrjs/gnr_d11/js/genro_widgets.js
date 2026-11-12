@@ -755,6 +755,7 @@ dojo.declare("gnr.widgets.gridbox", gnr.widgets.baseHtml, {
     creating:function(attributes, sourceNode) {
         let savedAttrs = {}
         savedAttrs.columns = objectPop(attributes,'columns') || objectPop(attributes,'cols');
+        objectExtract(attributes,'carryover*');
         let _class = attributes._class || ''
         attributes._class = _class + ' gnrgridbox';
         let fitContent = objectPop(attributes,'fitContent');
@@ -938,13 +939,161 @@ dojo.declare("gnr.widgets.labledbox", gnr.widgets.baseHtml, {
                 contentBox.addItem(childNode.label,childNode.getValue(),childNodeAttr,{doTrigger:false});
             });
         }
+        if(sourceNode.attr.carryover_field && sourceNode.attr.carryover!==false){
+            // a placeholder label is hidden: the checkbox keeps the button beside its own label
+            let restoreBox = /(^|\s)formlet_placeholder_label(\s|$)/.test(sourceNode.attr._class)? contentBox : labelBox;
+            let handler = this;
+            let restore = restoreBox._('div','carryover_restore',{_class:'labledBox_restore',innerHTML:'&#8634;',
+                tabindex:0,role:'button',
+                connect_onclick:function(){
+                    handler.restoreCarryover(sourceNode);
+                },
+                connect_onkeydown:function(evt){
+                    if(evt.key=='Enter' || evt.key==' '){
+                        evt.preventDefault();
+                        handler.restoreCarryover(sourceNode);
+                    }
+                }
+            },{'doTrigger':false});
+            sourceNode._carryoverRestore = restore.getParentNode();
+            sourceNode._carryoverContent = contentBox;
+        }
     },
     creating:function(attributes, sourceNode) {
+        objectExtract(attributes,'carryover*');
     },
 
     created:function(newobj, savedAttrs, sourceNode){
         if(!genro.startArgs.inlineDoc){
             sourceNode.updateHelperClasses();
+        }
+        if(sourceNode._carryoverContent){
+            this.refreshCarryover(sourceNode);
+        }
+    },
+
+    setCarryover:function(domNode,value,kw){
+        this.refreshCarryover(domNode.sourceNode);
+    },
+
+    setCarryover_field:function(domNode,value,kw){
+        this.refreshCarryover(domNode.sourceNode);
+    },
+
+    setCarryover_caption:function(domNode,value,kw){
+        this.refreshCarryover(domNode.sourceNode);
+    },
+
+    refreshCarryover:function(sourceNode){
+        // with carryover=true the form records the loaded value while this same change is dispatched
+        clearTimeout(sourceNode._carryoverTimeout);
+        sourceNode._carryoverTimeout = setTimeout(()=>this.updateCarryover(sourceNode),1);
+    },
+
+    carryoverStatus:function(sourceNode){
+        let fieldNode = sourceNode._carryoverContent? sourceNode._carryoverContent.getNodes()[0] : null;
+        if(!fieldNode || sourceNode.isLostNode()){
+            return null;
+        }
+        let value = fieldNode.getAttributeFromDatasource('value');
+        let prior;
+        if(sourceNode.attr.carryover===true){
+            let dataNode = genro.getDataNode(fieldNode.attrDatapath('value'));
+            if(!dataNode || !('_loadedValue' in dataNode.attr) || (fieldNode.form && fieldNode.form.isNewRecord())){
+                return {fieldNode};
+            }
+            prior = dataNode.attr._loadedValue;
+        }else{
+            prior = sourceNode.getAttributeFromDatasource('carryover');
+            if(isNullOrBlank(prior)){
+                return {fieldNode};
+            }
+        }
+        let checkbox = (fieldNode.attr.tag || '').toLowerCase()=='checkbox';
+        if(checkbox? !!value===!!prior : this._carryoverEqual(value,prior)){
+            return {fieldNode,state:sourceNode.attr.carryover===true? null : 'carried'};
+        }
+        return {fieldNode,prior,state:'overridden',cleared:!checkbox && isNullOrBlank(value)};
+    },
+
+    _carryoverEqual:function(a,b){
+        if(isNullOrBlank(a) || isNullOrBlank(b)){
+            return isNullOrBlank(a) && isNullOrBlank(b);
+        }
+        return isEqual(a,b) || (!(a instanceof Date) && !(b instanceof Date) && String(a)==String(b));
+    },
+
+    carryoverDisplay:function(sourceNode,fieldNode,value){
+        let display = sourceNode.attr.carryover_display;
+        if(display){
+            return funcCreate(display,'value',sourceNode)(value);
+        }
+        if(isNullOrBlank(value)){
+            return _T('!!empty');
+        }
+        let values = fieldNode.getAttributeFromDatasource('values');
+        let caption = values? valueMapFormat(values,value) : null;
+        if(caption!==null){
+            return caption;
+        }
+        if(value===true || value===false){
+            return value? _T('!!Yes') : _T('!!No');
+        }
+        return _F(value,fieldNode.attr.format,fieldNode.attr.dtype);
+    },
+
+    updateCarryover:function(sourceNode){
+        let status = this.carryoverStatus(sourceNode);
+        let domNode = sourceNode.domNode;
+        if(!status || !domNode){
+            return;
+        }
+        genro.dom.setClass(domNode,'labledBox_carried',status.state=='carried');
+        genro.dom.setClass(domNode,'labledBox_overridden',status.state=='overridden');
+        let contentNode = sourceNode._carryoverContent.getParentNode().domNode;
+        let caption = sourceNode.getAttributeFromDatasource('carryover_caption');
+        if(status.state=='carried' && caption){
+            contentNode.setAttribute('title',caption);
+        }else{
+            contentNode.removeAttribute('title');
+        }
+        let restoreNode = sourceNode._carryoverRestore.domNode;
+        if(status.state=='overridden'){
+            let tip = [status.cleared? _T('!!Cleared') : _T('!!Changed'),
+                       _T('!!before')+': '+this.carryoverDisplay(sourceNode,status.fieldNode,status.prior),
+                       _T('!!restore')].join(' · ');
+            restoreNode.setAttribute('title',tip);
+            restoreNode.setAttribute('aria-label',tip);
+        }
+        let statesNode = sourceNode.attributeOwnerNode('carryover_states');
+        let state = status.state || null;
+        if(statesNode && sourceNode._carryoverState!==state){
+            // set on the Bag itself: an item genro.setData creates triggers no dataController
+            let statesPath = statesNode.absDatapath(statesNode.attr.carryover_states);
+            let states = genro.getData(statesPath);
+            if(!(states instanceof gnr.GnrBag)){
+                states = new gnr.GnrBag();
+                genro.setData(statesPath,states);
+            }
+            states.setItem(status.fieldNode.attr.value.slice(1).split('.').pop(),state);
+        }
+        sourceNode._carryoverState = state;
+    },
+
+    restoreCarryover:function(sourceNode){
+        let status = this.carryoverStatus(sourceNode);
+        if(!status || status.state!='overridden'){
+            return;
+        }
+        let fieldNode = status.fieldNode;
+        if((fieldNode.form && fieldNode.form.isDisabled()) || fieldNode.getAttributeFromDatasource('disabled')
+                || fieldNode.getAttributeFromDatasource('readOnly')){
+            return;
+        }
+        genro.setData(fieldNode.attrDatapath('value'),status.prior);
+        let focusable = fieldNode.widget || fieldNode.domNode;
+        if(focusable && focusable.focus){
+            focusable.focus();
         }
     },
 
