@@ -745,14 +745,14 @@ class GnrTaskWorker:
         else:
             return self.db.table("sys.task")
 
-    def _notify_alive(self):
+    def _notify_alive(self, inflight):
         with requests.Session() as session:
             try:
                 logger.debug("Pinging scheduler")
                 resp = session.get(
                     f"{self.scheduler_url}/alive",
                     params={"worker_id": self.worker_id, "queue_name": self.queue_name,
-                            "inflight": 1, "run_id": list(self.inflight)},
+                            "inflight": 1, "run_id": inflight},
                     timeout=NOTIFY_ALIVE_INTERVAL * 2,
                 )
                 if resp.status_code == 200:
@@ -765,7 +765,7 @@ class GnrTaskWorker:
     async def worker_alive(self):
         while not self.stop_evt.is_set():
             await asyncio.sleep(NOTIFY_ALIVE_INTERVAL)
-            await asyncio.to_thread(self._notify_alive)
+            await asyncio.to_thread(self._notify_alive, list(self.inflight))
 
 
     async def poll(self):

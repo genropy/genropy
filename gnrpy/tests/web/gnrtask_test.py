@@ -755,7 +755,7 @@ class TestGnrTaskWorker(BaseGnrTest):
                 return DummyResponse()
 
         monkeypatch.setattr(gnrtask.requests, "Session", lambda: DummySession())
-        worker._notify_alive()
+        worker._notify_alive([])
 
         assert len(calls) == 1
         url, params, timeout = calls[0]
@@ -779,12 +779,15 @@ class TestGnrTaskWorker(BaseGnrTest):
 
             def get(self, url, params=None, timeout=None):
                 calls.append(params)
+                worker.stop_evt.set()
                 return DummyResponse()
 
         monkeypatch.setattr(gnrtask.requests, "Session", lambda: DummySession())
-        worker._notify_alive()
+        monkeypatch.setattr(gnrtask, "NOTIFY_ALIVE_INTERVAL", 0)
+        worker.run(worker.worker_alive())
+        worker.stop_evt.clear()
         worker.inflight.update({"r1", "r2"})
-        worker._notify_alive()
+        worker.run(worker.worker_alive())
 
         assert calls[0]["inflight"] == 1
         assert calls[0]["run_id"] == []
@@ -856,7 +859,7 @@ class TestGnrTaskWorker(BaseGnrTest):
                 raise RuntimeError("boom")
 
         monkeypatch.setattr(gnrtask.requests, "Session", lambda: BrokenSession())
-        worker._notify_alive()
+        worker._notify_alive([])
         assert any("Notify alive error" in rec.message for rec in caplog.records)
 
     def test_worker_say_goodbye_success(self, worker, monkeypatch):
