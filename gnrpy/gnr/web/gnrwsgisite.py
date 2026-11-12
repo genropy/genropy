@@ -855,13 +855,17 @@ class GnrWsgiSite(object):
             path_list.pop(0)
 
         path = '/'.join(path_list)
-        return self.storageNode('%s:%s'%(storage_name,path),_adapt=False)
-    
+        node = self.storageNode('%s:%s'%(storage_name,path),_adapt=False)
+        # checked on the node path: the legacy vol: form turns ':' into '/' only there
+        if node is not None and '..' in node.path.split('/'):
+            return None
+        return node
+
     def storageDispatcher(self,path_list,environ,start_response,storageType=None,**kwargs):
         storageNode = self.storageNodeFromPathList(path_list, storageType)
-        if storageNode and self.storage_handler.isPrivateStorage(storageNode.service.service_name):
+        if storageNode is None or self.storage_handler.isPrivateStorage(storageNode.service.service_name):
             return self.not_found_exception(environ, start_response)
-        exists = storageNode and storageNode.exists
+        exists = storageNode.exists
         if not exists and '_lazydoc' in kwargs:
             #fullpath = None ### QUI NON DOBBIAMO USARE I FULLPATH
             exists = self.build_lazydoc(kwargs['_lazydoc'],fullpath=storageNode.internal_path,**kwargs) 
