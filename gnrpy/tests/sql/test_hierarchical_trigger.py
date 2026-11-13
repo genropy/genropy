@@ -172,6 +172,49 @@ class TestCounterUsedAsHierarchicalField:
                     'literal None in %s: %r' % (fld, row[fld])
 
 
+class TestCounterColumnAsHierarchicalField:
+    """invc.product_family: hierarchical='description,code', counter=True,
+    with ``code`` assigned by ``counter_code``.
+
+    Field triggers build the hierarchical paths before ``trigger_assignCounters``
+    runs, so a counter column among the hierarchical fields was still empty:
+    the root stored NULL in hierarchical_code and the children a literal
+    'None' segment ('None/None', then 'None/0002' after their next update).
+    """
+
+    def test_root_child_and_grandchild_paths(self, db_sqlite):
+        db = db_sqlite
+        tbl = db.table('invc.product_family')
+        root, child, grandchild = _insert_chain(db, tbl, 'pf root', 'pf child', 'pf grandchild')
+        assert root['code'] and child['code'] and grandchild['code']
+        assert root['hierarchical_code'] == root['code']
+        assert child['_parent_h_code'] == root['code']
+        assert child['hierarchical_code'] == '%s/%s' % (root['code'], child['code'])
+        assert grandchild['_parent_h_code'] == child['hierarchical_code']
+        assert grandchild['hierarchical_code'] == '%s/%s/%s' % (
+            root['code'], child['code'], grandchild['code'])
+        assert grandchild['hierarchical_description'] == 'pf root/pf child/pf grandchild'
+
+    def test_explicit_code_is_kept(self, db_sqlite):
+        db = db_sqlite
+        tbl = db.table('invc.product_family')
+        tbl.insert(dict(description='pf manual', code='MAN'))
+        db.commit()
+        row = _fetch_one(tbl, '$description=:d', d='pf manual')
+        assert row['code'] == 'MAN'
+        assert row['hierarchical_code'] == 'MAN'
+
+    def test_update_keeps_the_paths(self, db_sqlite):
+        db = db_sqlite
+        tbl = db.table('invc.product_family')
+        root, child = _insert_chain(db, tbl, 'pf up root', 'pf up child')
+        tbl.batchUpdate(dict(description='pf up root x'), where='$id=:pkey', pkey=root['id'])
+        db.commit()
+        child = _fetch_one(tbl, '$id=:pk', pk=child['id'])
+        assert child['hierarchical_code'] == '%s/%s' % (root['code'], child['code'])
+        assert child['hierarchical_description'] == 'pf up root x/pf up child'
+
+
 def _insert_chain(db, tbl, *descriptions):
     """Insert a chain of nodes, each one child of the previous, and return them."""
     parent_id = None
