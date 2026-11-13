@@ -7,6 +7,7 @@ from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 import pytest
+from multidict import MultiDict
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 
@@ -435,6 +436,88 @@ class TestGnrTaskScheduler(BaseGnrTest):
         assert "run-limit" not in scheduler.pending_ack
         assert scheduler.failed_tasks[-1]["run_id"] == "run-limit"
 
+    def _run_retry_monitor_once(self, scheduler, monkeypatch):
+        async def fake_sleep(_):
+            raise asyncio.CancelledError
+
+        monkeypatch.setattr(gnrtask.asyncio, "sleep", fake_sleep)
+        with pytest.raises(asyncio.CancelledError):
+            scheduler.run(scheduler.retry_monitor())
+
+    def _alive_worker(self, scheduler, now, inflight=None):
+        scheduler.workers["workerA"] = {"lastseen": now, "worked_tasks": 1, "queue_name": "general"}
+        if inflight is not None:
+            scheduler.workers["workerA"]["inflight"] = inflight
+
+    def test_retry_monitor_requeues_run_missing_from_inflight_report(self, scheduler, monkeypatch):
+        now = datetime.now(timezone.utc)
+        sent_time = now - timedelta(seconds=gnrtask.ACK_TIMEOUT * 10)
+        task = {"queue_name": "general", "task_id": "task1", "run_id": "lost"}
+        scheduler.pending_ack["lost"] = (task, sent_time, 0, "workerA")
+        self._alive_worker(scheduler, now, inflight=(set(), now))
+
+        self._run_retry_monitor_once(scheduler, monkeypatch)
+
+        assert scheduler.queues["general"].get_nowait()["run_id"] == "lost"
+        assert scheduler.pending_ack["lost"][2] == 1
+
+    def test_retry_monitor_keeps_run_listed_as_inflight(self, scheduler, monkeypatch):
+        now = datetime.now(timezone.utc)
+        sent_time = now - timedelta(hours=2)
+        task = {"queue_name": "general", "task_id": "task1", "run_id": "long"}
+        scheduler.pending_ack["long"] = (task, sent_time, 0, "workerA")
+        self._alive_worker(scheduler, now, inflight=({"long"}, now))
+
+        self._run_retry_monitor_once(scheduler, monkeypatch)
+
+        assert scheduler.queues["general"].empty()
+        assert scheduler.pending_ack["long"] == (task, sent_time, 0, "workerA")
+
+    def test_retry_monitor_waits_for_a_report_after_the_grace(self, scheduler, monkeypatch):
+        now = datetime.now(timezone.utc)
+        reported = now - timedelta(seconds=1)
+        task = {"queue_name": "general", "task_id": "task1", "run_id": "fresh"}
+        scheduler.pending_ack["fresh"] = (task, now - timedelta(seconds=2), 0, "workerA")
+        task_late = {"queue_name": "general", "task_id": "task2", "run_id": "late"}
+        scheduler.pending_ack["late"] = (task_late, now, 0, "workerA")
+        self._alive_worker(scheduler, now, inflight=(set(), reported))
+
+        self._run_retry_monitor_once(scheduler, monkeypatch)
+
+        assert scheduler.queues["general"].empty()
+        assert scheduler.pending_ack["fresh"][2] == 0
+        assert scheduler.pending_ack["late"][2] == 0
+
+    def test_retry_monitor_keeps_run_of_worker_without_inflight_report(self, scheduler, monkeypatch):
+        now = datetime.now(timezone.utc)
+        sent_time = now - timedelta(hours=2)
+        task = {"queue_name": "general", "task_id": "task1", "run_id": "legacy"}
+        scheduler.pending_ack["legacy"] = (task, sent_time, 0, "workerA")
+        self._alive_worker(scheduler, now)
+
+        self._run_retry_monitor_once(scheduler, monkeypatch)
+
+        assert scheduler.queues["general"].empty()
+        assert scheduler.pending_ack["legacy"][2] == 0
+
+    def test_api_worker_alive_stores_inflight_only_with_marker(self, scheduler):
+        def alive(**query):
+            request = types.SimpleNamespace(query=MultiDict(query))
+            return scheduler.run(scheduler.api_worker_alive(request))
+
+        alive(worker_id="legacy", queue_name="general", run_id="r0")
+        assert "inflight" not in scheduler.workers["legacy"]
+
+        request = types.SimpleNamespace(query=MultiDict([("worker_id", "workerA"), ("queue_name", "general"),
+                                                         ("inflight", "1"), ("run_id", "r1"), ("run_id", "r2")]))
+        scheduler.run(scheduler.api_worker_alive(request))
+        inflight, reported = scheduler.workers["workerA"]["inflight"]
+        assert inflight == {"r1", "r2"}
+        assert reported >= scheduler.workers["workerA"]["lastseen"]
+
+        alive(worker_id="workerA", queue_name="general", inflight="1")
+        assert scheduler.workers["workerA"]["inflight"][0] == set()
+
     def test_next_task_returns_task_and_tracks_worker(self, scheduler):
         item = {"run_id": "runX", "task_id": "taskX", "queue_name": "general"}
 
@@ -672,7 +755,7 @@ class TestGnrTaskWorker(BaseGnrTest):
                 return DummyResponse()
 
         monkeypatch.setattr(gnrtask.requests, "Session", lambda: DummySession())
-        worker._notify_alive()
+        worker._notify_alive([])
 
         assert len(calls) == 1
         url, params, timeout = calls[0]
@@ -680,6 +763,87 @@ class TestGnrTaskWorker(BaseGnrTest):
         assert params["worker_id"] == worker.worker_id
         assert params["queue_name"] == worker.queue_name
         assert timeout == gnrtask.NOTIFY_ALIVE_INTERVAL * 2
+
+    def test_worker_notify_alive_reports_inflight_runs(self, worker, monkeypatch):
+        calls = []
+
+        class DummyResponse:
+            status_code = 200
+
+        class DummySession:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, tb):
+                return False
+
+            def get(self, url, params=None, timeout=None):
+                calls.append(params)
+                worker.stop_evt.set()
+                return DummyResponse()
+
+        monkeypatch.setattr(gnrtask.requests, "Session", lambda: DummySession())
+        monkeypatch.setattr(gnrtask, "NOTIFY_ALIVE_INTERVAL", 0)
+        worker.run(worker.worker_alive())
+        worker.stop_evt.clear()
+        worker.inflight.update({"r1", "r2"})
+        worker.run(worker.worker_alive())
+
+        assert calls[0]["inflight"] == 1
+        assert calls[0]["run_id"] == []
+        assert calls[1]["inflight"] == 1
+        assert sorted(calls[1]["run_id"]) == ["r1", "r2"]
+
+    def test_worker_poll_and_executor_track_inflight(self, worker, monkeypatch):
+        task = {"run_id": "r1", "task_id": "t1", "queue_name": "custom"}
+        seen = {}
+
+        class DummyResponse:
+            status = 200
+
+            async def json(self):
+                return task
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, exc_type, exc, tb):
+                return False
+
+        class DummySession:
+            def __init__(self, *_, **__):
+                pass
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, exc_type, exc, tb):
+                return False
+
+            def get(self, *_, **__):
+                worker.stop_evt.set()
+                return DummyResponse()
+
+        def fake_execute(sitename, executed):
+            seen["inflight"] = set(worker.inflight)
+            worker.stop_evt.set()
+
+        monkeypatch.setattr(gnrtask.aiohttp, "ClientSession", DummySession)
+        monkeypatch.setattr(gnrtask, "execute_task", fake_execute)
+
+        async def runner():
+            worker.loop = asyncio.get_running_loop()
+            await worker.poll()
+            polled = set(worker.inflight)
+            worker.stop_evt.clear()
+            await worker.executor("e1")
+            return polled
+
+        polled = worker.run(runner())
+
+        assert polled == {"r1"}
+        assert seen["inflight"] == {"r1"}
+        assert worker.inflight == set()
 
     def test_worker_notify_alive_failure(self, worker, monkeypatch, caplog):
         caplog.set_level("ERROR")
@@ -695,7 +859,7 @@ class TestGnrTaskWorker(BaseGnrTest):
                 raise RuntimeError("boom")
 
         monkeypatch.setattr(gnrtask.requests, "Session", lambda: BrokenSession())
-        worker._notify_alive()
+        worker._notify_alive([])
         assert any("Notify alive error" in rec.message for rec in caplog.records)
 
     def test_worker_say_goodbye_success(self, worker, monkeypatch):

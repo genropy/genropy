@@ -334,7 +334,8 @@ class GnrTaskScheduler:
             logger.debug("Checking for tasks needing retry...")
             now = datetime.now(timezone.utc)
             for task_id, (task, sent_time, retries, worker_id) in list(self.pending_ack.items()):     
-                if worker_id not in self.workers or (now - self.workers[worker_id]['lastseen']).total_seconds() > ACK_TIMEOUT:
+                if worker_id not in self.workers or (now - self.workers[worker_id]['lastseen']).total_seconds() > ACK_TIMEOUT \
+                        or self.lost_by_worker(task_id, sent_time, worker_id):
                     if retries < RETRY_LIMIT:
                         logger.info("Retrying task %s (%s)", task['task_id'], task['run_id'])
                         await self.queues[task['queue_name']].put(task)
@@ -345,6 +346,13 @@ class GnrTaskScheduler:
                         del self.pending_ack[task_id]
             await asyncio.sleep(SCHEDULER_RUN_INTERVAL*2)
             
+    def lost_by_worker(self, run_id, sent_time, worker_id):
+        worker = self.workers.get(worker_id)
+        if not worker or 'inflight' not in worker:
+            return False
+        inflight, reported = worker['inflight']
+        return run_id not in inflight and (reported - sent_time).total_seconds() > ACK_TIMEOUT
+
     async def empty_queue(self, queue_name):
         # safer way to empty the queue is to just replace
         # the referenced object holding the queue
@@ -571,6 +579,9 @@ class GnrTaskScheduler:
         queue_name = request.query.get("queue_name")
         logger.debug(f"Worker %s/%s is alive", worker_id, queue_name)
         self.worker_alive(worker_id, queue_name)
+        if worker_id in self.workers and request.query.get("inflight"):
+            self.workers[worker_id]["inflight"] = (set(request.query.getall("run_id", [])),
+                                                   datetime.now(timezone.utc))
         return web.json_response(dict(status="ack"))
     
     async def api_worker_leave(self, request):
@@ -724,6 +735,7 @@ class GnrTaskWorker:
         # executor process, otherwise the first worker in a cluster
         # will get all the tasks
         self.tasks_q = asyncio.Queue(maxsize=self.processes)
+        self.inflight = set()
         self.process_pool = None
 
     def get_task_table(self, domain=None):
@@ -733,13 +745,14 @@ class GnrTaskWorker:
         else:
             return self.db.table("sys.task")
 
-    def _notify_alive(self):
+    def _notify_alive(self, inflight):
         with requests.Session() as session:
             try:
                 logger.debug("Pinging scheduler")
                 resp = session.get(
                     f"{self.scheduler_url}/alive",
-                    params={"worker_id": self.worker_id, "queue_name": self.queue_name},
+                    params={"worker_id": self.worker_id, "queue_name": self.queue_name,
+                            "inflight": 1, "run_id": inflight},
                     timeout=NOTIFY_ALIVE_INTERVAL * 2,
                 )
                 if resp.status_code == 200:
@@ -752,7 +765,7 @@ class GnrTaskWorker:
     async def worker_alive(self):
         while not self.stop_evt.is_set():
             await asyncio.sleep(NOTIFY_ALIVE_INTERVAL)
-            await asyncio.to_thread(self._notify_alive)
+            await asyncio.to_thread(self._notify_alive, list(self.inflight))
 
 
     async def poll(self):
@@ -767,6 +780,7 @@ class GnrTaskWorker:
                         if resp.status == 200:
                             task = await resp.json()
                             logger.info("%s got new task: %s", self.worker_id, task)
+                            self.inflight.add(task["run_id"])
                             await self.tasks_q.put(task)
                             logger.info("Hello")
                 except Exception:
@@ -786,6 +800,7 @@ class GnrTaskWorker:
                 logger.error("Executor %s error: %s", name, e)
                 logger.exception(e)
             finally:
+                self.inflight.discard(task["run_id"])
                 self.tasks_q.task_done()
               
     async def shutdown_worker(self, consumers, alive_task):
