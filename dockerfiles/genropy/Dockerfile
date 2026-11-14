@@ -2,7 +2,7 @@
 # Dockerfile to build Genropy container images
 ############################################################
 
-FROM python:3.11-slim
+FROM python:3.13-slim
 LABEL org.opencontainers.image.title "Genropy"
 LABEL org.opencontainers.image.description "Genropy web framework"
 LABEL org.opencontainers.image.source "https://github.com/genropy/genropy"
