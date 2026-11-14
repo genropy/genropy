@@ -295,6 +295,9 @@ class Table(object):
                 if cnt_from>cnt_to:
                     holes.pop(hole_key)
                 else:
+                    #the numbers left in the hole come after this one: they cannot take an earlier date
+                    if date and (date_from is None or date>date_from):
+                        date_from = date
                     holes.setAttr(hole_key,dict(cnt_from=cnt_from,date_from=date_from))
                 counterInfo.update(recycled=True,cnt=counter)
                 break
@@ -355,65 +358,40 @@ class Table(object):
             sequence = record[field]
             record[field] = None
             releasing_counter = int(sequence[N_start:N_end])
-            if releasing_counter>counter_record['counter']:
-                pass
-                #raise self.exception('business_logic','Wrong counter releasing')
-            else:
-                holes = counter_record['holes'] or Bag()
-                holes.sort('#a.cnt_from')
-                counter_record['holes'] = holes
-                i = 0
-                cnt_from = releasing_counter
-                cnt_to = releasing_counter
-                for hole_key,h_cnt_from,h_cnt_to in holes.digest('#k,#a.cnt_from,#a.cnt_to'):
-                    if cnt_from == h_cnt_from - 1:
-                        cnt_to = h_cnt_to
+            series = SequenceSeries(tblobj, field=field, date_field=date_field, sequence=sequence,
+                                    N_start=N_start, N_end=N_end, exclude_pkey=record.get(tblobj.pkey))
+            holes = counter_record['holes'] or Bag()
+            counter_record['holes'] = holes
+            #every number between the nearest numbers in use (drafts holding one included) is free:
+            #the released one, the holes next to it and numbers lost without a hole. They make one
+            #hole, dated by those two numbers
+            before = series.nearest(releasing_counter, below=True)
+            after = series.nearest(releasing_counter, below=False)
+            cnt_from = (before[0] if before else (counter_pars.get('starting_value') or 0)) + 1
+            if after is None:
+                #nothing in use above: the tail of the series. The counter goes back to the highest
+                #number in use; holes above it would be handed out again by counter+1, so they go
+                counter_record['counter'], counter_record['last_used'] = (cnt_from - 1, before[1] if before else None)
+                for hole_key,h_cnt_to in holes.digest('#k,#a.cnt_to'):
+                    if h_cnt_to >= cnt_from:
                         holes.popNode(hole_key)
-                        break
-                    elif cnt_to == h_cnt_to + 1:
-                        cnt_from = h_cnt_from
-                        if i<len(holes) - 1:
-                            next_hole = holes.nodes[i+1]
-                            if next_hole.attr['cnt_from'] == cnt_to+1:
-                                cnt_to = next_hole.attr['cnt_to']
-                                holes.popNode(next_hole.label)
-                        break
-                    i += 1
-                date_from, date_to = self.getCounterDates(tblobj, record=record, field=field, date_field=date_field,
-                                                          cnt_from=cnt_from,
-                                                          cnt_to=cnt_to, cnt_last=counter_record['counter'])
-                if date_to is None:
-                    holes.popNode(str(cnt_from))
-                    counter_record['counter'] = cnt_from -1
-                    counter_record['last_used'] = date_from
-                else:
-                    holes.setItem(str(cnt_from), None, cnt_from=cnt_from,
-                              cnt_to=cnt_to, date_from=date_from, date_to=date_to)
-
-                holes.sort('#a.cnt_from')
+            else:
+                #the counter can never stay below a number in use: a counter left behind
+                #(e.g. by an earlier release) would hand out numbers that already exist
+                highest = series.highest()
+                if highest[0] > (counter_record['counter'] or 0):
+                    counter_record['counter'], counter_record['last_used'] = highest
+                cnt_to = after[0] - 1
+                for hole_key,h_cnt_from,h_cnt_to in holes.digest('#k,#a.cnt_from,#a.cnt_to'):
+                    if h_cnt_from <= cnt_to and h_cnt_to >= cnt_from:
+                        holes.popNode(hole_key)
+                holes.setItem(str(cnt_from), None, cnt_from=cnt_from,
+                          cnt_to=cnt_to, date_from=before[1] if before else None, date_to=after[1])
+            holes.sort('#a.cnt_from')
         if counter_pars.get('onReleased'):
             counter_pars['onReleased'](record=record,field=field)
 
 
-    def getCounterDates(self, tblobj, record=None,field=None, date_field=None,cnt_from=None, cnt_to=None, cnt_last=None):
-        wlist = []
-        wkw = {}
-        d1,d2 = None,None
-        if cnt_from>1:
-            wkw['prev_counter'] = self.formatSequence(tblobj=tblobj, field=field, record=record, counter=cnt_from-1)
-            wlist.append('$%(field)s =:prev_counter')
-
-        if cnt_to<cnt_last:
-            wkw['next_counter'] = self.formatSequence(tblobj=tblobj, field=field, record=record, counter=cnt_to+1)
-            wlist.append('$%(field)s =:next_counter')
-
-        if wkw:
-            f = tblobj.query(where=' OR '.join(wlist) %{'field':field},
-                           columns='$%s' % date_field,
-                             order_by='$%s' %field, **wkw).fetch()
-            d1 = f[0][date_field] if f and cnt_from > 1 else None
-            d2 = f[-1][date_field] if f and cnt_to < cnt_last else None
-        return d1,d2
 
     def getYmd(self, date, phyear=False):
         """Return a tuple (year, month, date) of strings from a date.
@@ -444,3 +422,65 @@ class Table(object):
 
 
 
+
+
+class SequenceSeries(object):
+    """The numbers in use in the series of a sequence: same code and period, any number.
+    Drafts and logically deleted records holding a number are in use too, as in alignSequences"""
+
+    LIKE_ESCAPE = '!'
+
+    def __init__(self, tblobj, field=None, date_field=None, sequence=None,
+                 N_start=None, N_end=None, exclude_pkey=None):
+        self.tblobj = tblobj
+        self.field = field
+        self.date_field = date_field
+        self.prefix = sequence[:N_start]
+        self.suffix = sequence[N_end:]
+        self.size = N_end - N_start
+        self.exclude_pkey = exclude_pkey
+
+    def sequence(self, counter):
+        return '%s%s%s' % (self.prefix, str(counter).zfill(self.size), self.suffix)
+
+    def _escaped(self, txt):
+        for c in (self.LIKE_ESCAPE, '%', '_'):
+            txt = txt.replace(c, self.LIKE_ESCAPE + c)
+        return txt
+
+    def _first(self, where=None, order_by=None, **kwargs):
+        wlist = ["$%s LIKE :series ESCAPE '%s'" % (self.field, self.LIKE_ESCAPE)]
+        if where:
+            wlist.append(where % dict(field=self.field))
+        if self.exclude_pkey is not None:
+            wlist.append('$%s != :exclude_pkey' % self.tblobj.pkey)
+        columns = '$%s' % self.field
+        if self.date_field:
+            columns = '%s,$%s' % (columns, self.date_field)
+        rows = self.tblobj.query(columns=columns, where=' AND '.join(wlist),
+                                 order_by=order_by % dict(field=self.field), limit=1,
+                                 series='%s%s%s' % (self._escaped(self.prefix), '_' * self.size, self._escaped(self.suffix)),
+                                 exclude_pkey=self.exclude_pkey,
+                                 excludeDraft=False, excludeLogicalDeleted=False, subtable='*',
+                                 **kwargs).fetch()
+        if not rows:
+            return None
+        digits = rows[0][self.field][len(self.prefix):len(self.prefix) + self.size]
+        if not digits.isdigit():
+            return None
+        date = rows[0][self.date_field] if self.date_field else None
+        if isinstance(date, datetime):
+            date = date.date()
+        return int(digits), date
+
+    def highest(self):
+        "(number, date) of the highest number in use, None if the series is empty"
+        return self._first(order_by='$%(field)s DESC')
+
+    def nearest(self, counter, below=True):
+        "(number, date) of the number in use nearest to counter, below or above it; None if there is none"
+        if below:
+            return self._first(where='$%(field)s < :limit_sequence', order_by='$%(field)s DESC',
+                               limit_sequence=self.sequence(counter))
+        return self._first(where='$%(field)s > :limit_sequence', order_by='$%(field)s',
+                           limit_sequence=self.sequence(counter))
