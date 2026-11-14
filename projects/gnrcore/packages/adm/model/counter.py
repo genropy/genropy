@@ -217,7 +217,8 @@ class Table(object):
                 counter_record['period'] = ''.join(period)
         return counter_record
 
-    def assignCounter(self,tblobj=None,field=None,record=None):
+    def assignCounter(self,tblobj=None,field=None,record=None,old_record=None):
+        #old_record is used by adm.counters_n only: here a number already set is left alone
         if record.get(field):
             return
         counter_pars = getattr(tblobj,'counter_%s' %field)(record=record)

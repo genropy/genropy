@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<!-- generated from counter-blocks.xml by xmldocs: do not edit, edit the XML -->
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>adm.counter: numbers kept as blocks, opt-in per counter</title><style>
+:root {
+  --bg: #fbfaf7; --fg: #1d1d1b; --muted: #6b6a66; --line: #e2dfd8; --panel: #f3f1ec;
+  --code-bg: #f0eee8; --accent: #2f5d8a;
+  --ok: #2e7d4f; --warn: #a86b00; --bad: #b23b3b; --info: #2f5d8a;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #18181a; --fg: #e8e6e1; --muted: #9a9890; --line: #33332f; --panel: #212123;
+    --code-bg: #26262a; --accent: #8fb4dc;
+    --ok: #6cc28f; --warn: #e0a940; --bad: #e57373; --info: #8fb4dc;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #18181a; --fg: #e8e6e1; --muted: #9a9890; --line: #33332f; --panel: #212123;
+  --code-bg: #26262a; --accent: #8fb4dc;
+  --ok: #6cc28f; --warn: #e0a940; --bad: #e57373; --info: #8fb4dc;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg);
+  font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+main { max-width: 860px; margin: 0 auto; padding: 32px 16px 64px; }
+h1 { font-size: 1.9rem; line-height: 1.2; margin: 4px 0 8px; }
+h2 { font-size: 1.35rem; margin: 40px 0 12px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+h3 { font-size: 1.12rem; margin: 28px 0 8px; }
+h4 { font-size: 1rem; margin: 20px 0 6px; }
+a { color: var(--accent); }
+code { font: 0.9em ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--code-bg);
+  padding: 1px 4px; border-radius: 4px; overflow-wrap: anywhere; }
+pre { margin: 0; overflow-x: auto; }
+pre code { display: block; padding: 12px 14px; background: none; }
+figure { margin: 16px 0; }
+figure.code { background: var(--code-bg); border-radius: 8px; }
+figure.code figcaption { font-size: 0.8rem; color: var(--muted); padding: 8px 14px 0; }
+figure.diagram { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px; overflow-x: auto; }
+figure.embed { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px; overflow-x: auto; }
+figure.embed figcaption { font-size: 0.85rem; color: var(--muted); text-align: center; margin-top: 8px; }
+figure.embed svg { max-width: 100%; height: auto; }
+.tag-script { color: var(--bad); }
+figure.diagram figcaption { font-size: 0.85rem; color: var(--muted); text-align: center; margin-top: 8px; }
+figure.diagram svg { max-width: 100%; height: auto; }
+.diagram-dark { display: none; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .diagram-light { display: none; }
+  :root:not([data-theme="light"]) .diagram-dark { display: block; }
+}
+:root[data-theme="dark"] .diagram-light { display: none; }
+:root[data-theme="dark"] .diagram-dark { display: block; }
+.doc-type { text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.75rem; color: var(--muted); }
+.doc-meta { display: flex; flex-wrap: wrap; gap: 12px; color: var(--muted); font-size: 0.9rem; }
+.muted { color: var(--muted); font-size: 0.9em; }
+.box { border: 1px solid var(--line); border-left: 4px solid var(--line); background: var(--panel);
+  border-radius: 6px; padding: 10px 14px; margin: 12px 0; }
+.box-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 6px; }
+.box-foot { margin-top: 6px; }
+.box.fact { border-left-color: var(--info); }
+.box.rule-must { border-left-color: var(--ok); }
+.box.rule-must-not { border-left-color: var(--bad); }
+.box.rule-should { border-left-color: var(--warn); }
+.box.limit { border-left-color: var(--warn); }
+.box.decision-open, .box.decision-proposed { border-left-color: var(--warn); }
+.box.decision-decided { border-left-color: var(--ok); }
+.box.decision-rejected { border-left-color: var(--bad); }
+.box.example { border-left-color: var(--accent); }
+.box.done { border-left-color: var(--ok); }
+.tag-done { color: var(--ok); }
+.tag-doing, .tag-in-progress { color: var(--info); }
+.tag-todo { color: var(--muted); }
+.tag-approved { color: var(--ok); }
+.source { font-size: 0.8rem; }
+.why { margin-top: 4px; }
+.tag { display: inline-block; font-size: 0.72rem; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.04em; padding: 1px 7px; border-radius: 10px; border: 1px solid currentColor; color: var(--muted); }
+.tag-test, .tag-run, .tag-must, .tag-decided, .tag-accepted { color: var(--ok); }
+.tag-read, .tag-review { color: var(--info); }
+.tag-should, .tag-open, .tag-proposed, .tag-draft { color: var(--warn); }
+.tag-must-not, .tag-rejected { color: var(--bad); }
+.options li { margin: 6px 0; }
+.options li.chosen b { color: var(--ok); }
+.choice { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line); }
+.step-num { color: var(--muted); font-weight: 400; margin-right: 6px; }
+.table-wrap { overflow-x: auto; margin: 16px 0; }
+table { border-collapse: collapse; width: 100%; font-size: 0.95rem; }
+caption { text-align: left; color: var(--muted); padding-bottom: 6px; }
+th, td { border: 1px solid var(--line); padding: 6px 10px; text-align: left; vertical-align: top; }
+th { background: var(--panel); }
+  </style></head><body><main><header class="doc-head"><div class="doc-type">Proposal</div><h1>adm.counter: numbers kept as blocks, opt-in per counter</h1><div class="doc-meta"><span>counter-blocks</span><span>2026-11-14</span><span>Giovanni Porcari</span><span class="tag tag-draft">draft</span></div></header><section class="part problem"><h2>Problem</h2>
+    <p>A recycling counter (<code>recycle=True</code>) keeps its free numbers in the <code>holes</code> Bag of the counter record. The Bag is a second copy of what the document table already says, and it drifts from it: genropy/genropy#1879 shows a release that took the counter back below numbers in use, and <code>alignSequences</code> is needed to rebuild the state from the documents.</p>
+    <p>The goal is a model of the numbers of a series that is easy to keep consistent, gives the free numbers and their allowed dates without extra searches, and keeps the current API: <code>counter_&lt;field&gt;()</code>, <code>assignCounterColumn</code>, <code>releaseCounterColumn</code>, <code>guessCounter</code>.</p>
+  </section><section class="part current"><h2>Current state</h2>
+    <section class="section"><h3>How the counter works today</h3>
+      <div class="box fact"><div class="box-head"><span class="tag tag-read">read</span><code class="source">projects/gnrcore/packages/adm/model/counter.py:25</code><span class="muted">2026-11-14</span></div><div>The free numbers of a series live in the <code>holes</code> column (dtype <code>X</code>) of its <code>adm.counter</code> record, one node per hole with <code>cnt_from</code>, <code>cnt_to</code>, <code>date_from</code>, <code>date_to</code>.</div></div>
+      <div class="box fact"><div class="box-head"><span class="tag tag-read">read</span><code class="source">projects/gnrcore/packages/adm/model/counter.py:307</code><span class="muted">2026-11-14</span></div><div><code>_getCounter</code> recycles only when the counter has a <code>date_field</code>: <code>recycle = counter_pars.get('recycle') if date_field else False</code>. Without a date the key is ignored silently.</div></div>
+      <div class="box fact"><div class="box-head"><span class="tag tag-read">read</span><code class="source">projects/gnrcore/packages/adm/model/counter.py:330</code><span class="muted">2026-11-14</span></div><div>A new number with a date earlier than <code>last_used</code> is refused unless <code>date_tolerant</code> is set.</div></div>
+      <div class="box fact"><div class="box-head"><span class="tag tag-read">read</span><code class="source">projects/gnrcore/packages/adm/model/counter.py:357</code><span class="muted">2026-11-14</span></div><div><code>releaseCounter</code> reads the number back from the formatted string with <code>int(sequence[N_start:N_end])</code>: decimal only.</div></div>
+      <div class="box fact"><div class="box-head"><span class="tag tag-read">read</span><code class="source">projects/gnrcore/packages/adm/model/counter.py:103</code><span class="muted">2026-11-14</span></div><div><code>_alignOneSequence</code> rebuilds <code>holes</code> and the counter from the documents; with <code>fix_duplicate</code> (line 157) it rewrites the number of a duplicated document by appending <code>_</code>.</div></div>
+      <div class="box fact"><div class="box-head"><span class="tag tag-read">read</span><code class="source">gnrpy/gnr/app/gnrdbo.py:1573</code><span class="muted">2026-11-14</span></div><div><code>trigger_assignCounters</code> calls <code>assignCounterColumn</code> for every counter column on insert and on update, unless the record goes back to draft; it receives <code>old_record</code> but does not pass it on.</div></div>
+      <div class="box fact"><div class="box-head"><span class="tag tag-read">read</span><code class="source">gnrpy/gnr/app/gnrdbo.py:1569</code><span class="muted">2026-11-14</span></div><div><code>trigger_releaseCounters</code> releases only recycling counters, and keeps the number on a return to draft when the counter has <code>assignIfDraft</code>.</div></div>
+      <div class="box fact"><div class="box-head"><span class="tag tag-read">read</span><code class="source">gnrpy/gnr/app/gnrdbo.py:1586</code><span class="muted">2026-11-14</span></div><div><code>assignCounterColumn</code> and <code>releaseCounterColumn</code> (line 1581) are the only two points where a table calls <code>adm.counter</code> to assign or release.</div></div>
+      <div class="box fact"><div class="box-head"><span class="tag tag-read">read</span><code class="source">gnrpy/gnr/app/gnrapp.py:1050</code><span class="muted">2026-11-14</span></div><div><code>GnrApp.experimentalValue(group, name)</code> reads <code>experimental.group?name</code> from instanceconfig.xml.</div></div>
+    </section>
+    <section class="section"><h3>Open pull requests on the same code</h3>
+      <p>genropy/genropy#1881 fixes the release between numbers in use with a <code>LIKE</code> search on each side. genropy/genropy#1882 adds claiming a number set by hand, listing the free numbers and keeping a number on draft. Both work on the <code>holes</code> Bag; this proposal does not depend on them.</p>
+    </section>
+  </section><section class="part solution"><h2>Proposed solution</h2>
+    <section class="section"><h3>Blocks</h3>
+      <p>The numbers of a series are a contiguous sequence of blocks, without overlaps, from the first number to the last one assigned. A block is either <b>occupied</b> (consecutive numbers in use) or <b>free</b> (consecutive numbers released). Consecutive numbers in use stay in one block: there is no row per number.</p>
+      <p>Every block carries its first and last number, and the value of <code>order_field</code> of its first and of its last number. For a free block these are the values of the occupied numbers that delimit it.</p>
+      <p>The idea comes from the timeline of package <code>tmsh</code> (gnrwork), where a resource is a sequence of contiguous holes, allocating splits a hole and releasing merges the free neighbours.</p>
+      <div class="box example"><div class="box-head"><b>Assign 1, 2, 3, then release 2</b></div>
+        <figure class="code"><figcaption>text</figcaption><pre><code>assign 1    occupied 1-1
+assign 2    occupied 1-2
+assign 3    occupied 1-3
+release 2   occupied 1-1 | free 2-2 | occupied 3-3</code></pre></figure>
+        <p>The window of the free block 2-2 goes from the last value of block 1-1 to the first value of block 3-3: both are already stored.</p>
+      </div>
+    </section>
+
+    <section class="section"><h3>Operations</h3>
+      <ul>
+        <li><b>New number</b>: last number of the highest occupied block plus one; the block grows, or a new occupied block starts above a free tail.</li>
+        <li><b>Recycled number</b>: the lowest free number whose window holds the record's <code>order_field</code> value; its free block shrinks or disappears and merges with the occupied neighbours.</li>
+        <li><b>Number set by hand</b>: it splits the block that holds it; refused if it is occupied or outside its window.</li>
+        <li><b>Release</b> of number n: n becomes free and merges with the free neighbours. When n lies inside a longer occupied block, the new edges n-1 and n+1 need their <code>order_field</code> values: they are read with one equality query on the counter field, using <code>formatSequence(n-1)</code> and <code>formatSequence(n+1)</code>. Releasing the last number takes the series back to the previous occupied number.</li>
+        <li>The triggers act only when the number changes: <code>trigger_assignCounters</code> passes <code>old_record</code>.</li>
+        <li>Every operation runs under the lock of the series record (<code>for_update</code> on <code>adm.counter</code>).</li>
+      </ul>
+    </section>
+
+    <section class="section"><h3>Counter keys</h3>
+      <div class="table-wrap"><table><caption>Keys of counter_&lt;field&gt;() in the new model</caption>
+        <tr><th>Key</th><th>Meaning</th></tr>
+        <tr><td><code>date_field</code></td><td>Required when the format holds a period (<code>$YYYY</code>, <code>$YY</code>, <code>$MM</code>, <code>$DD</code>): it decides the series of the record. It no longer implies an order.</td></tr>
+        <tr><td><code>order_field</code></td><td>Optional. The numbers must follow the order of this field. Dtype <code>D</code>: dates are compared, two documents of the same day fit in any order. Dtype <code>DH</code> or <code>DHZ</code>: the full timestamp is compared. Missing: no order check.</td></tr>
+        <tr><td><code>recycle</code></td><td>Requires <code>order_field</code>; without it the configuration is an explicit error.</td></tr>
+        <tr><td><code>date_tolerant</code></td><td>Not used: a counter without <code>order_field</code> is tolerant.</td></tr>
+      </table></div>
+      <p>All the other keys keep their meaning: <code>format</code>, <code>code</code>, <code>starting_value</code>, <code>base</code>, <code>assignIfDraft</code>, <code>showOnLoad</code>, <code>onAssigned</code>, <code>onReleased</code>, <code>rootstore</code>.</p>
+    </section>
+
+    <section class="section"><h3>Opt-in and switch of a series</h3>
+      <p>The blocks live in the new table <code>adm.counters_n</code>, one row per block, linked to the <code>adm.counter</code> record of the series. The new model is opt-in through an experimental switch, read with <code>experimentalValue('new_counters', 'counters')</code>: <code>*</code> enables it for every counter, a comma-separated list of <code>pkg.table.field</code> for the listed ones. <code>assignCounterColumn</code> and <code>releaseCounterColumn</code> choose between <code>adm.counter</code> and the new model; counters not enabled behave as today.</p>
+      <figure class="code"><figcaption>xml</figcaption><pre><code>&lt;experimental&gt;
+    &lt;new_counters counters="*"/&gt;
+&lt;/experimental&gt;</code></pre></figure>
+      <ol>
+        <li><code>analyzeCounter(table, field)</code>: read-only analysis of every series of the counter, with the errors <code>not_a_number</code>, <code>missing_order_value</code>, <code>duplicate</code>, <code>wrong_order</code>. No document is changed.</li>
+        <li><code>loadCounter(table, field)</code>: load of the blocks from the documents, for the clean series only; a series with errors is reported and skipped.</li>
+        <li>The counter is added to the switch.</li>
+      </ol>
+      <p><code>checkCounter(table, field)</code> compares the stored blocks with the documents, read-only, and replaces the checking part of <code>alignSequences</code>. <code>freeSequences(table, field, record)</code> lists the free numbers of a series with their window. The table that numbers a field is <code>tblobj.counterTable(field)</code> in <code>gnrdbo</code>; <code>adm.counters_n</code> implements <code>assignCounter</code>, <code>releaseCounter</code> and <code>guessNextSequence</code> with the signatures of <code>adm.counter</code>.</p>
+      <p>The order values are stored as ISO text and compared in Python as dates (<code>D</code>) or timestamps (<code>DH</code>, <code>DHZ</code>), so the same columns serve every dtype and every adapter.</p>
+    </section>
+
+    <section class="section"><h3>Not in this proposal</h3>
+      <ul>
+        <li>A PostgreSQL trigger on the document table that keeps the blocks aligned on writes made outside the Python triggers (direct SQL, <code>insertMany</code>). Setting a number as occupied twice is harmless, so it can be added later beside the Python path.</li>
+      </ul>
+    </section>
+  </section><section class="part decisions"><h2>Decisions</h2>
+    <div class="box decision decision-decided" id="d-model"><div class="box-head"><span class="tag tag-decided">decided</span><span class="muted">d-model</span></div><div class="question">How are the numbers of a series kept?</div><ol class="options"><li id="bag"><b>holes Bag in adm.counter, as today</b></li><li id="rows"><b>One row per assigned number</b></li><li id="blocks" class="chosen"><b>Contiguous blocks, occupied and free, each with first and last number and first and last order value</b></li></ol><div class="choice"><b>Choice: Contiguous blocks, occupied and free, each with first and last number and first and last order value</b><span class="muted"> (GP, 2026-11-14)</span></div></div>
+    <div class="box decision decision-decided" id="d-order"><div class="box-head"><span class="tag tag-decided">decided</span><span class="muted">d-order</span></div><div class="question">Which value must the numbers follow?</div><ol class="options"><li id="date"><b>Always the date_field, unless date_tolerant</b></li><li id="order-field" class="chosen"><b>order_field, optional; its dtype decides date or full timestamp; missing means no check</b></li></ol><div class="choice"><b>Choice: order_field, optional; its dtype decides date or full timestamp; missing means no check</b><span class="muted"> (GP, 2026-11-14)</span></div></div>
+    <div class="box decision decision-decided" id="d-recycle"><div class="box-head"><span class="tag tag-decided">decided</span><span class="muted">d-recycle</span></div><div class="question">Can a counter recycle without an order?</div><ol class="options"><li id="ignore"><b>Ignore recycle, as today</b></li><li id="error" class="chosen"><b>Explicit configuration error</b></li></ol><div class="choice"><b>Choice: Explicit configuration error</b><span class="muted"> (GP, 2026-11-14)</span></div></div>
+    <div class="box decision decision-decided" id="d-sql"><div class="box-head"><span class="tag tag-decided">decided</span><span class="muted">d-sql</span></div><div class="question">Python triggers or a PostgreSQL trigger?</div><ol class="options"><li id="python" class="chosen"><b>Python, on every adapter</b></li><li id="sql"><b>PostgreSQL trigger on the document table</b></li></ol><div class="choice"><b>Choice: Python, on every adapter</b><span class="muted"> (GP, 2026-11-14)</span></div></div>
+    <div class="box decision decision-decided" id="d-storage"><div class="box-head"><span class="tag tag-decided">decided</span><span class="muted">d-storage</span></div><div class="question">Where are the blocks stored?</div><ol class="options"><li id="table" class="chosen"><b>A new adm table, one row per block, linked to the adm.counter record of its series</b></li><li id="field"><b>A new column of adm.counter holding the blocks of its series</b></li></ol><div class="choice"><b>Choice: A new adm table, one row per block, linked to the adm.counter record of its series</b><span class="muted"> (GP, 2026-11-14)</span></div></div>
+    <div class="box decision decision-decided" id="d-table-name"><div class="box-head"><span class="tag tag-decided">decided</span><span class="muted">d-table-name</span></div><div class="question">Name of the table of blocks?</div><ol class="options"><li id="newcounters"><b>adm.newcounters</b></li><li id="counters_n" class="chosen"><b>adm.counters_n</b></li></ol><div class="choice"><b>Choice: adm.counters_n</b><span class="muted"> (GP, 2026-11-14)</span></div></div>
+    <div class="box decision decision-decided" id="d-switch"><div class="box-head"><span class="tag tag-decided">decided</span><span class="muted">d-switch</span></div><div class="question">Name and shape of the experimental switch?</div><ol class="options"><li id="db"><b>experimentalValue('db', 'counters_n') with a list of counters</b></li><li id="new-counters" class="chosen"><b>experimentalValue('new_counters', 'counters'): '*' for every counter, or a list of pkg.table.field</b></li></ol><div class="choice"><b>Choice: experimentalValue('new_counters', 'counters'): '*' for every counter, or a list of pkg.table.field</b><span class="muted"> (GP, 2026-11-14)</span></div></div>
+  </section><section class="part consequences"><h2>Consequences</h2>
+    <ul>
+      <li>The free numbers and their windows come from the blocks: no <code>LIKE</code> search, no query on the document table except at the two new edges of a release inside an occupied block.</li>
+      <li>The number is read from the blocks, not parsed back from the formatted string.</li>
+      <li>A counter with <code>date_field</code> and no <code>order_field</code> loses the date check when it moves to the new model: the switch step declares <code>order_field</code> where the order is required.</li>
+      <li>Writes that skip the Python triggers can still make the blocks drift, as they do with <code>holes</code> today.</li>
+    </ul>
+  </section><section class="part related"><h2>Related documents</h2><ul>
+    <li><a href="https://github.com/genropy/genropy/issues/1879">genropy/genropy#1879</a> — Releasing a number can take the counter back below numbers in use</li>
+    <li><a href="https://github.com/genropy/genropy/pull/1881">genropy/genropy#1881</a> — Release counter numbers between the numbers in use</li>
+    <li><a href="https://github.com/genropy/genropy/pull/1882">genropy/genropy#1882</a> — Claim a counter number set by hand, list the free numbers</li>
+  </ul></section></main></body></html>

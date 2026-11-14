@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<proposal id="counter-blocks" title="adm.counter: numbers kept as blocks, opt-in per counter" date="2026-11-14" lang="en" author="Giovanni Porcari" status="draft">
+
+  <problem>
+    <p>A recycling counter (<c>recycle=True</c>) keeps its free numbers in the <c>holes</c> Bag of the counter record. The Bag is a second copy of what the document table already says, and it drifts from it: genropy/genropy#1879 shows a release that took the counter back below numbers in use, and <c>alignSequences</c> is needed to rebuild the state from the documents.</p>
+    <p>The goal is a model of the numbers of a series that is easy to keep consistent, gives the free numbers and their allowed dates without extra searches, and keeps the current API: <c>counter_&lt;field&gt;()</c>, <c>assignCounterColumn</c>, <c>releaseCounterColumn</c>, <c>guessCounter</c>.</p>
+  </problem>
+
+  <current>
+    <section title="How the counter works today">
+      <fact source="projects/gnrcore/packages/adm/model/counter.py:25" method="read" verified="2026-11-14">The free numbers of a series live in the <c>holes</c> column (dtype <c>X</c>) of its <c>adm.counter</c> record, one node per hole with <c>cnt_from</c>, <c>cnt_to</c>, <c>date_from</c>, <c>date_to</c>.</fact>
+      <fact source="projects/gnrcore/packages/adm/model/counter.py:307" method="read" verified="2026-11-14"><c>_getCounter</c> recycles only when the counter has a <c>date_field</c>: <c>recycle = counter_pars.get('recycle') if date_field else False</c>. Without a date the key is ignored silently.</fact>
+      <fact source="projects/gnrcore/packages/adm/model/counter.py:330" method="read" verified="2026-11-14">A new number with a date earlier than <c>last_used</c> is refused unless <c>date_tolerant</c> is set.</fact>
+      <fact source="projects/gnrcore/packages/adm/model/counter.py:357" method="read" verified="2026-11-14"><c>releaseCounter</c> reads the number back from the formatted string with <c>int(sequence[N_start:N_end])</c>: decimal only.</fact>
+      <fact source="projects/gnrcore/packages/adm/model/counter.py:103" method="read" verified="2026-11-14"><c>_alignOneSequence</c> rebuilds <c>holes</c> and the counter from the documents; with <c>fix_duplicate</c> (line 157) it rewrites the number of a duplicated document by appending <c>_</c>.</fact>
+      <fact source="gnrpy/gnr/app/gnrdbo.py:1573" method="read" verified="2026-11-14"><c>trigger_assignCounters</c> calls <c>assignCounterColumn</c> for every counter column on insert and on update, unless the record goes back to draft; it receives <c>old_record</c> but does not pass it on.</fact>
+      <fact source="gnrpy/gnr/app/gnrdbo.py:1569" method="read" verified="2026-11-14"><c>trigger_releaseCounters</c> releases only recycling counters, and keeps the number on a return to draft when the counter has <c>assignIfDraft</c>.</fact>
+      <fact source="gnrpy/gnr/app/gnrdbo.py:1586" method="read" verified="2026-11-14"><c>assignCounterColumn</c> and <c>releaseCounterColumn</c> (line 1581) are the only two points where a table calls <c>adm.counter</c> to assign or release.</fact>
+      <fact source="gnrpy/gnr/app/gnrapp.py:1050" method="read" verified="2026-11-14"><c>GnrApp.experimentalValue(group, name)</c> reads <c>experimental.group?name</c> from instanceconfig.xml.</fact>
+    </section>
+    <section title="Open pull requests on the same code">
+      <p>genropy/genropy#1881 fixes the release between numbers in use with a <c>LIKE</c> search on each side. genropy/genropy#1882 adds claiming a number set by hand, listing the free numbers and keeping a number on draft. Both work on the <c>holes</c> Bag; this proposal does not depend on them.</p>
+    </section>
+  </current>
+
+  <solution>
+    <section title="Blocks">
+      <p>The numbers of a series are a contiguous sequence of blocks, without overlaps, from the first number to the last one assigned. A block is either <b>occupied</b> (consecutive numbers in use) or <b>free</b> (consecutive numbers released). Consecutive numbers in use stay in one block: there is no row per number.</p>
+      <p>Every block carries its first and last number, and the value of <c>order_field</c> of its first and of its last number. For a free block these are the values of the occupied numbers that delimit it.</p>
+      <p>The idea comes from the timeline of package <c>tmsh</c> (gnrwork), where a resource is a sequence of contiguous holes, allocating splits a hole and releasing merges the free neighbours.</p>
+      <example title="Assign 1, 2, 3, then release 2">
+        <code lang="text"><![CDATA[assign 1    occupied 1-1
+assign 2    occupied 1-2
+assign 3    occupied 1-3
+release 2   occupied 1-1 | free 2-2 | occupied 3-3]]></code>
+        <p>The window of the free block 2-2 goes from the last value of block 1-1 to the first value of block 3-3: both are already stored.</p>
+      </example>
+    </section>
+
+    <section title="Operations">
+      <list>
+        <item><b>New number</b>: last number of the highest occupied block plus one; the block grows, or a new occupied block starts above a free tail.</item>
+        <item><b>Recycled number</b>: the lowest free number whose window holds the record's <c>order_field</c> value; its free block shrinks or disappears and merges with the occupied neighbours.</item>
+        <item><b>Number set by hand</b>: it splits the block that holds it; refused if it is occupied or outside its window.</item>
+        <item><b>Release</b> of number n: n becomes free and merges with the free neighbours. When n lies inside a longer occupied block, the new edges n-1 and n+1 need their <c>order_field</c> values: they are read with one equality query on the counter field, using <c>formatSequence(n-1)</c> and <c>formatSequence(n+1)</c>. Releasing the last number takes the series back to the previous occupied number.</item>
+        <item>The triggers act only when the number changes: <c>trigger_assignCounters</c> passes <c>old_record</c>.</item>
+        <item>Every operation runs under the lock of the series record (<c>for_update</c> on <c>adm.counter</c>).</item>
+      </list>
+    </section>
+
+    <section title="Counter keys">
+      <table title="Keys of counter_&lt;field&gt;() in the new model">
+        <row head="true"><cell>Key</cell><cell>Meaning</cell></row>
+        <row><cell><c>date_field</c></cell><cell>Required when the format holds a period (<c>$YYYY</c>, <c>$YY</c>, <c>$MM</c>, <c>$DD</c>): it decides the series of the record. It no longer implies an order.</cell></row>
+        <row><cell><c>order_field</c></cell><cell>Optional. The numbers must follow the order of this field. Dtype <c>D</c>: dates are compared, two documents of the same day fit in any order. Dtype <c>DH</c> or <c>DHZ</c>: the full timestamp is compared. Missing: no order check.</cell></row>
+        <row><cell><c>recycle</c></cell><cell>Requires <c>order_field</c>; without it the configuration is an explicit error.</cell></row>
+        <row><cell><c>date_tolerant</c></cell><cell>Not used: a counter without <c>order_field</c> is tolerant.</cell></row>
+      </table>
+      <p>All the other keys keep their meaning: <c>format</c>, <c>code</c>, <c>starting_value</c>, <c>base</c>, <c>assignIfDraft</c>, <c>showOnLoad</c>, <c>onAssigned</c>, <c>onReleased</c>, <c>rootstore</c>.</p>
+    </section>
+
+    <section title="Opt-in and switch of a series">
+      <p>The blocks live in the new table <c>adm.counters_n</c>, one row per block, linked to the <c>adm.counter</c> record of the series. The new model is opt-in through an experimental switch, read with <c>experimentalValue('new_counters', 'counters')</c>: <c>*</c> enables it for every counter, a comma-separated list of <c>pkg.table.field</c> for the listed ones. <c>assignCounterColumn</c> and <c>releaseCounterColumn</c> choose between <c>adm.counter</c> and the new model; counters not enabled behave as today.</p>
+      <code lang="xml"><![CDATA[<experimental>
+    <new_counters counters="*"/>
+</experimental>]]></code>
+      <list ordered="true">
+        <item><c>analyzeCounter(table, field)</c>: read-only analysis of every series of the counter, with the errors <c>not_a_number</c>, <c>missing_order_value</c>, <c>duplicate</c>, <c>wrong_order</c>. No document is changed.</item>
+        <item><c>loadCounter(table, field)</c>: load of the blocks from the documents, for the clean series only; a series with errors is reported and skipped.</item>
+        <item>The counter is added to the switch.</item>
+      </list>
+      <p><c>checkCounter(table, field)</c> compares the stored blocks with the documents, read-only, and replaces the checking part of <c>alignSequences</c>. <c>freeSequences(table, field, record)</c> lists the free numbers of a series with their window. The table that numbers a field is <c>tblobj.counterTable(field)</c> in <c>gnrdbo</c>; <c>adm.counters_n</c> implements <c>assignCounter</c>, <c>releaseCounter</c> and <c>guessNextSequence</c> with the signatures of <c>adm.counter</c>.</p>
+      <p>The order values are stored as ISO text and compared in Python as dates (<c>D</c>) or timestamps (<c>DH</c>, <c>DHZ</c>), so the same columns serve every dtype and every adapter.</p>
+    </section>
+
+    <section title="Not in this proposal">
+      <list>
+        <item>A PostgreSQL trigger on the document table that keeps the blocks aligned on writes made outside the Python triggers (direct SQL, <c>insertMany</c>). Setting a number as occupied twice is harmless, so it can be added later beside the Python path.</item>
+      </list>
+    </section>
+  </solution>
+
+  <decisions>
+    <decision id="d-model" status="decided">
+      <question>How are the numbers of a series kept?</question>
+      <option id="bag" title="holes Bag in adm.counter, as today"/>
+      <option id="rows" title="One row per assigned number"/>
+      <option id="blocks" title="Contiguous blocks, occupied and free, each with first and last number and first and last order value"/>
+      <choice option="blocks" by="GP" date="2026-11-14"/>
+    </decision>
+    <decision id="d-order" status="decided">
+      <question>Which value must the numbers follow?</question>
+      <option id="date" title="Always the date_field, unless date_tolerant"/>
+      <option id="order-field" title="order_field, optional; its dtype decides date or full timestamp; missing means no check"/>
+      <choice option="order-field" by="GP" date="2026-11-14"/>
+    </decision>
+    <decision id="d-recycle" status="decided">
+      <question>Can a counter recycle without an order?</question>
+      <option id="ignore" title="Ignore recycle, as today"/>
+      <option id="error" title="Explicit configuration error"/>
+      <choice option="error" by="GP" date="2026-11-14"/>
+    </decision>
+    <decision id="d-sql" status="decided">
+      <question>Python triggers or a PostgreSQL trigger?</question>
+      <option id="python" title="Python, on every adapter"/>
+      <option id="sql" title="PostgreSQL trigger on the document table"/>
+      <choice option="python" by="GP" date="2026-11-14"/>
+    </decision>
+    <decision id="d-storage" status="decided">
+      <question>Where are the blocks stored?</question>
+      <option id="table" title="A new adm table, one row per block, linked to the adm.counter record of its series"/>
+      <option id="field" title="A new column of adm.counter holding the blocks of its series"/>
+      <choice option="table" by="GP" date="2026-11-14"/>
+    </decision>
+    <decision id="d-table-name" status="decided">
+      <question>Name of the table of blocks?</question>
+      <option id="newcounters" title="adm.newcounters"/>
+      <option id="counters_n" title="adm.counters_n"/>
+      <choice option="counters_n" by="GP" date="2026-11-14"/>
+    </decision>
+    <decision id="d-switch" status="decided">
+      <question>Name and shape of the experimental switch?</question>
+      <option id="db" title="experimentalValue('db', 'counters_n') with a list of counters"/>
+      <option id="new-counters" title="experimentalValue('new_counters', 'counters'): '*' for every counter, or a list of pkg.table.field"/>
+      <choice option="new-counters" by="GP" date="2026-11-14"/>
+    </decision>
+  </decisions>
+
+  <consequences>
+    <list>
+      <item>The free numbers and their windows come from the blocks: no <c>LIKE</c> search, no query on the document table except at the two new edges of a release inside an occupied block.</item>
+      <item>The number is read from the blocks, not parsed back from the formatted string.</item>
+      <item>A counter with <c>date_field</c> and no <c>order_field</c> loses the date check when it moves to the new model: the switch step declares <c>order_field</c> where the order is required.</item>
+      <item>Writes that skip the Python triggers can still make the blocks drift, as they do with <c>holes</c> today.</item>
+    </list>
+  </consequences>
+
+  <related>
+    <doc id="genropy/genropy#1879" href="https://github.com/genropy/genropy/issues/1879">Releasing a number can take the counter back below numbers in use</doc>
+    <doc id="genropy/genropy#1881" href="https://github.com/genropy/genropy/pull/1881">Release counter numbers between the numbers in use</doc>
+    <doc id="genropy/genropy#1882" href="https://github.com/genropy/genropy/pull/1882">Claim a counter number set by hand, list the free numbers</doc>
+  </related>
+
+</proposal>
