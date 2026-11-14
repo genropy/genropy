@@ -16,16 +16,10 @@ import shutil
 import pytest
 
 from gnr.app.gnrapp import GnrApp
-from core.common import BaseGnrTest
 from .common import get_pg_config
 
 DRAFT_MARKER = '__bool_rewrite_test__'
 
-
-def setup_module(module):
-    BaseGnrTest.setup_class()
-def teardown_module(module):
-    BaseGnrTest.teardown_class()
 
 @pytest.fixture(scope="module", autouse=True)
 def sqlite_temp_dir():

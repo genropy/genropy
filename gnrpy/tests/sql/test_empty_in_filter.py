@@ -20,18 +20,9 @@ import pytest
 
 from gnr.app.gnrapp import GnrApp
 from gnr.core.gnrbag import Bag
-from core.common import BaseGnrTest
 from .common import get_pg_config
 
 MARKER = '__empty_in_filter_test__'
-
-
-def setup_module(module):
-    BaseGnrTest.setup_class()
-
-
-def teardown_module(module):
-    BaseGnrTest.teardown_class()
 
 
 @pytest.fixture(scope="module", autouse=True)

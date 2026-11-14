@@ -13,12 +13,6 @@ SQLite (test_invoice), verifying that:
 # ===================================================================
 # PostgreSQL tests
 # ===================================================================
-from core.common import BaseGnrTest
-
-def setup_module(module):
-    BaseGnrTest.setup_class()
-def teardown_module(module):
-    BaseGnrTest.teardown_class()
 
 
 class TestCompositeColumnPg:
