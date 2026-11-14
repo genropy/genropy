@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools"]
+requires = ["setuptools>=77.0.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -17,10 +17,10 @@ maintainers = [
 description = "GenroPy Web Framework"
 requires-python = ">=3.11"
 keywords = ["web", "framework", "SPA applications"]
-license = {file = "LICENSE" }
+license = "LGPL-2.1-or-later"
+license-files = ["LICENSE"]
 classifiers = [
     "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: GNU Lesser General Public License v2 or later (LGPLv2+)",
 ]
 dependencies = [
 	     "aiohttp",
@@ -147,52 +147,6 @@ readme = {file = ["README.md"]}
 [tool.setuptools]
 include-package-data = true
 
-packages = [
-	    'gnr',
-	    'gnr.app',
-	    'gnr.app.api_engine',
-	    'gnr.app.cli',
-	    'gnr.app.gnrsqltable_proxy',
-	    'gnr.core',
-	    'gnr.core.cli',
-    	    'gnr.core.loghandlers',
-	    'gnr.db',
-	    'gnr.db.cli',
-	    'gnr.dev',
-	    'gnr.dev.cli',
-	    'gnr.dev.makers',
-	    'gnr.prj',
-	    'gnr.utils',
-	    'gnr.web.batch',
-	    'gnr.web.cli',
-	    'gnr.web.components',
-	    'gnr.web.daemon',
-	    'gnr.web.gnrwebpage_plugin',
-	    'gnr.web.gnrwebpage_proxy',
-	    'gnr.web.gnrwebpage_proxy.apphandler',
-    	    'gnr.web.gnrwebpage_proxy.frontend',
-	    'gnr.web.gnrwebstruct',
-	    'gnr.web.gnrwsgisite_proxy',
-	    'gnr.web.widgets',
-	    'gnr.xtnd',
-	    'gnr.xtnd.cli',
-   	    'gnr.lib',
-   	    'gnr.sql.adapters',
-    	    'gnr.sql',
-   	    'gnr.sql.gnrsql',	
-    	    'gnr.sql.gnrsqltable_proxy',
-	    'gnr.sql.gnrsqldata',
-	    'gnr.sql.gnrsqlmigration',
-	    'gnr.sql.gnrsqlmodel',
-    	    'gnr.sql.gnrsqltable',
-      	    'gnr.lib.services',	
-      	    'gnr.web',
-	    'gnr.gnrjs',
-	    'gnr.projects',
-	    'gnr.dojo_libs',
-	    'gnr.resources',
-	    'gnr.webtools',
-	    ]
 
 
 [tool.setuptools.package-data]
