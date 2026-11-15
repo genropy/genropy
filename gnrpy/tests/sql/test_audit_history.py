@@ -1,5 +1,7 @@
 """audit='external': the helpers of audit.event used by the history palettes.
 
+The events are written at the commit of each ORM write.
+
 The writes run on table audit_test.audited_item of the test_invoice_audit
 instance (caption field code, Bag column details); PostgreSQL only.
 """
@@ -55,7 +57,6 @@ def test_changed_paths_of_an_update(db):
     with tbl.recordToUpdate(pkey) as rec:
         rec['details'] = details('Roma')
     db.commit()
-    db.table('audit.event').batch()
     eventtbl = db.table('audit.event')
     changes = [eventtbl.changedPaths('audit_test.audited_item', row['data']) for row in update_events(db, pkey)]
     assert changes == [['description'], ['details.address.city']]
@@ -70,6 +71,5 @@ def test_captions_from_the_table_and_from_the_last_state(db):
     db.commit()
     tbl.delete(tbl.record(deleted, mode='dict'))
     db.commit()
-    db.table('audit.event').batch()
     captions = db.table('audit.event').recordCaptions('audit_test.audited_item', [alive, deleted, 'nohistory'])
     assert captions == {alive: 'C1', deleted: 'C2b'}

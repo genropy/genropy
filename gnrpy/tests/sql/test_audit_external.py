@@ -4,6 +4,10 @@ The writes run on table audit_test.audited_item of the test_invoice_audit
 instance, which has audit='external' and a column with audit=False. The
 triggers and the audit functions come from the sqlCode() scripts, so the
 database is migrated with SqlMigrator before the tests; PostgreSQL only.
+
+An ORM write turns its queue rows into events at commit, so its rows are
+read from the queue before the commit; a write outside the ORM leaves its
+row in the queue.
 """
 
 import re
@@ -89,14 +93,17 @@ def test_insert_update_delete(db):
         assert queue(db, pkey) == []
         old_record = tbl.record(pkey, mode='dict')
         tbl.update(dict(old_record, description='second'), old_record)
+        [upd] = queue(db, pkey)
         db.commit()
         with tbl.recordToUpdate(pkey) as rec:
             rec['last_invoice_date'] = '2026-11-03'
+        assert queue(db, pkey) == []
         db.commit()
         assert version(db, pkey) == 1
         tbl.delete(pkey)
+        [dele] = queue(db, pkey)
         db.commit()
-    upd, dele = queue(db, pkey)
+    assert queue(db, pkey) == []
     assert (upd['op'], upd['version'], upd['username'], upd['sqlcommand']) == ('U', 1, 'mario', 'update')
     assert re.search(r'test_audit_external\.test_insert_update_delete:\d+$', upd['caller'])
     assert upd['data'] == {'description': 'second'}
@@ -113,8 +120,8 @@ def test_first_update_of_a_record_written_before_activation(db):
     with db.tempEnv(user='mario'):
         with db.table('audit_test.audited_item').recordToUpdate('pre_update') as rec:
             rec['amount'] = 2
+        [upd] = queue(db, 'pre_update')
         db.commit()
-    [upd] = queue(db, 'pre_update')
     assert (upd['op'], upd['version']) == ('U', 1)
     assert upd['data'] == {'amount': 2}
     assert upd['old_full']['code'] == 'P1'
@@ -125,8 +132,8 @@ def test_delete_of_a_record_written_before_activation(db):
     insert_without_audit(db, 'pre_delete', 'P2')
     with db.tempEnv(user='mario'):
         db.table('audit_test.audited_item').delete('pre_delete')
+        [dele] = queue(db, 'pre_delete')
         db.commit()
-    [dele] = queue(db, 'pre_delete')
     assert (dele['op'], dele['version']) == ('D', 1)
     assert dele['old_full']['code'] == 'P2'
 
@@ -146,12 +153,17 @@ def test_writes_that_bypass_the_orm_triggers(db):
         db.commit()
         pkey = record['id']
         tbl.batchUpdate(dict(amount=5), _pkeys=[pkey])
+        [batch] = queue(db, pkey)
         db.commit()
+        assert queue(db, pkey) == []
         db.execute(f"UPDATE {AUDITED} SET description = 'raw' WHERE id = :pkey", dict(pkey=pkey))
         db.commit()
+        [raw] = queue(db, pkey)
         tbl.sql_deleteSelection(_pkeys=[pkey])
+        raw_again, dele = queue(db, pkey)
         db.commit()
-    batch, raw, dele = queue(db, pkey)
+    assert raw_again['queue_id'] == raw['queue_id']
+    assert queue(db, pkey) == []
     assert (batch['op'], batch['version'], batch['username']) == ('U', 1, 'mario')
     assert float(batch['data']['amount']) == 5
     assert (raw['op'], raw['version'], raw['data']) == ('U', 2, {'description': 'raw'})

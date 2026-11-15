@@ -293,6 +293,7 @@ class CrudMixin(SqlTableBaseMixin):
             _pkeys = [x[0] for x in todelete] if todelete else None
         if _pkeys:
             self.db.adapter.sql_deleteSelection(self, pkeyList=_pkeys)
+            self.db.deferExternalAudit(self)
 
     def deleteSelection(self, condition_field=None, condition_value=None,
                         excludeLogicalDeleted=False, excludeDraft=False,
