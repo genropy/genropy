@@ -2201,7 +2201,7 @@ class GnrWsgiSite(object):
         if antivirus is not None:
             threat = antivirus.scan(content=content, filename=filename)
             if threat:
-                raise GnrUploadException(filename=filename, reason='!!the file contains %(threat)s',
+                raise GnrUploadException(filename=filename, reason='!!virus detected: %(threat)s',
                                          threat=threat, localizer=self.gnrapp.localizer)
         file_node = self.storageNode(uploadPath, filename,autocreate=-1)
         service = file_node.service
