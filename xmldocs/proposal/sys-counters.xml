@@ -27,9 +27,10 @@
       <table title="Keys of counter_&lt;field&gt;() in the new model">
         <row head="true"><cell>Key</cell><cell>Meaning</cell></row>
         <row><cell><c>date_field</c></cell><cell>Required when the format holds a period: it decides the period of the record.</cell></row>
-        <row><cell><c>order_field</c></cell><cell>Optional. The numbers follow its order: dates for a <c>D</c> column, the timestamp for <c>DH</c>/<c>DHZ</c>. Missing: no order check.</cell></row>
-        <row><cell><c>recycle</c></cell><cell>Requires <c>order_field</c>.</cell></row>
-        <row><cell><c>date_tolerant</c></cell><cell>Not used: a counter without <c>order_field</c> is tolerant.</cell></row>
+        <row><cell><c>order_field</c></cell><cell>Optional. The numbers follow its order: dates for a <c>D</c> column, the timestamp for <c>DH</c>/<c>DHZ</c>. Missing: the order is the <c>date_field</c>, as with <c>adm.counter</c>.</cell></row>
+        <row><cell><c>date_tolerant</c></cell><cell>As with <c>adm.counter</c>: without <c>order_field</c>, no order is checked.</cell></row>
+        <row><cell><c>recycle</c></cell><cell>Requires an order: <c>order_field</c>, or a <c>date_field</c> without <c>date_tolerant</c>.</cell></row>
+        <row><cell><c>releaseOnDraft</c></cell><cell>Default <c>True</c>. When false, a record going back to draft keeps its number. <c>counter_&lt;field&gt;(record)</c> may compute it from the record. Read by <c>gnrdbo.trigger_releaseCounters</c>, so it holds for <c>adm.counter</c> too.</cell></row>
       </table>
     </section>
 
@@ -39,7 +40,8 @@
         <item><b>Number set by hand</b> (insert, or changed on update): it splits the block that holds it; refused if occupied or outside its window. A value that is not a number of the series is left alone.</item>
         <item><b>Release</b>: the number becomes free and merges with free neighbours; a split reads the order key of the two new edges from the table. A neighbour missing from the table becomes an open bound and is left to <c>checkCounter</c>.</item>
         <item>A number changed or cleared on update releases the old one in the period of the stored record. <c>trigger_assignCounters</c> passes <c>old_record</c>.</item>
-        <item><b>A period without blocks</b> is loaded from the numbers already in the table, under the lock, the first time it is used. A period whose numbers are inconsistent is refused, naming <c>analyzeCounter</c>.</item>
+        <item><b>A period without blocks</b> is loaded from the numbers already in the table, under the lock, the first time it is used. For a counter that does not recycle, the numbers <c>adm.counter</c> gave above the highest one still in the table stay occupied: a number deleted at the tail is never given again. A period whose numbers are inconsistent is refused, naming <c>analyzeCounter</c>.</item>
+        <item><b>The counter row</b> is created with <c>INSERT ... ON CONFLICT DO NOTHING</c>: two first saves of a counter do not fail, and no failed statement rolls back the save.</item>
         <item><b>Guess</b> (<c>guessCounter</c>, <c>showOnLoad</c>): a record not inserted yet takes now as a missing timestamp; with a missing date it is not recycled.</item>
       </list>
     </section>
@@ -48,8 +50,8 @@
       <code lang="xml"><![CDATA[<experimental>
     <new_counters counters="*"/>
 </experimental>]]></code>
-      <p><c>experimentalValue('new_counters', 'counters')</c>: a list of <c>pkg.table.field</c> sends those counters to <c>sys.counter</c>; <c>*</c> sends every counter except a recycling one that declares no <c>order_field</c>, which stays on <c>adm.counter</c>. A listed recycling counter without <c>order_field</c> is a configuration error. <c>gnrdbo.sysCounter(field, record)</c> makes the choice; <c>adm.counter</c> is not changed.</p>
-      <p><c>analyzeCounter</c>, <c>loadCounter</c> and <c>checkCounter</c> report, load and verify every period of a counter; <c>freeSequences</c> lists the free numbers of a period with their window.</p>
+      <p><c>experimentalValue('new_counters', 'counters')</c>: a list of <c>pkg.table.field</c> sends those counters to <c>sys.counter</c>; <c>*</c> sends every counter except a recycling one without an order, which stays on <c>adm.counter</c>. A listed recycling counter without an order is a configuration error. <c>gnrdbo.sysCounter(field, record)</c> makes the choice; <c>adm.counter</c> is not changed.</p>
+      <p><c>analyzeCounter</c>, <c>loadCounter</c> and <c>checkCounter</c> report, load and verify every period of a counter; <c>freeSequences</c> lists the free numbers of a period with their window. <c>checkCounter</c> reports <c>not_loaded</c> for a period without blocks, <c>blocks_differ</c> for a recycling counter whose blocks differ from the table, and <c>missing_from_blocks</c> for a counter that does not recycle when a number of the table is not occupied in the blocks.</p>
     </section>
   </solution>
 

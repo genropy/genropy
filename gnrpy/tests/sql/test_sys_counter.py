@@ -44,21 +44,22 @@ def _counter_pars(**extra):
 
 
 def _set_switch(db, value):
+    """Sets new_counters/counters to value; None removes the switch"""
     config = db.application.config
-    previous = config.getNode('experimental')
-    experimental = Bag(previous.value) if previous and isinstance(previous.value, Bag) else Bag()
+    experimental = config['experimental']
+    if not isinstance(experimental, Bag):
+        experimental = Bag()
+        config.setItem('experimental', experimental)
     if value is None:
         experimental.pop('new_counters')
     else:
         experimental.setItem('new_counters', None, counters=value)
-    config.setItem('experimental', experimental)
-    return previous
 
 
 @pytest.fixture
 def switch(db, monkeypatch):
     """Enables the new model for the invoice counter; returns a setter for its pars"""
-    previous = _set_switch(db, COUNTER)
+    _set_switch(db, COUNTER)
     invoice = db.table('invc.invoice')
 
     def set_pars(**extra):
@@ -66,11 +67,7 @@ def switch(db, monkeypatch):
 
     set_pars(order_field='date')
     yield set_pars
-    config = db.application.config
-    if previous is not None:
-        config.setItem('experimental', previous.value, **previous.attr)
-    else:
-        config.pop('experimental')
+    _set_switch(db, None)
     db.rollback()
 
 
@@ -203,17 +200,26 @@ def test_moving_a_record_to_another_year_releases_its_number_in_the_old_period(d
     assert invoice.record(records[1]['id'], mode='record')['inv_number'] == 'A52/000001'
 
 
-def test_recycle_without_order_field_is_a_configuration_error(db, switch):
-    switch()
+def test_recycle_without_an_order_is_a_configuration_error(db, switch):
+    switch(date_tolerant=True)
     with pytest.raises(GnrSqlBusinessLogicException):
         _insert(db, d(2053, 1, 1))
     db.rollback()
 
 
-def test_without_order_field_and_recycle_no_order_is_checked(db, switch):
-    switch(recycle=False)
+def test_a_date_tolerant_counter_checks_no_order(db, switch):
+    switch(recycle=False, date_tolerant=True)
     _insert(db, d(2054, 6, 1))
     assert _insert(db, d(2054, 1, 1))['inv_number'] == 'A54/000002'
+
+
+def test_without_order_field_the_order_is_the_date_field(db, switch):
+    """#1890 review, point 2: as adm.counter, a date earlier than the last one is refused"""
+    switch(recycle=False)
+    _insert(db, d(2065, 6, 1))
+    with pytest.raises(GnrSqlBusinessLogicException):
+        _insert(db, d(2065, 1, 1))
+    db.rollback()
 
 
 def test_order_by_insert_timestamp_never_recycles_into_the_past(db, switch):
@@ -254,7 +260,7 @@ def test_switch_on_continues_a_period_numbered_by_adm_counter(db, monkeypatch):
     """#1888 review, point 1: the period is loaded from the table under the lock"""
     records = [_insert(db, d(2058, 1, n)) for n in (1, 2, 3, 4)]
     _delete(db, records[1])
-    previous = _set_switch(db, COUNTER)
+    _set_switch(db, COUNTER)
     invoice = db.table('invc.invoice')
     monkeypatch.setattr(invoice, 'counter_inv_number', _counter_pars(order_field='date'), raising=False)
     try:
@@ -262,7 +268,7 @@ def test_switch_on_continues_a_period_numbered_by_adm_counter(db, monkeypatch):
         assert _insert(db, d(2058, 1, 2))['inv_number'] == 'A58/000002'
         assert _blocks(db, 2058) == [(1, 5, True, k(2058, 1, 1), k(2058, 1, 10))]
     finally:
-        db.application.config.setItem('experimental', previous.value if previous else Bag())
+        _set_switch(db, None)
         db.rollback()
 
 
@@ -276,22 +282,24 @@ def test_a_neighbour_removed_outside_the_triggers_does_not_block_a_delete(db, sw
     blocks = _blocks(db, 2059)
     assert [b[:3] for b in blocks] == [(1, 2, True), (3, 3, False), (4, 5, True)]
     assert blocks[0][4] is None
-    assert db.table('sys.counter').checkCounter(table='invc.invoice', field='inv_number')
+    report = db.table('sys.counter').checkCounter(table='invc.invoice', field='inv_number')
+    label = [key for key in report if key.endswith('/2059')][0]
+    assert [problem['kind'] for problem in report[label]] == ['blocks_differ']
 
 
 def test_star_leaves_a_recycling_counter_without_order_field_on_adm_counter(db, monkeypatch):
     """#1888 review, point 2"""
-    previous = _set_switch(db, '*')
+    _set_switch(db, '*')
     invoice = db.table('invc.invoice')
-    monkeypatch.setattr(invoice, 'counter_inv_number', _counter_pars(), raising=False)
+    monkeypatch.setattr(invoice, 'counter_inv_number', _counter_pars(date_tolerant=True), raising=False)
     try:
         assert invoice.sysCounter('inv_number', dict(date=d(2060, 1, 1))) is None
         assert _insert(db, d(2060, 1, 1))['inv_number'] == 'A60/000001'
         assert _blocks(db, 2060) == []
-        monkeypatch.setattr(invoice, 'counter_inv_number', _counter_pars(order_field='date'), raising=False)
+        monkeypatch.setattr(invoice, 'counter_inv_number', _counter_pars(), raising=False)
         assert invoice.sysCounter('inv_number', dict(date=d(2061, 1, 1))) is not None
     finally:
-        db.application.config.setItem('experimental', previous.value if previous else Bag())
+        _set_switch(db, None)
         db.rollback()
 
 
@@ -330,3 +338,79 @@ def test_analyze_reports_numbers_out_of_order(db, monkeypatch):
     assert [e['kind'] for e in errors] == ['wrong_order']
     loaded = sys_counter.loadCounter(table='invc.invoice', field='inv_number')
     assert [v for key, v in loaded.items() if key.endswith('/2064')][0] != 'loaded'
+
+
+def test_switch_on_never_gives_again_a_number_deleted_at_the_tail(db, monkeypatch):
+    """#1890 review, point 1: a counter that does not recycle continues from adm.counter"""
+    invoice = db.table('invc.invoice')
+    monkeypatch.setattr(invoice, 'counter_inv_number', _counter_pars(recycle=False), raising=False)
+    records = [_insert(db, d(2070, 1, n)) for n in (1, 2, 3, 4)]
+    _delete(db, records[3])
+    _set_switch(db, COUNTER)
+    try:
+        assert _insert(db, d(2070, 1, 5))['inv_number'] == 'A70/000005'
+        assert _blocks(db, 2070) == [(1, 5, True, k(2070, 1, 1), k(2070, 1, 5))]
+    finally:
+        _set_switch(db, None)
+        db.rollback()
+
+
+def test_check_reports_a_period_not_loaded(db, switch):
+    """#1890 review, point 3"""
+    _insert(db, d(2071, 1, 1))
+    _set_switch(db, None)
+    _insert(db, d(2077, 1, 1))
+    _set_switch(db, COUNTER)
+    report = db.table('sys.counter').checkCounter(table='invc.invoice', field='inv_number')
+    assert [key for key in report if key.endswith('/2071')] == []
+    assert [report[key] for key in report if key.endswith('/2077')] == [[dict(kind='not_loaded')]]
+
+
+def test_check_ignores_deleted_numbers_of_a_counter_that_does_not_recycle(db, switch):
+    """#1890 review, point 3: a deleted number stays occupied and is not drift"""
+    switch(recycle=False)
+    records = [_insert(db, d(2072, 1, n)) for n in (1, 2, 3)]
+    _delete(db, records[1])
+    report = db.table('sys.counter').checkCounter(table='invc.invoice', field='inv_number')
+    assert [key for key in report if key.endswith('/2072')] == []
+
+
+def test_the_counter_row_inserted_meanwhile_is_taken(db, switch, monkeypatch):
+    """#1890 review, point 4: the insert of a counter row that another save created goes on"""
+    _insert(db, d(2073, 1, 1))
+    sys_counter = db.table('sys.counter')
+    exists = sys_counter.existsRecord
+    answers = [False]
+    monkeypatch.setattr(sys_counter, 'existsRecord',
+                        lambda codekey: answers.pop() if answers else exists(codekey), raising=False)
+    assert _insert(db, d(2073, 1, 2))['inv_number'] == 'A73/000002'
+
+
+def _back_to_draft(db, record):
+    invoice = db.table('invc.invoice')
+    with invoice.recordToUpdate(record['id']) as stored:
+        stored['__is_draft'] = True
+    db.commit()
+    return invoice.record(record['id'], mode='record')['inv_number']
+
+
+def test_back_to_draft_releases_the_number_by_default(db, switch):
+    records = [_insert(db, d(2074, 1, n)) for n in (1, 2, 3)]
+    assert _back_to_draft(db, records[1]) is None
+    assert [b[:3] for b in _blocks(db, 2074)] == [(1, 1, True), (2, 2, False), (3, 3, True)]
+
+
+def test_release_on_draft_false_keeps_the_number(db, switch):
+    switch(order_field='date', releaseOnDraft=False)
+    records = [_insert(db, d(2075, 1, n)) for n in (1, 2, 3)]
+    assert _back_to_draft(db, records[1]) == 'A75/000002'
+    assert [b[:3] for b in _blocks(db, 2075)] == [(1, 3, True)]
+
+
+def test_release_on_draft_false_keeps_the_number_with_adm_counter(db, monkeypatch):
+    invoice = db.table('invc.invoice')
+    monkeypatch.setattr(invoice, 'counter_inv_number', _counter_pars(releaseOnDraft=False), raising=False)
+    records = [_insert(db, d(2076, 1, n)) for n in (1, 2)]
+    assert _back_to_draft(db, records[0]) == 'A76/000001'
+    monkeypatch.setattr(invoice, 'counter_inv_number', _counter_pars(), raising=False)
+    assert _back_to_draft(db, records[1]) is None

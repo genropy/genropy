@@ -1568,6 +1568,10 @@ class TableBase(object):
                 counter_pars = self.getCounterPars(field,record) 
                 if not counter_pars or not counter_pars.get('recycle') or (backToDraft and counter_pars.get('assignIfDraft')):
                     continue
+                #releaseOnDraft (default True): False keeps the number of a record going back to draft;
+                #counter_<field>(record) may compute it from the record
+                if backToDraft and not counter_pars.get('releaseOnDraft',True):
+                    continue
                 self.releaseCounterColumn(field=field,record=record)
 
     def trigger_assignCounters(self,record=None,old_record=None):

@@ -35,9 +35,10 @@ Work happens on the current period, so a lock per counter instead of per period 
 | Key | Meaning |
 |---|---|
 | `date_field` | Required when the format holds a period: it decides the period of the record. |
-| `order_field` | Optional. The numbers follow its order: dates for a `D` column, the timestamp for `DH`/`DHZ`. Missing: no order check. |
-| `recycle` | Requires `order_field`. |
-| `date_tolerant` | Not used: a counter without `order_field` is tolerant. |
+| `order_field` | Optional. The numbers follow its order: dates for a `D` column, the timestamp for `DH`/`DHZ`. Missing: the order is the `date_field`, as with `adm.counter`. |
+| `date_tolerant` | As with `adm.counter`: without `order_field`, no order is checked. |
+| `recycle` | Requires an order: `order_field`, or a `date_field` without `date_tolerant`. |
+| `releaseOnDraft` | Default `True`. When false, a record going back to draft keeps its number. `counter_<field>(record)` may compute it from the record. Read by `gnrdbo.trigger_releaseCounters`, so it holds for `adm.counter` too. |
 
 #### Operations
 
@@ -45,7 +46,8 @@ Work happens on the current period, so a lock per counter instead of per period 
 - **Number set by hand** (insert, or changed on update): it splits the block that holds it; refused if occupied or outside its window. A value that is not a number of the series is left alone.
 - **Release**: the number becomes free and merges with free neighbours; a split reads the order key of the two new edges from the table. A neighbour missing from the table becomes an open bound and is left to `checkCounter`.
 - A number changed or cleared on update releases the old one in the period of the stored record. `trigger_assignCounters` passes `old_record`.
-- **A period without blocks** is loaded from the numbers already in the table, under the lock, the first time it is used. A period whose numbers are inconsistent is refused, naming `analyzeCounter`.
+- **A period without blocks** is loaded from the numbers already in the table, under the lock, the first time it is used. For a counter that does not recycle, the numbers `adm.counter` gave above the highest one still in the table stay occupied: a number deleted at the tail is never given again. A period whose numbers are inconsistent is refused, naming `analyzeCounter`.
+- **The counter row** is created with `INSERT ... ON CONFLICT DO NOTHING`: two first saves of a counter do not fail, and no failed statement rolls back the save.
 - **Guess** (`guessCounter`, `showOnLoad`): a record not inserted yet takes now as a missing timestamp; with a missing date it is not recycled.
 
 #### Switch
@@ -56,9 +58,9 @@ Work happens on the current period, so a lock per counter instead of per period 
 </experimental>
 ```
 
-`experimentalValue('new_counters', 'counters')`: a list of `pkg.table.field` sends those counters to `sys.counter`; `*` sends every counter except a recycling one that declares no `order_field`, which stays on `adm.counter`. A listed recycling counter without `order_field` is a configuration error. `gnrdbo.sysCounter(field, record)` makes the choice; `adm.counter` is not changed.
+`experimentalValue('new_counters', 'counters')`: a list of `pkg.table.field` sends those counters to `sys.counter`; `*` sends every counter except a recycling one without an order, which stays on `adm.counter`. A listed recycling counter without an order is a configuration error. `gnrdbo.sysCounter(field, record)` makes the choice; `adm.counter` is not changed.
 
-`analyzeCounter`, `loadCounter` and `checkCounter` report, load and verify every period of a counter; `freeSequences` lists the free numbers of a period with their window.
+`analyzeCounter`, `loadCounter` and `checkCounter` report, load and verify every period of a counter; `freeSequences` lists the free numbers of a period with their window. `checkCounter` reports `not_loaded` for a period without blocks, `blocks_differ` for a recycling counter whose blocks differ from the table, and `missing_from_blocks` for a counter that does not recycle when a number of the table is not occupied in the blocks.
 
 ### Decisions
 

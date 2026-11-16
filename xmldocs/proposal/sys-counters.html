@@ -108,9 +108,10 @@ th { background: var(--panel); }
       <div class="table-wrap"><table><caption>Keys of counter_&lt;field&gt;() in the new model</caption>
         <tr><th>Key</th><th>Meaning</th></tr>
         <tr><td><code>date_field</code></td><td>Required when the format holds a period: it decides the period of the record.</td></tr>
-        <tr><td><code>order_field</code></td><td>Optional. The numbers follow its order: dates for a <code>D</code> column, the timestamp for <code>DH</code>/<code>DHZ</code>. Missing: no order check.</td></tr>
-        <tr><td><code>recycle</code></td><td>Requires <code>order_field</code>.</td></tr>
-        <tr><td><code>date_tolerant</code></td><td>Not used: a counter without <code>order_field</code> is tolerant.</td></tr>
+        <tr><td><code>order_field</code></td><td>Optional. The numbers follow its order: dates for a <code>D</code> column, the timestamp for <code>DH</code>/<code>DHZ</code>. Missing: the order is the <code>date_field</code>, as with <code>adm.counter</code>.</td></tr>
+        <tr><td><code>date_tolerant</code></td><td>As with <code>adm.counter</code>: without <code>order_field</code>, no order is checked.</td></tr>
+        <tr><td><code>recycle</code></td><td>Requires an order: <code>order_field</code>, or a <code>date_field</code> without <code>date_tolerant</code>.</td></tr>
+        <tr><td><code>releaseOnDraft</code></td><td>Default <code>True</code>. When false, a record going back to draft keeps its number. <code>counter_&lt;field&gt;(record)</code> may compute it from the record. Read by <code>gnrdbo.trigger_releaseCounters</code>, so it holds for <code>adm.counter</code> too.</td></tr>
       </table></div>
     </section>
 
@@ -120,7 +121,8 @@ th { background: var(--panel); }
         <li><b>Number set by hand</b> (insert, or changed on update): it splits the block that holds it; refused if occupied or outside its window. A value that is not a number of the series is left alone.</li>
         <li><b>Release</b>: the number becomes free and merges with free neighbours; a split reads the order key of the two new edges from the table. A neighbour missing from the table becomes an open bound and is left to <code>checkCounter</code>.</li>
         <li>A number changed or cleared on update releases the old one in the period of the stored record. <code>trigger_assignCounters</code> passes <code>old_record</code>.</li>
-        <li><b>A period without blocks</b> is loaded from the numbers already in the table, under the lock, the first time it is used. A period whose numbers are inconsistent is refused, naming <code>analyzeCounter</code>.</li>
+        <li><b>A period without blocks</b> is loaded from the numbers already in the table, under the lock, the first time it is used. For a counter that does not recycle, the numbers <code>adm.counter</code> gave above the highest one still in the table stay occupied: a number deleted at the tail is never given again. A period whose numbers are inconsistent is refused, naming <code>analyzeCounter</code>.</li>
+        <li><b>The counter row</b> is created with <code>INSERT ... ON CONFLICT DO NOTHING</code>: two first saves of a counter do not fail, and no failed statement rolls back the save.</li>
         <li><b>Guess</b> (<code>guessCounter</code>, <code>showOnLoad</code>): a record not inserted yet takes now as a missing timestamp; with a missing date it is not recycled.</li>
       </ul>
     </section>
@@ -129,8 +131,8 @@ th { background: var(--panel); }
       <figure class="code"><figcaption>xml</figcaption><pre><code>&lt;experimental&gt;
     &lt;new_counters counters="*"/&gt;
 &lt;/experimental&gt;</code></pre></figure>
-      <p><code>experimentalValue('new_counters', 'counters')</code>: a list of <code>pkg.table.field</code> sends those counters to <code>sys.counter</code>; <code>*</code> sends every counter except a recycling one that declares no <code>order_field</code>, which stays on <code>adm.counter</code>. A listed recycling counter without <code>order_field</code> is a configuration error. <code>gnrdbo.sysCounter(field, record)</code> makes the choice; <code>adm.counter</code> is not changed.</p>
-      <p><code>analyzeCounter</code>, <code>loadCounter</code> and <code>checkCounter</code> report, load and verify every period of a counter; <code>freeSequences</code> lists the free numbers of a period with their window.</p>
+      <p><code>experimentalValue('new_counters', 'counters')</code>: a list of <code>pkg.table.field</code> sends those counters to <code>sys.counter</code>; <code>*</code> sends every counter except a recycling one without an order, which stays on <code>adm.counter</code>. A listed recycling counter without an order is a configuration error. <code>gnrdbo.sysCounter(field, record)</code> makes the choice; <code>adm.counter</code> is not changed.</p>
+      <p><code>analyzeCounter</code>, <code>loadCounter</code> and <code>checkCounter</code> report, load and verify every period of a counter; <code>freeSequences</code> lists the free numbers of a period with their window. <code>checkCounter</code> reports <code>not_loaded</code> for a period without blocks, <code>blocks_differ</code> for a recycling counter whose blocks differ from the table, and <code>missing_from_blocks</code> for a counter that does not recycle when a number of the table is not occupied in the blocks.</p>
     </section>
   </section><section class="part decisions"><h2>Decisions</h2>
     <div class="box decision decision-decided" id="d-level"><div class="box-head"><span class="tag tag-decided">decided</span><span class="muted">d-level</span></div><div class="question">Where does the numbering service live?</div><ol class="options"><li id="adm"><b>Inside adm.counter (genropy/genropy#1888)</b></li><li id="sys" class="chosen"><b>New tables sys.counter and sys.counter_block</b></li></ol><div class="choice"><b>Choice: New tables sys.counter and sys.counter_block</b><span class="muted"> (GP, 2026-11-15)</span></div></div>

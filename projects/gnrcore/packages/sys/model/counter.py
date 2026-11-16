@@ -11,7 +11,9 @@ the counter, gnrdbo sends it here instead of adm.counter.
   free, with the order_field value of their first and last number.
 
 order_field sets the order the numbers follow: dates for a D column, the
-timestamp for DH/DHZ; without it no order is checked. recycle requires it.
+timestamp for DH/DHZ. Without it the order is the date_field, as with
+adm.counter, unless the counter is date_tolerant: then no order is checked.
+recycle requires an order.
 """
 
 import calendar
@@ -93,6 +95,15 @@ class NumberBlocks(object):
             if number < block['end']:
                 parts.append(_free(number + 1, block['end']))
             self.blocks[i:i + 1] = parts
+        self.normalize()
+
+    def occupy_range(self, start, end, key):
+        "start..end, beyond the blocks, become occupied with order key"
+        if self.blocks and start <= self.last_number:
+            raise ValueError('numbers %s-%s are not beyond the blocks' % (start, end))
+        if self.blocks and start > self.last_number + 1:
+            self.blocks.append(_free(self.last_number + 1, start - 1))
+        self.blocks.append(dict(id=None, start=start, end=end, occupied=True, first=key, last=key))
         self.normalize()
 
     def release(self, number, key_of=None):
@@ -205,7 +216,7 @@ class Table(object):
     def isEnabledFor(self, tblobj, field, record=None):
         """True when tblobj.field is numbered here: the experimental switch
         new_counters/counters lists 'pkg.table.field', or is '*'. With '*' a
-        recycling counter that declares no order_field stays on adm.counter"""
+        recycling counter without an order (see orderField) stays on adm.counter"""
         application = self.db.application
         listed = application.experimentalValue('new_counters', 'counters') if application else None
         if not listed:
@@ -213,23 +224,32 @@ class Table(object):
         if listed != '*':
             return '%s.%s' % (tblobj.fullname, field) in [k.strip() for k in listed.split(',')]
         counter_pars = tblobj.getCounterPars(field, record)
-        return not (counter_pars and counter_pars.get('recycle') and not counter_pars.get('order_field'))
+        return not (counter_pars and counter_pars.get('recycle') and not self.orderField(counter_pars))
 
     def counterPars(self, tblobj, field, record):
         counter_pars = tblobj.getCounterPars(field, record)
-        if counter_pars and counter_pars.get('recycle') and not counter_pars.get('order_field'):
+        if counter_pars and counter_pars.get('recycle') and not self.orderField(counter_pars):
             raise self.exception('business_logic',
-                                 msg='Counter %s.%s: recycle requires order_field' % (tblobj.fullname, field))
+                                 msg='Counter %s.%s: recycle requires an order_field' % (tblobj.fullname, field))
         return counter_pars
 
+    def orderField(self, counter_pars):
+        """The field whose order the numbers follow: order_field, else the
+        date_field unless the counter is date_tolerant, else None"""
+        if counter_pars.get('order_field'):
+            return counter_pars['order_field']
+        if counter_pars.get('date_field') and not counter_pars.get('date_tolerant'):
+            return counter_pars['date_field']
+        return None
+
     def orderDtype(self, tblobj, counter_pars):
-        order_field = counter_pars.get('order_field')
+        order_field = self.orderField(counter_pars)
         return tblobj.column(order_field).dtype if order_field else None
 
     def orderKey(self, tblobj, counter_pars, record, guess=False):
         """The order key of record. A record not inserted yet (guess) takes now
         for a missing timestamp, and None for a missing date"""
-        order_field = counter_pars.get('order_field')
+        order_field = self.orderField(counter_pars)
         if not order_field:
             return None
         dtype = self.orderDtype(tblobj, counter_pars)
@@ -342,9 +362,45 @@ class Table(object):
         "The codekey of the counter, created when missing"
         record = dict(pkg=tblobj.pkg.name, tbl=tblobj.name, fld=field, code=counter_pars['code'])
         codekey = self.pkeyValue(record)
-        if not self.existsRecord(codekey):
-            self.insert(record)
+        if self.existsRecord(codekey):
+            return codekey
+        # two first saves of a counter may insert it together. A failed insert
+        # would roll back the whole save (db.execute rolls back on error), so the
+        # second insert does nothing instead and the row of the first is used
+        tsType = self.column('__ins_ts').dtype
+        now = datetime.now(timezone.utc) if tsType == 'DHZ' else datetime.now()
+        record.update(codekey=codekey, __ins_ts=now, __mod_ts=now)
+        sqlnames = self.model.sqlnamemapper
+        sql = 'INSERT INTO %s(%s) VALUES (%s) ON CONFLICT (%s) DO NOTHING;' % (
+            self.model.sqlfullname, ','.join(sqlnames[k] for k in record),
+            ','.join(':%s' % k for k in record), sqlnames['codekey'])
+        self.db.execute(sql, record, dbtable=self.fullname)
         return codekey
+
+    def admFloor(self, tblobj, field, counter_pars, record):
+        """(counter, last_used) of the adm.counter record of the period of record,
+        or None: the numbers adm.counter has given, even those deleted since"""
+        if 'adm' not in self.db.packages:
+            return None
+        adm_counter = self.db.table('adm.counter')
+        codekey = adm_counter.getCounterPkey(tblobj=tblobj, field=field, record=record)
+        rows = adm_counter.query(columns='$counter,$last_used', where='$codekey=:codekey', codekey=codekey,
+                                 addPkeyColumn=False).fetch()
+        if not rows or not rows[0]['counter']:
+            return None
+        return rows[0]['counter'], rows[0]['last_used']
+
+    def rebuildBlocks(self, tblobj, field, counter_pars, record, numbers):
+        """The blocks of a period from its numbers in use. For a counter that does
+        not recycle, the numbers adm.counter gave above the highest one still in
+        the table stay occupied: a deleted number is never given again"""
+        starting_value = counter_pars.get('starting_value') or 0
+        blocks = NumberBlocks.from_numbers(numbers, starting_value)
+        floor = None if counter_pars.get('recycle') else self.admFloor(tblobj, field, counter_pars, record)
+        if floor and floor[0] > (blocks.last_number or starting_value):
+            key = order_key(floor[1], self.orderDtype(tblobj, counter_pars)) if self.orderField(counter_pars) else None
+            blocks.occupy_range(blocks.last_number + 1 if blocks.last_number else starting_value + 1, floor[0], key)
+        return blocks
 
     def loadBlocks(self, codekey, period):
         rows = self.db.table('sys.counter_block').query(
@@ -385,7 +441,7 @@ class Table(object):
         where = ["$%s LIKE :pattern ESCAPE '%s'" % (field, LIKE_ESCAPE)]
         if exclude_pkey is not None:
             where.append('$%s != :exclude_pkey' % tblobj.pkey)
-        order_field = counter_pars.get('order_field')
+        order_field = self.orderField(counter_pars)
         columns = '$%s,$%s' % (tblobj.pkey, field)
         if order_field:
             columns = '%s,$%s' % (columns, order_field)
@@ -398,7 +454,7 @@ class Table(object):
         numbers = []
         errors = []
         dtype = self.orderDtype(tblobj, counter_pars)
-        order_field = counter_pars.get('order_field')
+        order_field = self.orderField(counter_pars)
         for row in rows:
             sequence = row[field]
             number = self.isSequenceOf(tblobj, field, counter_pars, record, sequence)
@@ -436,7 +492,7 @@ class Table(object):
                 if errors:
                     raise self.exception('business_logic', msg='Counter %s.%s, period %s: the numbers in use are '
                                          'not consistent, see analyzeCounter' % (tblobj.fullname, field, period))
-                blocks = NumberBlocks.from_numbers(numbers, counter_pars.get('starting_value') or 0)
+                blocks = self.rebuildBlocks(tblobj, field, counter_pars, record, numbers)
             result = handler(blocks)
             self.storeBlocks(codekey, period, blocks, stored)
         return result
@@ -512,7 +568,7 @@ class Table(object):
         self._withPeriod(tblobj, field, record, counter_pars, handler, exclude_pkey=record.get(tblobj.pkey))
 
     def _checkWindow(self, tblobj, field, counter_pars, blocks, number, key):
-        if not counter_pars.get('order_field'):
+        if not self.orderField(counter_pars):
             return
         lower, upper = blocks.window(number)
         if fits(key, lower, upper):
@@ -532,7 +588,7 @@ class Table(object):
         number = self.isSequenceOf(tblobj, field, counter_pars, record, record.get(field))
         if number is None:
             return
-        order_field = counter_pars.get('order_field')
+        order_field = self.orderField(counter_pars)
         dtype = self.orderDtype(tblobj, counter_pars)
 
         def key_of(n):
@@ -565,7 +621,7 @@ class Table(object):
             blocks = self.loadBlocks(codekey, period)
             if not blocks.blocks:
                 numbers = self.seriesNumbers(tblobj, field, counter_pars, record)[0]
-                blocks = NumberBlocks.from_numbers(numbers, counter_pars.get('starting_value') or 0)
+                blocks = self.rebuildBlocks(tblobj, field, counter_pars, record, numbers)
             number = None
             if counter_pars.get('recycle'):
                 key = self.orderKey(tblobj, counter_pars, record, guess=True)
@@ -618,7 +674,8 @@ class Table(object):
         result = {}
         for series, group in groups.items():
             numbers, errors = self._numbersOf(tblobj, field, group['counter_pars'], group['record'], group['rows'])
-            result[series] = dict(numbers=numbers, errors=errors, counter_pars=group['counter_pars'])
+            result[series] = dict(numbers=numbers, errors=errors, counter_pars=group['counter_pars'],
+                                  record=group['record'])
         return result
 
     @public_method
@@ -644,7 +701,7 @@ class Table(object):
             self.counterKey(tblobj, field, counter_pars)
             with self.recordToUpdate(codekey, mode='record'):
                 stored = {b['id']: None for b in self.loadBlocks(codekey, period).blocks}
-                blocks = NumberBlocks.from_numbers(group['numbers'], counter_pars.get('starting_value') or 0)
+                blocks = self.rebuildBlocks(tblobj, field, counter_pars, group['record'], group['numbers'])
                 self.storeBlocks(codekey, period, blocks, stored)
             report['%s/%s' % (codekey, period)] = 'loaded'
         return report
@@ -652,7 +709,14 @@ class Table(object):
     @public_method
     def checkCounter(self, table=None, field=None):
         """Read-only comparison of the stored blocks with the table:
-        {'codekey/period': problems} for every period whose blocks differ"""
+        {'codekey/period': problems}.
+
+        - not_loaded: the period has no blocks yet (it is loaded at its first use);
+        - a recycling counter: blocks_differ when the blocks differ from the ones
+          rebuilt from the table;
+        - a counter that does not recycle keeps deleted numbers occupied, so only
+          numbers in the table missing from the blocks are reported
+          (missing_from_blocks)"""
         tblobj = self.db.table(table)
         report = {}
         for (codekey, period), group in self.collectPeriods(tblobj, field).items():
@@ -660,10 +724,18 @@ class Table(object):
             if group['errors']:
                 report[label] = group['errors']
                 continue
-            expected = NumberBlocks.from_numbers(group['numbers'],
-                                                 group['counter_pars'].get('starting_value') or 0).shape()
-            stored = self.loadBlocks(codekey, period).shape()
-            if expected != stored:
-                report[label] = [dict(kind='blocks_differ', expected=expected, stored=stored)]
+            stored = self.loadBlocks(codekey, period)
+            if not stored.blocks:
+                report[label] = [dict(kind='not_loaded')]
+                continue
+            counter_pars = group['counter_pars']
+            if counter_pars.get('recycle'):
+                expected = self.rebuildBlocks(tblobj, field, counter_pars, group['record'], group['numbers'])
+                if expected.shape() != stored.shape():
+                    report[label] = [dict(kind='blocks_differ', expected=expected.shape(), stored=stored.shape())]
+                continue
+            missing = [number for number, key in group['numbers'] if not stored.is_occupied(number)]
+            if missing:
+                report[label] = [dict(kind='missing_from_blocks', numbers=missing)]
         return report
 
