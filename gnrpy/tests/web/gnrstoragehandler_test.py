@@ -1596,3 +1596,14 @@ class TestStorageHandler(BaseGnrDaemonTest):
             assert 'short.pdf' in str(raised.value)
         finally:
             shutil.rmtree(os.path.join(self.site.site_static_dir, 'upload_probe'), ignore_errors=True)
+
+    def test_upload_stores_a_stream_already_read_by_on_uploading(self):
+        stream = io.BytesIO(b' RH0001')
+        stream.read()
+        file_handle = type('FileHandle', (), dict(filename='movimenti.cbi', stream=stream))()
+        try:
+            file_path, file_url = self.site.uploadFile(file_handle=file_handle, uploadPath='site:upload_probe')
+            with self.site.storageNode(file_path).open(mode='rb') as stored:
+                assert stored.read() == b' RH0001'
+        finally:
+            shutil.rmtree(os.path.join(self.site.site_static_dir, 'upload_probe'), ignore_errors=True)
