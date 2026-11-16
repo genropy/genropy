@@ -1,3 +1,10 @@
+Release 26.11.16.1
+==================
+
+Hotfix release:
+
+- an onUploadingMethod that reads the file no longer makes the upload fail as empty (#1894)
+  
 Release 26.11.16
 ================
 
