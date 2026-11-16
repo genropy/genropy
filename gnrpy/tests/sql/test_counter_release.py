@@ -17,8 +17,11 @@ Covers:
 - a number set by hand is claimed: a free one is taken out of its hole, one
   above the counter raises it (also on a series without counter), leaving the
   numbers between free;
-- the free numbers of a series, and a record named in counter_keep keeping
-  its number.
+- a number set by hand is claimed only when a save sets or changes it, and
+  refused when another record holds it;
+- the free numbers of a series; a record going back to draft keeps its number
+  only when named in counter_keep, and a draft gives back a kept number that a
+  save clears or replaces.
 
 Each test uses its own year, so its own counter. SQLite instance of the
 test_invoice project.
@@ -251,9 +254,108 @@ def test_a_number_forced_on_a_series_without_counter_starts_it_leaving_the_numbe
     assert _number(_invoice(db_sqlite, d(11))) == 5
 
 
-def test_a_record_named_in_counter_keep_keeps_its_number(db_sqlite):
-    d = lambda n: datetime.date(2051, 1, n)
-    inv = _series(db_sqlite, 2051, range(1, 4))
+def _set_holes(db, record, holes):
+    "holes as a drifted counter may hold them (#1879)"
+    bag = Bag()
+    for cnt_from, cnt_to, date_from, date_to in holes:
+        bag.setItem(str(cnt_from), None, cnt_from=cnt_from, cnt_to=cnt_to, date_from=date_from, date_to=date_to)
+    with db.table('adm.counter').recordToUpdate(_counter_key(db, record), mode='record') as counter_record:
+        counter_record['holes'] = bag
+    db.commit()
+
+
+def _update(db, record, **kwargs):
+    with db.table('invc.invoice').recordToUpdate(record['id']) as stored:
+        stored.update(kwargs)
+    db.commit()
+    return db.table('invc.invoice').record(record['id']).output('dict')
+
+
+def test_an_update_that_keeps_the_number_does_not_claim_it(db_sqlite):
+    "a save that leaves the number as it is does not check it against holes that drifted"
+    d = lambda n: datetime.date(2057, 1, n)
+    inv = _series(db_sqlite, 2057, range(1, 5))
+    _set_holes(db_sqlite, inv[0], [(3, 3, d(1), d(2))])
+    assert _update(db_sqlite, inv[2], total=10)['total'] == 10
+    assert _counter(db_sqlite, inv[0]) == (4, d(4), [(3, 3, d(1), d(2))])
+
+
+def test_a_number_held_by_another_record_is_refused(db_sqlite):
+    d = lambda n: datetime.date(2058, 1, n)
+    inv = _series(db_sqlite, 2058, range(1, 4))
+    try:
+        with pytest.raises(GnrSqlBusinessLogicException):
+            _invoice_with_number(db_sqlite, d(2), 2)
+    finally:
+        db_sqlite.rollback()
+    try:
+        with pytest.raises(GnrSqlBusinessLogicException):
+            _update(db_sqlite, inv[2], inv_number=inv[1]['inv_number'])
+    finally:
+        db_sqlite.rollback()
+    assert _counter(db_sqlite, inv[0]) == (3, d(3), [])
+
+
+def test_a_number_above_the_counter_frees_only_the_numbers_above_those_in_use(db_sqlite):
+    "a counter left behind numbers in use does not hand them out as free"
+    d = lambda n: datetime.date(2059, 1, n)
+    inv = _series(db_sqlite, 2059, range(1, 4))
+    _lose_holes(db_sqlite, inv[0], counter=1, last_used=d(1))
+    assert _number(_invoice_with_number(db_sqlite, d(6), 6)) == 6
+    assert _counter(db_sqlite, inv[0]) == (6, d(6), [(4, 5, d(3), d(6))])
+
+
+def test_a_number_above_the_counter_takes_no_date_before_the_highest_in_use(db_sqlite):
+    d = lambda n: datetime.date(2060, 1, n)
+    inv = _series(db_sqlite, 2060, range(1, 4))
+    _lose_holes(db_sqlite, inv[0], counter=1, last_used=d(1))
+    try:
+        with pytest.raises(GnrSqlBusinessLogicException):
+            _invoice_with_number(db_sqlite, d(2), 6)
+    finally:
+        db_sqlite.rollback()
+
+
+def test_back_to_draft_releases_the_number(db_sqlite):
+    d = lambda n: datetime.date(2061, 1, n)
+    inv = _series(db_sqlite, 2061, range(1, 4))
+    assert _update(db_sqlite, inv[1], __is_draft=True)['inv_number'] is None
+    assert _counter(db_sqlite, inv[0]) == (3, d(3), [(2, 2, d(1), d(3))])
+
+
+def test_back_to_draft_named_in_counter_keep_keeps_the_number(db_sqlite):
+    d = lambda n: datetime.date(2062, 1, n)
+    inv = _series(db_sqlite, 2062, range(1, 4))
+    with db_sqlite.tempEnv(counter_keep='invc.invoice:%s' % inv[1]['id']):
+        assert _update(db_sqlite, inv[1], __is_draft=True)['inv_number'] == inv[1]['inv_number']
+    assert _counter(db_sqlite, inv[0]) == (3, d(3), [])
+
+
+def test_counter_keep_does_not_hold_a_deleted_number(db_sqlite):
+    d = lambda n: datetime.date(2063, 1, n)
+    inv = _series(db_sqlite, 2063, range(1, 4))
     with db_sqlite.tempEnv(counter_keep='invc.invoice:%s' % inv[1]['id']):
         _delete(db_sqlite, inv[1])
-    assert _counter(db_sqlite, inv[0]) == (3, d(3), [])
+    assert _counter(db_sqlite, inv[0]) == (3, d(3), [(2, 2, d(1), d(3))])
+
+
+def _kept_draft(db, record):
+    with db.tempEnv(counter_keep='invc.invoice:%s' % record['id']):
+        return _update(db, record, __is_draft=True)
+
+
+def test_a_draft_whose_kept_number_is_cleared_releases_it(db_sqlite):
+    d = lambda n: datetime.date(2064, 1, n)
+    inv = _series(db_sqlite, 2064, range(1, 4))
+    _kept_draft(db_sqlite, inv[1])
+    assert _update(db_sqlite, inv[1], inv_number=None)['inv_number'] is None
+    assert _counter(db_sqlite, inv[0]) == (3, d(3), [(2, 2, d(1), d(3))])
+
+
+def test_a_draft_whose_kept_number_is_replaced_releases_it(db_sqlite):
+    d = lambda n: datetime.date(2065, 1, n)
+    inv = _series(db_sqlite, 2065, range(1, 6))
+    _delete(db_sqlite, inv[3])
+    _kept_draft(db_sqlite, inv[1])
+    _update(db_sqlite, inv[1], inv_number=inv[3]['inv_number'], date=d(4))
+    assert _counter(db_sqlite, inv[0]) == (5, d(5), [(2, 2, d(1), d(3))])

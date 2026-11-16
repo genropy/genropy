@@ -1563,6 +1563,8 @@ class TableBase(object):
 
 
     def trigger_releaseCounters(self,record=None,backToDraft=None):
+        if backToDraft and self.db.currentEnv.get('counter_keep') == '%s:%s' %(self.fullname,record.get(self.pkey)):
+            return
         for field in self.counterColumns():
             if record.get(field):
                 counter_pars = self.getCounterPars(field,record) 
@@ -1603,7 +1605,7 @@ class TableBase(object):
             if sys_counter:
                 sys_counter.assignCounter(tblobj=self,field=field,record=record,old_record=old_record)
             else:
-                self.db.table('adm.counter').assignCounter(tblobj=self,field=field,record=record)
+                self.db.table('adm.counter').assignCounter(tblobj=self,field=field,record=record,old_record=old_record)
 
     @public_method
     def guessCounter(self,record=None,field=None,**kwargs):
