@@ -416,3 +416,51 @@ def test_release_on_draft_false_keeps_the_number_with_adm_counter(db, monkeypatc
     assert _back_to_draft(db, records[0]) == 'A76/000001'
     monkeypatch.setattr(invoice, 'counter_inv_number', _counter_pars(), raising=False)
     assert _back_to_draft(db, records[1]) is None
+
+
+def _migrated(db, year, **kwargs):
+    report = db.table('sys.counter').migrateCounters(**kwargs)
+    return [(r['table'], r['field'], r['count'], r['status']) for r in report if r['period'] == str(year)]
+
+
+def test_migrate_analyses_before_the_switch_and_loads_only_when_asked(db, monkeypatch):
+    records = [_insert(db, d(2078, 1, n)) for n in (1, 2, 3)]
+    _delete(db, records[1])
+    invoice = db.table('invc.invoice')
+    monkeypatch.setattr(invoice, 'counter_inv_number', _counter_pars(order_field='date'), raising=False)
+    assert db.table('sys.counter').countersToMigrate() == []
+    assert _migrated(db, 2078, counters=COUNTER) == [('invc.invoice', 'inv_number', 2, 'not_loaded')]
+    assert _blocks(db, 2078) == []
+    assert _migrated(db, 2078, counters=COUNTER, load=True) == [('invc.invoice', 'inv_number', 2, 'loaded')]
+    db.commit()
+    assert [b[:3] for b in _blocks(db, 2078)] == [(1, 1, True), (2, 2, False), (3, 3, True)]
+    assert _migrated(db, 2078, counters=COUNTER, load=True) == [('invc.invoice', 'inv_number', 2, 'ok')]
+
+
+def test_migrate_does_not_load_a_period_whose_numbers_are_not_consistent(db, monkeypatch):
+    _insert(db, d(2079, 3, 1))
+    invoice = db.table('invc.invoice')
+    monkeypatch.setattr(invoice, 'counter_inv_number', _counter_pars(recycle=False), raising=False)
+    invoice.insert(dict(date=d(2079, 2, 1), inv_number='A79/000002'))
+    db.commit()
+    monkeypatch.setattr(invoice, 'counter_inv_number', _counter_pars(order_field='date'), raising=False)
+    report = [r for r in db.table('sys.counter').migrateCounters(counters=COUNTER, load=True)
+              if r['period'] == '2079']
+    assert [(r['status'], [p['kind'] for p in r['problems']]) for r in report] == [('errors', ['wrong_order'])]
+    assert _blocks(db, 2079) == []
+
+
+def test_migrate_star_follows_the_switch_and_leaves_a_recycling_counter_without_order(db, monkeypatch):
+    _insert(db, d(2080, 1, 1))
+    invoice = db.table('invc.invoice')
+    monkeypatch.setattr(invoice, 'counter_inv_number', _counter_pars(date_tolerant=True), raising=False)
+    _set_switch(db, '*')
+    try:
+        assert ('invc.invoice', 'inv_number') in [(t.fullname, f) for t, f in
+                                                 db.table('sys.counter').countersToMigrate()]
+        assert _migrated(db, 2080, load=True) == []
+        assert _migrated(db, 2080, counters=COUNTER) == [('invc.invoice', 'inv_number', 1, 'errors')]
+        assert _migrated(db, 2080, tables=['invc.other']) == []
+    finally:
+        _set_switch(db, None)
+        db.rollback()

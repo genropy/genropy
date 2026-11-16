@@ -213,12 +213,19 @@ class Table(object):
     # switch and counter parameters
     # ------------------------------------------------------------------
 
-    def isEnabledFor(self, tblobj, field, record=None):
-        """True when tblobj.field is numbered here: the experimental switch
-        new_counters/counters lists 'pkg.table.field', or is '*'. With '*' a
-        recycling counter without an order (see orderField) stays on adm.counter"""
+    def switchValue(self, counters=None):
+        """counters when given, else the experimental switch new_counters/counters"""
+        if counters is not None:
+            return counters
         application = self.db.application
-        listed = application.experimentalValue('new_counters', 'counters') if application else None
+        return application.experimentalValue('new_counters', 'counters') if application else None
+
+    def isEnabledFor(self, tblobj, field, record=None, counters=None):
+        """True when tblobj.field is numbered here: the experimental switch
+        new_counters/counters (or counters, which replaces it) lists
+        'pkg.table.field', or is '*'. With '*' a recycling counter without an
+        order (see orderField) stays on adm.counter"""
+        listed = self.switchValue(counters)
         if not listed:
             return False
         if listed != '*':
@@ -697,14 +704,17 @@ class Table(object):
             if group['errors']:
                 report['%s/%s' % (codekey, period)] = group['errors']
                 continue
-            counter_pars = group['counter_pars']
-            self.counterKey(tblobj, field, counter_pars)
-            with self.recordToUpdate(codekey, mode='record'):
-                stored = {b['id']: None for b in self.loadBlocks(codekey, period).blocks}
-                blocks = self.rebuildBlocks(tblobj, field, counter_pars, group['record'], group['numbers'])
-                self.storeBlocks(codekey, period, blocks, stored)
+            self._loadPeriod(tblobj, field, codekey, period, group)
             report['%s/%s' % (codekey, period)] = 'loaded'
         return report
+
+    def _loadPeriod(self, tblobj, field, codekey, period, group):
+        counter_pars = group['counter_pars']
+        self.counterKey(tblobj, field, counter_pars)
+        with self.recordToUpdate(codekey, mode='record'):
+            stored = {b['id']: None for b in self.loadBlocks(codekey, period).blocks}
+            blocks = self.rebuildBlocks(tblobj, field, counter_pars, group['record'], group['numbers'])
+            self.storeBlocks(codekey, period, blocks, stored)
 
     @public_method
     def checkCounter(self, table=None, field=None):
@@ -720,22 +730,77 @@ class Table(object):
         tblobj = self.db.table(table)
         report = {}
         for (codekey, period), group in self.collectPeriods(tblobj, field).items():
-            label = '%s/%s' % (codekey, period)
-            if group['errors']:
-                report[label] = group['errors']
-                continue
-            stored = self.loadBlocks(codekey, period)
-            if not stored.blocks:
-                report[label] = [dict(kind='not_loaded')]
-                continue
-            counter_pars = group['counter_pars']
-            if counter_pars.get('recycle'):
-                expected = self.rebuildBlocks(tblobj, field, counter_pars, group['record'], group['numbers'])
-                if expected.shape() != stored.shape():
-                    report[label] = [dict(kind='blocks_differ', expected=expected.shape(), stored=stored.shape())]
-                continue
-            missing = [number for number, key in group['numbers'] if not stored.is_occupied(number)]
-            if missing:
-                report[label] = [dict(kind='missing_from_blocks', numbers=missing)]
+            problems = group['errors'] or self._checkPeriod(tblobj, field, codekey, period, group)
+            if problems:
+                report['%s/%s' % (codekey, period)] = problems
+        return report
+
+    def _checkPeriod(self, tblobj, field, codekey, period, group):
+        """The problems of the stored blocks of a clean period, [] when none"""
+        stored = self.loadBlocks(codekey, period)
+        if not stored.blocks:
+            return [dict(kind='not_loaded')]
+        counter_pars = group['counter_pars']
+        if counter_pars.get('recycle'):
+            expected = self.rebuildBlocks(tblobj, field, counter_pars, group['record'], group['numbers'])
+            if expected.shape() != stored.shape():
+                return [dict(kind='blocks_differ', expected=expected.shape(), stored=stored.shape())]
+            return []
+        missing = [number for number, key in group['numbers'] if not stored.is_occupied(number)]
+        return [dict(kind='missing_from_blocks', numbers=missing)] if missing else []
+
+    # ------------------------------------------------------------------
+    # moving an instance from adm.counter
+    # ------------------------------------------------------------------
+
+    def countersToMigrate(self, counters=None, tables=None):
+        """[(tblobj, field)] of the counters the switch new_counters/counters (or
+        counters, which replaces it) names: every counter of the db for '*'.
+        tables, a list of pkg.table, restricts them"""
+        listed = self.switchValue(counters)
+        if not listed:
+            return []
+        if listed == '*':
+            result = [(tblobj, field) for pkg in self.db.packages.values()
+                      for tblobj in [t.dbtable for t in (pkg['tables'] or {}).values()]
+                      for field in (tblobj.counterColumns() or [])]
+        else:
+            result = []
+            for key in listed.split(','):
+                table, field = key.strip().rsplit('.', 1)
+                result.append((self.db.table(table), field))
+        if tables:
+            result = [(tblobj, field) for tblobj, field in result if tblobj.fullname in tables]
+        return result
+
+    def migrateCounters(self, counters=None, tables=None, load=False):
+        """Report, and with load build, the blocks of every period of the counters
+        countersToMigrate names; a period '*' leaves on adm.counter is skipped.
+        Only periods without blocks are loaded: the others are checked.
+
+        A list of dict(table, field, period, count, status, problems). status:
+        'ok', 'loaded', 'not_loaded' (no load asked), 'errors' (numbers in the
+        table that are not consistent, or a recycling counter without an order:
+        fix them first), 'blocks_differ' or 'missing_from_blocks' (see checkCounter)."""
+        report = []
+        for tblobj, field in self.countersToMigrate(counters, tables):
+            for (codekey, period), group in sorted(self.collectPeriods(tblobj, field).items()):
+                if not self.isEnabledFor(tblobj, field, record=group['record'], counters=counters):
+                    continue
+                problems = list(group['errors'])
+                if group['counter_pars'].get('recycle') and not self.orderField(group['counter_pars']):
+                    problems.append(dict(kind='recycle_without_order'))
+                loaded = False
+                if problems:
+                    status = 'errors'
+                else:
+                    problems = self._checkPeriod(tblobj, field, codekey, period, group)
+                    if load and problems == [dict(kind='not_loaded')]:
+                        self._loadPeriod(tblobj, field, codekey, period, group)
+                        loaded = True
+                        problems = self._checkPeriod(tblobj, field, codekey, period, group)
+                    status = problems[0]['kind'] if problems else ('loaded' if loaded else 'ok')
+                report.append(dict(table=tblobj.fullname, field=field, period=period,
+                                   count=len(group['numbers']), status=status, problems=problems))
         return report
 
