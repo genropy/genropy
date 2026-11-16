@@ -22,3 +22,28 @@ following env variables will control genropy's behaviour.
 | ```GNR_ROOTPWD```           | The default admin password                              |
 | ```GNR_MAINPACKAGE```       | The package used for authentication                     |
 
+
+## Image labels
+
+Besides the static OCI labels, the image carries the framework version
+and the commit it was built from:
+
+| Label                                | Content                                       |
+|--------------------------------------|-----------------------------------------------|
+| ```org.opencontainers.image.version```  | Framework version (`VERSION` in `gnr/__init__.py`) |
+| ```org.opencontainers.image.revision``` | Git commit of the code included in the image |
+
+They are filled by the `GNR_VERSION` and `GNR_REVISION` build arguments,
+which the CI build sets automatically. For a local build:
+
+```
+docker build -f dockerfiles/genropy/Dockerfile \
+  --build-arg GNR_VERSION=$(sed -n 's/^VERSION = "\([0-9.]*\)"/\1/p' gnrpy/gnr/__init__.py) \
+  --build-arg GNR_REVISION=$(git rev-parse HEAD) .
+```
+
+To read them from an image:
+
+```
+docker inspect -f '{{json .Config.Labels}}' ghcr.io/genropy/genropy:latest
+```

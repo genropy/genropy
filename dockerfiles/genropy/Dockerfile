@@ -38,3 +38,10 @@ ENV GNRLOCAL_PROJECTS=/etc/workspaces
 EXPOSE 8080
 ENTRYPOINT []
 CMD ["supervisord"]
+
+# Framework version and source commit, passed by the build workflow.
+# Declared last so that changing them does not invalidate the cached layers.
+ARG GNR_VERSION=unknown
+ARG GNR_REVISION=unknown
+LABEL org.opencontainers.image.version="${GNR_VERSION}"
+LABEL org.opencontainers.image.revision="${GNR_REVISION}"

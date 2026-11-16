@@ -23,6 +23,16 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Read the package version
+        id: version
+        run: |
+          VERSION=$(sed -n 's/^VERSION = \"\([0-9.]*\)\"/\1/p' gnrpy/gnr/__init__.py)
+          if [ -z "$VERSION" ]; then
+            echo "Unable to read VERSION from gnrpy/gnr/__init__.py" >&2
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
@@ -45,3 +55,6 @@ jobs:
           tags: ghcr.io/${{ github.repository }}:${{ inputs.tag }}
           platforms: linux/amd64,linux/arm64
           provenance: false
+          build-args: |
+            GNR_VERSION=${{ steps.version.outputs.version }}
+            GNR_REVISION=${{ github.sha }}
