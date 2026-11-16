@@ -1210,6 +1210,27 @@ class TestStorageHandler(BaseGnrDaemonTest):
         assert '200 ' in response['status']
         assert response['data'] == b'served content'
 
+    @pytest.mark.parametrize('url_form', ['prefixed', 'storage', 'symbolic', 'legacy_vol', 'legacy_vol_absolute'])
+    def test_served_path_never_leaves_its_storage(self, url_form):
+        """Test that a url with parent segments or an absolute path is not served, whatever its form."""
+        outside_path = os.path.realpath(os.path.join(self.test_dir, 'outside.txt'))
+        with open(outside_path, 'w') as outside_file:
+            outside_file.write('outside content')
+
+        pkg = next(iter(self.site.gnrapp.packages.keys()))
+        base_node = self.site.storageNode('pkg:%s' % pkg if url_form == 'symbolic' else 'site:')
+        relative_path = os.path.relpath(outside_path, os.path.realpath(base_node.internal_path))
+        assert relative_path.startswith('..')
+
+        url = {'prefixed': '/site:%s' % relative_path,
+               'storage': '/_storage/site/%s' % relative_path,
+               'symbolic': '/_pkg/%s/%s' % (pkg, relative_path),
+               'legacy_vol': '/vol:site:%s' % relative_path.replace('/', ':'),
+               'legacy_vol_absolute': '/vol:site:%s' % outside_path.replace('/', ':')}[url_form]
+        response = self.client.get(url)
+        assert '404 ' in response['status']
+        assert b'outside content' not in response['data']
+
     def test_relative_storage_siteconfig_parent(self, monkeypatch):
         """Test relative storages whose parent is declared in siteconfig."""
         parent_dir = os.path.join(self.test_dir, 'siteconfig_parent')

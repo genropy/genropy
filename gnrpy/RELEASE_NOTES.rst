@@ -1,3 +1,16 @@
+Release 26.11.16
+================
+
+Hotfix release:
+
+- storage: storage urls whose path contains ``..`` segments or resolves
+  to an absolute node path are no longer served and answer not found
+  (#1873)
+- widgets: a dialog restored after a mobile keyboard closes fits its
+  current content; the size saved while the window was shrunk is now a
+  floor, so content that grew meanwhile (e.g. a login field shown after
+  the avatar check) is no longer clipped (#1885, #1886)
+
 Release 26.11.11
 ================
 

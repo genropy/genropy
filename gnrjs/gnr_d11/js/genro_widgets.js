@@ -1838,6 +1838,13 @@ dojo.declare("gnr.widgets.Dialog", gnr.widgets.baseDojo, {
         }  
     },
 
+    mixin_getContentMarginSize:function(k){
+        // the margin-box size the content asks for, overflow included, on axis 'h' or 'w'
+        var dn = this.domNode;
+        return k=='h'? dn.scrollHeight+dn.offsetHeight-dn.clientHeight
+                     : dn.scrollWidth+dn.offsetWidth-dn.clientWidth;
+    },
+
     mixin_adjustDialogSize:function(parentDialog){
         var mainDiv = document.getElementById('mainWindowWrapper') || document.getElementById('mainWindow')
         var w = {h:Math.floor(mainDiv.clientHeight*.98),w:Math.floor(mainDiv.clientWidth*.98)};
@@ -1880,10 +1887,15 @@ dojo.declare("gnr.widgets.Dialog", gnr.widgets.baseDojo, {
                     c[k] = w[k];
                     doResize = true;
                 }else if(this[starting]){
-                    if(this[starting]<=w[k]){
-                        c[k] = this[starting];
+                    // the content may have grown while the dialog was capped (a field shown
+                    // while a mobile keyboard shrank the window): the size saved before is
+                    // a floor, the content's current size wins when larger
+                    var needed = Math.max(this[starting],this.getContentMarginSize(k));
+                    if(needed<=w[k]){
+                        c[k] = needed;
                         delete this[starting];
                     }else{
+                        this[starting] = needed;
                         c[k] = w[k];
                     }
                     doResize = true;
