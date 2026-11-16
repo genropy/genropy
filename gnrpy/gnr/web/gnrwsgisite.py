@@ -2174,6 +2174,9 @@ class GnrWsgiSite(object):
     def uploadFile(self,file_handle=None,dataUrl=None,filename=None,uploadPath=None):
         if file_handle is not None:
             f = file_handle.stream
+            # an onUploadingMethod hook may have already read the handle
+            if f.seekable():
+                f.seek(0)
             content = f.read()
             original_filename = os.path.basename(file_handle.filename)
             original_ext = os.path.splitext(original_filename)[1]
