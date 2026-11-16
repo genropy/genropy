@@ -290,8 +290,9 @@ class Table(object):
         - a number above the counter (a record written again with the number it had, after its
           release took the counter back, or a number forced ahead on purpose) takes the counter up to
           it, also when the series has no counter yet.
-        A number another record holds (assigned, kept on a draft) is refused; a value of another
-        series is left alone"""
+        Any other number of the series is in use and is refused; a value of another series is left
+        alone. The choice is made under the lock of the counter, so two saves cannot claim the same
+        number"""
         counter_pars = self._recyclingPars(tblobj=tblobj,field=field,record=record)
         if not counter_pars:
             return
@@ -299,30 +300,22 @@ class Table(object):
         number = self._sequenceNumber(counter_pars=counter_pars,sequence=sequence)
         if number is None or self.formatSequence(tblobj=tblobj,field=field,record=record,counter=number)!=sequence:
             return
-        pkey = record.get(tblobj.pkey)
-        holders = tblobj.query(where='$%s=:sequence%s' %(field,' AND $%s!=:pkey' %tblobj.pkey if pkey else ''),
-                               sequence=sequence,pkey=pkey,excludeDraft=False,
-                               excludeLogicalDeleted=False,subtable='*').count()
-        if holders:
-            raise self.exception('business_logic',
-                    msg=self._translate('!![en]%(sequence)s is already in use') %dict(sequence=sequence))
         codekey = self.getCounterPkey(tblobj=tblobj,field=field,record=record)
-        current = self.record(codekey,ignoreMissing=True).output('record')
-        if not current:
+        if not self.existsRecord(codekey):
             #the first number of its series, set by hand: the series starts at its starting value,
             #then the counter goes up to it like for any number above it
             current = self.newCounterRecord(tblobj=tblobj,field=field,record=record)
             current['counter'] = counter_pars.get('starting_value') or 0
             self.insert(current)
         date = self._asDate(record[counter_pars['date_field']])
-        if not self._holeOf(current,number):
-            if number > (current['counter'] or 0):
-                self._raiseCounter(codekey,number,date,tblobj=tblobj,field=field,record=record,
-                                   counter_pars=counter_pars)
-            return
         with self.recordToUpdate(codekey,mode='record') as counter_record:
             hole = self._holeOf(counter_record,number)
             if not hole:
+                if number <= (counter_record['counter'] or 0):
+                    raise self.exception('business_logic',
+                            msg=self._translate('!![en]%(sequence)s is already in use') %dict(sequence=sequence))
+                self._raiseCounter(counter_record,number,date,tblobj=tblobj,field=field,record=record,
+                                   counter_pars=counter_pars)
                 return
             hole_key,cnt_from,cnt_to,date_from,date_to = hole
             if (date_from and date<date_from) or (date_to and date>date_to):
@@ -338,37 +331,34 @@ class Table(object):
             holes.sort('#a.cnt_from')
             counter_record['holes'] = holes
 
-    def _raiseCounter(self,codekey,number,date,tblobj=None,field=None,record=None,counter_pars=None):
-        """the counter goes up to number: the numbers between, down to the nearest one in use, are
-        free, dated by that number (or the last used) and this one"""
+    def _raiseCounter(self,counter_record,number,date,tblobj=None,field=None,record=None,counter_pars=None):
+        """the locked counter_record goes up to number: the numbers between, down to the nearest one
+        in use, are free, dated by that number (or the last used) and this one"""
         sequence = record[field]
         N_start,N_end = self._getBoundaries(**counter_pars)['N']
         series = SequenceSeries(tblobj, field=field, date_field=counter_pars['date_field'], sequence=sequence,
                                 N_start=N_start, N_end=N_end, exclude_pkey=record.get(tblobj.pkey))
-        with self.recordToUpdate(codekey,mode='record') as counter_record:
-            counter = counter_record['counter'] or 0
-            if number <= counter:
-                return
-            floor,floor_date = counter,self._asDate(counter_record['last_used'])
-            below = series.nearest(number, below=True)
-            if below and below[0] > counter:
-                floor,floor_date = below
-            if date and floor_date and date<floor_date and not counter_pars.get('date_tolerant'):
-                msgTpl = counter_pars.get('message_dateError','!!Incompatible date assigning %(fieldname)s counter')
-                fieldname = tblobj.column(field).name_long or field
-                raise self.exception('business_logic',msg=self._translate(msgTpl) %dict(
-                                            fieldname=self._translate(fieldname),last_used=floor_date,sequence=sequence))
-            holes = counter_record['holes']
-            if isinstance(holes,str):
-                holes = Bag(holes)
-            holes = holes or Bag()
-            if number > floor+1:
-                holes.setItem(str(floor+1),None,cnt_from=floor+1,cnt_to=number-1,
-                              date_from=floor_date,date_to=date)
-                holes.sort('#a.cnt_from')
-            counter_record['holes'] = holes
-            counter_record['counter'] = number
-            counter_record['last_used'] = date
+        counter = counter_record['counter'] or 0
+        floor,floor_date = counter,self._asDate(counter_record['last_used'])
+        below = series.nearest(number, below=True)
+        if below and below[0] > counter:
+            floor,floor_date = below
+        if date and floor_date and date<floor_date and not counter_pars.get('date_tolerant'):
+            msgTpl = counter_pars.get('message_dateError','!!Incompatible date assigning %(fieldname)s counter')
+            fieldname = tblobj.column(field).name_long or field
+            raise self.exception('business_logic',msg=self._translate(msgTpl) %dict(
+                                        fieldname=self._translate(fieldname),last_used=floor_date,sequence=sequence))
+        holes = counter_record['holes']
+        if isinstance(holes,str):
+            holes = Bag(holes)
+        holes = holes or Bag()
+        if number > floor+1:
+            holes.setItem(str(floor+1),None,cnt_from=floor+1,cnt_to=number-1,
+                          date_from=floor_date,date_to=date)
+            holes.sort('#a.cnt_from')
+        counter_record['holes'] = holes
+        counter_record['counter'] = number
+        counter_record['last_used'] = date
 
     def _holeOf(self,counter_record,number):
         "(key, cnt_from, cnt_to, date_from, date_to) of the hole holding number"

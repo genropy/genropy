@@ -18,10 +18,11 @@ Covers:
   above the counter raises it (also on a series without counter), leaving the
   numbers between free;
 - a number set by hand is claimed only when a save sets or changes it, and
-  refused when another record holds it;
+  refused, under the lock of the counter, when it is neither free nor above
+  the counter;
 - the free numbers of a series; a record going back to draft keeps its number
-  only when named in counter_keep, and a draft gives back a kept number that a
-  save clears or replaces.
+  only when its counter says releaseOnDraft=False, and a draft gives back a
+  kept number that a save clears or replaces.
 
 Each test uses its own year, so its own counter. SQLite instance of the
 test_invoice project.
@@ -323,39 +324,63 @@ def test_back_to_draft_releases_the_number(db_sqlite):
     assert _counter(db_sqlite, inv[0]) == (3, d(3), [(2, 2, d(1), d(3))])
 
 
-def test_back_to_draft_named_in_counter_keep_keeps_the_number(db_sqlite):
+def _keep_on_draft(db, monkeypatch):
+    tbl = db.table('invc.invoice')
+    counter_inv_number = tbl.counter_inv_number
+    monkeypatch.setattr(tbl, 'counter_inv_number',
+                        lambda record=None: dict(counter_inv_number(record=record), releaseOnDraft=False),
+                        raising=False)
+
+
+def test_back_to_draft_with_release_on_draft_false_keeps_the_number(db_sqlite, monkeypatch):
     d = lambda n: datetime.date(2062, 1, n)
     inv = _series(db_sqlite, 2062, range(1, 4))
-    with db_sqlite.tempEnv(counter_keep='invc.invoice:%s' % inv[1]['id']):
-        assert _update(db_sqlite, inv[1], __is_draft=True)['inv_number'] == inv[1]['inv_number']
+    _keep_on_draft(db_sqlite, monkeypatch)
+    assert _update(db_sqlite, inv[1], __is_draft=True)['inv_number'] == inv[1]['inv_number']
     assert _counter(db_sqlite, inv[0]) == (3, d(3), [])
 
 
-def test_counter_keep_does_not_hold_a_deleted_number(db_sqlite):
+def test_release_on_draft_false_does_not_hold_a_deleted_number(db_sqlite, monkeypatch):
     d = lambda n: datetime.date(2063, 1, n)
     inv = _series(db_sqlite, 2063, range(1, 4))
-    with db_sqlite.tempEnv(counter_keep='invc.invoice:%s' % inv[1]['id']):
-        _delete(db_sqlite, inv[1])
+    _keep_on_draft(db_sqlite, monkeypatch)
+    _delete(db_sqlite, inv[1])
     assert _counter(db_sqlite, inv[0]) == (3, d(3), [(2, 2, d(1), d(3))])
 
 
-def _kept_draft(db, record):
-    with db.tempEnv(counter_keep='invc.invoice:%s' % record['id']):
-        return _update(db, record, __is_draft=True)
+def _kept_draft(db, record, monkeypatch):
+    _keep_on_draft(db, monkeypatch)
+    kept = _update(db, record, __is_draft=True)
+    assert kept['inv_number'] == record['inv_number']
+    return kept
 
 
-def test_a_draft_whose_kept_number_is_cleared_releases_it(db_sqlite):
+def test_a_draft_whose_kept_number_is_cleared_releases_it(db_sqlite, monkeypatch):
     d = lambda n: datetime.date(2064, 1, n)
     inv = _series(db_sqlite, 2064, range(1, 4))
-    _kept_draft(db_sqlite, inv[1])
+    _kept_draft(db_sqlite, inv[1], monkeypatch)
     assert _update(db_sqlite, inv[1], inv_number=None)['inv_number'] is None
     assert _counter(db_sqlite, inv[0]) == (3, d(3), [(2, 2, d(1), d(3))])
 
 
-def test_a_draft_whose_kept_number_is_replaced_releases_it(db_sqlite):
+def test_a_draft_whose_kept_number_is_replaced_releases_it(db_sqlite, monkeypatch):
     d = lambda n: datetime.date(2065, 1, n)
     inv = _series(db_sqlite, 2065, range(1, 6))
     _delete(db_sqlite, inv[3])
-    _kept_draft(db_sqlite, inv[1])
+    _kept_draft(db_sqlite, inv[1], monkeypatch)
     _update(db_sqlite, inv[1], inv_number=inv[3]['inv_number'], date=d(4))
     assert _counter(db_sqlite, inv[0]) == (5, d(5), [(2, 2, d(1), d(3))])
+
+
+def test_a_number_taken_meanwhile_is_refused_under_the_lock(db_sqlite):
+    "the hole was taken by a save not visible yet: no record holds the number, the counter says it is used"
+    d = lambda n: datetime.date(2066, 1, n)
+    inv = _series(db_sqlite, 2066, range(1, 4))
+    _delete(db_sqlite, inv[1])
+    assert _counter(db_sqlite, inv[0]) == (3, d(3), [(2, 2, d(1), d(3))])
+    _set_holes(db_sqlite, inv[0], [])
+    try:
+        with pytest.raises(GnrSqlBusinessLogicException, match='already in use'):
+            _invoice_with_number(db_sqlite, d(2), 2)
+    finally:
+        db_sqlite.rollback()

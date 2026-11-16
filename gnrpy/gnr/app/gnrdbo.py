@@ -1563,8 +1563,6 @@ class TableBase(object):
 
 
     def trigger_releaseCounters(self,record=None,backToDraft=None):
-        if backToDraft and self.db.currentEnv.get('counter_keep') == '%s:%s' %(self.fullname,record.get(self.pkey)):
-            return
         for field in self.counterColumns():
             if record.get(field):
                 counter_pars = self.getCounterPars(field,record) 
