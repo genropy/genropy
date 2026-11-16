@@ -217,7 +217,12 @@ class Table(object):
                 counter_record['period'] = ''.join(period)
         return counter_record
 
-    def assignCounter(self,tblobj=None,field=None,record=None):
+    def assignCounter(self,tblobj=None,field=None,record=None,old_record=None):
+        if (record.get(field) or tblobj.isDraft(record)) and self._recyclingPars(tblobj=tblobj,field=field,record=record):
+            stored = self._storedSequence(tblobj=tblobj,field=field,record=record,old_record=old_record)
+            self.releaseReplacedSequence(tblobj=tblobj,field=field,record=record,stored=stored)
+            if record.get(field) and record[field]!=stored[0]:
+                self.claimSequence(tblobj=tblobj,field=field,record=record)
         if record.get(field):
             return
         counter_pars = getattr(tblobj,'counter_%s' %field)(record=record)
@@ -229,6 +234,167 @@ class Table(object):
         if counter_pars.get('onAssigned'):
             counter_pars['onAssigned'](record=record,field=field)
         
+
+    def _recyclingPars(self,tblobj=None,field=None,record=None):
+        "the counter pars when the field recycles its numbers by date, else None"
+        counter_pars = getattr(tblobj,'counter_%s' %field)(record=record)
+        if not counter_pars or not counter_pars.get('recycle'):
+            return None
+        date_field = counter_pars.get('date_field')
+        if not date_field or not record[date_field]:
+            return None
+        return counter_pars
+
+    def _sequenceNumber(self,counter_pars=None,sequence=None):
+        N_start,N_end = self._getBoundaries(**counter_pars)['N']
+        digits = sequence[N_start:N_end] if N_start is not None else None
+        return int(digits) if digits and digits.isdigit() else None
+
+    def _asDate(self,value):
+        return value.date() if isinstance(value,datetime) else value
+
+    def _storedSequence(self,tblobj=None,field=None,record=None,old_record=None):
+        """(sequence, record) as stored before this save: (None, None) on insert.
+        An update called without old_record reads it back"""
+        if old_record:
+            return old_record.get(field),old_record
+        pkey = record.get(tblobj.pkey)
+        if not pkey:
+            return None,None
+        stored = tblobj.query(where='$%s=:pkey' %tblobj.pkey,pkey=pkey,excludeDraft=False,
+                              excludeLogicalDeleted=False,subtable='*').fetch()
+        return (stored[0][field],stored[0]) if stored else (None,None)
+
+    def releaseReplacedSequence(self,tblobj=None,field=None,record=None,stored=None):
+        """A draft holding a number (kept, or chosen among the free ones) that a save replaces or
+        clears gives it back: without this the number was neither in use nor free, lost.
+        Drafts only: a confirmed record may have its number rewritten on purpose (fix_duplicate)"""
+        held_sequence,stored_record = stored or (None,None)
+        if not held_sequence or held_sequence==record.get(field):
+            return
+        if not tblobj.draftField or not tblobj.isDraft(record):
+            return
+        counter_pars = self._recyclingPars(tblobj=tblobj,field=field,record=record)
+        if not counter_pars:
+            return
+        date_field = counter_pars['date_field']
+        held = dict(record)
+        held[field] = held_sequence
+        held[date_field] = stored_record.get(date_field) or record[date_field]
+        self.releaseCounter(tblobj=tblobj,field=field,record=held)
+
+    def claimSequence(self,tblobj=None,field=None,record=None):
+        """A number of its series set in the record before the counter assigns one:
+        - a free number (in a hole) is taken out of its hole, which is split around it, dated so that
+          the series stays in date order;
+        - a number above the counter (a record written again with the number it had, after its
+          release took the counter back, or a number forced ahead on purpose) takes the counter up to
+          it, also when the series has no counter yet.
+        Any other number of the series is in use and is refused; a value of another series is left
+        alone. The choice is made under the lock of the counter, so two saves cannot claim the same
+        number"""
+        counter_pars = self._recyclingPars(tblobj=tblobj,field=field,record=record)
+        if not counter_pars:
+            return
+        sequence = record[field]
+        number = self._sequenceNumber(counter_pars=counter_pars,sequence=sequence)
+        if number is None or self.formatSequence(tblobj=tblobj,field=field,record=record,counter=number)!=sequence:
+            return
+        codekey = self.getCounterPkey(tblobj=tblobj,field=field,record=record)
+        if not self.existsRecord(codekey):
+            #the first number of its series, set by hand: the series starts at its starting value,
+            #then the counter goes up to it like for any number above it
+            current = self.newCounterRecord(tblobj=tblobj,field=field,record=record)
+            current['counter'] = counter_pars.get('starting_value') or 0
+            self.insert(current)
+        date = self._asDate(record[counter_pars['date_field']])
+        with self.recordToUpdate(codekey,mode='record') as counter_record:
+            hole = self._holeOf(counter_record,number)
+            if not hole:
+                if number <= (counter_record['counter'] or 0):
+                    raise self.exception('business_logic',
+                            msg=self._translate('!![en]%(sequence)s is already in use') %dict(sequence=sequence))
+                self._raiseCounter(counter_record,number,date,tblobj=tblobj,field=field,record=record,
+                                   counter_pars=counter_pars)
+                return
+            hole_key,cnt_from,cnt_to,date_from,date_to = hole
+            if (date_from and date<date_from) or (date_to and date>date_to):
+                raise self.exception('business_logic',
+                        msg=self._translate('!![en]%(sequence)s can be dated from %(date_from)s to %(date_to)s') %dict(
+                                sequence=sequence,date_from=date_from or '-',date_to=date_to or '-'))
+            holes = counter_record['holes']
+            holes.popNode(hole_key)
+            if cnt_from<number:
+                holes.setItem(str(cnt_from),None,cnt_from=cnt_from,cnt_to=number-1,date_from=date_from,date_to=date)
+            if number<cnt_to:
+                holes.setItem(str(number+1),None,cnt_from=number+1,cnt_to=cnt_to,date_from=date,date_to=date_to)
+            holes.sort('#a.cnt_from')
+            counter_record['holes'] = holes
+
+    def _raiseCounter(self,counter_record,number,date,tblobj=None,field=None,record=None,counter_pars=None):
+        """the locked counter_record goes up to number: the numbers between, down to the nearest one
+        in use, are free, dated by that number (or the last used) and this one"""
+        sequence = record[field]
+        N_start,N_end = self._getBoundaries(**counter_pars)['N']
+        series = SequenceSeries(tblobj, field=field, date_field=counter_pars['date_field'], sequence=sequence,
+                                N_start=N_start, N_end=N_end, exclude_pkey=record.get(tblobj.pkey))
+        counter = counter_record['counter'] or 0
+        floor,floor_date = counter,self._asDate(counter_record['last_used'])
+        below = series.nearest(number, below=True)
+        if below and below[0] > counter:
+            floor,floor_date = below
+        if date and floor_date and date<floor_date and not counter_pars.get('date_tolerant'):
+            msgTpl = counter_pars.get('message_dateError','!!Incompatible date assigning %(fieldname)s counter')
+            fieldname = tblobj.column(field).name_long or field
+            raise self.exception('business_logic',msg=self._translate(msgTpl) %dict(
+                                        fieldname=self._translate(fieldname),last_used=floor_date,sequence=sequence))
+        holes = counter_record['holes']
+        if isinstance(holes,str):
+            holes = Bag(holes)
+        holes = holes or Bag()
+        if number > floor+1:
+            holes.setItem(str(floor+1),None,cnt_from=floor+1,cnt_to=number-1,
+                          date_from=floor_date,date_to=date)
+            holes.sort('#a.cnt_from')
+        counter_record['holes'] = holes
+        counter_record['counter'] = number
+        counter_record['last_used'] = date
+
+    def _holeOf(self,counter_record,number):
+        "(key, cnt_from, cnt_to, date_from, date_to) of the hole holding number"
+        holes = counter_record['holes'] if counter_record else None
+        if isinstance(holes,str):
+            holes = Bag(holes)
+        if not holes:
+            return None
+        for hole_key,cnt_from,cnt_to,date_from,date_to in holes.digest('#k,#a.cnt_from,#a.cnt_to,#a.date_from,#a.date_to'):
+            if cnt_from<=number<=cnt_to:
+                return hole_key,cnt_from,cnt_to,self._asDate(date_from),self._asDate(date_to)
+        return None
+
+    def holeSequences(self,tblobj=None,field=None,record=None,limit=500):
+        """The free numbers of the record's series, each with the dates it accepts: a list of
+        dict(sequence,counter,date_from,date_to), lowest number first"""
+        counter_pars = self._recyclingPars(tblobj=tblobj,field=field,record=record)
+        if not counter_pars:
+            return []
+        codekey = self.getCounterPkey(tblobj=tblobj,field=field,record=record)
+        counter_record = self.record(codekey,ignoreMissing=True).output('record')
+        holes = counter_record['holes'] if counter_record else None
+        if isinstance(holes,str):
+            holes = Bag(holes)
+        result = []
+        if not holes:
+            return result
+        holes.sort('#a.cnt_from')
+        for cnt_from,cnt_to,date_from,date_to in holes.digest('#a.cnt_from,#a.cnt_to,#a.date_from,#a.date_to'):
+            for number in range(cnt_from,cnt_to+1):
+                if len(result)>=limit:
+                    return result
+                result.append(dict(counter=number,
+                                   sequence=self.formatSequence(tblobj=tblobj,field=field,record=record,counter=number),
+                                   date_from=self._asDate(date_from),date_to=self._asDate(date_to)))
+        return result
 
     def guessNextSequence(self,tblobj=None,field=None,record=None):
         counter,counterInfo = self.getCounter(tblobj=tblobj,field=field,record=record,update=False)
