@@ -11,6 +11,13 @@ on:
         description: Image tag to push (e.g. "develop" or "26.11.15")
         required: true
         type: string
+      snapshot:
+        description: >-
+          Label the image as an unreleased snapshot: its version label is
+          "develop" instead of VERSION
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -25,13 +32,23 @@ jobs:
 
       - name: Read the package version
         id: version
+        env:
+          SNAPSHOT: ${{ inputs.snapshot }}
         run: |
+          if [ "$SNAPSHOT" = "true" ]; then
+            echo "version=develop" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           VERSION=$(sed -n 's/^VERSION = \"\([0-9.]*\)\"/\1/p' gnrpy/gnr/__init__.py)
           if [ -z "$VERSION" ]; then
             echo "Unable to read VERSION from gnrpy/gnr/__init__.py" >&2
             exit 1
           fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Take the build timestamp
+        id: timestamp
+        run: echo "timestamp=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -58,3 +75,4 @@ jobs:
           build-args: |
             GNR_VERSION=${{ steps.version.outputs.version }}
             GNR_REVISION=${{ github.sha }}
+            GNR_BUILD_TIMESTAMP=${{ steps.timestamp.outputs.timestamp }}
