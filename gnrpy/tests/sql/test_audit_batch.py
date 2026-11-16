@@ -8,6 +8,7 @@ instance; its column details is a Bag (dtype X). The database is migrated
 with SqlMigrator, as in test_audit_external; PostgreSQL only.
 """
 
+import logging
 import threading
 import time
 from decimal import Decimal
@@ -174,6 +175,39 @@ def test_a_row_left_in_the_queue_comes_first_in_the_chain(db):
     assert [h['state']['amount'] for h in history] == [Decimal(1), Decimal(2), Decimal(3)]
 
 
+def test_a_pkey_change_is_converted_at_commit(db):
+    tbl = db.table('audit_test.audited_item')
+    tbl.insert(dict(id='pk_old', code='K1'))
+    db.commit()
+    tbl.changePrimaryKeyValue(pkey='pk_old', newpkey='pk_new')
+    db.commit()
+    assert queued(db, 'pk_old') == 0 and queued(db, 'pk_new') == 0
+    first, upd = events(db, 'pk_new')
+    assert [(e['op'], e['version']) for e in (first, upd)] == [('A', 0), ('U', 1)]
+    assert Bag(first['data'])['id'].strip() == 'pk_old'
+    changes = Bag(upd['data'])
+    assert list(changes.keys()) == ['id'] and changes['id'].strip() == 'pk_new'
+
+
+def test_a_gap_at_commit_is_logged(db, caplog):
+    tbl = db.table('audit_test.audited_item')
+    record = dict(code='W1', amount=1)
+    tbl.insert(record)
+    db.commit()
+    pkey = record['id']
+    sql_update(db, pkey, amount=2)
+    sql_update(db, pkey, amount=3)
+    db.execute(f'DELETE FROM {QUEUE} WHERE record_pkey = :pkey AND version = 1', dict(pkey=pkey))
+    db.commit()
+    with caplog.at_level(logging.WARNING, logger='gnr.pkg'):
+        with tbl.recordToUpdate(pkey) as rec:
+            rec['amount'] = 4
+        db.commit()
+    assert [(e['version'], e['expected_version']) for e in events(db, pkey)] == [(2, 0), (3, None)]
+    assert [r.getMessage() for r in caplog.records if r.name == 'gnr.pkg'] == \
+        [f'Audit version gap: audit_test.audited_item {pkey} version 2, expected 0']
+
+
 def test_a_failed_conversion_fails_the_commit(db):
     tbl = db.table('audit_test.audited_item')
     record = dict(code='X1')
@@ -188,7 +222,7 @@ def test_a_failed_conversion_fails_the_commit(db):
         db.commit()
     db.rollback()
     assert tbl.record(pkey, mode='dict')['code'] == 'X1'
-    assert queued(db) == 0
+    assert queued(db, pkey) == 0 and queued(db, 'broken') == 0
     assert events(db, pkey) == []
 
 
@@ -314,3 +348,15 @@ def test_a_gap_is_reported(db):
     assert (first['op'], first['expected_version'], upd['version'], upd['expected_version']) == \
         ('A', None, 1, None)
     assert (gap['version'], gap['expected_version']) == (3, 2)
+
+
+def test_empty_is_converted_at_commit(db):
+    tbl = db.table('audit_test.audited_item')
+    record = dict(code='E1')
+    tbl.insert(record)
+    db.commit()
+    tbl.empty()
+    db.commit()
+    assert queued(db) == 0
+    assert tbl.query(excludeLogicalDeleted=False, excludeDraft=False).count() == 0
+    assert [(e['op'], e['version']) for e in events(db, record['id'])] == [('A', 0), ('D', 1)]

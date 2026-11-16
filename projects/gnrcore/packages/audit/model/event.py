@@ -3,6 +3,7 @@ import datetime
 import json
 from decimal import Decimal
 
+from gnr.app import pkglog as logger
 from gnr.core.gnrbag import Bag
 
 BATCH_LOCK = "hashtext('audit.batch')"
@@ -38,7 +39,8 @@ class Table(object):
         the write, and a failure fails its commit. All the queue rows of
         those records are taken, in ``queue_id`` order: also the rows left
         by earlier writes outside the ORM, which come first in the version
-        chain of the record.
+        chain of the record. The return value of a deferred call is lost,
+        so every version gap is logged as a warning.
 
         :returns: the events written with a version gap, as in ``batch``
         """
@@ -49,6 +51,9 @@ class Table(object):
         gaps = []
         for row in sorted(rows, key=lambda r: r['queue_id']):
             gaps.extend(self.eventsFromQueueRow(dict(row)))
+        for gap in gaps:
+            logger.warning('Audit version gap: %(tbl)s %(record_pkey)s version %(version)s, '
+                           'expected %(expected_version)s', gap)
         return gaps
 
     def batch(self, block_size=1000):

@@ -82,6 +82,14 @@ def test_table_is_registered(db):
     assert not {'id', 'code', 'amount', 'details', '__ins_ts', '__ins_user', '__del_ts'} & set(excluded)
 
 
+def test_queue_is_indexed_for_the_conversion_at_commit(db):
+    indexes = [row[0] for row in db.execute(
+        "SELECT indexdef FROM pg_indexes WHERE schemaname = 'audit' "
+        "AND tablename = 'audit_queue'").fetchall()]
+    assert any('(txid)' in indexdef for indexdef in indexes)
+    assert any('(tbl, record_pkey)' in indexdef for indexdef in indexes)
+
+
 def test_insert_update_delete(db):
     tbl = db.table('audit_test.audited_item')
     with db.tempEnv(user='mario'):
