@@ -328,9 +328,11 @@ def test_analyze_load_and_check_a_counter_numbered_by_adm_counter(db, monkeypatc
 
 def test_analyze_reports_numbers_out_of_order(db, monkeypatch):
     _insert(db, d(2064, 3, 1))
-    db.table('invc.invoice').insert(dict(date=d(2064, 2, 1), inv_number='A64/000002'))
-    db.commit()
     invoice = db.table('invc.invoice')
+    # adm.counter refuses a number set by hand with an earlier date: planted with a counter that does not recycle
+    monkeypatch.setattr(invoice, 'counter_inv_number', _counter_pars(recycle=False), raising=False)
+    invoice.insert(dict(date=d(2064, 2, 1), inv_number='A64/000002'))
+    db.commit()
     monkeypatch.setattr(invoice, 'counter_inv_number', _counter_pars(order_field='date'), raising=False)
     sys_counter = db.table('sys.counter')
     report = sys_counter.analyzeCounter(table='invc.invoice', field='inv_number')
