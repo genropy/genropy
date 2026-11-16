@@ -123,7 +123,21 @@ class GnrWebRpc(GnrBaseProxy):
         except GnrException as e:
             self.page.site.raiseIfDeveloper()
             self.error = 'gnrexception'
-            return self.result_bag(str(e))
+            return self.result_bag(self.exceptionResult(e))
+
+    def exceptionResult(self, exception):
+        """The result a bag envelope carries for a GnrException: its message, or,
+        when the exception declares its feedback parameters, a dict with those
+        parameters and the message.
+
+        :param exception: the GnrException raised by the rpc method"""
+        message = str(exception)
+        if not exception.feedback:
+            return message
+        result = {key: self.page.localize(value) if isinstance(value, str) else value
+                  for key, value in exception.feedback.items()}
+        result['message'] = message
+        return result
 
     def _upload_file(self, **kwargs):
         onUploadingMethod= kwargs.get('onUploadingMethod')
