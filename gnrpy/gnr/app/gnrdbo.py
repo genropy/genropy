@@ -1568,6 +1568,10 @@ class TableBase(object):
                 counter_pars = self.getCounterPars(field,record) 
                 if not counter_pars or not counter_pars.get('recycle') or (backToDraft and counter_pars.get('assignIfDraft')):
                     continue
+                #releaseOnDraft (default True): False keeps the number of a record going back to draft;
+                #counter_<field>(record) may compute it from the record
+                if backToDraft and not counter_pars.get('releaseOnDraft',True):
+                    continue
                 self.releaseCounterColumn(field=field,record=record)
 
     def trigger_assignCounters(self,record=None,old_record=None):
@@ -1576,21 +1580,35 @@ class TableBase(object):
             self.trigger_releaseCounters(record,backToDraft=True)
         else:
             for field in self.counterColumns():
-                self.assignCounterColumn(field=field,record=record)
+                self.assignCounterColumn(field=field,record=record,old_record=old_record)
+
+    def sysCounter(self,field,record=None):
+        """sys.counter when the experimental switch new_counters/counters enables
+        the counter of field, None when adm.counter numbers it"""
+        if 'sys' not in self.db.packages:
+            return None
+        sys_counter = self.db.table('sys.counter')
+        return sys_counter if sys_counter.isEnabledFor(self,field,record=record) else None
 
     def releaseCounterColumn(self,field=None,record=None):
         _tenant_schema = record.get('_tenant_schema')
         with self.db.tempEnv(tenant_schema=_tenant_schema):
-            self.db.table('adm.counter').releaseCounter(tblobj=self,field=field,record=record)
+            counter = self.sysCounter(field,record) or self.db.table('adm.counter')
+            counter.releaseCounter(tblobj=self,field=field,record=record)
 
-    def assignCounterColumn(self,field=None,record=None):
+    def assignCounterColumn(self,field=None,record=None,old_record=None):
         _tenant_schema = record.get('_tenant_schema')
         with self.db.tempEnv(tenant_schema=_tenant_schema):
-            self.db.table('adm.counter').assignCounter(tblobj=self,field=field,record=record)
+            sys_counter = self.sysCounter(field,record)
+            if sys_counter:
+                sys_counter.assignCounter(tblobj=self,field=field,record=record,old_record=old_record)
+            else:
+                self.db.table('adm.counter').assignCounter(tblobj=self,field=field,record=record)
 
     @public_method
     def guessCounter(self,record=None,field=None,**kwargs):
-        sequence,sequenceInfo = self.db.table('adm.counter').guessNextSequence(tblobj=self,field=field,record=record)
+        counter = self.sysCounter(field,record) or self.db.table('adm.counter')
+        sequence,sequenceInfo = counter.guessNextSequence(tblobj=self,field=field,record=record)
         result = dict(promised=True,wdg_color='green',sequence=sequence)
         pars = getattr(self,'counter_%s' %field)(record=record)
         if sequenceInfo.get('recycled'):
@@ -1610,7 +1628,8 @@ class TableBase(object):
             if self.isDraft(newrecord) and not pars.get('assignIfDraft'):
                 continue
             if pars.get('showOnLoad'):
-                sequence,sequenceInfo = self.db.table('adm.counter').guessNextSequence(tblobj=self,field=field,record=newrecord)
+                counter = self.sysCounter(field,newrecord) or self.db.table('adm.counter')
+                sequence,sequenceInfo = counter.guessNextSequence(tblobj=self,field=field,record=newrecord)
                 kw = dict(promised=True,wdg_color='green')
                 if sequenceInfo.get('recycled'):
                     kw['wdg_color'] = 'darkblue'
