@@ -3,7 +3,11 @@ import base64
 import io
 import logging
 import os
+import socket
+import socketserver
+import struct
 import tempfile
+import threading
 import shutil
 
 from gnr.core.gnrbag import Bag
@@ -15,6 +19,31 @@ from gnr.web.gnrwsgisite_proxy.gnrstoragehandler import (GenroStorageHandler,
                                                          LegacyStorageHandler)
 
 from webcommon import BaseGnrDaemonTest
+
+INFECTED_MARKER = b'INFECTED-PROBE'
+
+
+class ClamdProtocolHandler(socketserver.StreamRequestHandler):
+    """Answers the clamd INSTREAM command: the content carrying INFECTED_MARKER
+    is reported as infected, any other content as clean."""
+
+    def handle(self):
+        command = b''
+        while not command.endswith(b'\0'):
+            command += self.rfile.read(1)
+        content = b''
+        while True:
+            size = struct.unpack('!I', self.rfile.read(4))[0]
+            if not size:
+                break
+            content += self.rfile.read(size)
+        self.server.commands.append(command)
+        self.server.scanned.append(content)
+        if INFECTED_MARKER in content:
+            self.wfile.write(b'stream: Probe-Test-Signature FOUND\0')
+        else:
+            self.wfile.write(b'stream: OK\0')
+
 
 class TestStorageHandler(BaseGnrDaemonTest):
     """Comprehensive tests for storage handler, storage services, and storage nodes."""
@@ -1607,3 +1636,89 @@ class TestStorageHandler(BaseGnrDaemonTest):
                 assert stored.read() == b' RH0001'
         finally:
             shutil.rmtree(os.path.join(self.site.site_static_dir, 'upload_probe'), ignore_errors=True)
+
+    # ========================================================================
+    # Antivirus Scan Of The Uploaded Files
+    # ========================================================================
+
+    @pytest.fixture(params=['tcp', 'unix'])
+    def clamd(self, request):
+        """Starts a server speaking the clamd INSTREAM protocol, reached over TCP
+        or on a unix socket. Its `parameters` are the ones of the clamd service."""
+        socket_dir = tempfile.mkdtemp(prefix='clamd_')
+        if request.param == 'tcp':
+            server = socketserver.TCPServer(('127.0.0.1', 0), ClamdProtocolHandler)
+            server.parameters = dict(host='127.0.0.1', port=server.server_address[1])
+        else:
+            socket_path = os.path.join(socket_dir, 'clamd.sock')
+            server = socketserver.UnixStreamServer(socket_path, ClamdProtocolHandler)
+            server.parameters = dict(socket_path=socket_path)
+        server.commands = []
+        server.scanned = []
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        yield server
+        server.shutdown()
+        server.server_close()
+        thread.join()
+        shutil.rmtree(socket_dir, ignore_errors=True)
+
+    @pytest.fixture
+    def antivirus_record(self):
+        """Inserts the record of the antivirus service, deleted at the end of the test"""
+        tblservice = self.site.db.table('sys.service')
+        records = []
+
+        def insert(**parameters):
+            record = tblservice.newrecord(service_type='antivirus', service_name='antivirus',
+                                          implementation='clamd', parameters=Bag(parameters))
+            tblservice.insert(record)
+            self.site.db.commit()
+            records.append(record)
+
+        yield insert
+        for record in records:
+            tblservice.delete(record)
+            self.site.db.commit()
+        self.services_handler('antivirus').service_instances.pop('antivirus', None)
+
+    def test_upload_stores_a_file_the_antivirus_finds_clean(self, clamd, antivirus_record):
+        antivirus_record(**clamd.parameters)
+        content = b'%PDF-1.4' + b'0' * 200000
+        file_handle = type('FileHandle', (), dict(filename='clean.pdf', stream=io.BytesIO(content)))()
+        try:
+            file_path, file_url = self.site.uploadFile(file_handle=file_handle, uploadPath='site:upload_probe')
+            assert clamd.commands == [b'zINSTREAM\0']
+            assert clamd.scanned == [content]
+            with self.site.storageNode(file_path).open(mode='rb') as stored:
+                assert stored.read() == content
+        finally:
+            shutil.rmtree(os.path.join(self.site.site_static_dir, 'upload_probe'), ignore_errors=True)
+
+    def test_upload_refuses_a_file_the_antivirus_finds_infected(self, clamd, antivirus_record):
+        antivirus_record(**clamd.parameters)
+        content = b'%PDF-1.4 ' + INFECTED_MARKER
+        file_handle = type('FileHandle', (), dict(filename='infected.pdf', stream=io.BytesIO(content)))()
+        with pytest.raises(GnrUploadException) as raised:
+            self.site.uploadFile(file_handle=file_handle, uploadPath='site:upload_probe')
+        assert clamd.scanned == [content]
+        assert 'infected.pdf' in str(raised.value)
+        assert 'Probe-Test-Signature' in str(raised.value)
+        assert not self.site.storageNode('site:upload_probe/infected.pdf').exists
+
+    def test_upload_refuses_a_file_the_antivirus_could_not_scan(self, antivirus_record):
+        with socket.socket() as unused:
+            unused.bind(('127.0.0.1', 0))
+            port = unused.getsockname()[1]
+        antivirus_record(host='127.0.0.1', port=port, timeout=2)
+        file_handle = type('FileHandle', (), dict(filename='unscanned.pdf', stream=io.BytesIO(b'%PDF-1.4')))()
+        with pytest.raises(GnrException, match='clamd scan of unscanned.pdf failed'):
+            self.site.uploadFile(file_handle=file_handle, uploadPath='site:upload_probe')
+        assert not self.site.storageNode('site:upload_probe/unscanned.pdf').exists
+
+    def test_upload_refuses_a_file_when_clamd_has_no_address(self, antivirus_record):
+        antivirus_record(timeout=2)
+        file_handle = type('FileHandle', (), dict(filename='unscanned.pdf', stream=io.BytesIO(b'%PDF-1.4')))()
+        with pytest.raises(GnrException, match='neither socket_path nor host is configured'):
+            self.site.uploadFile(file_handle=file_handle, uploadPath='site:upload_probe')
+        assert not self.site.storageNode('site:upload_probe/unscanned.pdf').exists

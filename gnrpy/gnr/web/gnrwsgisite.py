@@ -2197,6 +2197,12 @@ class GnrWsgiSite(object):
         if not content:
             raise GnrUploadException(filename=filename, reason='!!the file is empty',
                                      localizer=self.gnrapp.localizer)
+        antivirus = self.getService('antivirus')
+        if antivirus is not None:
+            threat = antivirus.scan(content=content, filename=filename)
+            if threat:
+                raise GnrUploadException(filename=filename, reason='!!the file contains %(threat)s',
+                                         threat=threat, localizer=self.gnrapp.localizer)
         file_node = self.storageNode(uploadPath, filename,autocreate=-1)
         service = file_node.service
         storage_params = self.storage_handler.getStorageParameters(service.service_name) or {}
