@@ -4,13 +4,21 @@ from gnr.web.gnrwebpage_proxy.rpc import GnrWebRpc
 
 
 class FakeSite:
-    def __init__(self, error):
+    def __init__(self, error, scan_error=None):
         self.error = error
+        self.scan_error = scan_error
+        self.calls = []
 
     def raiseIfDeveloper(self):
         pass
 
+    def scanUpload(self, **kwargs):
+        self.calls.append('scan')
+        if self.scan_error:
+            raise self.scan_error
+
     def uploadFile(self, **kwargs):
+        self.calls.append('store')
         raise self.error
 
 
@@ -31,11 +39,28 @@ class FakePage:
     def localize(self, txt, **kwargs):
         return txt
 
+    def getPublicMethod(self, prefix, method):
+        # the onUploadingMethod hook of the tests: it records when it runs
+        return lambda kwargs: self.site.calls.append('hook')
 
-def upload(error):
+
+def upload(error, scan_error=None, **kwargs):
     rpc = GnrWebRpc.__new__(GnrWebRpc)
-    rpc.page = FakePage(FakeSite(error))
-    return rpc, rpc.rpc_upload_file(file_handle=object(), uploadPath='site:upload_probe')
+    rpc.page = FakePage(FakeSite(error, scan_error=scan_error))
+    return rpc, rpc.rpc_upload_file(file_handle=object(), uploadPath='site:upload_probe', **kwargs)
+
+
+def test_the_scan_runs_before_the_upload_hook():
+    rpc, result = upload(GnrException('stop after the hook'), onUploadingMethod='importFile')
+    assert rpc.page.site.calls == ['scan', 'hook', 'store']
+
+
+def test_a_refused_scan_stops_the_upload_before_the_hook():
+    rpc, result = upload(GnrException('never stored'), scan_error=GnrException('virus detected'),
+                         onUploadingMethod='importFile')
+    assert rpc.page.site.calls == ['scan']
+    assert Bag(result)['error'] == 'gnrexception'
+    assert 'virus detected' in Bag(result)['result']
 
 
 def test_a_refused_upload_answers_with_a_gnrexception_envelope():

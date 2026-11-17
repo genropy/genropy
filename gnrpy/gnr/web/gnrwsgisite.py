@@ -1,4 +1,5 @@
 import os
+import base64
 import random
 import re
 import io
@@ -34,6 +35,7 @@ from gnr.core.gnrstring import boolean
 from gnr.core.gnrdecorator import extract_kwargs,metadata
 from gnr.core.gnrcrypto import AuthTokenGenerator
 from gnr.lib.services import ServiceHandler
+from gnr.lib.services.antivirus import AntivirusUnavailable
 from gnr.app.pathresolver import PathResolver
 from gnr.app.gnrapp import GnrPackage
 from gnr.web import logger
@@ -2171,18 +2173,23 @@ class GnrWsgiSite(object):
             os.remove(txtname)
         return result
 
-    def uploadFile(self,file_handle=None,dataUrl=None,filename=None,uploadPath=None):
+    def uploadedContent(self, file_handle=None, dataUrl=None, filename=None):
+        """The bytes and the file name of an upload, ``(None, None)`` when nothing was sent.
+
+        A file handle is read from its start and left at its start, so an upload
+        hook can read it again."""
         if file_handle is not None:
             f = file_handle.stream
             # an onUploadingMethod hook may have already read the handle
             if f.seekable():
                 f.seek(0)
             content = f.read()
+            if f.seekable():
+                f.seek(0)
             original_filename = os.path.basename(file_handle.filename)
             original_ext = os.path.splitext(original_filename)[1]
             filename = filename or original_filename
         elif dataUrl:
-            import base64
             dataUrlPattern = re.compile('data:(.*);base64,(.*)$')
             g= dataUrlPattern.match(dataUrl)#.group(2)
             mimetype,base64Content = g.groups()
@@ -2190,19 +2197,41 @@ class GnrWsgiSite(object):
             content = base64.b64decode(base64Content)
         else:
             return None,None
-        file_ext = os.path.splitext(filename)[1]
-        if not file_ext:
+        if not os.path.splitext(filename)[1]:
             filename = '%s%s' %(filename,original_ext)
-            file_ext = original_ext
+        return content, filename
+
+    def scanUpload(self, file_handle=None, dataUrl=None, filename=None):
+        """Scan an upload with the service named ``antivirus``, when one is configured.
+
+        Called before any upload hook runs, since a hook can import the content.
+
+        :raises GnrUploadException: when the file contains a threat, or when the
+            antivirus could not scan it; the technical reason goes to the log"""
+        antivirus = self.getService('antivirus')
+        if antivirus is None:
+            return
+        content, filename = self.uploadedContent(file_handle=file_handle, dataUrl=dataUrl, filename=filename)
+        if not content:
+            return
+        try:
+            threat = antivirus.scan(content=content, filename=filename)
+        except AntivirusUnavailable as error:
+            logger.error('Upload of %s refused: %s', filename, error)
+            raise GnrUploadException(filename=filename,
+                                     reason='!!the mandatory antivirus service is not available at the moment',
+                                     localizer=self.gnrapp.localizer)
+        if threat:
+            raise GnrUploadException(filename=filename, reason='!!virus detected: %(threat)s',
+                                     threat=threat, localizer=self.gnrapp.localizer)
+
+    def uploadFile(self,file_handle=None,dataUrl=None,filename=None,uploadPath=None):
+        content, filename = self.uploadedContent(file_handle=file_handle, dataUrl=dataUrl, filename=filename)
+        if content is None:
+            return None,None
         if not content:
             raise GnrUploadException(filename=filename, reason='!!the file is empty',
                                      localizer=self.gnrapp.localizer)
-        antivirus = self.getService('antivirus')
-        if antivirus is not None:
-            threat = antivirus.scan(content=content, filename=filename)
-            if threat:
-                raise GnrUploadException(filename=filename, reason='!!virus detected: %(threat)s',
-                                         threat=threat, localizer=self.gnrapp.localizer)
         file_node = self.storageNode(uploadPath, filename,autocreate=-1)
         service = file_node.service
         storage_params = self.storage_handler.getStorageParameters(service.service_name) or {}
