@@ -10,9 +10,10 @@ not name. The design is in `xmldocs/proposal/sys-counters`.
 
 - `order_field` sets the order the numbers follow; without it the order is the
   `date_field`, unless the counter is `date_tolerant`.
-- `recycle=True` requires an order. With `counters="*"` a recycling counter
-  without an order stays on `adm.counter`; naming it explicitly is a
-  configuration error.
+- `recycle=True` requires an order, unless the counter is `date_tolerant`:
+  then the lowest free number is recycled, whatever the order of the record.
+  With `counters="*"` a recycling counter with neither stays on
+  `adm.counter`; naming it explicitly is a configuration error.
 - Code that calls `adm.counter.assignCounter` directly keeps numbering in
   `adm.counter`.
 
@@ -41,7 +42,7 @@ not name. The design is in `xmldocs/proposal/sys-counters`.
    | `not_loaded` | The period has no blocks yet: `--load` builds them |
    | `loaded` | Built by this run |
    | `ok` | The stored blocks match the table |
-   | `errors` | The numbers in the table are not consistent (`not_a_number`, `missing_order_value`, `duplicate`, `wrong_order`), or a recycling counter has no order (`recycle_without_order`): the period is never loaded |
+   | `errors` | The numbers in the table are not consistent (`not_a_number`, `missing_order_value`, `duplicate`, `wrong_order`), or a recycling counter has no order and is not `date_tolerant` (`recycle_without_order`): the period is never loaded |
    | `blocks_differ`, `missing_from_blocks` | The stored blocks differ from the table, e.g. after writes that skipped the Python triggers |
 
    `--table pkg.table` (repeatable) restricts the run. The command exits with

@@ -4,7 +4,8 @@ The counter is ``invc.invoice.inv_number`` of the test_invoice project
 (format ``$K$YY/$NNNNNN``, code ``A``, ``date_field='date'``,
 ``recycle=True``). The tests enable the experimental switch
 ``new_counters/counters`` in the application config and give the counter an
-``order_field``, which the new model requires to recycle. Each test works on
+``order_field``, which the new model requires to recycle unless the counter is
+``date_tolerant``. Each test works on
 its own year, so on its own period. Order keys of a date are YYYYMMDD.
 Runs on SQLite and PostgreSQL.
 """
@@ -201,7 +202,7 @@ def test_moving_a_record_to_another_year_releases_its_number_in_the_old_period(d
 
 
 def test_recycle_without_an_order_is_a_configuration_error(db, switch):
-    switch(date_tolerant=True)
+    switch(date_field=None, period=None, format='$K$NNNNNN')
     with pytest.raises(GnrSqlBusinessLogicException):
         _insert(db, d(2053, 1, 1))
     db.rollback()
@@ -211,6 +212,36 @@ def test_a_date_tolerant_counter_checks_no_order(db, switch):
     switch(recycle=False, date_tolerant=True)
     _insert(db, d(2054, 6, 1))
     assert _insert(db, d(2054, 1, 1))['inv_number'] == 'A54/000002'
+
+
+def test_a_date_tolerant_counter_recycles_its_lowest_free_number(db, switch):
+    switch(date_tolerant=True)
+    records = [_insert(db, d(2090, month, 1)) for month in (6, 1, 3)]
+    _delete(db, records[1])
+    assert _insert(db, d(2090, 12, 31))['inv_number'] == 'A90/000002'
+    assert _insert(db, d(2090, 2, 1))['inv_number'] == 'A90/000004'
+    assert _blocks(db, 2090) == [(1, 4, True, None, None)]
+
+
+def test_a_date_tolerant_number_deleted_and_written_again_is_claimed(db, switch):
+    """A record deleted and written again with its own number, as erpy's
+    Ricontabilizza does: the next record does not get that number again"""
+    switch(date_tolerant=True)
+    records = [_insert(db, d(2091, 1, n)) for n in (1, 2)]
+    _delete(db, records[1])
+    assert _insert(db, d(2091, 1, 2), inv_number='A91/000002')['inv_number'] == 'A91/000002'
+    assert _insert(db, d(2091, 1, 3))['inv_number'] == 'A91/000003'
+
+
+def test_guess_recycles_the_lowest_free_number_of_a_date_tolerant_counter(db, switch):
+    switch(date_tolerant=True)
+    records = [_insert(db, d(2092, 1, n)) for n in (1, 2, 3)]
+    _delete(db, records[0])
+    invoice = db.table('invc.invoice')
+    sequence, info = invoice.sysCounter('inv_number').guessNextSequence(
+        tblobj=invoice, field='inv_number', record=dict(date=d(2092, 1, 4)))
+    assert (sequence, info['recycled']) == ('A92/000001', True)
+    assert _insert(db, d(2092, 1, 4))['inv_number'] == sequence
 
 
 def test_without_order_field_the_order_is_the_date_field(db, switch):
@@ -288,14 +319,17 @@ def test_a_neighbour_removed_outside_the_triggers_does_not_block_a_delete(db, sw
 
 
 def test_star_leaves_a_recycling_counter_without_order_field_on_adm_counter(db, monkeypatch):
-    """#1888 review, point 2"""
+    """#1888 review, point 2. A date_tolerant counter recycles without an order: '*' numbers it here"""
     _set_switch(db, '*')
     invoice = db.table('invc.invoice')
-    monkeypatch.setattr(invoice, 'counter_inv_number', _counter_pars(date_tolerant=True), raising=False)
+    monkeypatch.setattr(invoice, 'counter_inv_number',
+                        _counter_pars(date_field=None, period=None, format='$K$NNNNNN'), raising=False)
     try:
         assert invoice.sysCounter('inv_number', dict(date=d(2060, 1, 1))) is None
+        monkeypatch.setattr(invoice, 'counter_inv_number', _counter_pars(date_tolerant=True), raising=False)
+        assert invoice.sysCounter('inv_number', dict(date=d(2060, 1, 1))) is not None
         assert _insert(db, d(2060, 1, 1))['inv_number'] == 'A60/000001'
-        assert _blocks(db, 2060) == []
+        assert _blocks(db, 2060) == [(1, 1, True, None, None)]
         monkeypatch.setattr(invoice, 'counter_inv_number', _counter_pars(), raising=False)
         assert invoice.sysCounter('inv_number', dict(date=d(2061, 1, 1))) is not None
     finally:
@@ -448,7 +482,7 @@ def test_migrate_does_not_load_a_period_whose_numbers_are_not_consistent(db, mon
     assert _blocks(db, 2079) == []
 
 
-def test_migrate_star_follows_the_switch_and_leaves_a_recycling_counter_without_order(db, monkeypatch):
+def test_migrate_star_follows_the_switch_and_loads_a_date_tolerant_counter(db, monkeypatch):
     _insert(db, d(2080, 1, 1))
     invoice = db.table('invc.invoice')
     monkeypatch.setattr(invoice, 'counter_inv_number', _counter_pars(date_tolerant=True), raising=False)
@@ -456,8 +490,9 @@ def test_migrate_star_follows_the_switch_and_leaves_a_recycling_counter_without_
     try:
         assert ('invc.invoice', 'inv_number') in [(t.fullname, f) for t, f in
                                                  db.table('sys.counter').countersToMigrate()]
-        assert _migrated(db, 2080, load=True) == []
-        assert _migrated(db, 2080, counters=COUNTER) == [('invc.invoice', 'inv_number', 1, 'errors')]
+        assert _migrated(db, 2080) == [('invc.invoice', 'inv_number', 1, 'not_loaded')]
+        assert _migrated(db, 2080, load=True) == [('invc.invoice', 'inv_number', 1, 'loaded')]
+        assert _migrated(db, 2080, counters=COUNTER) == [('invc.invoice', 'inv_number', 1, 'ok')]
         assert _migrated(db, 2080, tables=['invc.other']) == []
     finally:
         _set_switch(db, None)

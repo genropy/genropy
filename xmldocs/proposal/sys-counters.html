@@ -110,14 +110,14 @@ th { background: var(--panel); }
         <tr><td><code>date_field</code></td><td>Required when the format holds a period: it decides the period of the record.</td></tr>
         <tr><td><code>order_field</code></td><td>Optional. The numbers follow its order: dates for a <code>D</code> column, the timestamp for <code>DH</code>/<code>DHZ</code>. Missing: the order is the <code>date_field</code>, as with <code>adm.counter</code>.</td></tr>
         <tr><td><code>date_tolerant</code></td><td>As with <code>adm.counter</code>: without <code>order_field</code>, no order is checked.</td></tr>
-        <tr><td><code>recycle</code></td><td>Requires an order: <code>order_field</code>, or a <code>date_field</code> without <code>date_tolerant</code>.</td></tr>
+        <tr><td><code>recycle</code></td><td>Requires an order: <code>order_field</code>, or a <code>date_field</code> without <code>date_tolerant</code>. A <code>date_tolerant</code> counter recycles without one: its lowest free number, whatever the order of the record.</td></tr>
         <tr><td><code>releaseOnDraft</code></td><td>Default <code>True</code>. When false, a record going back to draft keeps its number. <code>counter_&lt;field&gt;(record)</code> may compute it from the record. Read by <code>gnrdbo.trigger_releaseCounters</code>, so it holds for <code>adm.counter</code> too.</td></tr>
       </table></div>
     </section>
 
     <section class="section"><h3>Operations</h3>
       <ul>
-        <li><b>New number</b>: the lowest free number whose window holds the record's order key, for a recycling counter; otherwise the last number of the period plus one.</li>
+        <li><b>New number</b>: the lowest free number whose window holds the record's order key, for a recycling counter (the lowest free number, for a <code>date_tolerant</code> one); otherwise the last number of the period plus one.</li>
         <li><b>Number set by hand</b> (insert, or changed on update): it splits the block that holds it; refused if occupied or outside its window. A value that is not a number of the series is left alone.</li>
         <li><b>Release</b>: the number becomes free and merges with free neighbours; a split reads the order key of the two new edges from the table. A neighbour missing from the table becomes an open bound and is left to <code>checkCounter</code>.</li>
         <li>A number changed or cleared on update releases the old one in the period of the stored record. <code>trigger_assignCounters</code> passes <code>old_record</code>.</li>
@@ -131,7 +131,7 @@ th { background: var(--panel); }
       <figure class="code"><figcaption>xml</figcaption><pre><code>&lt;experimental&gt;
     &lt;new_counters counters="*"/&gt;
 &lt;/experimental&gt;</code></pre></figure>
-      <p><code>experimentalValue('new_counters', 'counters')</code>: a list of <code>pkg.table.field</code> sends those counters to <code>sys.counter</code>; <code>*</code> sends every counter except a recycling one without an order, which stays on <code>adm.counter</code>. A listed recycling counter without an order is a configuration error. <code>gnrdbo.sysCounter(field, record)</code> makes the choice; <code>adm.counter</code> is not changed.</p>
+      <p><code>experimentalValue('new_counters', 'counters')</code>: a list of <code>pkg.table.field</code> sends those counters to <code>sys.counter</code>; <code>*</code> sends every counter except a recycling one without an order that is not <code>date_tolerant</code>, which stays on <code>adm.counter</code>. Such a counter, listed, is a configuration error. <code>gnrdbo.sysCounter(field, record)</code> makes the choice; <code>adm.counter</code> is not changed.</p>
       <p><code>analyzeCounter</code>, <code>loadCounter</code> and <code>checkCounter</code> report, load and verify every period of a counter; <code>freeSequences</code> lists the free numbers of a period with their window. <code>checkCounter</code> reports <code>not_loaded</code> for a period without blocks, <code>blocks_differ</code> for a recycling counter whose blocks differ from the table, and <code>missing_from_blocks</code> for a counter that does not recycle when a number of the table is not occupied in the blocks.</p>
     </section>
   </section><section class="part decisions"><h2>Decisions</h2>

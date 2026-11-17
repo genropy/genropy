@@ -13,7 +13,8 @@ the counter, gnrdbo sends it here instead of adm.counter.
 order_field sets the order the numbers follow: dates for a D column, the
 timestamp for DH/DHZ. Without it the order is the date_field, as with
 adm.counter, unless the counter is date_tolerant: then no order is checked.
-recycle requires an order.
+recycle requires an order, unless the counter is date_tolerant: then the
+lowest free number is recycled, whatever the order of the record.
 """
 
 import calendar
@@ -223,22 +224,29 @@ class Table(object):
     def isEnabledFor(self, tblobj, field, record=None, counters=None):
         """True when tblobj.field is numbered here: the experimental switch
         new_counters/counters (or counters, which replaces it) lists
-        'pkg.table.field', or is '*'. With '*' a recycling counter without an
-        order (see orderField) stays on adm.counter"""
+        'pkg.table.field', or is '*'. With '*' a counter that misses an order
+        (see missingOrder) stays on adm.counter"""
         listed = self.switchValue(counters)
         if not listed:
             return False
         if listed != '*':
             return '%s.%s' % (tblobj.fullname, field) in [k.strip() for k in listed.split(',')]
-        counter_pars = tblobj.getCounterPars(field, record)
-        return not (counter_pars and counter_pars.get('recycle') and not self.orderField(counter_pars))
+        return not self.missingOrder(tblobj.getCounterPars(field, record))
 
     def counterPars(self, tblobj, field, record):
         counter_pars = tblobj.getCounterPars(field, record)
-        if counter_pars and counter_pars.get('recycle') and not self.orderField(counter_pars):
+        if self.missingOrder(counter_pars):
             raise self.exception('business_logic',
-                                 msg='Counter %s.%s: recycle requires an order_field' % (tblobj.fullname, field))
+                                 msg='Counter %s.%s: recycle requires an order_field or date_tolerant'
+                                     % (tblobj.fullname, field))
         return counter_pars
+
+    def missingOrder(self, counter_pars):
+        """True for a recycling counter without an order that is not
+        date_tolerant: no free number can be told to fit a record. A
+        date_tolerant counter recycles its lowest free number"""
+        return bool(counter_pars and counter_pars.get('recycle') and not self.orderField(counter_pars)
+                    and not counter_pars.get('date_tolerant'))
 
     def orderField(self, counter_pars):
         """The field whose order the numbers follow: order_field, else the
@@ -632,7 +640,8 @@ class Table(object):
             number = None
             if counter_pars.get('recycle'):
                 key = self.orderKey(tblobj, counter_pars, record, guess=True)
-                number = blocks.recyclable(key) if key is not None else None
+                if key is not None or not self.orderField(counter_pars):
+                    number = blocks.recyclable(key)
             info = dict(recycled=number is not None)
             if number is None:
                 number = (blocks.last_number or (counter_pars.get('starting_value') or 0)) + 1
@@ -780,15 +789,16 @@ class Table(object):
 
         A list of dict(table, field, period, count, status, problems). status:
         'ok', 'loaded', 'not_loaded' (no load asked), 'errors' (numbers in the
-        table that are not consistent, or a recycling counter without an order:
-        fix them first), 'blocks_differ' or 'missing_from_blocks' (see checkCounter)."""
+        table that are not consistent, or a counter that misses an order, see
+        missingOrder: fix them first), 'blocks_differ' or 'missing_from_blocks'
+        (see checkCounter)."""
         report = []
         for tblobj, field in self.countersToMigrate(counters, tables):
             for (codekey, period), group in sorted(self.collectPeriods(tblobj, field).items()):
                 if not self.isEnabledFor(tblobj, field, record=group['record'], counters=counters):
                     continue
                 problems = list(group['errors'])
-                if group['counter_pars'].get('recycle') and not self.orderField(group['counter_pars']):
+                if self.missingOrder(group['counter_pars']):
                     problems.append(dict(kind='recycle_without_order'))
                 loaded = False
                 if problems:
