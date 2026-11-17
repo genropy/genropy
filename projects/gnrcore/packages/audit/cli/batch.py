@@ -2,7 +2,7 @@
 
 from gnr.core.cli import GnrCliArgParse
 
-description = "Turn the audit queue into audit events"
+description = "Turn the audit queue rows left by writes outside the ORM into audit events"
 
 
 def main(instance):
