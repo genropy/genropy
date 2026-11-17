@@ -270,7 +270,15 @@ class HierarchicalHandler(object):
             last_counter = tblobj.readColumns(columns='$_row_count',where=where,subtable='*',
                                         order_by='$_row_count desc',limit=1,p_id=parent_id)
             record['_row_count'] = (last_counter or 0)+1
-        for fld in tblobj.attributes.get('hierarchical').split(','):
+        hfields = tblobj.attributes.get('hierarchical').split(',')
+        if old_record is None and hasattr(tblobj,'counterColumns'):
+            #a counter column can be a hierarchical field too: like '_row_count'
+            #it must be assigned before the hierarchical loop, otherwise the
+            #paths are built with an empty value (NULL, 'None/None')
+            for fld in tblobj.counterColumns():
+                if fld in hfields and not record.get(fld):
+                    tblobj.assignCounterColumn(field=fld,record=record)
+        for fld in hfields:
             parent_h_fld='_parent_h_%s'%fld
             h_fld='hierarchical_%s'%fld
             v=record.get(pkeyfield if fld=='pkey' else fld) 
