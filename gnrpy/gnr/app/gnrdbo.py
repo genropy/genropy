@@ -1603,7 +1603,7 @@ class TableBase(object):
             if sys_counter:
                 sys_counter.assignCounter(tblobj=self,field=field,record=record,old_record=old_record)
             else:
-                self.db.table('adm.counter').assignCounter(tblobj=self,field=field,record=record,old_record=old_record)
+                self.db.table('adm.counter').assignCounter(tblobj=self,field=field,record=record)
 
     @public_method
     def guessCounter(self,record=None,field=None,**kwargs):
