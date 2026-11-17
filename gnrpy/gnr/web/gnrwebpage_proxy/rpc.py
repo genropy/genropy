@@ -134,10 +134,11 @@ class GnrWebRpc(GnrBaseProxy):
         message = str(exception)
         if not exception.feedback:
             return message
-        result = {key: self.page.localize(value) if isinstance(value, str) else value
-                  for key, value in exception.feedback.items()}
-        result['message'] = message
-        return result
+        # a dict in the envelope is not translated on its way out, unlike a string:
+        # the message is localized here together with the feedback values
+        result = dict(exception.feedback, message=message)
+        return {key: self.page.localize(value) if isinstance(value, str) else value
+                for key, value in result.items()}
 
     def _upload_file(self, **kwargs):
         onUploadingMethod= kwargs.get('onUploadingMethod')

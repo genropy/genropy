@@ -47,7 +47,7 @@ def test_a_refused_upload_answers_with_a_gnrexception_envelope():
 
 
 class VirusProbeException(GnrException):
-    caption = 'Upload of %(filename)s failed: virus detected'
+    caption = '!!Upload of %(filename)s failed: virus detected'
     feedback = dict(title='!!Error', level='error', sound='Basso')
 
 
