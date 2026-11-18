@@ -1,7 +1,7 @@
 # encoding: utf-8
 
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrdecorator import public_method
@@ -216,6 +216,19 @@ class Table(object):
             if period:
                 counter_record['period'] = ''.join(period)
         return counter_record
+
+    def _insertCounterRow(self,codekey,counter_record,counter=None):
+        # two first claims of a series may insert it together: a failed insert would roll
+        # back the whole save, so the second does nothing and the row of the first is used
+        row = dict(counter_record.items())
+        tsType = self.column('__ins_ts').dtype
+        now = datetime.now(timezone.utc) if tsType == 'DHZ' else datetime.now()
+        row.update(codekey=codekey,counter=counter,__ins_ts=now,__mod_ts=now)
+        sqlnames = self.model.sqlnamemapper
+        sql = 'INSERT INTO %s(%s) VALUES (%s) ON CONFLICT (%s) DO NOTHING;' % (
+            self.model.sqlfullname,','.join(sqlnames[k] for k in row),
+            ','.join(':%s' % k for k in row),sqlnames['codekey'])
+        self.db.execute(sql,row,dbtable=self.fullname)
 
     def assignCounter(self,tblobj=None,field=None,record=None,old_record=None):
         """Assign, claim or change the number of record, as sys.counter.assignCounter:
@@ -462,9 +475,8 @@ class Table(object):
                               exclude_pkey=record.get(tblobj.pkey))
         codekey = self.getCounterPkey(tblobj=tblobj,field=field,record=record)
         if not self.existsRecord(codekey):
-            current = self.newCounterRecord(tblobj=tblobj,field=field,record=record)
-            current['counter'] = counter_pars.get('starting_value') or 0
-            self.insert(current)
+            self._insertCounterRow(codekey,self.newCounterRecord(tblobj=tblobj,field=field,record=record),
+                                   counter=counter_pars.get('starting_value') or 0)
         date = self._asDate(record[date_field]) if date_field else None
         with self.recordToUpdate(codekey,mode='record') as counter_record:
             if series.holds(sequence):

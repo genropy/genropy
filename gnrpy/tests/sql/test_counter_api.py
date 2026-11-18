@@ -144,6 +144,18 @@ def test_a_number_held_by_another_record_is_refused(counter):
     c.db.rollback()
 
 
+def test_a_first_claim_that_finds_the_counter_row_inserted_meanwhile_goes_on(counter):
+    """#1909 review: two first claims of a series together; the second finds the
+    row of the counter inserted by the first after its own check"""
+    c = counter.series('O')
+    c.insert(1, inv_number=c.sequence(1))
+    counter_tbl = c.db.table('%s.counter' % c.kind)
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(counter_tbl, 'existsRecord', lambda *args, **kwargs: False)
+        assert c.number(c.insert(2, inv_number=c.sequence(2))) == 2
+    assert c.number(c.insert(3)) == 3
+
+
 def test_a_number_set_by_hand_before_the_last_date_is_refused(counter):
     c = counter.series('E')
     c.insert(10)
@@ -215,12 +227,10 @@ def test_adm_takes_a_lost_number_below_the_counter(counter):
     assert c.number(c.insert(4)) == 4
 
 
-def test_adm_tolerates_a_number_assigned_twice_in_one_save(counter):
+def test_a_number_assigned_twice_in_one_save_is_taken(counter):
     """The cause of #1904: an application assigns the counters in its trigger, then
-    the save assigns them again. adm.counter finds the number held by no other
-    record and takes it; sys.counter refuses it (erpy-engine#126)"""
-    if counter.kind != 'adm':
-        pytest.skip('sys.counter refuses a number assigned twice in one save')
+    the save assigns them again. Both counters find the number held by no other
+    record and take it (erpy-engine#126)"""
     c = counter.series('M')
     record = dict(date=c.d(1))
     c.invoice.assignCounterColumn(field='inv_number', record=record)

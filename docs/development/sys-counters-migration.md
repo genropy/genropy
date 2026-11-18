@@ -35,9 +35,9 @@ them:
   number made by the user.
 
 A counter assigned twice in one save (the table trigger calls
-`trigger_assignCounters`, then the save calls it again) works on
-`adm.counter` and is refused by `sys.counter`: what follows the number goes in
-`onAssigned` of `counter_<field>`.
+`trigger_assignCounters`, then the save calls it again) works on both
+counters: the number is refused only when another record holds it. What follows
+the number goes in `onAssigned` of `counter_<field>`.
 
 ## Steps
 

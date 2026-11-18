@@ -308,6 +308,25 @@ def test_switch_off_keeps_adm_counter(db):
     assert _blocks(db, 2062) == []
 
 
+@pytest.mark.parametrize('one_period', [True, False])
+def test_realign_leaves_adm_counter_alone(db, monkeypatch, one_period):
+    """#1909 review, point 2: after a realign on sys.counter, adm.counter continues
+    its series when the switch is turned off"""
+    year = 2066 if one_period else 2067
+    records = [_insert(db, d(year, 1, n)) for n in (1, 2, 3)]
+    _set_switch(db, COUNTER)
+    invoice = db.table('invc.invoice')
+    monkeypatch.setattr(invoice, 'counter_inv_number', _counter_pars(order_field='date'), raising=False)
+    try:
+        invoice.realignCounterColumn('inv_number', records[0] if one_period else None)
+        db.commit()
+    finally:
+        _set_switch(db, None)
+        monkeypatch.undo()
+        db.rollback()
+    assert _insert(db, d(year, 1, 4))['inv_number'] == 'A%s/000004' % str(year)[2:]
+
+
 def test_analyze_load_and_check_a_counter_numbered_by_adm_counter(db, monkeypatch):
     records = [_insert(db, d(2063, 1, n)) for n in (1, 2, 3, 4)]
     _delete(db, records[1])

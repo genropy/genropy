@@ -558,17 +558,26 @@ class Table(object):
 
     def claimSequence(self, tblobj, field, record, counter_pars):
         """A number of the series set by hand becomes occupied; a value that is
-        not a number of this series is left alone"""
+        not a number of this series is left alone. A number already occupied is
+        refused only when another record of the table holds it"""
         sequence = record[field]
         number = self.isSequenceOf(tblobj, field, counter_pars, record, sequence)
         if number is None:
             return
         key = self.orderKey(tblobj, counter_pars, record)
+        pkey = record.get(tblobj.pkey)
 
         def handler(blocks):
             if blocks.is_occupied(number):
-                raise self.exception('business_logic', msg=self.translate(
-                    '!![en]%(sequence)s is already in use') % dict(sequence=sequence))
+                where = ['$%s = :sequence' % field]
+                if pkey is not None:
+                    where.append('$%s != :pkey' % tblobj.pkey)
+                if tblobj.query(columns='$%s' % field, where=' AND '.join(where), limit=1, sequence=sequence,
+                                pkey=pkey, excludeDraft=False, excludeLogicalDeleted=False, subtable='*',
+                                addPkeyColumn=False).fetch():
+                    raise self.exception('business_logic', msg=self.translate(
+                        '!![en]%(sequence)s is already in use') % dict(sequence=sequence))
+                return
             self._checkWindow(tblobj, field, counter_pars, blocks, number, key)
             blocks.occupy(number, key)
 
@@ -700,14 +709,13 @@ class Table(object):
     def realignCounter(self, tblobj=None, field=None, record=None, floor=None):
         """Forget the blocks of the period of record (every period of field without
         record) and rebuild them from the numbers in the table. Unlike a first load,
-        no floor is read from adm.counter: its rows of the same series are forgotten
-        too. floor, with record: a number the period must not stay below (numbers in
-        use outside the table).
+        no floor is read from adm.counter, whose rows are left as they are. floor,
+        with record: a number the period must not stay below (numbers in use
+        outside the table).
 
         A period whose numbers are not consistent cannot be rebuilt: with record it
         is refused; without, it is left without blocks, as before a migration, and
         returned as {'codekey/period': errors}"""
-        adm_counter = self.db.table('adm.counter') if 'adm' in self.db.packages else None
         if record is None:
             where = '$pkg=:pkg AND $tbl=:tbl AND $fld=:fld'
             kwargs = dict(pkg=tblobj.pkg.name, tbl=tblobj.name, fld=field)
@@ -716,8 +724,6 @@ class Table(object):
             if codekeys:
                 self.db.table('sys.counter_block').sql_deleteSelection(where='$counter_codekey IN :codekeys',
                                                                        codekeys=codekeys)
-            if adm_counter:
-                adm_counter.sql_deleteSelection(where=where, **kwargs)
             left = {}
             for (codekey, period), group in sorted(self.collectPeriods(tblobj, field).items()):
                 if group['errors']:
@@ -733,9 +739,6 @@ class Table(object):
             numbers, errors = self.seriesNumbers(tblobj, field, counter_pars, record)
             self._realignPeriod(tblobj, field, counter_pars, record, self.periodOf(tblobj, field, counter_pars, record),
                                 numbers, errors, floor=floor)
-        if adm_counter:
-            adm_counter.sql_deleteSelection(where='$codekey=:codekey',
-                                            codekey=adm_counter.getCounterPkey(tblobj=tblobj, field=field, record=record))
 
     def _realignPeriod(self, tblobj, field, counter_pars, record, period, numbers, errors, floor=None):
         if errors:
