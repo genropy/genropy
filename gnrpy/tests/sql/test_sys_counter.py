@@ -308,6 +308,25 @@ def test_switch_off_keeps_adm_counter(db):
     assert _blocks(db, 2062) == []
 
 
+@pytest.mark.parametrize('one_period', [True, False])
+def test_realign_leaves_adm_counter_alone(db, monkeypatch, one_period):
+    """#1909 review, point 2: after a realign on sys.counter, adm.counter continues
+    its series when the switch is turned off"""
+    year = 2066 if one_period else 2067
+    records = [_insert(db, d(year, 1, n)) for n in (1, 2, 3)]
+    _set_switch(db, COUNTER)
+    invoice = db.table('invc.invoice')
+    monkeypatch.setattr(invoice, 'counter_inv_number', _counter_pars(order_field='date'), raising=False)
+    try:
+        invoice.realignCounterColumn('inv_number', records[0] if one_period else None)
+        db.commit()
+    finally:
+        _set_switch(db, None)
+        monkeypatch.undo()
+        db.rollback()
+    assert _insert(db, d(year, 1, 4))['inv_number'] == 'A%s/000004' % str(year)[2:]
+
+
 def test_analyze_load_and_check_a_counter_numbered_by_adm_counter(db, monkeypatch):
     records = [_insert(db, d(2063, 1, n)) for n in (1, 2, 3, 4)]
     _delete(db, records[1])
@@ -328,9 +347,10 @@ def test_analyze_load_and_check_a_counter_numbered_by_adm_counter(db, monkeypatc
 
 def test_analyze_reports_numbers_out_of_order(db, monkeypatch):
     _insert(db, d(2064, 3, 1))
-    db.table('invc.invoice').insert(dict(date=d(2064, 2, 1), inv_number='A64/000002'))
-    db.commit()
     invoice = db.table('invc.invoice')
+    # data written before adm.counter claimed a number set by hand: it now refuses this date
+    invoice.raw_insert(dict(id=invoice.newPkeyValue(), date=d(2064, 2, 1), inv_number='A64/000002'))
+    db.commit()
     monkeypatch.setattr(invoice, 'counter_inv_number', _counter_pars(order_field='date'), raising=False)
     sys_counter = db.table('sys.counter')
     report = sys_counter.analyzeCounter(table='invc.invoice', field='inv_number')
@@ -438,8 +458,8 @@ def test_migrate_analyses_before_the_switch_and_loads_only_when_asked(db, monkey
 def test_migrate_does_not_load_a_period_whose_numbers_are_not_consistent(db, monkeypatch):
     _insert(db, d(2079, 3, 1))
     invoice = db.table('invc.invoice')
-    monkeypatch.setattr(invoice, 'counter_inv_number', _counter_pars(recycle=False), raising=False)
-    invoice.insert(dict(date=d(2079, 2, 1), inv_number='A79/000002'))
+    # data written before adm.counter claimed a number set by hand: it now refuses this date
+    invoice.raw_insert(dict(id=invoice.newPkeyValue(), date=d(2079, 2, 1), inv_number='A79/000002'))
     db.commit()
     monkeypatch.setattr(invoice, 'counter_inv_number', _counter_pars(order_field='date'), raising=False)
     report = [r for r in db.table('sys.counter').migrateCounters(counters=COUNTER, load=True)

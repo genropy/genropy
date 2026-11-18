@@ -1599,11 +1599,43 @@ class TableBase(object):
     def assignCounterColumn(self,field=None,record=None,old_record=None):
         _tenant_schema = record.get('_tenant_schema')
         with self.db.tempEnv(tenant_schema=_tenant_schema):
-            sys_counter = self.sysCounter(field,record)
-            if sys_counter:
-                sys_counter.assignCounter(tblobj=self,field=field,record=record,old_record=old_record)
-            else:
-                self.db.table('adm.counter').assignCounter(tblobj=self,field=field,record=record)
+            counter = self.sysCounter(field,record) or self.db.table('adm.counter')
+            counter.assignCounter(tblobj=self,field=field,record=record,old_record=old_record)
+
+    def realignCounterColumn(self,field=None,record=None,floor=None):
+        """Forget the stored state of the counter of field for the series of record (every
+        series of field without record) and rebuild it from the numbers in the table.
+        floor, with record: a number the series must not stay below, for numbers in use
+        outside this table. A series whose numbers are not consistent is left to the
+        counter's own report (adm.counter errors, sys.counter analyzeCounter)"""
+        _tenant_schema = record.get('_tenant_schema') if record else None
+        with self.db.tempEnv(tenant_schema=_tenant_schema):
+            counter = self.sysCounter(field,record) or self.db.table('adm.counter')
+            return counter.realignCounter(tblobj=self,field=field,record=record,floor=floor)
+
+    def freeCounterSequences(self,field=None,record=None,limit=500):
+        """The free numbers of the series of record, lowest first: a list of
+        dict(number, sequence, date_from, date_to), the dates a number accepts.
+        Empty for a counter that does not recycle: it never gives a number back"""
+        pars = self.getCounterPars(field,record)
+        if not pars or not pars.get('recycle'):
+            return []
+        with self.db.tempEnv(tenant_schema=record.get('_tenant_schema')):
+            counter = self.sysCounter(field,record) or self.db.table('adm.counter')
+            return [dict(number=s['number'],sequence=s['sequence'],date_from=s['date_from'],date_to=s['date_to'])
+                    for s in counter.freeSequences(tblobj=self,field=field,record=record,limit=limit)]
+
+    def lastCounterSequence(self,field=None,record=None):
+        """dict(number, date) of the last number given in the series of record: its
+        starting value and no date when the series has none"""
+        with self.db.tempEnv(tenant_schema=record.get('_tenant_schema')):
+            counter = self.sysCounter(field,record) or self.db.table('adm.counter')
+            return counter.lastSequence(tblobj=self,field=field,record=record)
+
+    def formatCounterSequence(self,field=None,record=None,number=None):
+        "The sequence of number in the series of record"
+        counter = self.sysCounter(field,record) or self.db.table('adm.counter')
+        return counter.formatSequence(self,field,record,number)
 
     @public_method
     def guessCounter(self,record=None,field=None,**kwargs):
