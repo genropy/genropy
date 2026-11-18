@@ -210,6 +210,14 @@ Tags
       ``genro-storage`` package instead of the legacy services; see
       ``docs/development/genro-storage-migration.md``.
 
+    ``<new_counters>`` switches:
+
+    * ``counters``: the counters numbered by ``sys.counter`` instead of
+      ``adm.counter``: ``*`` for every counter (a recycling counter without an
+      order stays on ``adm.counter``), or a comma separated list of
+      ``pkg.table.field``. To move an existing instance, see
+      ``docs/development/sys-counters-migration.md``.
+
     A missing tag or attribute reads as ``False`` for a boolean switch and as
     ``None`` for one carrying a value.
 

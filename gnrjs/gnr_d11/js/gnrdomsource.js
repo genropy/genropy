@@ -1984,7 +1984,8 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
 
     buildLblWrapper:function(){
         let lbl = objectPop(this.attr,'lbl');
-        if(!lbl){
+        let placeholder = !lbl;
+        if(placeholder){
             // Unlabeled action widgets in a formlet grid get an invisible
             // placeholder label (same height as the sibling labels) so they
             // line up with the field inputs. lbl=false opts out.
@@ -2020,7 +2021,11 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         this._value = null;
         wrp_attr.helpcode = objectPop(attr,'helpcode');
         wrp_attr.helpcode_package = objectPop(attr,'helpcode_package')
-        wrp_attr.docAddress = objectPop(attr,'docAddress');
+        if(!placeholder){
+            // a placeholder label is hidden: the widget keeps its doc address
+            // and shows the button itself (CheckBox, beside its side label)
+            wrp_attr.docAddress = objectPop(attr,'docAddress');
+        }
         wrp_attr.tag = 'labledbox'
         let gridbox_itemattr = objectExtract(attr,'grid_column,grid_row,colspan,rowspan');
         this.attr = {...wrp_attr,...box_kw,...label_attr,...box_l_kw,...box_c_kw,...gridbox_itemattr};
@@ -2040,8 +2045,9 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
     _formletNeedsPlaceholderLbl:function(){
         // Placeholder only for button-like widgets that sit as direct children
         // of a grid formlet (not formlet_wrap) with labels on top/bottom and
-        // at least one labeled sibling: a buttons-only formlet keeps its
-        // natural height, containers and custom tags are never wrapped.
+        // a labeled sibling on the same grid row: a buttons-only formlet or a
+        // widget alone on its row keeps its natural height, containers and
+        // custom tags are never wrapped.
         const placeholderTags = ['button','togglebutton','dropdownbutton','lightbutton','checkbox'];
         if(placeholderTags.indexOf((this.attr.tag||'').toLowerCase())<0){
             return false;
@@ -2064,14 +2070,99 @@ dojo.declare("gnr.GnrDomSourceNode", gnr.GnrBagNode, {
         if(!(siblings instanceof gnr.GnrDomSource)){
             return false;
         }
-        for(let node of siblings.getNodes()){
-            // siblings already wrapped by buildLblWrapper have tag 'labledbox',
-            // the ones still to be processed keep their lbl attribute
-            if(node!==this && node.attr && (node.attr.lbl || node.attr.tag=='labledbox')){
-                return true;
-            }
+        let nodes = siblings.getNodes();
+        let rows = this._formletGridRows(nodes, this._formletColumnCount(columns));
+        if(rows && !rows.has(this)){
+            return false;
         }
-        return false;
+        let row = rows && rows.get(this);
+        return nodes.some((node) => node!==this && (!rows || rows.get(node)===row) && this._formletIsLabeled(node));
+    },
+
+    _formletIsLabeled:function(node){
+        // siblings already wrapped by buildLblWrapper have tag 'labledbox' (a
+        // placeholder one has no real label), the ones still to be processed
+        // keep their lbl attribute
+        let attr = node.attr || {};
+        if(attr.tag=='labledbox'){
+            return !/(^|\s)formlet_placeholder_label(\s|$)/.test(attr._class || '');
+        }
+        return !!attr.lbl;
+    },
+
+    _formletColumnCount:function(columns){
+        // the track count of a grid-template-columns value, null when the
+        // browser decides it (auto-fit, auto-fill)
+        let template = String(columns).trim();
+        if(/^\d+$/.test(template)){
+            return parseInt(template);
+        }
+        if(/auto-fit|auto-fill/.test(template)){
+            return null;
+        }
+        let count = 0;
+        let depth = 0;
+        let token = '';
+        for(let ch of template+' '){
+            if(/\s/.test(ch) && depth===0){
+                if(token && !token.startsWith('[')){
+                    let repeat = token.match(/^repeat\(\s*(\d+)\s*,(.*)\)$/);
+                    let inner = repeat && this._formletColumnCount(repeat[2]);
+                    if(repeat && !inner){
+                        return null;
+                    }
+                    count += repeat ? parseInt(repeat[1])*inner : 1;
+                }
+                token = '';
+                continue;
+            }
+            depth += '(['.includes(ch) ? 1 : ')]'.includes(ch) ? -1 : 0;
+            token += ch;
+        }
+        return count || null;
+    },
+
+    _formletGridRows:function(nodes, columnCount){
+        // the grid row of every visible item, as the CSS grid auto-placement
+        // computes it; null when the placement cannot be predicted (unknown
+        // column count, explicit grid lines, rowspan)
+        if(!columnCount){
+            return null;
+        }
+        let rows = new Map();
+        let row = 0;
+        let col = 0;
+        for(let node of nodes){
+            let attr = node.attr || {};
+            let contentAttr = (node._contentNode && node._contentNode.attr) || {};
+            if(attr.hidden===true || contentAttr.hidden===true){
+                continue;
+            }
+            if((attr.rowspan && attr.rowspan>1) || (attr.grid_row && !/^\s*span\s+1\s*$/.test(attr.grid_row))){
+                return null;
+            }
+            let span = 1;
+            if(attr.colspan){
+                span = parseInt(attr.colspan);
+            }else if(attr.grid_column){
+                let spanMatch = String(attr.grid_column).match(/^\s*span\s+(\d+)\s*$/);
+                if(spanMatch){
+                    span = parseInt(spanMatch[1]);
+                }else if(/^\s*1\s*\/\s*-1\s*$/.test(attr.grid_column)){
+                    span = columnCount;
+                }else{
+                    return null;
+                }
+            }
+            span = Math.min(span || 1, columnCount);
+            if(col+span>columnCount){
+                row += 1;
+                col = 0;
+            }
+            rows.set(node,row);
+            col += span;
+        }
+        return rows;
     },
 
     getLabelWrapper:function(){

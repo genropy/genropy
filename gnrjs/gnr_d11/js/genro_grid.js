@@ -1786,6 +1786,9 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
             || formatOptions.isbutton || formatOptions.showlinks
             || formatOptions._hasCustomGetter || formatOptions._trustedRowTemplate
             || formatOptions.dtype==='B' || formatOptions.dtype==='P';
+        var gridId = sourceNode.attr.nodeId || 'n_'+sourceNode._id;
+        var sanitizeSource = {key:'grid:'+gridId+':'+cell.field,
+                              label:'grid '+gridId+', column '+cell.field};
         return function(v, inRowIndex) {
             var opt = objectUpdate({}, formatOptions);
             var renderedRow = this.grid.currRenderedRow;
@@ -1885,7 +1888,7 @@ dojo.declare("gnr.widgets.DojoGrid", gnr.widgets.baseDojo, {
                 v = opt.js(v, this.grid.storebag().getNodes()[inRowIndex]);
             }
             if(!_skipSanitize){
-                v = genro.safeHtmlContent(v);
+                v = genro.safeHtmlContent(v, sanitizeSource);
             }
             var zoomAttr = objectExtract(opt,'zoom_*',true);
             var draggable = this.draggable ? ' draggable=true ' : '';

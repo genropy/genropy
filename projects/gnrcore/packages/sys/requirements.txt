@@ -1,4 +1,4 @@
 pdf2image
-watchdog
+watchdog<7
 PyPDF2
 

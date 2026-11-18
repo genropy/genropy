@@ -304,13 +304,10 @@ dojo.declare("gnr.GnrDevHandler", null, {
             objectExtract(kw,tableOnlyLbl);
             kw = objectUpdate(objectUpdate({},defaultLblAttr),kw);
             if(kw.lbl && !kw.label && (kw.tag || tag).toLowerCase()=='checkbox'){
+                // the lbl goes beside the box; buildLblWrapper adds a placeholder
+                // label only where a labeled field shares its grid row
                 kw.label = kw.lbl;
-                if((cols || 1)==1){
-                    kw.lbl = false;
-                }else{
-                    kw.lbl = '&nbsp;';
-                    kw.box__class = kw.box__class || 'formlet_placeholder_label';
-                }
+                delete kw.lbl;
             }
             if(kw.lbl){
                 kw.lbl = _T(kw.lbl);

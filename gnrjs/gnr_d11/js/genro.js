@@ -324,7 +324,7 @@ dojo.declare('gnr.GenroClient', null, {
         }
 
     },
-    safeHtmlContent:function(str){
+    safeHtmlContent:function(str,warnSource){
         if(typeof str !== 'string') return str;
         if(this._sanitize_js === undefined){
             var sw = this.getData('gnr.switches.sanitize_js');
@@ -335,13 +335,14 @@ dojo.declare('gnr.GenroClient', null, {
         }
         var result = stripJsFromHtml(str);
         if(result !== str){
-            this.sanitizeWarning(str);
+            this.sanitizeWarning(str,warnSource);
         }
         return result;
     },
-    sanitizeWarning:function(str){
+    sanitizeWarning:function(str,warnSource){
         this._sanitizedContents = this._sanitizedContents || {};
-        var key = str.slice(0,200);
+        var sample = str.slice(0,200);
+        var key = warnSource ? warnSource.key : sample;
         if(key in this._sanitizedContents){
             return;
         }
@@ -349,14 +350,15 @@ dojo.declare('gnr.GenroClient', null, {
             return;
         }
         this._sanitizedContents[key] = true;
-        console.warn('[sanitize_js] active JS removed from rendered HTML.',
+        var where = warnSource ? ' in '+warnSource.label : '';
+        console.warn('[sanitize_js] active JS removed from rendered HTML'+where+'.',
                      'Migrate this content to a sanitize-safe pattern (e.g. format_isbutton/format_onclick,',
                      'a delegated onCellClick handler, a literal rowTemplate or a whitelisted template/js cell),',
                      'or set <switches sanitize_js="f"/> in instanceconfig as a temporary opt-out.',
                      'Content:', str);
         if(this.isDeveloper){
-            var escaped = key.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-            this.dev.addError('sanitize_js removed active JS from rendered HTML: <code>'+escaped+'</code>', 'CLIENT', true);
+            var escape = function(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');};
+            this.dev.addError('sanitize_js removed active JS from rendered HTML'+escape(where)+': <code>'+escape(sample)+'</code>', 'CLIENT', true);
         }
     },
     locale:function(){
@@ -904,11 +906,20 @@ dojo.declare('gnr.GenroClient', null, {
     },
 
 
+    // Topics whose payload ends in the page data or in a grid struct, where it is evaluated
+    // (selectIframePage relays its openKw to the page as a message of this origin):
+    // only a window of this origin sends them.
+    sameOriginMessageTopics:['th_external_query','selectIframePage','externalSetData'],
+
     windowMessageListener:function(){
         window.addEventListener("message", function(e){
                 if(e.data){
                     var kw = objectUpdate({},e.data);
                     var topic = objectPop(kw,'topic') || 'windowMessage';
+                    var topicName = (topic && typeof(topic)=='object')? topic.topic:topic;
+                    if(e.origin!==window.location.origin && genro.sameOriginMessageTopics.indexOf(topicName)>=0){
+                        return;
+                    }
                     genro.publish(topic,kw);
                 }
             }, false);

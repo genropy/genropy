@@ -1042,11 +1042,14 @@ dojo.declare("gnr.GnrDlgHandler", null, {
         head._('div', {_class: 'doc_help_panel_close', innerHTML: '&times;', title: _T('!!Close'),
                        connect_onclick: () => this.closeHelpPanel()});
         if (manualUrl) {
-            // no same-origin and no top navigation: the manual can neither
-            // reach this page nor replace it; externalSite keeps the page id
-            // off its url, where it would also break the section's anchor
-            panel._('iframe', {_class: 'doc_help_panel_frame', src: manualUrl, externalSite: true,
-                               sandbox: 'allow-scripts allow-popups allow-popups-to-escape-sandbox'});
+            // never top navigation, and same-origin only for a manual in the
+            // site's own storage, trusted like the deployed code: its fonts and
+            // localStorage need it; any other manual cannot reach this page.
+            // externalSite keeps the page id off its url, where it would also
+            // break the section's anchor
+            const sandbox = 'allow-scripts allow-popups allow-popups-to-escape-sandbox' +
+                (this._isSiteStorageUrl(manualUrl) ? ' allow-same-origin' : '');
+            panel._('iframe', {_class: 'doc_help_panel_frame', src: manualUrl, externalSite: true, sandbox});
         } else {
             this._docHelpBody(panel._('div', {_class: 'doc_help_panel_body'}), address, kw, source);
         }
@@ -1062,6 +1065,11 @@ dojo.declare("gnr.GnrDlgHandler", null, {
             this.closeHelpPanel();
         };
         document.addEventListener('keydown', this._helpEscape, true);
+    },
+
+    _isSiteStorageUrl: function(url) {
+        const parsed = new URL(url, window.location.href);
+        return parsed.origin === window.location.origin && /^\/(?:[^/]+\/)?_storage\//.test(parsed.pathname);
     },
 
     _resizeHelpPanel: function(e) {

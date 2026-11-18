@@ -1010,7 +1010,7 @@ test('a row\'s card profile: its resource\'s card, then the caller\'s, the title
     assert.ok(!('delitem' in plain), 'the grid\'s delitem then applies');
 });
 
-test('cards use the band unless chromeSide is off; line rows, tabs and blank rows never do', () => {
+test('cards use the band unless chromeSide is off; line rows, tabs and the entry row never do; the blank card keeps its band', () => {
     const s = clipboardGrid();
     const c = s.c;
     const tile = Object.create(s.context.gnr.GroupletGridTile.prototype);
@@ -1032,7 +1032,10 @@ test('cards use the band unless chromeSide is off; line rows, tabs and blank row
     c.rowTemplate = null;
     const blank = Object.create(s.context.gnr.GroupletGridPhantomTile.prototype);
     blank.controller = c;
-    assert.equal(blank._usesBand(), false);
+    assert.equal(blank._usesBand(), true, 'filling it must not add the band and push it down');
+    const entry = Object.create(s.context.gnr.GroupletGridEntryTile.prototype);
+    entry.controller = c;
+    assert.equal(entry._usesBand(), false);
 });
 
 test('the row kebab says and does what it acts on: its row, or the whole selection the row is in', () => {

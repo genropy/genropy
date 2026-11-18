@@ -6,6 +6,38 @@ on:
       - "release-*"
 
 jobs:
+  python-tests:
+    uses: ./.github/workflows/tests.yml
+
+  javascript-tests:
+    uses: ./.github/workflows/javascript-tests.yml
+
+  version:
+    name: Read the package version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.read.outputs.version }}
+    steps:
+    - uses: actions/checkout@v4
+    - id: read
+      run: |
+        VERSION=$(sed -n 's/^VERSION = \"\([0-9.]*\)\"/\1/p' gnrpy/gnr/__init__.py)
+        if [ -z "$VERSION" ]; then
+          echo "Unable to read VERSION from gnrpy/gnr/__init__.py" >&2
+          exit 1
+        fi
+        echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+  docker:
+    name: Build and push the versioned docker image
+    needs: [python-tests, javascript-tests, version]
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/docker-build.yml
+    with:
+      tag: ${{ needs.version.outputs.version }}
+
   build:
     name: Build distribution 📦
     runs-on: ubuntu-latest
@@ -34,6 +66,7 @@ jobs:
       Publish Python 🐍 distribution 📦 to PyPI
     needs:
     - build
+    - docker
     runs-on: ubuntu-latest
     environment:
       name: pypi
@@ -91,3 +124,28 @@ jobs:
         '${{ github.ref_name }}' gnrpy/dist/**
         --repo '${{ github.repository }}'
 
+  docker-latest:
+    name: Point the latest docker image to this release
+    needs:
+    - version
+    - publish-to-pypi
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+    - name: Set up docker Buildx
+      uses: docker/setup-buildx-action@v3
+    - name: Log in to the Container registry
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    - name: Tag the release image as latest
+      run: >-
+        docker buildx imagetools create
+        --tag ghcr.io/${{ github.repository }}:latest
+        ghcr.io/${{ github.repository }}:${{ needs.version.outputs.version }}

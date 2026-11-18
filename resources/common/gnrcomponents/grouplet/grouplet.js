@@ -338,6 +338,7 @@ var gnr_grouplet = {
             sourceNode.setRelativeData('.grouplet_info', new gnr.GnrBag(itemInfo), null, false, false);
             sourceNode.setRelativeData('.selected_resource', itemInfo.resource, null, false, false);
             sourceNode.setRelativeData('.selected_caption', itemInfo.grouplet_caption);
+            sourceNode.setRelativeData('.selected_docaddress', itemInfo.docAddress || null);
             sourceNode.setRelativeData('.selected_fullpath', item.getFullpath());
         }, function() {
             // the tree selects the clicked node after its onClick handlers
@@ -371,8 +372,25 @@ var gnr_grouplet = {
         sourceNode.setRelativeData('.grouplet_info', new gnr.GnrBag(node.attr), null, false, false);
         sourceNode.setRelativeData('.selected_resource', node.attr.resource, null, false, false);
         sourceNode.setRelativeData('.selected_caption', node.attr.grouplet_caption);
+        sourceNode.setRelativeData('.selected_docaddress', node.attr.docAddress || null);
         sourceNode.setRelativeData('.selected_fullpath', node.getFullpath());
         sourceNode.setRelativeData('.selected_treepath', node.getFullpath(null, menu));
+    },
+
+    panelDocTrack: function(docId, address, caption) {
+        // the doc button of the panel title follows the open group
+        var docNode = genro.nodeById(docId);
+        if (!docNode || !docNode.domNode) {
+            return;
+        }
+        docNode.attr.docAddress = address || null;
+        docNode.attr.docTitle = caption;
+        if (address) {
+            genro.dlg.docTrack(docNode.domNode, address);
+        } else {
+            docNode.domNode.setAttribute('data-doc-address', '');
+            genro.dlg.docApplyState(docNode.domNode);
+        }
     },
 
     panelSelectFromCode: function(sourceNode, code, formId) {

@@ -34,6 +34,7 @@ from gnr.web.daemon.siteregister import SiteRegister
 from gnr.web.daemon.siteregister_client import ServerStore
 from gnr.web.gnrcookie import MarshalCookie
 from gnr.web.gnrwebpage import GnrWebPage
+from gnr.web.gnrwebstruct import GnrDomSrc_dojo_11
 from gnr.web.gnrwsgisite import GnrWsgiSite
 
 
@@ -304,3 +305,38 @@ def test_serve_ping_runs_only_for_a_page_of_the_cookie_connection():
 def test_serve_ping_without_the_connection_cookie_is_refused():
     sr = _two_connections()
     assert _PingSite(sr).ping('p1')[0].startswith('412')
+
+
+class _RemotePage:
+    """The page of a ``remote`` call: the real builder over the real struct."""
+    page_id = 'p1'
+    domSrcFactory = GnrDomSrc_dojo_11
+    newSourceRoot = GnrWebPage.newSourceRoot
+    addToContext = GnrWebPage.addToContext
+    remoteBuilder = GnrWebPage.remoteBuilder
+    getPublicMethod = GnrWebPage.getPublicMethod
+
+    def __init__(self, register):
+        self.site = types.SimpleNamespace(register=register)
+        self.application = types.SimpleNamespace(allowedByPreference=lambda **kwargs: True)
+        self._pendingContext = []
+
+
+def _remote_content(pane, **kwargs):
+    pane.data('#FORM.current_sede_id', None, serverpath='rootenv.current_sede_id', dbenv=True)
+
+
+def test_a_serverpath_declared_by_remote_content_is_synced_as_one_of_the_main_build(caplog):
+    """``rpc_main`` was the only one to subscribe the serverpaths a build declares (#1851):
+    under rootenv the client change of a lazily built form was refused."""
+    sr = SiteRegister(_FakeServer(), sitename='testsite')
+    sr.page_register.create('p1')
+    data = sr.page_register.get_item_data('p1')
+    data.setItem('rootenv.current_sede_id', 'S0')
+    assert _RemotePage(sr).remoteBuilder(handler=_remote_content) is not None
+    assert data['rootenv.current_sede_id'] == 'S0', 'a remote build declares the path, it does not reset it'
+    with caplog.at_level(logging.WARNING):
+        sr.set_serverstore_changes('p1', {'rootenv.current_sede_id': 'S1', 'rootenv.user_local_tags': 'admin'})
+    assert data['rootenv.current_sede_id'] == 'S1'
+    assert data['rootenv.user_local_tags'] is None
+    assert len(caplog.records) == 1

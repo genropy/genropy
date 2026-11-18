@@ -65,7 +65,7 @@
     height: 1em;
 }
 
-/* --- Submenu expand arrow: CSS character › --- */
+/* --- Submenu expand arrow: CSS-drawn chevron --- */
 .gnr_dojotheme .dijitMenuExpand {
     display: none;
 }
@@ -85,10 +85,15 @@
 }
 
 .gnr_dojotheme .dijitMenuExpandEnabled::after {
-    content: '\203A';  /* › */
-    font-size: 1.2em;
-    font-weight: bold;
-    line-height: 1;
+    content: '';
+    display: inline-block;
+    width: 0.32em;
+    height: 0.32em;
+    border-top: 0.09em solid currentColor;
+    border-right: 0.09em solid currentColor;
+    transform: rotate(45deg);
+    vertical-align: middle;
+    margin-right: 0.15em;
 }
 
 /* --- Separator --- */

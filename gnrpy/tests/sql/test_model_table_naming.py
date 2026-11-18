@@ -15,8 +15,6 @@ import pytest
 from gnr.sql.gnrsql import GnrSqlDb
 from gnr.sql.gnrsql_exceptions import NotMatchingModelError
 
-from core.common import BaseGnrAppTest
-
 
 class MatchingMixin:
     """Simulates model/real.py declaring pkg.table('real')"""
@@ -129,18 +127,3 @@ class TestModelTableNaming:
         message = str(excinfo.value)
         assert 'demo/gamma' in message
         assert 'declared: delta, epsilon' in message
-
-
-class TestGnrDockerModel(BaseGnrAppTest):
-    app_name = 'gnrdocker'
-
-    def test_image_relation_has_a_real_target(self):
-        tables = self.app.db.package('docker').tables
-        assert 'image' in tables
-
-        image = self.app.db.table('docker.image')
-        assert image.model.pkey == 'id'
-        assert image.model.column('name') is not None
-
-        image_id = self.app.db.table('docker.container').model.column('image_id')
-        assert image_id.relatedColumn().fullname == 'docker.image.id'

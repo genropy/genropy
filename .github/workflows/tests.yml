@@ -1,6 +1,11 @@
 name: Code testing (python)
 
-on: [push]
+on:
+  # Branch pushes only: release tags run these tests from release-publish.yml
+  push:
+    branches: ["**"]
+  # Called by the release and nightly docker workflows as a gate
+  workflow_call:
 
 jobs:
   base-install:

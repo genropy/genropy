@@ -1005,13 +1005,19 @@ class GnrDomSrc(GnrStructData):
        #                                    table=table,name=name)
 
 
-    def docHelpButton(self, address, title=None, tooltip=False, **kwargs):
+    def docHelpButton(self, address, title=None, tooltip=False, size=None, **kwargs):
         """The "?" of a doc address (sys/ep_doc): shown when the manual or a
         customer's note documents it, it opens the help panel, or with tooltip
-        a popup at the button"""
-        return self.lightbutton(_class='helperbutton iconbox innericonbox', docAddress=address,
+        a popup at the button. size='large' fits it beside a title; without an
+        address it stays hidden until genro.dlg.docTrack is given one"""
+        _class = 'helperbutton iconbox innericonbox doc_icon'
+        if size:
+            _class = f'{_class} helperbutton_{size}'
+        return self.lightbutton(_class=_class, docAddress=address,
                                 docTitle=title, docTooltip=tooltip,
-                                onCreated='genro.dlg.docTrack(this.domNode, this.attr.docAddress);',
+                                onCreated="""if(this.attr.docAddress){
+                                                 genro.dlg.docTrack(this.domNode, this.attr.docAddress);
+                                             }""",
                                 action="""genro.dlg.openDoc(this.domNode, this.attr.docAddress,
                                                             {title: this.attr.docTitle,
                                                              tooltip: this.attr.docTooltip});""",

@@ -314,6 +314,25 @@ class TestTemplatePrinting(BaseGnrTest):
         assert page.loaded == ['adm.user:homepage']
         assert USERNAME in html
 
+    def test_page_callTableScript_takes_table_first(self):
+        # #1808: the page twin no longer opens with a ``page`` it never used.
+        page = self.page()
+
+        html = page.callTableScript('adm.user', RESPATH,
+                                    record=self.pkey, record_template='homepage')
+
+        assert page.loaded == ['adm.user:homepage']
+        assert USERNAME in html
+
+    def test_page_callTableScript_merges_runKwargs(self):
+        page = self.page()
+
+        html = page.callTableScript(table='adm.user', respath=RESPATH, record=self.pkey,
+                                    runKwargs={'record_template': 'homepage'})
+
+        assert page.loaded == ['adm.user:homepage']
+        assert USERNAME in html
+
     def test_site_callTableScript_forwards_record_template(self):
         page = self.page()
 

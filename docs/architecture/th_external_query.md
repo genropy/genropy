@@ -66,3 +66,9 @@ A message with a `query_id` is applied once: the page confirms it to its
 parent window with the topic `th_external_query_applied` and `query_id`, so
 that the sender can drop it from the `openKw` of the index tab and other pages
 opened later from the same tab do not receive it again.
+
+The page takes the message only from a window of its own origin, as the index
+and the pages of the application are: `genro.windowMessageListener` drops a
+`th_external_query`, a `selectIframePage` (which relays its `openKw`) or an
+`externalSetData` posted by a window of another origin, since their payload
+ends in the page data and in grid structs.
