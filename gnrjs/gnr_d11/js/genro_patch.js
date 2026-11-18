@@ -1003,9 +1003,12 @@ genropatches.borderContainer = function() {
             var splitter = this._splitters[region];
             var vertical = /top|bottom/.test(region);
             var size = dojo.marginBox(splitter)[vertical ? 'h' : 'w'];
-            if (!size) {
-                // inside a hidden container the splitter measures 0: read its css size
-                size = parseFloat(dojo.getComputedStyle(splitter)[vertical ? 'height' : 'width']) || 0;
+            if (!(size > 0)) {
+                // hidden, the splitter measures 0 or just its negative margins: read its css margin box
+                var cs = dojo.getComputedStyle(splitter);
+                size = Math.max(0, (vertical ?
+                        parseFloat(cs.height) + parseFloat(cs.marginTop) + parseFloat(cs.marginBottom) :
+                        parseFloat(cs.width) + parseFloat(cs.marginLeft) + parseFloat(cs.marginRight)) || 0);
             }
             this._splitterThickness[region] = size;
         },
