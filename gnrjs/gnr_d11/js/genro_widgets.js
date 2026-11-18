@@ -3507,7 +3507,12 @@ dojo.declare("gnr.widgets.Menuline", gnr.widgets.baseDojo, {
         }
         var selattr = objectExtract(inAttr, 'selected_*', true);
         if (ctxSourceNode) {
-            selattr = objectUpdate(selattr, objectExtract(ctxSourceNode.getInheritedAttributes(), 'selected_*', true));
+            var ctxSelattr = objectExtract(ctxSourceNode.getInheritedAttributes(), 'selected_*', true);
+            for (var ctxSel in ctxSelattr) {
+                if (ctxSel in sourceNode.attr) {
+                    selattr[ctxSel] = ctxSelattr[ctxSel];
+                }
+            }
         }
         for (var sel in selattr) {
             ctxSourceNode.setRelativeData(selattr[sel], sourceNode.attr[sel], null, null, sourceNode);
