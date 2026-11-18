@@ -219,6 +219,23 @@
     background: url(/_rsrc/common/css_icons/svg/16/selection_view.svg) no-repeat center center;
 }
 
+._common_d11 .bread_root{
+    background: url(/_rsrc/common/css_icons/svg/16/bread_root.svg) no-repeat center center;
+}
+
+._common_d11 .bread_middle{
+    background: url(/_rsrc/common/css_icons/svg/16/bread_middle.svg) no-repeat center center;
+}
+
+._common_d11 .lockedToolbar .last_bread_middle.bread_middle,
+._common_d11 .isLeafItem .last_bread_middle.bread_middle{
+    background: url(/_rsrc/common/css_icons/svg/16/bread_last.svg) no-repeat center center;
+}
+
+._common_d11 .bread_add{
+    background: url(/_rsrc/common/css_icons/svg/16/bread_add.svg) no-repeat center center;
+}
+
 ._common_d11 .send_email, ._common_d11 .mail{
     background: url(/_rsrc/common/css_icons/svg/16/send_email.svg) no-repeat center center;
 }

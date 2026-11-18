@@ -1072,9 +1072,17 @@ genropatches.borderContainer = function() {
             var splitters = this._splitters;
             var splitterThickness = this._splitterThickness;
 
+            var self = this;
             var sideThickness = function(region){
                 var s = splitters[region];
-                return genro.dom.isVisible(s)?splitterThickness[region]:0;
+                if(!genro.dom.isVisible(s)){
+                    return 0;
+                }
+                if(!splitterThickness[region]){
+                    // measured as 0 while the container was hidden at startup
+                    self._computeSplitterThickness(region);
+                }
+                return splitterThickness[region];
             }
             var topSplitter = splitters.top;
             var bottomSplitter = splitters.bottom;
