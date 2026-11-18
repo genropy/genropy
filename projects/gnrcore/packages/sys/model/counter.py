@@ -639,13 +639,17 @@ class Table(object):
         return self.formatSequence(tblobj, field, record, number, counter_pars=counter_pars), info
 
     @public_method
-    def freeSequences(self, table=None, field=None, record=None, limit=500):
+    def freeSequences(self, table=None, field=None, record=None, limit=500, tblobj=None):
         """The free numbers of the period of record, lowest first, each with its
-        window of order keys: a list of dict(sequence, number, order_from, order_to)"""
-        tblobj = self.db.table(table)
+        window as order keys and as dates: a list of dict(sequence, number,
+        order_from, order_to, date_from, date_to)"""
+        tblobj = tblobj or self.db.table(table)
         counter_pars = self.counterPars(tblobj, field, record)
-        codekey = self.pkeyValue(dict(pkg=tblobj.pkg.name, tbl=tblobj.name, fld=field, code=counter_pars['code']))
-        blocks = self.loadBlocks(codekey, self.periodOf(tblobj, field, counter_pars, record))
+        if not counter_pars:
+            return []
+        dtype = self.orderDtype(tblobj, counter_pars)
+        with self._rootstore(counter_pars):
+            blocks = self.periodBlocks(tblobj, field, counter_pars, record)
         result = []
         for block in blocks.blocks:
             if block['occupied']:
@@ -654,9 +658,98 @@ class Table(object):
                 if len(result) >= limit:
                     return result
                 result.append(dict(number=number, order_from=block['first'], order_to=block['last'],
+                                   date_from=self.orderDate(block['first'], dtype),
+                                   date_to=self.orderDate(block['last'], dtype),
                                    sequence=self.formatSequence(tblobj, field, record, number,
                                                                 counter_pars=counter_pars)))
         return result
+
+    # ------------------------------------------------------------------
+    # the counter API of gnrdbo (TableBase.*CounterColumn), as adm.counter
+    # ------------------------------------------------------------------
+
+    def orderDate(self, key, dtype):
+        "The date of an order key: YYYYMMDD for a date (dtype D), UTC milliseconds for a timestamp"
+        if key is None:
+            return None
+        if dtype == 'D':
+            return datetime(key // 10000, key // 100 % 100, key % 100).date()
+        return datetime.fromtimestamp(key / 1000.0, timezone.utc).date()
+
+    def periodBlocks(self, tblobj, field, counter_pars, record):
+        """The blocks of the period of record, read only: the stored ones, or the
+        ones its numbers in the table build at its first use"""
+        codekey = self.pkeyValue(dict(pkg=tblobj.pkg.name, tbl=tblobj.name, fld=field, code=counter_pars['code']))
+        blocks = self.loadBlocks(codekey, self.periodOf(tblobj, field, counter_pars, record))
+        if not blocks.blocks:
+            numbers = self.seriesNumbers(tblobj, field, counter_pars, record)[0]
+            blocks = self.rebuildBlocks(tblobj, field, counter_pars, record, numbers)
+        return blocks
+
+    def lastSequence(self, tblobj=None, field=None, record=None):
+        """dict(number, date) of the last number given in the period of record: its
+        starting value and no date when the period has none"""
+        counter_pars = self.counterPars(tblobj, field, record)
+        with self._rootstore(counter_pars):
+            blocks = self.periodBlocks(tblobj, field, counter_pars, record)
+        if not blocks.blocks:
+            return dict(number=counter_pars.get('starting_value') or 0, date=None)
+        return dict(number=blocks.last_number,
+                    date=self.orderDate(blocks.blocks[-1]['last'], self.orderDtype(tblobj, counter_pars)))
+
+    def realignCounter(self, tblobj=None, field=None, record=None, floor=None):
+        """Forget the blocks of the period of record (every period of field without
+        record) and rebuild them from the numbers in the table. Unlike a first load,
+        no floor is read from adm.counter: its rows of the same series are forgotten
+        too. floor, with record: a number the period must not stay below (numbers in
+        use outside the table).
+
+        A period whose numbers are not consistent cannot be rebuilt: with record it
+        is refused; without, it is left without blocks, as before a migration, and
+        returned as {'codekey/period': errors}"""
+        adm_counter = self.db.table('adm.counter') if 'adm' in self.db.packages else None
+        if record is None:
+            where = '$pkg=:pkg AND $tbl=:tbl AND $fld=:fld'
+            kwargs = dict(pkg=tblobj.pkg.name, tbl=tblobj.name, fld=field)
+            codekeys = [r['codekey'] for r in self.query(columns='$codekey', where=where, addPkeyColumn=False,
+                                                         **kwargs).fetch()]
+            if codekeys:
+                self.db.table('sys.counter_block').sql_deleteSelection(where='$counter_codekey IN :codekeys',
+                                                                       codekeys=codekeys)
+            if adm_counter:
+                adm_counter.sql_deleteSelection(where=where, **kwargs)
+            left = {}
+            for (codekey, period), group in sorted(self.collectPeriods(tblobj, field).items()):
+                if group['errors']:
+                    left['%s/%s' % (codekey, period)] = group['errors']
+                    continue
+                self._realignPeriod(tblobj, field, group['counter_pars'], group['record'], period,
+                                    group['numbers'], group['errors'])
+            return left
+        counter_pars = self.counterPars(tblobj, field, record)
+        if not counter_pars:
+            return
+        with self._rootstore(counter_pars):
+            numbers, errors = self.seriesNumbers(tblobj, field, counter_pars, record)
+            self._realignPeriod(tblobj, field, counter_pars, record, self.periodOf(tblobj, field, counter_pars, record),
+                                numbers, errors, floor=floor)
+        if adm_counter:
+            adm_counter.sql_deleteSelection(where='$codekey=:codekey',
+                                            codekey=adm_counter.getCounterPkey(tblobj=tblobj, field=field, record=record))
+
+    def _realignPeriod(self, tblobj, field, counter_pars, record, period, numbers, errors, floor=None):
+        if errors:
+            raise self.exception('business_logic', msg='Counter %s.%s, period %s: the numbers in use are '
+                                 'not consistent, see analyzeCounter' % (tblobj.fullname, field, period))
+        codekey = self.counterKey(tblobj, field, counter_pars)
+        starting_value = counter_pars.get('starting_value') or 0
+        with self.recordToUpdate(codekey, mode='record'):
+            stored = {b['id']: None for b in self.loadBlocks(codekey, period).blocks}
+            blocks = NumberBlocks.from_numbers(numbers, starting_value)
+            last = blocks.last_number or starting_value
+            if floor and floor > last:
+                blocks.occupy_range(last + 1, floor, None)
+            self.storeBlocks(codekey, period, blocks, stored)
 
     # ------------------------------------------------------------------
     # analysis, load and check of every period of a counter

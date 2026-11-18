@@ -328,9 +328,10 @@ def test_analyze_load_and_check_a_counter_numbered_by_adm_counter(db, monkeypatc
 
 def test_analyze_reports_numbers_out_of_order(db, monkeypatch):
     _insert(db, d(2064, 3, 1))
-    db.table('invc.invoice').insert(dict(date=d(2064, 2, 1), inv_number='A64/000002'))
-    db.commit()
     invoice = db.table('invc.invoice')
+    # data written before adm.counter claimed a number set by hand: it now refuses this date
+    invoice.raw_insert(dict(id=invoice.newPkeyValue(), date=d(2064, 2, 1), inv_number='A64/000002'))
+    db.commit()
     monkeypatch.setattr(invoice, 'counter_inv_number', _counter_pars(order_field='date'), raising=False)
     sys_counter = db.table('sys.counter')
     report = sys_counter.analyzeCounter(table='invc.invoice', field='inv_number')
@@ -438,8 +439,8 @@ def test_migrate_analyses_before_the_switch_and_loads_only_when_asked(db, monkey
 def test_migrate_does_not_load_a_period_whose_numbers_are_not_consistent(db, monkeypatch):
     _insert(db, d(2079, 3, 1))
     invoice = db.table('invc.invoice')
-    monkeypatch.setattr(invoice, 'counter_inv_number', _counter_pars(recycle=False), raising=False)
-    invoice.insert(dict(date=d(2079, 2, 1), inv_number='A79/000002'))
+    # data written before adm.counter claimed a number set by hand: it now refuses this date
+    invoice.raw_insert(dict(id=invoice.newPkeyValue(), date=d(2079, 2, 1), inv_number='A79/000002'))
     db.commit()
     monkeypatch.setattr(invoice, 'counter_inv_number', _counter_pars(order_field='date'), raising=False)
     report = [r for r in db.table('sys.counter').migrateCounters(counters=COUNTER, load=True)

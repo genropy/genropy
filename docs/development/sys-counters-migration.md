@@ -16,6 +16,29 @@ not name. The design is in `xmldocs/proposal/sys-counters`.
 - Code that calls `adm.counter.assignCounter` directly keeps numbering in
   `adm.counter`.
 
+## Application code works on both counters
+
+An instance can switch only when its application code never calls
+`adm.counter` or `sys.counter` directly and never asks which one numbers a
+field. `gnrdbo.TableBase` gives the operations, and each counter implements
+them:
+
+- `assignCounterColumn`, `releaseCounterColumn`, `guessCounter`: a new number,
+  a number given back, the next number. A number set in the record before the
+  save is claimed by both counters: refused when another record holds it.
+- `realignCounterColumn(field, record=None, floor=None)`: forget the stored
+  state of a series (or of every series of the field) and rebuild it from the
+  numbers in the table, instead of deleting or updating `adm.counter` rows.
+- `freeCounterSequences(field, record)`, `lastCounterSequence(field, record)`,
+  `formatCounterSequence(field, record, number)`: the free numbers with their
+  dates, the last number and its date, a number formatted, for a choice of the
+  number made by the user.
+
+A counter assigned twice in one save (the table trigger calls
+`trigger_assignCounters`, then the save calls it again) works on
+`adm.counter` and is refused by `sys.counter`: what follows the number goes in
+`onAssigned` of `counter_<field>`.
+
 ## Steps
 
 1. **Update the database.** The two tables `sys.counter` and
