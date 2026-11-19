@@ -3154,6 +3154,29 @@ class TestDistinctExploding:
         ).fetch()
         assert isinstance(rows, list)
 
+    CASE_SENSITIVE_ORDER_BY = [
+        '$customer_rank',
+        '$display_name',
+        '$n_invoices',
+        '$display_name DESC',
+        '$account_name Desc',
+        '$account_name asc, $email',
+        '$account_name desc nulls last',
+    ]
+
+    @pytest.mark.parametrize('order_by', CASE_SENSITIVE_ORDER_BY)
+    def test_distinct_exploding_order_by_formula_pg(self, db_pg, order_by):
+        """Hidden __ord_col_N keeps the original case of quoted text."""
+        tbl = db_pg.table('invc.customer')
+        rows = tbl.query(columns='$id, @invoices.total', order_by=order_by).fetch()
+        assert rows
+
+    @pytest.mark.parametrize('order_by', CASE_SENSITIVE_ORDER_BY)
+    def test_distinct_exploding_order_by_formula_sqlite(self, db_sqlite, order_by):
+        tbl = db_sqlite.table('invc.customer')
+        rows = tbl.query(columns='$id, @invoices.total', order_by=order_by).fetch()
+        assert rows
+
     def test_distinct_exploding_count_pg(self, db_pg):
         """8l: count() with distinct + exploding replaces columns with pkey."""
         tbl = db_pg.table('invc.customer')
