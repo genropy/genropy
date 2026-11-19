@@ -682,7 +682,8 @@ class GnrWebPage(GnrBaseWebPage):
         except GnrException as e:
             self.site.raiseIfDeveloper()
             self.rpc.error = 'gnrexception'
-            result = str(e)
+            # only a bag envelope can carry the feedback parameters of the exception
+            result = self.rpc.exceptionResult(e) if mode.lower() == 'bag' else str(e)
         except Exception as e:
             self.site.raiseIfDeveloper()
             tb_text = traceback.format_exc()

@@ -264,6 +264,10 @@ class GnrException(Exception):
     description = '!!Genro base exception'
     caption = """!!Error code %(code)s : %(description)s."""
     localizer = None
+    # How the client shows the exception to the user: a dict of parameters
+    # (title, level, sound, color, ...) that travels with the message.
+    # None leaves the client defaults.
+    feedback = None
 
     def __init__(self, description=None, localizer=None,**kwargs):
         if not description:
