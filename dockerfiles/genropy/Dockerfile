@@ -3,14 +3,15 @@
 ############################################################
 
 FROM python:3.13-slim
-LABEL org.opencontainers.image.title "Genropy"
-LABEL org.opencontainers.image.description "Genropy web framework"
-LABEL org.opencontainers.image.source "https://github.com/genropy/genropy"
-LABEL org.opencontainers.image.documentation "https://docs.genropy.org"
-LABEL org.opencontainers.image.url "https://www.genropy.org"
-LABEL org.opencontainers.image.vendor "Softwell Srl"
+LABEL org.opencontainers.image.title="Genropy"
+LABEL org.opencontainers.image.description="Genropy web framework"
+LABEL org.opencontainers.image.source="https://github.com/genropy/genropy"
+LABEL org.opencontainers.image.documentation="https://docs.genropy.org"
+LABEL org.opencontainers.image.url="https://www.genropy.org"
+LABEL org.opencontainers.image.vendor="Softwell Srl"
 
-RUN apt-get update && apt-get -y full-upgrade &&  apt install -y supervisor git procps iproute2 python3-psycopg weasyprint fonts-liberation fonts-liberation-sans-narrow && apt-get autoremove -y && apt clean
+RUN apt-get update && apt-get -y full-upgrade && apt-get install -y supervisor git procps iproute2 python3-psycopg weasyprint fonts-liberation fonts-liberation-sans-narrow && apt-get autoremove -y && apt-get clean
+ENV PIP_ROOT_USER_ACTION=ignore
 RUN pip install --upgrade pip
 RUN adduser --group --system --shell /bin/bash --home /home/genro genro
   
@@ -38,3 +39,17 @@ ENV GNRLOCAL_PROJECTS=/etc/workspaces
 EXPOSE 8080
 ENTRYPOINT []
 CMD ["supervisord"]
+
+# Framework version, source commit and build time, passed by the build workflow.
+# Declared last so that changing them does not invalidate the cached layers.
+# The org.genropy.* labels repeat version and revision under a framework namespace:
+# images built FROM this one (e.g. by gnr app dockerize) inherit them and are
+# expected to override the OCI keys with their own version and revision.
+ARG GNR_VERSION=unknown
+ARG GNR_REVISION=unknown
+ARG GNR_BUILD_TIMESTAMP=unknown
+LABEL org.opencontainers.image.version="${GNR_VERSION}" \
+      org.opencontainers.image.revision="${GNR_REVISION}" \
+      org.genropy.version="${GNR_VERSION}" \
+      org.genropy.revision="${GNR_REVISION}" \
+      org.genropy.build_timestamp="${GNR_BUILD_TIMESTAMP}"

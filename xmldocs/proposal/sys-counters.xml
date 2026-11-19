@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<proposal id="sys-counters" title="sys.counter: counter numbers kept as blocks, opt-in per counter" date="2026-11-15" lang="en" author="Giovanni Porcari" status="draft">
+
+  <problem>
+    <p>A recycling counter (<c>recycle=True</c>) keeps its free numbers in the <c>holes</c> Bag of its <c>adm.counter</c> record. The Bag is a second copy of what the document table already says and drifts from it (genropy/genropy#1879); <c>alignSequences</c> rebuilds it, rewriting documents with <c>fix_duplicate</c>.</p>
+    <p>The goal is a numbering service, at the level of the <c>sys</c> package, whose state is easy to keep consistent and to query, and which keeps the API of a counter: <c>counter_&lt;field&gt;(record)</c>, <c>assignCounterColumn</c>, <c>releaseCounterColumn</c>, <c>guessCounter</c>.</p>
+  </problem>
+
+  <current>
+    <fact source="gnrpy/gnr/sql/gnrsql/write.py:158" method="read" verified="2026-11-15">The SQL layer calls <c>trigger_assignCounters</c> on insert and update (line 259) and <c>trigger_releaseCounters</c> on delete (line 319); their base versions are empty.</fact>
+    <fact source="gnrpy/gnr/app/gnrdbo.py:1573" method="read" verified="2026-11-15"><c>gnrdbo</c> overrides those triggers and calls <c>adm.counter</c> from <c>assignCounterColumn</c>, <c>releaseCounterColumn</c>, <c>guessCounter</c> and <c>_sequencesOnLoading</c>: four call sites, the only ones that pick the numbering table.</fact>
+    <fact source="projects/gnrcore/packages/adm/main.py:20" method="read" verified="2026-11-15">Package <c>adm</c> requires <c>gnrcore:sys</c>; <c>sys</c> had no table named <c>counter</c> or <c>counter_block</c>.</fact>
+    <p>genropy/genropy#1888 implemented the same block model inside <c>adm</c>; its review (fporcari, 2026-11-14) found four bugs and the overlap with <c>adm.counter</c> and genropy/genropy#1882. This proposal is the alternative to it.</p>
+  </current>
+
+  <solution>
+    <section title="Tables">
+      <list>
+        <item><c>sys.counter</c>: one row per counter (<c>pkg</c>, <c>tbl</c>, <c>fld</c>, <c>code</c>), with no period. Its row is the lock of every operation on the counter.</item>
+        <item><c>sys.counter_block</c>: one row per block, with the <c>period</c> of the block. A block is a run of consecutive numbers, occupied or free, with <c>order_first</c> and <c>order_last</c>: the order key of its first and last number; for a free block, those of the occupied numbers around it.</item>
+      </list>
+      <p>Order keys are integers that sort as the values: <c>YYYYMMDD</c> for a date, milliseconds since the epoch in UTC for a timestamp. A free number for a value is a plain query on <c>sys.counter_block</c>.</p>
+      <p>Work happens on the current period, so a lock per counter instead of per period changes little: only saves on other periods wait for it.</p>
+    </section>
+
+    <section title="Counter keys">
+      <table title="Keys of counter_&lt;field&gt;() in the new model">
+        <row head="true"><cell>Key</cell><cell>Meaning</cell></row>
+        <row><cell><c>date_field</c></cell><cell>Required when the format holds a period: it decides the period of the record.</cell></row>
+        <row><cell><c>order_field</c></cell><cell>Optional. The numbers follow its order: dates for a <c>D</c> column, the timestamp for <c>DH</c>/<c>DHZ</c>. Missing: the order is the <c>date_field</c>, as with <c>adm.counter</c>.</cell></row>
+        <row><cell><c>date_tolerant</c></cell><cell>As with <c>adm.counter</c>: without <c>order_field</c>, no order is checked.</cell></row>
+        <row><cell><c>recycle</c></cell><cell>Requires an order: <c>order_field</c>, or a <c>date_field</c> without <c>date_tolerant</c>.</cell></row>
+        <row><cell><c>releaseOnDraft</c></cell><cell>Default <c>True</c>. When false, a record going back to draft keeps its number. <c>counter_&lt;field&gt;(record)</c> may compute it from the record. Read by <c>gnrdbo.trigger_releaseCounters</c>, so it holds for <c>adm.counter</c> too.</cell></row>
+      </table>
+    </section>
+
+    <section title="Operations">
+      <list>
+        <item><b>New number</b>: the lowest free number whose window holds the record's order key, for a recycling counter; otherwise the last number of the period plus one.</item>
+        <item><b>Number set by hand</b> (insert, or changed on update): it splits the block that holds it; refused if occupied or outside its window. A value that is not a number of the series is left alone.</item>
+        <item><b>Release</b>: the number becomes free and merges with free neighbours; a split reads the order key of the two new edges from the table. A neighbour missing from the table becomes an open bound and is left to <c>checkCounter</c>.</item>
+        <item>A number changed or cleared on update releases the old one in the period of the stored record. <c>trigger_assignCounters</c> passes <c>old_record</c>.</item>
+        <item><b>A period without blocks</b> is loaded from the numbers already in the table, under the lock, the first time it is used. For a counter that does not recycle, the numbers <c>adm.counter</c> gave above the highest one still in the table stay occupied: a number deleted at the tail is never given again. A period whose numbers are inconsistent is refused, naming <c>analyzeCounter</c>.</item>
+        <item><b>The counter row</b> is created with <c>INSERT ... ON CONFLICT DO NOTHING</c>: two first saves of a counter do not fail, and no failed statement rolls back the save.</item>
+        <item><b>Guess</b> (<c>guessCounter</c>, <c>showOnLoad</c>): a record not inserted yet takes now as a missing timestamp; with a missing date it is not recycled.</item>
+      </list>
+    </section>
+
+    <section title="Switch">
+      <code lang="xml"><![CDATA[<experimental>
+    <new_counters counters="*"/>
+</experimental>]]></code>
+      <p><c>experimentalValue('new_counters', 'counters')</c>: a list of <c>pkg.table.field</c> sends those counters to <c>sys.counter</c>; <c>*</c> sends every counter except a recycling one without an order, which stays on <c>adm.counter</c>. A listed recycling counter without an order is a configuration error. <c>gnrdbo.sysCounter(field, record)</c> makes the choice; <c>adm.counter</c> is not changed.</p>
+      <p><c>analyzeCounter</c>, <c>loadCounter</c> and <c>checkCounter</c> report, load and verify every period of a counter; <c>freeSequences</c> lists the free numbers of a period with their window. <c>checkCounter</c> reports <c>not_loaded</c> for a period without blocks, <c>blocks_differ</c> for a recycling counter whose blocks differ from the table, and <c>missing_from_blocks</c> for a counter that does not recycle when a number of the table is not occupied in the blocks.</p>
+    </section>
+  </solution>
+
+  <decisions>
+    <decision id="d-level" status="decided">
+      <question>Where does the numbering service live?</question>
+      <option id="adm" title="Inside adm.counter (genropy/genropy#1888)"/>
+      <option id="sys" title="New tables sys.counter and sys.counter_block"/>
+      <choice option="sys" by="GP" date="2026-11-15"/>
+    </decision>
+    <decision id="d-header" status="decided">
+      <question>One header per period or per counter?</question>
+      <option id="period" title="One per period, as adm.counter"/>
+      <option id="counter" title="One per counter; the period on the blocks"/>
+      <choice option="counter" by="GP" date="2026-11-15"/>
+    </decision>
+    <decision id="d-dbo" status="decided">
+      <question>Change gnrdbo or bypass it?</question>
+      <option id="change" title="Change the four call sites of gnrdbo"/>
+      <option id="bypass" title="A service called from write.py; guessCounter and _sequencesOnLoading would still need gnrdbo"/>
+      <choice option="change" by="GP" date="2026-11-15"/>
+    </decision>
+  </decisions>
+
+  <consequences>
+    <list>
+      <item>Code that calls <c>adm.counter.assignCounter</c> directly keeps numbering in <c>adm.counter</c>.</item>
+      <item>Turning the switch off sends the counter back to <c>adm.counter</c>, whose <c>counter</c> and <c>holes</c> do not know the numbers given meanwhile: <c>alignSequences</c> rebuilds them.</item>
+      <item>Writes that skip the Python triggers can still make the blocks drift; <c>checkCounter</c> reports it.</item>
+    </list>
+  </consequences>
+
+  <related>
+    <doc id="genropy/genropy#1888" href="https://github.com/genropy/genropy/pull/1888">The same block model inside adm.counter</doc>
+    <doc id="genropy/genropy#1879" href="https://github.com/genropy/genropy/issues/1879">Releasing a number can take the counter back below numbers in use</doc>
+  </related>
+
+</proposal>

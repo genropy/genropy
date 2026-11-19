@@ -1681,10 +1681,10 @@ function toTypedJSON(value){
         if(dtype=='SET'){
             value = [...value];
         }
-        return '['+value.map(toTypedJSON).join(',')+']';
+        return '['+value.map(item=>{let txt = toTypedJSON(item); return txt===undefined?'null':txt;}).join(',')+']';
     }
     if(dtype=='OBJ'){
-        return '{'+Object.keys(value).map(key=>`${toTypedJSON(key)}:${toTypedJSON(value[key])}`).join(',')+'}';
+        return '{'+Object.keys(value).filter(key=>value[key]!==undefined && typeof value[key]!='function').map(key=>`${toTypedJSON(key)}:${toTypedJSON(value[key])}`).join(',')+'}';
     } 
     if(dtype == 'N' && value._gnrdtype=='N' || !['L','N','NN','B'].includes(dtype)){
         return JSON.stringify(asTypedTxt(value));

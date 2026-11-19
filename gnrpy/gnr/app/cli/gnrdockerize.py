@@ -11,6 +11,7 @@ import shutil
 import tempfile
 import datetime
 import os, os.path
+import re
 import subprocess
 
 from mako.template import Template
@@ -22,6 +23,24 @@ from gnr.dev.builder import GnrProjectBuilder
 from gnr.app import logger
 
 description = "Create a Docker image for the instance"
+
+
+def strip_url_credentials(url):
+    """Drop ``user:password@`` from a URL with a scheme
+    (``https://token@host/org/repo.git``); scp-style ``git@host:org/repo``
+    has no credentials and is kept."""
+    return re.sub(r'^([a-zA-Z][a-zA-Z0-9+.-]*://)[^@/]+@', r'\1', url)
+
+
+def browsable_repo_url(url):
+    """Web URL of a repository, without credentials:
+    ``git@github.com:org/repo.git`` -> ``https://github.com/org/repo``."""
+    if '://' in url:
+        url = re.sub(r'^[^:]+://([^@/]+@)?', 'https://', url)
+    else:
+        url = re.sub(r'^[^@/]+@([^:]+):', r'https://\1/', url)
+    return url[:-4] if url.endswith('.git') else url
+
 
 class MultiStageDockerImageBuilder:
     def __init__(self, instance_name, options):
@@ -85,7 +104,7 @@ class MultiStageDockerImageBuilder:
         """
         git_repositories = self.builder.git_repositories()
         entry_dir = os.getcwd()
-        main_repo_url = self.builder.git_url_from_path(self.instance_folder)
+        main_repo_url = strip_url_credentials(self.builder.git_url_from_path(self.instance_folder))
         self.main_repo_name = self.builder.git_repo_name_from_url(main_repo_url)
 
         now = datetime.datetime.now(datetime.UTC)
@@ -140,11 +159,7 @@ class MultiStageDockerImageBuilder:
                 else:
                     image_labels[f'git:{repo_name}'] = f"{repo['branch_or_commit']}@{commit}"
                     
-                image_labels[f'git:{repo_name}:url'] = "{http_repo_url}/commit/{commit}".format(
-                    # awful hack to get https URL on github if the repository is cloned via ssh
-                    http_repo_url=repo['url'].replace("git@", "https://").replace(".git","").replace("github.com:", "github.com/"),
-                    commit=commit
-                )
+                image_labels[f'git:{repo_name}:url'] = f"{browsable_repo_url(repo['url'])}/commit/{commit}"
                 
                 os.chdir(repo_path)
                 # remove the git folder - ignore errors
@@ -326,12 +341,12 @@ stderr_logfile_maxbytes=0
         return [
             ('traefik.enable', 'true'),
             (f'traefik.http.routers.{name}_web.rule',
-             f'({hosts_rule}) && !Path(`/websocket`))'),
+             f'({hosts_rule}) && !Path(`/websocket`)'),
             (f'traefik.http.routers.{name}_web.entrypoints', 'http'),
             (f'traefik.http.routers.{name}_web.service', f'{name}_svc_web'),
             (f'traefik.http.services.{name}_svc_web.loadbalancer.server.port', 8888),
             (f'traefik.http.routers.{name}_wsk.rule',
-             f'({hosts_rule}) && Path(`/websocket`))'),
+             f'({hosts_rule}) && Path(`/websocket`)'),
             (f'traefik.http.routers.{name}_wsk.entrypoints', 'http'),
             (f'traefik.http.routers.{name}_wsk.service', f'{name}_svc_wsk'),
             (f'traefik.http.services.{name}_svc_wsk.loadbalancer.server.port', 9999),

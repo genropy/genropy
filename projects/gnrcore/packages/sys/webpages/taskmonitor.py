@@ -12,7 +12,7 @@ import requests
 
 from gnr.core.gnrdecorator import public_method
 from gnr.core.gnrbag import Bag
-from gnr.web.gnrtask_new import GNR_SCHEDULER_URL
+from gnr.web.gnrtask_new import GNR_SCHEDULER_URL, parse_worker_id
 
 
 class GnrCustomWebPage(object):
@@ -110,7 +110,7 @@ class GnrCustomWebPage(object):
         if status:
             for i, (k, v) in enumerate(status.get('workers', {}).items()):
                 v = dict(v)
-                _, v['hostname'], v['pid'] = k.split('-')
+                v['hostname'], v['pid'] = parse_worker_id(k)
                 v['seen_ts'] = v['lastseen']
                 result_data.setItem(i, None, **v)
         return Bag(data=result_data, error=error)
