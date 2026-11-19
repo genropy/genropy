@@ -426,8 +426,18 @@ dojo.declare("gnr.widgets.baseHtml", null, {
                 var isValid = this.validate_replaced(isFocused);
                 var sourceNode = this.sourceNode;
                 var gridwidget = sourceNode.attr.gridcell;
-                if (sourceNode.form && !isFocused && !gridwidget){
-                    sourceNode.form.dojoValidation(this,isValid);
+                if (sourceNode.form && !gridwidget){
+                    if(!isFocused){
+                        sourceNode.form.dojoValidation(this,isValid);
+                    }else{
+                        //the gnr isValid(false) clears sourceNode.editing, which the blur check still needs
+                        var editing = sourceNode.editing;
+                        var validOnBlur = this.isValid(false);
+                        sourceNode.editing = editing;
+                        if(validOnBlur){
+                            sourceNode.form.dojoValidation(this,true);
+                        }
+                    }
                 }
                 return isValid;
             };
