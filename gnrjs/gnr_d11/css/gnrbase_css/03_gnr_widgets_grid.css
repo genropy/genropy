@@ -137,35 +137,15 @@ div.cellContent{
 .dojoxFloatingPane.dijitContentPane{
     overflow: hidden;
 }
+/* filling a pane: the wrapper takes the pane's box, its area and buttons keep the
+   flex layout of the framed field */
 ._common_d11 .dijitContentPane>.textAreaWrapper,
 ._common_d11 .pbl_roundedGroupContent>.textAreaWrapper{
     position: absolute;
-    display: block;
     top: 0;
     left: 0;
     right: 0;
     bottom: 0;
-}
-
-._common_d11 .dijitContentPane>.textAreaWrapper .textAreaWrapperArea,
-._common_d11 .pbl_roundedGroupContent>.textAreaWrapper .textAreaWrapperArea{
-    position: absolute;
-    top: 2px;
-    left: 2px;
-    right: 2px;
-    bottom: 20px;
-}
-
-._common_d11 .dijitContentPane>.textAreaWrapper .textAreaWrapperButtons,
-._common_d11 .pbl_roundedGroupContent>.textAreaWrapper .textAreaWrapperButtons{
-    position: absolute;
-    display: block;
-    bottom: 1px;
-    left: 2px;
-    right: 2px;
-    height: 18px;
-    margin-left: 0;
-    border-top: 0;
 }
 .quickTooltipContainer{
     padding: 10px;
@@ -232,26 +212,37 @@ div.cellContent{
     margin:2px;
 }
 
-/* editor=True: one framed field, the action bar inscribed under the editor */
+/* editor=True: one framed field, the action bar inscribed at its bottom-right corner,
+   beside the editor and only as wide as its icons, so the editor keeps the whole
+   height of the field however low it is (a bar under the editor ate ~18px of it) */
 .textAreaIsEditor{
+    flex-direction: row;
     border: var(--form-field-border-width) solid var(--form-field-border);
     border-radius: var(--form-field-radius);
     overflow: hidden;
     box-sizing: border-box;
     background: var(--form-field-bg);
 }
+.textAreaIsEditor .textAreaWrapperArea{
+    min-width: 0;
+}
 .textAreaIsEditor .jodit-container:not(.jodit_fullsize){
     border: 0;
     border-radius: 0;
     background: transparent;
 }
+/* jodit keeps its workplace at least 50px tall: in a lower field it overflowed the
+   area and was clipped */
+.textAreaIsEditor .jodit-container:not(.jodit_fullsize) .jodit-workplace{
+    min-height: 0;
+}
 .textAreaIsEditor .textAreaWrapperButtons{
     display: flex;
+    align-self: flex-end;
     align-items: center;
-    justify-content: flex-end;
     gap: var(--bar-adornment-gap);
     margin-left: 0;
-    padding: 1px 0.4em;
+    padding: 1px 0.3em;
 }
 .textAreaIsEditor .TAeditorPalette{
     opacity: 0.6;

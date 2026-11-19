@@ -199,3 +199,14 @@ class GnrCustomWebPage(object):
                          height='220px', width='700px')
         pane.simpleTextarea(value='^.html', height='80px', width='700px',
                             font_family='monospace', font_size='12px', margin_top='8px')
+
+    def test_18_textarea_editor_low(self, pane):
+        "simpleTextArea(editor=True) at low heights: the T sits beside the text, which keeps the full height (#1926)"
+        fb = pane.formbuilder(cols=1, width='600px', fld_width='100%')
+        fb.simpleTextArea(value='^.h20', lbl='20px', height='20px', editor=True,
+                          placeholder='Placeholder of a one-line field')
+        fb.simpleTextArea(value='^.h30', lbl='30px', height='30px', editor=True, speech=True)
+        fb.simpleTextArea(value='^.h50', lbl='50px', height='50px', editor=True)
+        fb.simpleTextArea(value='^.h100', lbl='100px', height='100px', editor=True)
+        bc = pane.borderContainer(height='60px', width='600px', margin_top='8px')
+        bc.contentPane(region='center').simpleTextArea(value='^.in_pane', editor=True)
