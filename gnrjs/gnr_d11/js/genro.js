@@ -2200,6 +2200,9 @@ dojo.declare('gnr.GenroClient', null, {
         return childpath?node.getChild(childpath):node;
     },
     
+    nodeBySourceNodeId:function(identifier) {
+        return this.src.nodeBySourceNodeId(identifier);
+    },
     domById:function(nodeId,scope) {
         var node = this.nodeById(nodeId,scope);
         if (node) {
