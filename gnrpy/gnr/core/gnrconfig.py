@@ -186,13 +186,24 @@ def getGnrConfig(config_path=None, set_environment=False):
         setEnvironment(gnr_config)
     return gnr_config
 
+def virtualEnvPrefix():
+    """Return the prefix of the running virtualenv, or None outside one.
+
+    An activated venv exports VIRTUAL_ENV; a stdlib venv whose scripts are
+    called without activating it is only recognisable by sys.prefix differing
+    from sys.base_prefix; legacy virtualenv sets sys.real_prefix."""
+    if os.environ.get('VIRTUAL_ENV'):
+        return os.environ['VIRTUAL_ENV']
+    if hasattr(sys, 'real_prefix') or sys.prefix != getattr(sys, 'base_prefix', sys.prefix):
+        return sys.prefix
+
 def gnrConfigPath(force_return=False, no_virtualenv=False):
     if 'GENRO_GNRFOLDER' in os.environ:
         config_path = expandpath(os.environ['GENRO_GNRFOLDER'])
         if os.path.isdir(config_path):
             return config_path
-    if ('VIRTUAL_ENV' in os.environ or hasattr(sys, 'real_prefix')) and not no_virtualenv:
-        prefix = os.environ.get('VIRTUAL_ENV', sys.prefix)
+    prefix = None if no_virtualenv else virtualEnvPrefix()
+    if prefix:
         config_path = expandpath(os.path.join(prefix,'etc','gnr'))
         return config_path
     if sys.platform == 'win32':
