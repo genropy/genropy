@@ -4892,20 +4892,20 @@ dojo.declare("gnr.widgets.NewIncludedView", gnr.widgets.IncludedView, {
 
     mixin_configuratorPalette:function(){
         if(this.sourceNode.attr.configurable && genro.grid_configurator){
-            genro.grid_configurator.configuratorPalette(this.sourceNode.attr.nodeId || this.sourceNode._id);
+            genro.grid_configurator.configuratorPalette(this.sourceNode.attr.nodeId || this.sourceNode.getStringId());
         }
     },
 
 
     mixin_configuratorColsetTooltip:function(colset,event){
         if(this.sourceNode.attr.configurable && genro.grid_configurator){
-            genro.grid_configurator.configuratorColsetTooltip(this.sourceNode.attr.nodeId || this.sourceNode._id,colset,event);
+            genro.grid_configurator.configuratorColsetTooltip(this.sourceNode.attr.nodeId || this.sourceNode.getStringId(),colset,event);
         }
     },
 
     mixin_configuratorCellTooltip:function(event){
         if(this.sourceNode.attr.configurable && genro.grid_configurator){
-            genro.grid_configurator.configuratorCellTooltip(this.sourceNode.attr.nodeId || this.sourceNode._id,event.cell,event.target);
+            genro.grid_configurator.configuratorCellTooltip(this.sourceNode.attr.nodeId || this.sourceNode.getStringId(),event.cell,event.target);
         }
     },
 
