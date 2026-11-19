@@ -317,10 +317,13 @@ class AttachManager(BaseComponent):
     @struct_method
     def at_attachmentPreviewViewer(self,parent,src=None,currentPreviewZoom=None,**kwargs):
         sc = parent.stackContainer(_virtual_column='fileurl',**kwargs)
-        sc.contentPane(pageName='document', overflow='hidden').iframe(src=src,height='100%',
+        # each page gets its own src: a hidden element must never request the url.
+        # A hidden img fetching a PDF without Origin poisons the browser cache for
+        # the CORS fetch of PDF.js when the storage redirects to a signed S3 url (#1921)
+        sc.contentPane(pageName='document', overflow='hidden').iframe(src='^.$preview_src.document',height='100%',
                                     avoidCache=True,width='100%',border='0px',documentClasses=True)
         imgPane = sc.contentPane(pageName='image', overflow='auto')
-        img = imgPane.img(src=src, _class='atc_img_fit',
+        img = imgPane.img(src='^.$preview_src.image', _class='atc_img_fit',
                                     style='display:block;cursor:zoom-in;',
                                     onclick="genro.openBrowserTab(this.src, {target:'_blank'})")
         if currentPreviewZoom:
@@ -328,7 +331,7 @@ class AttachManager(BaseComponent):
                 genro.dom.setClass(imgDom,'atc_img_fit',!zoomValue);
                 imgDom.style.zoom = zoomValue || '';
             """,zoomValue=currentPreviewZoom,imgDom=img.js_domNode)
-        sc.contentPane(pageName='video', overflow='hidden').video(src=src,height='100%',width='100%',
+        sc.contentPane(pageName='video', overflow='hidden').video(src='^.$preview_src.video',height='100%',width='100%',
                                     border=0,controls=True,preload='none')
         unsupported = sc.contentPane(pageName='unsupported', overflow='auto')
         unsupportedbox = unsupported.div(position='absolute',top=0,bottom=0,left=0,right=0,display='flex',
@@ -339,20 +342,30 @@ class AttachManager(BaseComponent):
                             color='#666',font_size='15px',margin_bottom='20px',max_width='420px')
         unsupportedbox.button('!!Open in a new tab',
                             action='genro.openBrowserTab(url,{target:"_blank"})',url=src)
-        parent.dataController("""       
-        const parsedSrc = parseURL(src);
-        const ext = (parsedSrc.params.source_ext || parsedSrc.file.split('.').pop() || '').toLowerCase();
-        SET .$ext = ext;
-        if(IMAGES_EXT.includes(`.${ext}`)){
-            sc.switchPage('image');
-        }else if(VIDEOS_EXT.includes(`.${ext}`)){
-            sc.switchPage('video');
-        }else if(UNPLAYABLE_VIDEOS_EXT.includes(`.${ext}`)){
-            sc.switchPage('unsupported');
-        }else{
-            sc.switchPage('document');
+        parent.dataController("""
+        let ext = '';
+        let page = null;
+        if(src){
+            const parsedSrc = parseURL(src);
+            ext = (parsedSrc.params.source_ext || parsedSrc.file.split('.').pop() || '').toLowerCase();
+            if(IMAGES_EXT.includes(`.${ext}`)){
+                page = 'image';
+            }else if(VIDEOS_EXT.includes(`.${ext}`)){
+                page = 'video';
+            }else if(UNPLAYABLE_VIDEOS_EXT.includes(`.${ext}`)){
+                page = 'unsupported';
+            }else{
+                page = 'document';
+            }
         }
-        """,src=src,_if='src',sc=sc.js_widget,
+        SET .$ext = ext;
+        SET .$preview_src.document = page=='document' ? src : '';
+        SET .$preview_src.image = page=='image' ? src : '';
+        SET .$preview_src.video = page=='video' ? src : '';
+        if(page){
+            sc.switchPage(page);
+        }
+        """,src=src,sc=sc.js_widget,_onBuilt=True,
             IMAGES_EXT=IMAGES_EXT, VIDEOS_EXT=VIDEOS_EXT,
             UNPLAYABLE_VIDEOS_EXT=UNPLAYABLE_VIDEOS_EXT)
 
