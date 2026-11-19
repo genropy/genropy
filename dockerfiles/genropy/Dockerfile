@@ -38,3 +38,17 @@ ENV GNRLOCAL_PROJECTS=/etc/workspaces
 EXPOSE 8080
 ENTRYPOINT []
 CMD ["supervisord"]
+
+# Framework version, source commit and build time, passed by the build workflow.
+# Declared last so that changing them does not invalidate the cached layers.
+# The org.genropy.* labels repeat version and revision under a framework namespace:
+# images built FROM this one (e.g. by gnr app dockerize) inherit them and are
+# expected to override the OCI keys with their own version and revision.
+ARG GNR_VERSION=unknown
+ARG GNR_REVISION=unknown
+ARG GNR_BUILD_TIMESTAMP=unknown
+LABEL org.opencontainers.image.version="${GNR_VERSION}" \
+      org.opencontainers.image.revision="${GNR_REVISION}" \
+      org.genropy.version="${GNR_VERSION}" \
+      org.genropy.revision="${GNR_REVISION}" \
+      org.genropy.build_timestamp="${GNR_BUILD_TIMESTAMP}"
