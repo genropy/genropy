@@ -704,7 +704,8 @@ class LoginComponent(BaseComponent):
         if username:
             users = usertbl.query(columns='$id,$recover_pwd_email', where='$username = :u', u=username).fetch()
         else:
-            users = usertbl.query(columns='$id,$recover_pwd_email', where='$recover_pwd_email = :e', e=email).fetch()
+            users = usertbl.query(columns='$id,$recover_pwd_email', where='lower($recover_pwd_email) = lower(:e)',
+                                  e=(email or '').strip()).fetch()
         if not users:
             return 'err'
         mailservice = self.getService('mail')
