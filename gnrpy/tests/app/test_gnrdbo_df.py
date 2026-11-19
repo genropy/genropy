@@ -7,16 +7,6 @@ Uses the shared test_invoice fixture from this directory's conftest:
 
 from gnr.core.gnrbag import Bag
 
-from core.common import BaseGnrTest
-
-
-def setup_module(module):
-    BaseGnrTest.setup_class()
-
-
-def teardown_module(module):
-    BaseGnrTest.teardown_class()
-
 
 def _df_field(code, data_type, querable=True):
     return Bag(dict(code=code, description='Field %s' % code,

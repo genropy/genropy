@@ -17,16 +17,6 @@ import pytest
 
 from gnr.sql.gnrsqltable import GnrSqlBusinessLogicException
 
-from core.common import BaseGnrTest
-
-
-def setup_module(module):
-    BaseGnrTest.setup_class()
-
-
-def teardown_module(module):
-    BaseGnrTest.teardown_class()
-
 
 def _insert_invoice(db, date):
     db.table('invc.invoice').insert(dict(date=date))
