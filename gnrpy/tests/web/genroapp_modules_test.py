@@ -18,6 +18,7 @@ from webcommon import BaseGnrDaemonTest
 
 SCALE = {'payload': 'c2NhbGU=', 'signature': 'c2lnLXNjYWxl'}
 DRAWER = {'payload': 'ZHJhd2Vy', 'signature': 'c2lnLWRyYXdlcg=='}
+OUTSIDE = {'payload': 'b3V0c2lkZQ==', 'signature': 'c2lnLW91dHNpZGU='}
 INIT_PY = b'VALUE = 42\n'
 
 
@@ -48,6 +49,18 @@ class TestGenroAppModules(BaseGnrDaemonTest):
         os.symlink(tmp_path, os.path.join(modules_root, 'scale', 'linked'))
         yield modules_root
 
+    @pytest.fixture
+    def outside_manifests(self, modules, tmp_path):
+        """Manifests outside the tree, reached through a symbolic link at each level:
+        the version ``scale/linked``, the module ``evil`` and the file ``gadget/1.0.0/manifest.json``."""
+        outside = json.dumps(OUTSIDE).encode()
+        _write(str(tmp_path / 'manifest.json'), outside)
+        _write(str(tmp_path / 'evil' / '9.9.9' / 'manifest.json'), outside)
+        os.symlink(tmp_path / 'evil', os.path.join(modules, 'evil'))
+        os.makedirs(os.path.join(modules, 'gadget', '1.0.0'))
+        os.symlink(tmp_path / 'manifest.json', os.path.join(modules, 'gadget', '1.0.0', 'manifest.json'))
+        yield modules
+
     def _call_tool(self, *args):
         tool = self.site.load_webtool('modules')
         tool.site = self.site
@@ -69,6 +82,11 @@ class TestGenroAppModules(BaseGnrDaemonTest):
         response = self.client.get('/_tools/modules')
         assert response['status'].startswith('200 ')
         assert dict(response['headers'])['Content-Type'].startswith('application/json')
+        assert json.loads(response['data']) == [DRAWER, SCALE]
+
+    def test_index_skips_manifests_outside_the_tree(self, outside_manifests):
+        response = self.client.get('/_tools/modules')
+        assert response['status'].startswith('200 ')
         assert json.loads(response['data']) == [DRAWER, SCALE]
 
     def test_file_is_served_as_is(self, modules):

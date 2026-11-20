@@ -38,7 +38,11 @@ class Modules(BaseWebtool):
         return Response(message, status=404, mimetype='text/plain')
 
     def manifests(self, root):
-        """Return the parsed manifests of every ``<name>/<version>/`` in ``root``."""
+        """Return the parsed manifests of every ``<name>/<version>/`` in ``root``.
+
+        A manifest is read only when its resolved path is
+        ``<root>/<name>/<version>/manifest.json``: a symbolic link at any of
+        the three levels moves it outside the tree and it is skipped."""
         result = []
         for name in sorted(os.listdir(root)):
             module_folder = os.path.join(root, name)
@@ -46,6 +50,8 @@ class Modules(BaseWebtool):
                 continue
             for version in sorted(os.listdir(module_folder)):
                 manifest = os.path.join(module_folder, version, MANIFEST)
+                if os.path.realpath(manifest) != manifest:
+                    continue
                 if os.path.isfile(manifest):
                     with open(manifest, encoding='utf-8') as f:
                         result.append(json.load(f))
