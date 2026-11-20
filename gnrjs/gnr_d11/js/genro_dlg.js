@@ -220,6 +220,12 @@ dojo.declare("gnr.GnrDlgHandler", null, {
             var dlgKw = {title:kw.title,closable:kw.closable,nodeId:dialogId,
                 parentRatio:parentRatio,windowRatio:windowRatio,fullScreen:fullScreen};
             objectUpdate(dlgKw,objectExtract(kw,'dlg_*'));
+            if(dlgKw.closable===true){
+                dlgKw.closable = 'publish';
+                dlgKw.selfsubscribe_close = function(){
+                    genro.dlg.iframeDialogClose(this);
+                };
+            }
             var dlg = root._('dialog',dlgKw);
             var iframekw = {src:kw.src,border:0,height:'100%',width:'100%',nodeId:iframeId};
             objectUpdate(iframekw,objectExtract(kw,'iframe_*'));
@@ -254,6 +260,37 @@ dojo.declare("gnr.GnrDlgHandler", null, {
             }
         }
         return dlgNode;
+    },
+
+    iframeDialogClose:function(dlgNode){
+        var dialog = dlgNode.widget;
+        var iframeGenro = dlgNode._iframeNode && dlgNode._iframeNode._genro;
+        var rootForm = iframeGenro && iframeGenro._rootForm;
+        // autoSave and store-less forms never answer the pending changes dialog with onAnswer
+        if(!rootForm || !rootForm.store || rootForm.autoSave){
+            dialog.hide();
+            return;
+        }
+        var focused = rootForm.currentFocused;
+        if(focused && focused._focused){
+            // dijit writes the value of a blurred field only when its focus manager catches up
+            focused.focusNode.blur();
+            var that = this;
+            rootForm.sourceNode.watch('iframeDialogClose',function(){return !focused._focused;},
+                                      function(){that.iframeDialogClose(dlgNode);});
+            return;
+        }
+        rootForm.commitPendingEditors(function(){
+            if(!rootForm.changed){
+                dialog.hide();
+                return;
+            }
+            rootForm.load({destPkey:'*dismiss*',onAnswer:function(){
+                if(!rootForm.changed){
+                    dialog.hide();
+                }
+            }});
+        });
     },
 
     thIframeDialog:function(kw,openKw){
