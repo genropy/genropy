@@ -205,6 +205,11 @@ def test_recovery_by_email_is_unchanged(page):
     assert page.mail.sent == ['ls_conf@test.local']
 
 
+def test_recovery_by_email_ignores_case_and_surrounding_spaces(page):
+    assert page.login_confirmNewPassword(email='  LS_Conf@Test.Local ') == 'ok'
+    assert page.mail.sent == ['ls_conf@test.local']
+
+
 def test_recovery_without_a_stored_address_is_refused(page):
     assert page.login_confirmNewPassword(username='ls_noaddr', email='attacker@example.invalid') == 'err'
     assert page.mail.sent == []
