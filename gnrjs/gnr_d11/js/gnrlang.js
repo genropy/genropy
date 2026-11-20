@@ -1782,7 +1782,7 @@ function xml_buildTag(tagName, value, attributes, xmlMode) {
     }
 
     if (tagName != originalTag) {
-        var result = '<' + tagName + ' _tag="' + originalTag + '"';
+        var result = '<' + tagName + ' ' + objectAsXmlAttributes({_tag: originalTag});
     } else {
         var result = '<' + tagName;
     }
