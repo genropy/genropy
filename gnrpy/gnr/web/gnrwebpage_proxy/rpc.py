@@ -126,6 +126,9 @@ class GnrWebRpc(GnrBaseProxy):
             return self.result_bag(str(e))
 
     def _upload_file(self, **kwargs):
+        # the scan comes before the hooks: an onUploadingMethod can import the content
+        self.page.site.scanUpload(file_handle=kwargs.get('file_handle'), dataUrl=kwargs.get('dataUrl'),
+                                  filename=kwargs.get('filename'))
         onUploadingMethod= kwargs.get('onUploadingMethod')
         if onUploadingMethod:
             onUploading = self.page.getPublicMethod('rpc', onUploadingMethod)

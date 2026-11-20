@@ -1,10 +1,17 @@
 import pytest
 import base64
 import io
+import json
 import logging
 import os
+import socket
+import socketserver
+import struct
 import tempfile
+import threading
 import shutil
+from http.server import BaseHTTPRequestHandler, HTTPServer
+from types import SimpleNamespace
 
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrconfig import getGenroRoot
@@ -15,6 +22,72 @@ from gnr.web.gnrwsgisite_proxy.gnrstoragehandler import (GenroStorageHandler,
                                                          LegacyStorageHandler)
 
 from webcommon import BaseGnrDaemonTest
+
+INFECTED_MARKER = b'INFECTED-PROBE'
+
+
+class ClamdProtocolHandler(socketserver.StreamRequestHandler):
+    """Answers the clamd INSTREAM command: the content carrying INFECTED_MARKER
+    is reported as infected, any other content as clean."""
+
+    def handle(self):
+        command = b''
+        while not command.endswith(b'\0'):
+            command += self.rfile.read(1)
+        content = b''
+        while True:
+            size = struct.unpack('!I', self.rfile.read(4))[0]
+            if not size:
+                break
+            content += self.rfile.read(size)
+        self.server.commands.append(command)
+        self.server.scanned.append(content)
+        if INFECTED_MARKER in content:
+            self.wfile.write(b'stream: Probe-Test-Signature FOUND\0')
+        else:
+            self.wfile.write(b'stream: OK\0')
+
+
+class ScanEndpointHandler(BaseHTTPRequestHandler):
+    """Answers the POST of the http implementation: 401 without the expected token,
+    otherwise the JSON with the threat found in the body, null when it is clean.
+    On the path /garbage it answers 200 with a body that is not that JSON."""
+    token = 'probe-token'
+
+    def do_POST(self):
+        content = self.rfile.read(int(self.headers['Content-Length']))
+        if self.headers['Authorization'] != 'Bearer %s' % self.token:
+            self.send_response(401)
+            self.end_headers()
+            return
+        self.server.scanned.append(content)
+        threat = 'Probe-Test-Signature' if INFECTED_MARKER in content else None
+        body = json.dumps(dict(threat=threat)).encode()
+        if self.path == '/garbage':
+            body = b'<html>not the scan answer</html>'
+        self.send_response(200)
+        self.send_header('Content-Type', 'application/json')
+        self.send_header('Content-Length', str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def log_message(self, format, *args):
+        pass
+
+
+# Stands for the clamscan executable: keeps what it reads from the standard
+# input beside itself, then answers and exits as clamscan does.
+CLAMSCAN_PROBE = """#!/bin/sh
+scanned="$(dirname "$0")/scanned"
+cat > "$scanned"
+if grep -q %s "$scanned"; then
+    echo "stdin: Probe-Test-Signature FOUND"
+    exit 1
+fi
+echo "stdin: OK"
+exit 0
+""" % INFECTED_MARKER.decode()
+
 
 class TestStorageHandler(BaseGnrDaemonTest):
     """Comprehensive tests for storage handler, storage services, and storage nodes."""
@@ -1607,3 +1680,170 @@ class TestStorageHandler(BaseGnrDaemonTest):
                 assert stored.read() == b' RH0001'
         finally:
             shutil.rmtree(os.path.join(self.site.site_static_dir, 'upload_probe'), ignore_errors=True)
+
+    # ========================================================================
+    # Antivirus Scan Of The Uploaded Files
+    # ========================================================================
+
+    @pytest.fixture
+    def scan_endpoint(self):
+        """Starts the HTTP endpoint the http implementation talks to"""
+        server = HTTPServer(('127.0.0.1', 0), ScanEndpointHandler)
+        server.scanned = []
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        yield SimpleNamespace(implementation='http', scanned=lambda: server.scanned,
+                              parameters=dict(token=ScanEndpointHandler.token,
+                                              url='http://127.0.0.1:%s/scan' % server.server_address[1]))
+        server.shutdown()
+        server.server_close()
+        thread.join()
+
+    @pytest.fixture
+    def clamd(self):
+        """Starts a server speaking the clamd INSTREAM protocol, for the clamd implementation"""
+        server = socketserver.TCPServer(('127.0.0.1', 0), ClamdProtocolHandler)
+        server.commands = []
+        server.scanned = []
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        yield SimpleNamespace(implementation='clamd', scanned=lambda: server.scanned, commands=server.commands,
+                              parameters=dict(host='127.0.0.1', port=server.server_address[1]))
+        server.shutdown()
+        server.server_close()
+        thread.join()
+
+    @pytest.fixture
+    def clamscan(self, monkeypatch):
+        """Puts an executable named clamscan first in the PATH, for the clamscan implementation"""
+        bin_dir = tempfile.mkdtemp(prefix='clamscan_')
+        executable = os.path.join(bin_dir, 'clamscan')
+        with open(executable, 'w') as script:
+            script.write(CLAMSCAN_PROBE)
+        os.chmod(executable, 0o755)
+        monkeypatch.setenv('PATH', bin_dir + os.pathsep + os.environ['PATH'])
+
+        def scanned():
+            with open(os.path.join(bin_dir, 'scanned'), 'rb') as content:
+                return [content.read()]
+
+        yield SimpleNamespace(implementation='clamscan', scanned=scanned, parameters=dict())
+        shutil.rmtree(bin_dir, ignore_errors=True)
+
+    @pytest.fixture(params=['scan_endpoint', 'clamd', 'clamscan'])
+    def scanner(self, request):
+        """The scanner of each implementation: http, clamd and clamscan"""
+        return request.getfixturevalue(request.param)
+
+    @pytest.fixture
+    def antivirus_record(self):
+        """Inserts the record of the antivirus service, deleted at the end of the test"""
+        tblservice = self.site.db.table('sys.service')
+        records = []
+
+        def insert(implementation, **parameters):
+            record = tblservice.newrecord(service_type='antivirus', service_name='antivirus',
+                                          implementation=implementation, parameters=Bag(parameters))
+            tblservice.insert(record)
+            self.site.db.commit()
+            records.append(record)
+
+        yield insert
+        for record in records:
+            tblservice.delete(record)
+            self.site.db.commit()
+        self.services_handler('antivirus').service_instances.pop('antivirus', None)
+
+    def file_handle(self, filename, content):
+        return type('FileHandle', (), dict(filename=filename, stream=io.BytesIO(content)))()
+
+    def test_scan_does_nothing_without_an_antivirus_service(self):
+        assert self.site.scanUpload(file_handle=self.file_handle('any.pdf', b'%PDF-1.4 ' + INFECTED_MARKER)) is None
+
+    def test_scan_accepts_a_clean_file_and_leaves_it_readable(self, scanner, antivirus_record):
+        antivirus_record(scanner.implementation, **scanner.parameters)
+        content = b'%PDF-1.4' + b'0' * 200000
+        file_handle = self.file_handle('clean.pdf', content)
+        assert self.site.scanUpload(file_handle=file_handle) is None
+        assert scanner.scanned() == [content]
+        # an onUploadingMethod hook runs after the scan and reads the same handle
+        assert file_handle.stream.read() == content
+
+    def test_scan_refuses_an_infected_file(self, scanner, antivirus_record):
+        antivirus_record(scanner.implementation, **scanner.parameters)
+        content = b'%PDF-1.4 ' + INFECTED_MARKER
+        with pytest.raises(GnrUploadException) as raised:
+            self.site.scanUpload(file_handle=self.file_handle('infected.pdf', content))
+        assert scanner.scanned() == [content]
+        assert 'infected.pdf' in str(raised.value)
+        assert 'virus detected: Probe-Test-Signature' in str(raised.value)
+
+    def test_scan_reads_a_data_url(self, clamd, antivirus_record):
+        antivirus_record(clamd.implementation, **clamd.parameters)
+        content = b'%PDF-1.4 ' + INFECTED_MARKER
+        data_url = 'data:application/pdf;base64,%s' % base64.b64encode(content).decode()
+        with pytest.raises(GnrUploadException, match='virus detected'):
+            self.site.scanUpload(dataUrl=data_url, filename='infected')
+        assert clamd.scanned() == [content]
+
+    def test_clamd_sends_the_instream_command(self, clamd, antivirus_record):
+        antivirus_record(clamd.implementation, **clamd.parameters)
+        self.site.scanUpload(file_handle=self.file_handle('clean.pdf', b'%PDF-1.4'))
+        assert clamd.commands == [b'zINSTREAM\0']
+
+    def unused_port(self):
+        with socket.socket() as unused:
+            unused.bind(('127.0.0.1', 0))
+            return unused.getsockname()[1]
+
+    def assert_unavailable(self, caplog, reason):
+        """The user reads that the antivirus is not available, the log keeps the reason"""
+        with caplog.at_level(logging.ERROR, logger='gnr.web'):
+            with pytest.raises(GnrUploadException) as raised:
+                self.site.scanUpload(file_handle=self.file_handle('unscanned.pdf', b'%PDF-1.4'))
+        message = str(raised.value)
+        assert 'unscanned.pdf' in message
+        assert 'the mandatory antivirus service is not available at the moment' in message
+        assert reason not in message
+        assert any(reason in record.getMessage() for record in caplog.records)
+
+    def test_clamd_unreachable(self, caplog, antivirus_record):
+        antivirus_record('clamd', host='127.0.0.1', port=self.unused_port())
+        self.assert_unavailable(caplog, 'antivirus antivirus (clamd)')
+
+    def test_clamd_without_host(self, caplog, antivirus_record):
+        antivirus_record('clamd', port=3310)
+        self.assert_unavailable(caplog, 'no host is configured')
+
+    def test_http_unreachable(self, caplog, antivirus_record):
+        antivirus_record('http', url='http://127.0.0.1:%s/scan' % self.unused_port(), token='probe-token')
+        self.assert_unavailable(caplog, 'antivirus antivirus (http)')
+
+    def test_http_token_refused(self, caplog, scan_endpoint, antivirus_record):
+        antivirus_record('http', **dict(scan_endpoint.parameters, token='wrong-token'))
+        self.assert_unavailable(caplog, 'the endpoint answered 401')
+        assert scan_endpoint.scanned() == []
+
+    def test_http_answer_that_is_not_the_contract(self, caplog, scan_endpoint, antivirus_record):
+        parameters = dict(scan_endpoint.parameters)
+        parameters['url'] = parameters['url'].replace('/scan', '/garbage')
+        antivirus_record('http', **parameters)
+        self.assert_unavailable(caplog, 'unexpected answer from the endpoint')
+
+    def test_http_refused_towards_a_public_address(self, caplog, antivirus_record):
+        # a literal address: no DNS lookup, and the check refuses it before any connection
+        antivirus_record('http', url='http://8.8.8.8:9/scan', token='probe-token')
+        self.assert_unavailable(caplog, '8.8.8.8 resolves to 8.8.8.8: use https')
+
+    def test_http_url_without_scheme(self, caplog, antivirus_record):
+        antivirus_record('http', url='clamav.local/scan', token='probe-token')
+        self.assert_unavailable(caplog, 'is not an http or https url')
+
+    def test_clamscan_not_installed(self, caplog, monkeypatch, antivirus_record):
+        empty_dir = tempfile.mkdtemp(prefix='no_clamscan_')
+        monkeypatch.setenv('PATH', empty_dir)
+        antivirus_record('clamscan')
+        try:
+            self.assert_unavailable(caplog, 'clamscan is not installed on this machine')
+        finally:
+            shutil.rmtree(empty_dir, ignore_errors=True)
