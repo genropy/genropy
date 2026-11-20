@@ -59,6 +59,11 @@ mimetypes.init()
 
 IS_MOBILE = re.compile(r'iPhone|iPad|Android')
 
+GENROAPP_DOWNLOADS = {
+    'mac': 'https://genroapp-downloads.fsn1.your-objectstorage.com/GenroApp.dmg',
+}
+GENROAPP_RUNDOC = 'site:genroapp/connection.rundoc'
+
 STORAGE_TYPES = ['_storage']
 STATIC_HANDLER_TYPES = ['_site','_dojo','_gnr','_conn',
                         '_rsrc','_pkg','_user','_vol',
@@ -1245,6 +1250,23 @@ class GnrWsgiSite(object):
         mobile_config = self.get_mobile_app_config()
         return (mobile_config.get('ios',{}).get('store_url') \
                 or mobile_config.get('android',{}).get('store_url')) is not None
+
+    def get_genroapp_download_url(self, platform):
+        """Return the GenroApp download link for a desktop platform.
+
+        :param platform: the platform part of ``connection.user_device``
+                         (``mac``, ``windows``, ``linux``)
+
+        A ``download_url`` on the platform node of ``mobile_app/bundles.xml``
+        overrides the public link published by Softwell."""
+        return self.get_mobile_app_config(platform).get('download_url') \
+            or GENROAPP_DOWNLOADS.get(platform)
+
+    def get_genroapp_rundoc_path(self):
+        """Return the path of the signed RunDoc that opens this site in GenroApp,
+        or ``None`` when the site has none."""
+        path = self.getStaticPath(GENROAPP_RUNDOC)
+        return path if os.path.isfile(path) else None
 
 
     
