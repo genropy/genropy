@@ -1,3 +1,4 @@
+import os
 import subprocess
 from types import SimpleNamespace
 
@@ -163,6 +164,9 @@ def test_browsable_repo_url_other_hosts():
 
 def test_git_url_from_path_ignores_insteadof_rewrites(tmp_path, monkeypatch):
     """A token injected by url.*.insteadOf (common in CI) must not be read back."""
+    # run from a git hook, GIT_DIR points at the real repository: git init would reinitialize it
+    for name in [k for k in os.environ if k.startswith('GIT_')]:
+        monkeypatch.delenv(name)
     subprocess.run(['git', 'init', '-q', str(tmp_path)], check=True)
     subprocess.run(['git', 'remote', 'add', 'origin', 'git@github.com:org/repo.git'],
                    cwd=tmp_path, check=True)
