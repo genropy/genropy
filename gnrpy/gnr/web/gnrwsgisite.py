@@ -65,6 +65,7 @@ GENROAPP_DOWNLOADS = {
     'mac': 'https://genroapp-downloads.fsn1.your-objectstorage.com/GenroApp.dmg',
 }
 GENROAPP_RUNDOC = 'site:genroapp/connection.rundoc'
+GENROAPP_MODULES = 'site:genroapp/modules'
 
 STORAGE_TYPES = ['_storage']
 STATIC_HANDLER_TYPES = ['_site','_dojo','_gnr','_conn',
@@ -1269,6 +1270,12 @@ class GnrWsgiSite(object):
         or ``None`` when the site has none."""
         path = self.getStaticPath(GENROAPP_RUNDOC)
         return path if os.path.isfile(path) else None
+
+    def get_genroapp_modules_path(self):
+        """Return the resolved folder of the GenroApp modules signed by Softwell
+        for this site, or ``None`` when the site has none."""
+        path = os.path.realpath(self.getStaticPath(GENROAPP_MODULES))
+        return path if os.path.isdir(path) else None
 
 
     
