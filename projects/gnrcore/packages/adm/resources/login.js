@@ -103,16 +103,76 @@ const LoginComponent = {
         }
     },
 
-    // after a logout the biometric reading is not asked at once: the user chooses
-    askAfterLogout:(platform)=>{
-        return new Promise(resolve=>{
-            genro.dlg.ask(_T('!![en]Session closed'),
-                          _T('!![en]You logged out of this application.'),
-                          {unlock:_T('!![en]Unlock with {biometry}').replace('{biometry}',
-                                                                             LoginComponent.biometryName(platform)),
-                           password:_T('!![en]Log in with password')},
-                          {unlock:()=>resolve(true),password:()=>resolve(false)},{closable:false});
-        });
+    // after a logout the biometric reading is not asked at once: a full-window lock screen
+    // with the logo and the title of the login dialog lets the user choose
+    lockScreen:(dlg,platform,onUnlock,onPassword)=>{
+        const screen = document.createElement('div');
+        screen.className = 'genroapp_lockscreen';
+        const box = document.createElement('div');
+        box.className = 'genroapp_lockscreen_box';
+        screen.appendChild(box);
+        const logo = dlg.domNode.querySelector('.login_logo');
+        if(logo){
+            const logo_copy = logo.cloneNode(true);
+            logo_copy.className = 'genroapp_lockscreen_logo';
+            box.appendChild(logo_copy);
+        }
+        const site_title = dlg.domNode.querySelector('.index_logintitle');
+        const site = document.createElement('div');
+        site.className = 'genroapp_lockscreen_site';
+        site.textContent = site_title? site_title.textContent : document.title;
+        box.appendChild(site);
+        const title = document.createElement('div');
+        title.className = 'genroapp_lockscreen_title';
+        title.textContent = _T('!![en]Session closed');
+        box.appendChild(title);
+        const unlock = document.createElement('button');
+        unlock.className = 'genroapp_lockscreen_unlock';
+        unlock.textContent = _T('!![en]Unlock with {biometry}').replace('{biometry}',
+                                                                      LoginComponent.biometryName(platform));
+        box.appendChild(unlock);
+        const password = document.createElement('a');
+        password.className = 'genroapp_lockscreen_password';
+        password.href = '#';
+        password.textContent = _T('!![en]Log in with password');
+        box.appendChild(password);
+        const close = ()=>screen.remove();
+        unlock.onclick = ()=>onUnlock(close);
+        password.onclick = (e)=>{
+            e.preventDefault();
+            close();
+            onPassword();
+        };
+        document.body.appendChild(screen);
+        unlock.focus();
+    },
+
+    // asks the biometric reading and logs in with the signature; false when the reading is
+    // cancelled or fails, or the computer is not recognized
+    deviceSign:async (sourceNode,dlg,origin,challenge_rpc,login_rpc)=>{
+        const tauri = LoginComponent.tauri();
+        let signed;
+        try{
+            const challenge = await LoginComponent.serverCall(challenge_rpc);
+            signed = await tauri.core.invoke('device_sign',{origin,challenge});
+        }catch{
+            return false;
+        }
+        const result = await LoginComponent.serverCall(login_rpc,{key_id:signed.key_id,user:signed.user,
+                                                                   signature:signed.signature});
+        if(!result){
+            genro.publish('failed_login_msg',{message:_T('!![en]This computer is not recognized: log in with password')});
+            return false;
+        }
+        sourceNode.setRelativeData('_login.device_user',result.getItem('user'));
+        sourceNode.setRelativeData('_login.user',result.getItem('user'));
+        if(result.getItem('mode')=='signature'){
+            // the dialog stays hidden: a failed login shows it again (failed_login_msg)
+            genro.fireEvent('do_login_check');
+        }else{
+            LoginComponent.hideLoginDialog(dlg,false);
+        }
+        return true;
     },
 
     deviceLogin:async (sourceNode,dlg,challenge_rpc,login_rpc)=>{
@@ -127,32 +187,19 @@ const LoginComponent = {
             return;
         }
         LoginComponent.hideLoginDialog(dlg,true);
-        if(after_logout && !await LoginComponent.askAfterLogout(status.platform)){
-            LoginComponent.hideLoginDialog(dlg,false);
+        const sign = ()=>LoginComponent.deviceSign(sourceNode,dlg,origin,challenge_rpc,login_rpc);
+        if(after_logout){
+            // the lock screen stays until the reading succeeds or the user picks the password
+            LoginComponent.lockScreen(dlg,status.platform,
+                                      async close=>{
+                                          if(await sign()){
+                                              close();
+                                          }
+                                      },
+                                      ()=>LoginComponent.hideLoginDialog(dlg,false));
             return;
         }
-        let signed;
-        try{
-            const challenge = await LoginComponent.serverCall(challenge_rpc);
-            signed = await tauri.core.invoke('device_sign',{origin,challenge});
-        }catch{
-            // biometric reading cancelled or failed: the normal login stays available
-            LoginComponent.hideLoginDialog(dlg,false);
-            return;
-        }
-        const result = await LoginComponent.serverCall(login_rpc,{key_id:signed.key_id,user:signed.user,
-                                                                   signature:signed.signature});
-        if(!result){
-            LoginComponent.hideLoginDialog(dlg,false);
-            genro.publish('failed_login_msg',{message:_T('!![en]This computer is not recognized: log in with password')});
-            return;
-        }
-        sourceNode.setRelativeData('_login.device_user',result.getItem('user'));
-        sourceNode.setRelativeData('_login.user',result.getItem('user'));
-        if(result.getItem('mode')=='signature'){
-            // the dialog stays hidden: a failed login shows it again (failed_login_msg)
-            genro.fireEvent('do_login_check');
-        }else{
+        if(!await sign()){
             LoginComponent.hideLoginDialog(dlg,false);
         }
     },
