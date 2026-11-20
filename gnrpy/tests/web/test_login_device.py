@@ -159,22 +159,25 @@ def test_registration_refuses_what_the_contract_does_not_allow(application, fiel
     assert page.login_deviceRegister(**kwargs) is None
 
 
-def test_biometry_key_adds_device_and_biometric_tags(application, genroapp):
-    key = _register(application, 'dv_alice', 'biometry')
+@pytest.mark.parametrize('verification', ['biometry', 'user_presence'])
+def test_a_signed_login_proves_only_the_key_possession(application, genroapp, verification):
+    """The client declares the verification: a key declared biometry gets _DEVICE_, never _BIOMETRIC_."""
+    key = _register(application, 'dv_alice', verification)
     page, result = _device_login(application, key, 'dv_alice')
     assert result['user'] == 'dv_alice' and result['mode'] == 'password'
     page.login_checkAvatar(user='dv_alice', password='secret')
     page.login_doLogin(rootenv=Bag(), login=_login('dv_alice', 'DVMAIN'))
-    assert _tags(page) == '_DEVICE_,_BIOMETRIC_'
+    assert _tags(page) == '_DEVICE_'
     assert page.do_login_kwargs.get('authenticate') is None
 
 
-def test_user_presence_key_adds_only_the_device_tag(application, genroapp):
-    key = _register(application, 'dv_alice', 'user_presence')
+def test_the_biometric_tag_never_comes_from_a_hook(application, genroapp):
+    key = _register(application, 'dv_alice', 'biometry')
     page, result = _device_login(application, key, 'dv_alice')
+    page.hook_tags = 'SEDE_A,_BIOMETRIC_'
     page.login_checkAvatar(user='dv_alice', password='secret')
     page.login_doLogin(rootenv=Bag(), login=_login('dv_alice', 'DVMAIN'))
-    assert _tags(page) == '_DEVICE_'
+    assert _tags(page) == 'SEDE_A,_DEVICE_'
 
 
 def test_password_login_has_no_device_tag(application, genroapp):
@@ -271,7 +274,7 @@ def test_policy_registration_then_login_goes_through(application, genroapp):
     assert page.login_deviceRegister(key_id=key.key_id, public_key=key.public_key, alg='ES256',
                                      verification='biometry', signature=key.sign('dv_admin', challenge))
     page.login_doLogin(rootenv=Bag(), login=_login('dv_admin', 'DVMAIN'))
-    assert _tags(page) == '_DEVICE_,_BIOMETRIC_'
+    assert _tags(page) == '_DEVICE_'
 
 
 def test_policy_refuses_password_to_a_user_with_a_device(application, genroapp):
@@ -301,8 +304,8 @@ def test_new_window_ignores_the_tags_sent_by_the_client(application):
 
 
 def test_new_window_keeps_the_hook_tags_and_the_device_tags(application):
-    assert _new_window(application, 'SEDE_A,_DEVICE_', '_BIOMETRIC_', hook_tags='SEDE_B,_BIOMETRIC_') == \
-        'SEDE_B,_DEVICE_'
+    assert _new_window(application, 'SEDE_A,_DEVICE_,_BIOMETRIC_', '_BIOMETRIC_',
+                       hook_tags='SEDE_B,_BIOMETRIC_') == 'SEDE_B,_DEVICE_'
 
 
 def test_device_tags_survive_a_hook_that_rewrites_the_tags(application, genroapp):
@@ -311,7 +314,7 @@ def test_device_tags_survive_a_hook_that_rewrites_the_tags(application, genroapp
     page.hook_tags = 'SEDE_A'
     page.login_checkAvatar(user='dv_alice', password='secret')
     page.login_doLogin(rootenv=Bag(), login=_login('dv_alice', 'DVMAIN'))
-    assert _tags(page) == 'SEDE_A,_DEVICE_,_BIOMETRIC_'
+    assert _tags(page) == 'SEDE_A,_DEVICE_'
 
 
 def test_switch_off_leaves_the_login_unchanged(application, genroapp, switch_off):

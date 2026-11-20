@@ -17,8 +17,12 @@ from cryptography.hazmat.primitives.asymmetric import ec
 
 from gnr.core.gnrbag import Bag
 
+# a login signed by a registered key proves the possession of that key: _DEVICE_
 DEVICE_TAG = '_DEVICE_'
+# never granted: ``verification`` is declared by the client and the server has no evidence
+# of the biometric reading; it is only kept out of what a client or a hook may add
 BIOMETRIC_TAG = '_BIOMETRIC_'
+SERVER_TAGS = (DEVICE_TAG, BIOMETRIC_TAG)
 SIGNED_HEADER = 'genroapp-device-v1'
 ALGORITHM = 'ES256'
 VERIFICATIONS = ('biometry', 'user_presence')
@@ -45,7 +49,7 @@ class Table(object):
         tbl.column('public_key', dtype='T', name_long='!![en]Public key')
         tbl.column('device_name', name_long='!![en]Device name')
         tbl.column('platform', size=':10', name_long='!![en]Platform')
-        tbl.column('verification', size=':15', name_long='!![en]Verification',
+        tbl.column('verification', size=':15', name_long='!![en]Declared verification',
                    values='biometry:[!![en]Biometry],user_presence:[!![en]User presence]')
         tbl.column('last_used_ts', dtype='DHZ', name_long='!![en]Last used')
         tbl.column('revoked', dtype='B', name_long='!![en]Revoked')
@@ -98,9 +102,9 @@ class Table(object):
         return record
 
     def verifyLogin(self, origin=None, user=None, challenge=None, key_id=None, signature=None):
-        """The device row (id, verification) of the key ``key_id`` of ``user`` when it signed
-        ``challenge``; None for an unknown or revoked key or a wrong signature."""
-        rows = self.query(columns='$id,$public_key,$verification',
+        """The device row (id) of the key ``key_id`` of ``user`` when it signed ``challenge``;
+        None for an unknown or revoked key or a wrong signature."""
+        rows = self.query(columns='$id,$public_key',
                           where='$key_id=:key_id AND @user_id.username=:user AND $revoked IS NOT TRUE',
                           key_id=key_id, user=user).fetch()
         if not rows:
@@ -110,27 +114,21 @@ class Table(object):
             return None
         with self.recordToUpdate(row['id']) as record:
             record['last_used_ts'] = datetime.now(timezone.utc)
-        return Bag(dict(id=row['id'], verification=row['verification']))
+        return Bag(dict(id=row['id']))
 
-    def connectionTags(self, verification):
-        """The connection tags a login signed by a key with ``verification`` adds."""
-        if verification == 'biometry':
-            return [DEVICE_TAG, BIOMETRIC_TAG]
-        return [DEVICE_TAG]
-
-    def addConnectionTags(self, user_local_tags, verification):
-        tags = [t for t in (user_local_tags or '').split(',') if t]
-        for tag in self.connectionTags(verification):
-            if tag not in tags:
-                tags.append(tag)
+    def addConnectionTags(self, user_local_tags):
+        """``user_local_tags`` of a login signed by a registered key: _DEVICE_ added, whatever
+        verification the key declared."""
+        tags = [t for t in (user_local_tags or '').split(',') if t and t not in SERVER_TAGS]
+        tags.append(DEVICE_TAG)
         return ','.join(tags)
 
     def restoreConnectionTags(self, user_local_tags, connection_tags):
-        """``user_local_tags`` with the device tags of ``connection_tags`` only: a hook or
-        a client never adds or drops _DEVICE_ and _BIOMETRIC_."""
-        device_tags = (DEVICE_TAG, BIOMETRIC_TAG)
-        tags = [t for t in (user_local_tags or '').split(',') if t and t not in device_tags]
-        tags += [t for t in (connection_tags or '').split(',') if t in device_tags]
+        """``user_local_tags`` with the device tag of ``connection_tags`` only: a hook or
+        a client never adds or drops _DEVICE_, and never adds _BIOMETRIC_."""
+        tags = [t for t in (user_local_tags or '').split(',') if t and t not in SERVER_TAGS]
+        if DEVICE_TAG in (connection_tags or '').split(','):
+            tags.append(DEVICE_TAG)
         return ','.join(tags)
 
     def genroappPreference(self):

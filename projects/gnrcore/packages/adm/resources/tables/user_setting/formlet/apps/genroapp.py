@@ -42,7 +42,7 @@ class Formlet(BaseComponent):
         grid = pane.div(height='200px', position='relative').quickGrid('^#WORKSPACE.devices')
         grid.column('device_name', name='!![en]Computer', width='100%')
         grid.column('platform', name='!![en]Platform', width='7em')
-        grid.column('verification', name='!![en]Verification', width='9em')
+        grid.column('verification', name='!![en]Declared verification', width='11em')
         grid.column('__ins_ts', name='!![en]Registered', width='10em', dtype='DH')
         grid.column('last_used_ts', name='!![en]Last used', width='10em', dtype='DH')
         grid.column('revoked', name='!![en]Revoked', width='6em', dtype='B')

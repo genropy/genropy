@@ -283,7 +283,7 @@ class LoginComponent(BaseComponent):
         if device:
             # after doLogin: the onAuthenticating hooks may rewrite user_local_tags
             rootenv['user_local_tags'] = self.db.table('adm.user_device').addConnectionTags(
-                                                rootenv['user_local_tags'], device['verification'])
+                                                rootenv['user_local_tags'])
         rootenv['user'] = self.avatar.user
         rootenv['user_id'] = self.avatar.user_id
         rootenv['user_group_code'] = getattr(self.avatar,'group_code',None)
@@ -402,9 +402,9 @@ class LoginComponent(BaseComponent):
     def login_deviceOrigin(self):
         return self.request.host_url.rstrip('/')
 
-    def login_setDevice(self,user,verification=None):
+    def login_setDevice(self,user):
         with self.pageStore() as ps:
-            ps.setItem('login_device',Bag(dict(user=user,verification=verification)) if user else None)
+            ps.setItem('login_device',Bag(dict(user=user)) if user else None)
 
     def login_deviceChecked(self,user):
         """The device check of this page when it named ``user``."""
@@ -442,7 +442,7 @@ class LoginComponent(BaseComponent):
             logger.warning("Device login refused for user %s, key %s", user, key_id)
             return None
         self.db.commit()
-        self.login_setDevice(user,device['verification'])
+        self.login_setDevice(user)
         return Bag(dict(user=user,mode=device_tbl.loginMode()))
 
     @public_method(sessionless=True)
@@ -467,7 +467,7 @@ class LoginComponent(BaseComponent):
             logger.warning("Device registration refused for user %s, key %s", user, key_id)
             return None
         self.db.commit()
-        self.login_setDevice(user,verification)
+        self.login_setDevice(user)
         return True
 
     def login_setChecked(self,user,group_code=None,default_group_code=None,rootenv=None):
