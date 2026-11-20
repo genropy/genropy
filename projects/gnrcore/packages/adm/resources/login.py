@@ -163,8 +163,11 @@ class LoginComponent(BaseComponent):
                         sync=True,_POST=True,
                         _userChanges=True)
             if self.login_genroappDevice():
-                pane.dataController("LoginComponent.deviceLogin(fb,challenge_rpc,login_rpc);",_onBuilt=True,fb=fb,
+                pane.dataController("LoginComponent.deviceLogin(fb,dlg,challenge_rpc,login_rpc);",_onBuilt=True,
+                                    fb=fb,dlg=dlg.js_widget,
                                     challenge_rpc=self.login_deviceChallenge,login_rpc=self.login_deviceLogin)
+                dlg.dataController("LoginComponent.hideLoginDialog(dlg,false);",dlg=dlg.js_widget,
+                                   subscribe_failed_login_msg=True)
             rpcmethod = self.login_doLogin    
         else:
             fb.dataController("""FIRE do_login;""",_fired='^do_login_check')

@@ -2287,7 +2287,25 @@ dojo.declare('gnr.GenroClient', null, {
     },
     logout:function() {
         genro.lockScreen(true,'logout');
+        // the next login page of this tab knows it follows a logout (see loggedOut)
+        try{
+            sessionStorage.setItem('gnr_logged_out','1');
+        }catch(e){
+        }
         this.serverCall('connection.logout', null, 'genro.gotoHome();');
+    },
+
+    // true when this tab logged out before the current page; ``consume`` clears the mark
+    loggedOut:function(consume) {
+        let logged_out = false;
+        try{
+            logged_out = sessionStorage.getItem('gnr_logged_out')=='1';
+            if(consume){
+                sessionStorage.removeItem('gnr_logged_out');
+            }
+        }catch(e){
+        }
+        return logged_out;
     },
     remoteJson:function(method, params) {
         return genro.rpc.remoteCall(method, params, 'json');

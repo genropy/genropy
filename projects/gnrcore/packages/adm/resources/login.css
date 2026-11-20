@@ -86,3 +86,8 @@
 .login_option_btn:hover{
     color: var(--accent-color);
 }
+
+/* GenroApp: the login dialog is hidden while the biometric reading runs */
+.genroapp_signing{
+    visibility: hidden;
+}
