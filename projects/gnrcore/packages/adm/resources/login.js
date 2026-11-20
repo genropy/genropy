@@ -72,7 +72,90 @@ const LoginComponent = {
         return visible;
     },
 
-    confirmAvatar:(sourceNode,rpcmethod,dlg,doLogin,error_msg,standAlonePage)=>{
+    // GenroApp gives the page window.__TAURI__ (or to its top window): elsewhere none of
+    // the device calls below runs
+    tauri:()=>{
+        if(window.__TAURI__){
+            return window.__TAURI__;
+        }
+        try{
+            return window.top.__TAURI__;
+        }catch(e){
+            return null;
+        }
+    },
+
+    serverCall:(method,kwargs)=>{
+        return new Promise(resolve=>genro.serverCall(method,kwargs || {},resolve,null,'POST'));
+    },
+
+    deviceLogin:async (sourceNode,challenge_rpc,login_rpc)=>{
+        const tauri = LoginComponent.tauri();
+        if(!tauri){
+            return;
+        }
+        const origin = window.location.origin;
+        const status = await tauri.core.invoke('device_status',{origin});
+        if(!status.registered){
+            return;
+        }
+        let signed;
+        try{
+            const challenge = await LoginComponent.serverCall(challenge_rpc);
+            signed = await tauri.core.invoke('device_sign',{origin,challenge});
+        }catch{
+            // biometric reading cancelled or failed: the normal login stays available
+            return;
+        }
+        const result = await LoginComponent.serverCall(login_rpc,{key_id:signed.key_id,user:signed.user,
+                                                                   signature:signed.signature});
+        if(!result){
+            genro.publish('failed_login_msg',{message:_T('!![en]This computer is not recognized: log in with password')});
+            return;
+        }
+        sourceNode.setRelativeData('_login.device_user',result.getItem('user'));
+        sourceNode.setRelativeData('_login.user',result.getItem('user'));
+        if(result.getItem('mode')=='signature'){
+            genro.fireEvent('do_login_check');
+        }
+    },
+
+    askDeviceRegistration:()=>{
+        return new Promise(resolve=>{
+            genro.dlg.ask(_T('!![en]GenroApp'),_T('!![en]Register this computer for the next logins?'),
+                          {confirm:_T('!![en]Register'),cancel:_T('!![en]Not now')},
+                          {confirm:()=>resolve(true),cancel:()=>resolve(false)});
+        });
+    },
+
+    // true when the login may go on: the computer is registered, or its registration
+    // was only offered
+    deviceRegistration:async (registration,user,device_rpc)=>{
+        const tauri = LoginComponent.tauri();
+        if(!tauri){
+            return registration!='required';
+        }
+        const origin = window.location.origin;
+        const status = await tauri.core.invoke('device_status',{origin});
+        if(registration=='offer' && (status.registered || !await LoginComponent.askDeviceRegistration())){
+            return true;
+        }
+        let registered;
+        try{
+            const challenge = await LoginComponent.serverCall(device_rpc.challenge);
+            registered = await tauri.core.invoke('device_register',{origin,user,challenge});
+        }catch{
+            // biometric reading cancelled or failed: only an offered registration lets the login go on
+            return registration!='required';
+        }
+        const ok = await LoginComponent.serverCall(device_rpc.register,{
+            key_id:registered.key_id,public_key:registered.public_key,alg:registered.alg,
+            device_name:registered.device_name,platform:status.platform,
+            verification:registered.verification,signature:registered.signature});
+        return !!ok || registration!='required';
+    },
+
+    confirmAvatar:async (sourceNode,rpcmethod,dlg,doLogin,error_msg,standAlonePage,device_rpc)=>{
         var avatar = sourceNode.getRelativeData('gnr.avatar');
         var rootenv = sourceNode.getRelativeData('gnr.rootenv');
         var login = sourceNode.getRelativeData('_login');
@@ -97,6 +180,11 @@ const LoginComponent = {
         if(invalid_fields.length){
             invalid_fields[0].focus();
             //genro.publish('failed_login_msg',{'message':'Invalid data'});
+            return;
+        }
+        let registration = doLogin && avatar.getItem('device_registration');
+        if(registration && !await LoginComponent.deviceRegistration(registration,login.getItem('user'),device_rpc)){
+            genro.publish('failed_login_msg',{'message':_T('!![en]This user must log in with GenroApp')});
             return;
         }
         dlg.hide();

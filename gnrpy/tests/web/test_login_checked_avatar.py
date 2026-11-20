@@ -68,6 +68,7 @@ class _Application(GnrApp):
 
 class _AppPage(_Page):
     rootenv = Bag()
+    user = None
 
     def __init__(self, application):
         super().__init__()
@@ -99,7 +100,8 @@ def _bind(page, *names):
 
 
 def _page():
-    return _bind(_Page(), 'login_doLogin', 'login_setChecked', 'login_isChecked', 'login_setSelectedRootenv')
+    return _bind(_Page(), 'login_doLogin', 'login_setChecked', 'login_isChecked', 'login_setSelectedRootenv',
+                 'login_deviceChecked', 'login_setDevice')
 
 
 def setup_module(module):
@@ -137,7 +139,8 @@ def application(tmp_path_factory):
 
 def _menu_codes(application, username):
     page = _bind(_AppPage(application), 'login_checkAvatar', 'login_setChecked', 'login_completeRootEnv',
-                 'login_selectableGroups', 'login_require2fa', 'login_canSetWorkdate')
+                 'login_selectableGroups', 'login_require2fa', 'login_canSetWorkdate', 'login_deviceChecked',
+                 'login_deviceRegistration')
     result = page.login_checkAvatar(user=username, password='secret')
     assert result['rootenv.group_selector'] is True
     return result['avatar.login_groups'].digest('#v.code')
@@ -172,7 +175,7 @@ def test_login_stores_the_checked_rootenv_and_only_the_form_fields_of_the_client
 
 def _derived_page(application, checked, **selected):
     page = _bind(_AppPage(application), 'login_doLogin', 'login_setChecked', 'login_isChecked',
-                 'login_setSelectedRootenv')
+                 'login_setSelectedRootenv', 'login_deviceChecked', 'login_setDevice')
     page.login_setChecked('alice', rootenv=Bag(checked))
     with page.pageStore() as ps:
         ps.setItem('login_rootenv_fields', ['group_code', 'who'])
@@ -309,7 +312,8 @@ def test_a_chosen_group_does_not_accept_the_default():
 
 def test_checked_avatar_logs_in_with_its_default_group(application):
     page = _bind(_AppPage(application), 'login_checkAvatar', 'login_setChecked', 'login_isChecked',
-                 'login_completeRootEnv', 'login_selectableGroups', 'login_require2fa', 'login_canSetWorkdate')
+                 'login_completeRootEnv', 'login_selectableGroups', 'login_require2fa', 'login_canSetWorkdate',
+                 'login_deviceChecked', 'login_deviceRegistration')
     result = page.login_checkAvatar(user='lg_single', password='secret')
     assert result['avatar.group_code'] == 'LGMAIN'
     assert page.login_isChecked(_login('lg_single', 'LGMAIN'))
@@ -318,7 +322,7 @@ def test_checked_avatar_logs_in_with_its_default_group(application):
 def test_a_new_check_clears_a_pending_code(application):
     page = _bind(_AppPage(application), 'login_checkAvatar', 'login_setChecked', 'login_isChecked', 'login_doLogin',
                  'login_setSelectedRootenv', 'login_completeRootEnv', 'login_selectableGroups', 'login_require2fa',
-                 'login_canSetWorkdate')
+                 'login_canSetWorkdate', 'login_deviceChecked', 'login_deviceRegistration', 'login_setDevice')
     with page.pageStore() as ps:
         ps.setItem('waiting2fa', 'previous_user_id')
     page.login_checkAvatar(user='lg_single', password='secret')

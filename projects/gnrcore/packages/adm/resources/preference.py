@@ -30,6 +30,7 @@ class AppPref(object):
     def prefpane_adm(self, parent, **kwargs):
         tc = parent.tabContainer(margin='2px',**kwargs)
         self._adm_general(tc.borderContainer(title='!!General'))
+        self._adm_genroapp(tc.contentPane(title='!![en]GenroApp', datapath='.general.genroapp'))
         self._adm_backups(tc.contentPane(title='!!Backups', datapath='.backups'))
         self._adm_dev(tc.contentPane(title='!!Developers', datapath='.dev'))
         self._adm_helpdesk(tc.contentPane(title='!!Helpdesk', datapath='.helpdesk',_tags='_DEV_'))
@@ -74,6 +75,20 @@ class AppPref(object):
             fb.dbSelect(value='^.mail.email_account_id',lbl='!![en]Default smtp account',dbtable='email.account')
         #fb.numberTextBox(value='^.screenlock_timeout',lbl='!!Screenlock timeout (minutes)')
         bc.appGuiCustomization(region='center',margin='2px',datapath='.gui_customization')
+
+    def _adm_genroapp(self, pane):
+        fb = pane.div(padding='5px').formbuilder(cols=1, border_spacing='3px')
+        fb.filteringSelect(value='^.login_mode', lbl='!![en]Device login',
+                           values='password:[!![en]Device signature and password],signature:[!![en]Device signature alone]',
+                           default='password')
+        fb.filteringSelect(value='^.required', lbl='!![en]Must use GenroApp',
+                           values='nobody:[!![en]Nobody],all:[!![en]All users],tags:[!![en]Users with tags]',
+                           default='nobody')
+        fb.textbox(value='^.required_tags', lbl='!![en]Tags', hidden='^.required?=#v!="tags"',
+                   tooltip='!![en]A tag rule, e.g. "staff" or "staff AND NOT external"')
+        fb.dbselect(value='^.fallback_tag', lbl='!![en]Password always allowed to',
+                    table='adm.htag', alternatePkey='authorization_tag', condition='$child_count=0',
+                    hasDownArrow=True, hidden='^.required?=!#v || #v=="nobody"')
 
     def _adm_backups(self, pane):
         fb = pane.div(padding='5px').formbuilder(cols=1, border_spacing='3px')
