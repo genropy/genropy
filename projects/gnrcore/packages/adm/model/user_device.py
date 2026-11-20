@@ -125,6 +125,14 @@ class Table(object):
                 tags.append(tag)
         return ','.join(tags)
 
+    def restoreConnectionTags(self, user_local_tags, connection_tags):
+        """``user_local_tags`` with the device tags of ``connection_tags`` only: a hook or
+        a client never adds or drops _DEVICE_ and _BIOMETRIC_."""
+        device_tags = (DEVICE_TAG, BIOMETRIC_TAG)
+        tags = [t for t in (user_local_tags or '').split(',') if t and t not in device_tags]
+        tags += [t for t in (connection_tags or '').split(',') if t in device_tags]
+        return ','.join(tags)
+
     def genroappPreference(self):
         return Bag(self.db.application.getPreference('general.genroapp', pkg='adm'))
 

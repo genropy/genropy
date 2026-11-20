@@ -29,7 +29,8 @@ class Formlet(BaseComponent):
             if download_url:
                 buttons.button(label, action="window.open(url,'_blank');", url=download_url,
                                margin_right='10px')
-        self.genroapp_devices(box)
+        if self.application.experimentalFlag('login', 'genroapp_device'):
+            self.genroapp_devices(box)
 
     def genroapp_devices(self, pane):
         pane.div('!![en]Computers registered for the GenroApp login', font_weight='bold',

@@ -28,7 +28,7 @@ LOGIN_METHODS = ('login_checkAvatar', 'login_setChecked', 'login_isChecked', 'lo
                  'login_completeRootEnv', 'login_selectableGroups', 'login_require2fa',
                  'login_canSetWorkdate', 'login_confirmUser', 'login_confirmNewPassword',
                  'loginPreference', '_immediate_message_parameters', 'login_deviceChecked',
-                 'login_deviceRegistration', 'login_setDevice')
+                 'login_deviceRegistration', 'login_setDevice', 'login_genroappDevice')
 
 
 def _login_component():

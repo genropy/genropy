@@ -30,7 +30,8 @@ class AppPref(object):
     def prefpane_adm(self, parent, **kwargs):
         tc = parent.tabContainer(margin='2px',**kwargs)
         self._adm_general(tc.borderContainer(title='!!General'))
-        self._adm_genroapp(tc.contentPane(title='!![en]GenroApp', datapath='.general.genroapp'))
+        if self.application.experimentalFlag('login', 'genroapp_device'):
+            self._adm_genroapp(tc.contentPane(title='!![en]GenroApp', datapath='.general.genroapp'))
         self._adm_backups(tc.contentPane(title='!!Backups', datapath='.backups'))
         self._adm_dev(tc.contentPane(title='!!Developers', datapath='.dev'))
         self._adm_helpdesk(tc.contentPane(title='!!Helpdesk', datapath='.helpdesk',_tags='_DEV_'))

@@ -8,6 +8,7 @@ import base64
 import hashlib
 import os
 import types
+from datetime import date
 
 import pytest
 from cryptography.hazmat.primitives import hashes, serialization
@@ -24,7 +25,8 @@ LOGIN_METHODS = ('login_checkAvatar', 'login_setChecked', 'login_isChecked', 'lo
                  'login_setSelectedRootenv', 'login_completeRootEnv', 'login_selectableGroups',
                  'login_require2fa', 'login_canSetWorkdate', 'login_deviceChecked', 'login_deviceRegistration',
                  'login_deviceOrigin', 'login_setDevice', 'login_popChallenge', 'login_deviceChallenge',
-                 'login_deviceLogin', 'login_deviceRegister', 'login_newWindow', 'login_enforceWorkdate')
+                 'login_deviceLogin', 'login_deviceRegister', 'login_newWindow', 'login_enforceWorkdate',
+                 'login_genroappDevice', 'login_checkGenroappDevice')
 
 
 class _Key(object):
@@ -41,10 +43,26 @@ class _Key(object):
 
 
 class _DevicePage(_AppPage):
+    """A page whose login goes through: the onAuthenticating hook of ``hook_tags``
+    rewrites user_local_tags, as a package hook may do."""
     request = types.SimpleNamespace(host_url=ORIGIN + '/')
+    workdate = date.today()
+    language = 'en'
+    hook_tags = None
 
     def setInClientData(self, *args, **kwargs):
         pass
+
+    def callPackageHooks(self, method, *args, **kwargs):
+        if method == 'onAuthenticating' and self.hook_tags is not None:
+            kwargs['rootenv']['user_local_tags'] = self.hook_tags
+        return {}
+
+    def doLogin(self, login=None, rootenv=None, **kwargs):
+        self.do_login_kwargs = kwargs
+        self.avatar = self.application.getAvatar(login['user'], authenticate=False)
+        self.callPackageHooks('onAuthenticating', self.avatar, rootenv=rootenv)
+        login['error'] = None
 
 
 def _page(application):
@@ -65,7 +83,15 @@ def application(tmp_path_factory):
                                          email=f'{username}@test.local', group_code='DVMAIN',
                                          avatar_secret_2fa=None))
     db.commit()
+    app.config.setItem('experimental.login', None, genroapp_device='true')
     return app
+
+
+@pytest.fixture
+def switch_off(application):
+    application.config.setAttr('experimental.login', genroapp_device=None)
+    yield
+    application.config.setAttr('experimental.login', genroapp_device='true')
 
 
 @pytest.fixture
@@ -98,7 +124,10 @@ def _device_login(application, key, user, origin=ORIGIN):
 
 
 def _tags(page):
-    return page.do_login_kwargs['rootenv']['user_local_tags']
+    """The connection tags the login stored for the connection and for the page."""
+    connection_tags = page.connectionStore().getItem('defaultRootenv.user_local_tags')
+    assert page.pageStore().getItem('rootenv.user_local_tags') == connection_tags
+    return connection_tags
 
 
 def test_registration_stores_the_key(application):
@@ -258,10 +287,41 @@ def test_policy_without_required_tags_offers_registration(application, genroapp)
     assert result['avatar.device_registration'] == 'offer'
 
 
-def test_new_window_keeps_the_connection_tags(application):
+def _new_window(application, connection_tags, sent_tags, hook_tags=None):
     page = _page(application)
+    page.hook_tags = hook_tags
     page.avatar = types.SimpleNamespace(as_dict=lambda: {}, user_tags='')
-    page.connectionStore().setItem('defaultRootenv', Bag(dict(user_local_tags='_DEVICE_')))
-    rootenv = Bag(dict(user_local_tags='_DEVICE_,_BIOMETRIC_,admin', workdate=None))
-    page.login_newWindow(rootenv=rootenv)
-    assert page.pageStore().getItem('rootenv.user_local_tags') == '_DEVICE_'
+    page.connectionStore().setItem('defaultRootenv', Bag(dict(user_local_tags=connection_tags)))
+    page.login_newWindow(rootenv=Bag(dict(user_local_tags=sent_tags, workdate=None)))
+    return page.pageStore().getItem('rootenv.user_local_tags')
+
+
+def test_new_window_ignores_the_tags_sent_by_the_client(application):
+    assert _new_window(application, '_DEVICE_', '_DEVICE_,_BIOMETRIC_,admin') == '_DEVICE_'
+
+
+def test_new_window_keeps_the_hook_tags_and_the_device_tags(application):
+    assert _new_window(application, 'SEDE_A,_DEVICE_', '_BIOMETRIC_', hook_tags='SEDE_B,_BIOMETRIC_') == \
+        'SEDE_B,_DEVICE_'
+
+
+def test_device_tags_survive_a_hook_that_rewrites_the_tags(application, genroapp):
+    key = _register(application, 'dv_alice', 'biometry')
+    page, result = _device_login(application, key, 'dv_alice')
+    page.hook_tags = 'SEDE_A'
+    page.login_checkAvatar(user='dv_alice', password='secret')
+    page.login_doLogin(rootenv=Bag(), login=_login('dv_alice', 'DVMAIN'))
+    assert _tags(page) == 'SEDE_A,_DEVICE_,_BIOMETRIC_'
+
+
+def test_switch_off_leaves_the_login_unchanged(application, genroapp, switch_off):
+    genroapp(required='all')
+    page = _page(application)
+    result = page.login_checkAvatar(user='dv_bob', password='secret')
+    assert result['avatar.user'] == 'dv_bob'
+    assert result['avatar.device_registration'] is None
+    page.login_doLogin(rootenv=Bag(), login=_login('dv_bob', 'DVMAIN'))
+    assert page.do_login_kwargs.get('authenticate') is None
+    with pytest.raises(Exception, match='not enabled'):
+        page.login_deviceChallenge()
+    assert _new_window(application, '_DEVICE_', 'admin') == 'admin'

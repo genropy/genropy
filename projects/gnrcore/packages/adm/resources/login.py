@@ -11,6 +11,7 @@ from gnr.core.gnrdecorator import customizable
 from gnr.core.gnrdecorator import public_method
 from gnr.core.gnrbag import Bag
 from gnr.app import pkglog as logger
+from gnr.core.gnrlang import GnrException
 from gnr.app.gnrapp import GnrRestrictedAccessException
 from gnr.web.gnrwebpage import BaseComponent
 from gnr.web.gnrwebstruct import struct_method
@@ -161,8 +162,9 @@ class LoginComponent(BaseComponent):
                         _onResult="""LoginComponent.onCheckAvatar(kwargs._fb,result,kwargs._error_msg,this._explicitCheck)""",
                         sync=True,_POST=True,
                         _userChanges=True)
-            pane.dataController("LoginComponent.deviceLogin(fb,challenge_rpc,login_rpc);",_onBuilt=True,fb=fb,
-                                challenge_rpc=self.login_deviceChallenge,login_rpc=self.login_deviceLogin)
+            if self.login_genroappDevice():
+                pane.dataController("LoginComponent.deviceLogin(fb,challenge_rpc,login_rpc);",_onBuilt=True,fb=fb,
+                                    challenge_rpc=self.login_deviceChallenge,login_rpc=self.login_deviceLogin)
             rpcmethod = self.login_doLogin    
         else:
             fb.dataController("""FIRE do_login;""",_fired='^do_login_check')
@@ -268,9 +270,6 @@ class LoginComponent(BaseComponent):
         rootenv = trusted_rootenv(self.rootenv, checked_rootenv, sent_rootenv,
                                   page_store.getItem('login_rootenv_fields'), constants=derived['constants'])
         self.login_setSelectedRootenv(rootenv, derived['selected'], checked_rootenv)
-        if device:
-            rootenv['user_local_tags'] = self.db.table('adm.user_device').addConnectionTags(
-                                                rootenv['user_local_tags'], device['verification'])
         client_only = client_only_keys(sent_rootenv, rootenv)
         if client_only:
             logger.warning("Login of %s: rootenv keys sent by the client and not kept: %s",
@@ -278,6 +277,10 @@ class LoginComponent(BaseComponent):
         self.doLogin(login=login,rootenv=rootenv,**kwargs)
         if login['error']:
             return dict(error=login['error'])
+        if device:
+            # after doLogin: the onAuthenticating hooks may rewrite user_local_tags
+            rootenv['user_local_tags'] = self.db.table('adm.user_device').addConnectionTags(
+                                                rootenv['user_local_tags'], device['verification'])
         rootenv['user'] = self.avatar.user
         rootenv['user_id'] = self.avatar.user_id
         rootenv['user_group_code'] = getattr(self.avatar,'group_code',None)
@@ -355,7 +358,7 @@ class LoginComponent(BaseComponent):
         self.login_setChecked(user,group_code,default_group_code=getattr(avatar,'group_code',None),
                               rootenv=checked_rootenv)
         result['avatar.login_groups'] = self.login_selectableGroups(avatar,result['rootenv.all_groups'])
-        if not device:
+        if not device and self.login_genroappDevice():
             registration = self.login_deviceRegistration(avatar)
             if registration == 'refused':
                 self.login_setChecked(None)
@@ -374,6 +377,14 @@ class LoginComponent(BaseComponent):
         logger.info("User %s logged in", user)
         return result
     
+    def login_genroappDevice(self):
+        """The GenroApp device login is on: ``<experimental><login genroapp_device="true"/></experimental>``."""
+        return self.application.experimentalFlag('login','genroapp_device')
+
+    def login_checkGenroappDevice(self):
+        if not self.login_genroappDevice():
+            raise GnrException('GenroApp device login is not enabled')
+
     def login_deviceRegistration(self,avatar):
         """What a password login asks about this computer: ``offer`` its registration,
         ``required`` (a user who must use GenroApp and has no device yet) or ``refused``
@@ -407,6 +418,7 @@ class LoginComponent(BaseComponent):
     @public_method(sessionless=True)
     def login_deviceChallenge(self):
         """A single use challenge for GenroApp to sign, kept in the page store."""
+        self.login_checkGenroappDevice()
         challenge = self.db.table('adm.user_device').newChallenge()
         with self.pageStore() as ps:
             ps.setItem('login_device_challenge',challenge)
@@ -415,6 +427,7 @@ class LoginComponent(BaseComponent):
     @public_method(sessionless=True)
     def login_deviceLogin(self,key_id=None,user=None,signature=None):
         """Check the challenge signed by GenroApp: the user it names is the one of this login."""
+        self.login_checkGenroappDevice()
         self.login_setDevice(None)
         challenge = self.login_popChallenge()
         if not challenge:
@@ -433,6 +446,7 @@ class LoginComponent(BaseComponent):
     def login_deviceRegister(self,key_id=None,public_key=None,alg=None,device_name=None,platform=None,
                              verification=None,signature=None):
         """Register the computer of the user this page checked, password and OTP included."""
+        self.login_checkGenroappDevice()
         page_store = self.pageStore()
         checked = page_store.getItem('login_checked')
         checked_rootenv = page_store.getItem('login_checked_rootenv')
@@ -769,12 +783,18 @@ class LoginComponent(BaseComponent):
     
     @public_method
     def login_newWindow(self, rootenv=None, **kwargs): 
+        genroapp_device = self.login_genroappDevice()
+        if genroapp_device:
+            # the connection tags are the server's: the onAuthenticating hooks start from them,
+            # never from the ones the client sends for a new window
+            connection_tags = Bag(self.connectionStore().getItem('defaultRootenv'))['user_local_tags']
+            rootenv['user_local_tags'] = connection_tags
         errdict = self.callPackageHooks('onAuthenticating',self.avatar,rootenv=rootenv)
         result = self.avatar.as_dict()
         err = [err for err in errdict.values() if err is not None]
-        # the connection tags (e.g. _DEVICE_) are set by the server at login: the rootenv
-        # sent by the client for a new window never carries its own
-        rootenv['user_local_tags'] = Bag(self.connectionStore().getItem('defaultRootenv'))['user_local_tags']
+        if genroapp_device:
+            rootenv['user_local_tags'] = self.db.table('adm.user_device').restoreConnectionTags(
+                                                rootenv['user_local_tags'], connection_tags)
         with self.pageStore() as ps:
             rootenv['new_window_context'] = True
             self.login_enforceWorkdate(rootenv)
