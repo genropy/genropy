@@ -364,6 +364,19 @@
 				<en_if_you_do_not_confirm_you_will_be_logged_out_of_the_application base="If you do not confirm you will be logged out of the application" en="If you do not confirm you will be logged out of the application" it="Se non confermi verrai disconnesso dall'applicativo"/>
 				<en_confirm fr="Confirmer" en="Confirm" de="Bestätigen" it="Conferma" base="Confirm" zh="确认"/>
 		</adm_notification>
+		<login_js path="resources/login.js" ext="js">
+			<en_session_closed base="Session closed" en="Session closed" it="Sessione chiusa"/>
+			<en_unlock_with_biometry_ base="Unlock with {biometry}" en="Unlock with {biometry}" it="Sblocca con {biometry}"/>
+			<en_log_in_with_password base="Log in with password" en="Log in with password" it="Accedi con password"/>
+			<en_this_computer_is_not_recognized_log_in_with_password base="This computer is not recognized: log in with password" en="This computer is not recognized: log in with password" it="Questo computer non è riconosciuto: accedi con la password"/>
+			<en_register_this_computer_now base="Register this computer now" en="Register this computer now" it="Registra subito questo dispositivo"/>
+			<en_genroapp_keeps_a_key_for_this_application_on_this_computer_ base="GenroApp keeps a key for this application on this computer." en="GenroApp keeps a key for this application on this computer." it="GenroApp conserva su questo computer una chiave per questa applicazione."/>
+			<en_press_the_button_and_confirm_with_biometry_ base="Press the button and confirm with {biometry}." en="Press the button and confirm with {biometry}." it="Premi il pulsante e conferma con {biometry}."/>
+			<en_from_the_next_login_biometry_is_enough_on_this_computer_no_password_ base="From the next login {biometry} is enough on this computer: no password." en="From the next login {biometry} is enough on this computer: no password." it="Dal prossimo accesso su questo computer basta {biometry}: niente password."/>
+			<en_on_other_computers_you_keep_logging_in_with_your_password_ base="On other computers you keep logging in with your password." en="On other computers you keep logging in with your password." it="Sugli altri computer continui ad accedere con la tua password."/>
+			<en_this_computer_is_not_registered_the_login_stops_here base="This computer is not registered: the login stops here" en="This computer is not registered: the login stops here" it="Questo computer non è registrato: l'accesso si ferma qui"/>
+			<en_this_user_must_log_in_with_genroapp base="This user must log in with GenroApp" en="This user must log in with GenroApp" it="Questo utente deve accedere con GenroApp"/>
+		</login_js>
 		<frameindex path="resources/frameindex.py" ext="py">
 			<en_invalid_access fr="Accès non valide" de="Ungültige Zugang" en="Invalid Access" it="Accesso non valido" base="Invalid Access"/>
 				<en_not_allowed_to_use_this_page base="Not allowed to use this page" it="Non abilitato in questa pagina" en="Not allowed to use this page"/>
@@ -434,6 +447,8 @@
 				<en_screenlock fr="Verrouillage D'Écran" de="Screenlock" en="Screenlock" it="Screenlock" base="Screenlock"/>
 				<en_insert_password fr="Insérez le mot de passe" de="Legen Sie das Kennwort" en="Insert password" it="Inserire la password" base="Insert password"/>
 				<en_wrong_password fr="Mauvais mot de passe" de="Falsches Passwort" en="Wrong password" it="Password errata" base="Wrong password"/>
+			<en_this_user_must_log_in_with_genroapp base="This user must log in with GenroApp" en="This user must log in with GenroApp" it="Questo utente deve accedere con GenroApp"/>
+			<en_log_in_with_genroapp_from_your_registered_computer base="Log in with GenroApp from your registered computer" en="Log in with GenroApp from your registered computer" it="Accedi con GenroApp dal tuo computer registrato"/>
 		</login>
 		<preference path="resources/preference.py" ext="py">
 			<en_general fr="Général" de="General" en="General" it="Generale" base="General"/>

@@ -86,3 +86,72 @@
 .login_option_btn:hover{
     color: var(--accent-color);
 }
+
+/* GenroApp: the login dialog is hidden while the biometric reading runs */
+.genroapp_signing{
+    visibility: hidden;
+}
+
+/* GenroApp: full-window lock screen after a logout */
+.genroapp_lockscreen{
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--login-underlay-bg);
+    backdrop-filter: blur(24px);
+}
+
+.genroapp_lockscreen_box{
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.8em;
+    text-align: center;
+    color: var(--text-color);
+}
+
+.genroapp_lockscreen_logo img{
+    height: 6em;
+    object-fit: contain;
+}
+
+.genroapp_lockscreen_site{
+    font-size: 1.6em;
+    font-weight: 600;
+}
+
+.genroapp_lockscreen_title{
+    font-size: 1em;
+    color: var(--text-secondary);
+    margin-bottom: 1.2em;
+}
+
+.genroapp_lockscreen_unlock{
+    min-width: 16em;
+    padding: 0.8em 2em;
+    font-size: 1.1em;
+    font-weight: 600;
+    border: none;
+    border-radius: 999px;
+    cursor: pointer;
+    color: white;
+    background: var(--primary-color);
+}
+
+.genroapp_lockscreen_unlock:hover{
+    background: var(--primary-dark);
+}
+
+.genroapp_lockscreen_password{
+    font-size: .85em;
+    color: var(--text-secondary);
+    text-decoration: none;
+}
+
+.genroapp_lockscreen_password:hover{
+    text-decoration: underline;
+}
+
