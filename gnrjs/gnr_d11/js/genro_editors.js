@@ -1822,6 +1822,9 @@ dojo.declare("gnr.widgets.joditEditor", gnr.widgets.baseExternalWidget, {
         }else{
             options.sourceEditor = 'area';
         }
+        if(!('iframeStyle' in options)){
+            options.iframeStyle = Jodit.defaultOptions.iframeStyle + this.oneLineIframeStyle;
+        }
         var editor = Jodit.make(textarea, options);
         editor._gnrReadOnly = options.readonly;
         this.setExternalWidget(sourceNode, editor);
@@ -1830,7 +1833,8 @@ dojo.declare("gnr.widgets.joditEditor", gnr.widgets.baseExternalWidget, {
                 .on(editor.container, 'mousedown keydown touchstart', markUserEdit)
                 .on('change', function(){ that.onEditorChange(editor); })
                 .on('blur', function(){ that.writeValue(editor, true); })
-                .on('afterSetMode', function(){ that.onModeChange(editor); });
+                .on('afterSetMode', function(){ that.onModeChange(editor); })
+                .on('resize', function(){ that.alignPlaceholder(editor); });
         // Jodit sizes its workplace on window resize only: built in a hidden page it stays 150px high
         var parentWidget = dijit.getEnclosingWidget(widget);
         if(parentWidget){
@@ -2038,6 +2042,25 @@ dojo.declare("gnr.widgets.joditEditor", gnr.widgets.baseExternalWidget, {
         editor.statusbar.append(counter, true);
         editor.e.on('change keyup', update);
         update();
+    },
+    // Appended to Jodit's own iframe style: a writing area lower than one line (13px at 1.6,
+    // plus padding) drops the vertical padding and makes the line as tall as the area, as a
+    // one-line input does, so the line fits and no scrollbar shows. 'html body' outweighs
+    // the bodyStyle rule added later.
+    oneLineIframeStyle: '@media (max-height: 28px){html body{padding-top:0;padding-bottom:0;line-height:100vh;}}',
+    // Jodit copies the body's padding and line height onto its placeholder when it shows it,
+    // which happens before bodyStyle is applied and before the area has its final height:
+    // the placeholder is realigned with the body whenever either changes.
+    alignPlaceholder: function(editor) {
+        var placeholder = editor.workplace && editor.workplace.querySelector('.jodit-placeholder');
+        if(!placeholder || !editor.editor){
+            return;
+        }
+        var bodyStyle = editor.ew.getComputedStyle(editor.editor);
+        placeholder.style.paddingTop = bodyStyle.paddingTop;
+        placeholder.style.paddingLeft = bodyStyle.paddingLeft;
+        placeholder.style.paddingRight = bodyStyle.paddingRight;
+        placeholder.style.lineHeight = bodyStyle.lineHeight;
     },
     setContentStyle: function(editor, id, css) {
         if(!editor.o.iframe || !editor.ed){
@@ -2253,6 +2276,7 @@ dojo.declare("gnr.widgets.joditEditor", gnr.widgets.baseExternalWidget, {
     // Appended after contentStyles, so the body box wins over the content CSS.
     mixin_gnr_bodyStyle: function(value, kw, trigger_reason) {
         this.gnr.setContentStyle(this, 'gnr_bodyStyle', value ? 'body{' + value + '}' : '');
+        this.gnr.alignPlaceholder(this);
     },
     mixin_destroy: function() {
         this.gnr.writeValue(this);

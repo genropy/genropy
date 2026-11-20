@@ -273,6 +273,34 @@ test('bodyStyle is appended after contentStyles as a body rule', () => {
     assert.deepEqual(editor.ed.styles()[1], ['gnr_bodyStyle', '']);
 });
 
+test('the placeholder follows the body padding and line height when bodyStyle changes', () => {
+    const handler = loadHandler();
+    const editor = makeEditor(handler, makeSourceNode(''));
+    editor.o.iframe = true;
+    editor.ed = makeIframeDocument();
+    // what Jodit wrote on its first paint, before bodyStyle and the final height
+    const placeholder = {style: {paddingTop: '10px', paddingLeft: '10px', paddingRight: '10px', lineHeight: '20.8px'}};
+    let bodyBox = {paddingTop: '0px', paddingLeft: '6.5px', paddingRight: '6.5px', lineHeight: '16px'};
+    editor.editor = {};
+    editor.ew = {getComputedStyle: (node) => (node === editor.editor ? bodyBox : null)};
+    editor.workplace = {querySelector: (selector) => (selector === '.jodit-placeholder' ? placeholder : null)};
+    editor.gnr_bodyStyle('padding:0 6.5px');
+    assert.deepEqual({...placeholder.style}, bodyBox);
+    bodyBox = {paddingTop: '3.9px', paddingLeft: '6.5px', paddingRight: '6.5px', lineHeight: '20.8px'};
+    handler.alignPlaceholder(editor);
+    assert.deepEqual({...placeholder.style}, bodyBox);
+});
+
+test('aligning the placeholder is a no-op when Jodit shows none', () => {
+    const handler = loadHandler();
+    const editor = makeEditor(handler, makeSourceNode(''));
+    editor.o.iframe = true;
+    editor.ed = makeIframeDocument();
+    editor.editor = {};
+    editor.workplace = {querySelector: () => null};
+    assert.doesNotThrow(() => editor.gnr_bodyStyle('padding:0'));
+});
+
 test('content styles are ignored without the iframe', () => {
     const handler = loadHandler();
     const editor = makeEditor(handler, makeSourceNode(''));
@@ -292,7 +320,10 @@ test('dictated text is inserted as text at the caret and stored', () => {
     assert.deepEqual(sourceNode.writes, [['value', '<p>a <b>dictated</b></p>']]);
 });
 
-function initializeWith(sourceEditor) {
+// the slice of Jodit.defaultOptions that initialize reads
+const JODIT_DEFAULTS = {iframeStyle: 'body{line-height:1.6;padding:10px;}'};
+
+function initializeWith(sourceEditor, attr) {
     let made;
     const editor = {
         container: {},
@@ -301,12 +332,12 @@ function initializeWith(sourceEditor) {
     };
     const handler = loadHandler({
         document: {createElement: () => ({})},
-        Jodit: {make: (textarea, options) => { made = options; return editor; }}
+        Jodit: {make: (textarea, options) => { made = options; return editor; }, defaultOptions: JODIT_DEFAULTS}
     });
-    const joditAttrs = create(handler, {sourceEditor});
+    const joditAttrs = create(handler, Object.assign({sourceEditor}, attr));
     const widget = {classList: {add() {}}, appendChild() {}};
     handler.initialize(widget, joditAttrs, makeSourceNode(''));
-    return made.sourceEditor;
+    return made;
 }
 
 function initializeEditor(value, parentWidget, attr) {
@@ -327,7 +358,7 @@ function initializeEditor(value, parentWidget, attr) {
     };
     const handler = loadHandler({
         document: {createElement: () => ({})},
-        Jodit: {make: () => editor},
+        Jodit: {make: () => editor, defaultOptions: JODIT_DEFAULTS},
         dijit: {getEnclosingWidget: () => parentWidget || null}
     });
     const sourceNode = makeSourceNode(value, attr);
@@ -420,9 +451,17 @@ test('a resize of the enclosing pane resizes the editor, until it is destroyed',
 });
 
 test('source view uses CodeMirror, or the plain textarea for any other sourceEditor', () => {
-    assert.equal(typeof initializeWith('codemirror'), 'function');
-    assert.equal(initializeWith('area'), 'area');
-    assert.equal(initializeWith('ace'), 'area');
+    assert.equal(typeof initializeWith('codemirror').sourceEditor, 'function');
+    assert.equal(initializeWith('area').sourceEditor, 'area');
+    assert.equal(initializeWith('ace').sourceEditor, 'area');
+});
+
+test('a writing area lower than one line fits the line, on top of the Jodit iframe style', () => {
+    const {iframeStyle} = initializeWith('codemirror');
+    assert.ok(iframeStyle.startsWith(JODIT_DEFAULTS.iframeStyle), 'Jodit keeps its own iframe style');
+    assert.ok(iframeStyle.endsWith('@media (max-height: 28px){html body{padding-top:0;padding-bottom:0;line-height:100vh;}}'));
+    assert.equal(initializeWith('codemirror', {config_iframeStyle: 'body{}'}).iframeStyle, 'body{}',
+                 'an iframeStyle given by the caller is left alone');
 });
 
 test('the plain text is written only on blur, and only after a user edit', () => {
