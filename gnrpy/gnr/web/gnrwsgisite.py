@@ -64,7 +64,6 @@ IS_MOBILE = re.compile(r'iPhone|iPad|Android')
 GENROAPP_DOWNLOADS = {
     'mac': 'https://genroapp-downloads.fsn1.your-objectstorage.com/GenroApp.dmg',
 }
-GENROAPP_RUNDOC = 'site:genroapp/connection.rundoc'
 GENROAPP_MODULES = 'site:genroapp/modules'
 
 STORAGE_TYPES = ['_storage']
@@ -1265,11 +1264,18 @@ class GnrWsgiSite(object):
         return self.get_mobile_app_config(platform).get('download_url') \
             or GENROAPP_DOWNLOADS.get(platform)
 
-    def get_genroapp_rundoc_path(self):
-        """Return the path of the signed RunDoc that opens this site in GenroApp,
-        or ``None`` when the site has none."""
-        path = self.getStaticPath(GENROAPP_RUNDOC)
-        return path if os.path.isfile(path) else None
+    def get_logged_connection(self):
+        """The register item of the connection named by the cookie of the current request,
+        None when it belongs to no logged user."""
+        cookie = GnrWebRequest(self.currentRequest).get_cookie(
+            self.currentDomainIdentifier, 'marshal', secret=self.config['secret'] or self.site_name)
+        if not cookie:
+            return None
+        cookie = dict(cookie)
+        connection = self.register.connection(cookie.get('connection_id'))
+        if not connection or connection['user'] != cookie.get('user') or not connection.get('user_id'):
+            return None
+        return connection
 
     def get_genroapp_modules_path(self):
         """Return the resolved folder of the GenroApp modules signed by Softwell

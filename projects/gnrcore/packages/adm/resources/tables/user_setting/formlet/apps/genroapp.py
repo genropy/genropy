@@ -1,5 +1,5 @@
-from gnr.core.gnrdecorator import public_method
 from gnr.web.gnrbaseclasses import BaseComponent
+from gnr.web.gnrgenroapp import connector_config
 
 info = {
     "code":'genroapp',
@@ -13,7 +13,7 @@ PLATFORMS = (('mac', '!![en]Download for macOS'), ('windows', '!![en]Download fo
 def is_enabled(page):
     platform = page.connection.user_device.split(':')[0]
     return bool(page.site.get_genroapp_download_url(platform)
-                or page.site.get_genroapp_rundoc_path())
+                or connector_config(page.application))
 
 class Formlet(BaseComponent):
     def flt_main(self, pane):
@@ -29,15 +29,22 @@ class Formlet(BaseComponent):
             if download_url:
                 buttons.button(label, action="window.open(url,'_blank');", url=download_url,
                                margin_right='10px')
+        if connector_config(self.application):
+            # the personal connector: opened with GenroApp it adds this site
+            buttons.button('!![en]Download the site connector', action="window.open(url,'_blank');",
+                           url=f'{self.site.home_uri}_tools/connector', margin_right='10px')
         if self.application.experimentalFlag('login', 'genroapp_device'):
             self.genroapp_devices(box)
 
     def genroapp_devices(self, pane):
         pane.div('!![en]Computers registered for the GenroApp login', font_weight='bold',
                  margin_bottom='5px')
-        pane.dataRpc('#WORKSPACE.devices', self.genroapp_userDevices, _onBuilt=True,
+        # table methods: the Formlet is mixed in only while the remote pane is built,
+        # so an RPC of its own would not exist when the client calls it
+        device_tbl = self.db.table('adm.user_device')
+        pane.dataRpc('#WORKSPACE.devices', device_tbl.userDevices, _onBuilt=True,
                      _fired='^#WORKSPACE.reload_devices')
-        pane.dataRpc(self.genroapp_revokeDevice, subscribe_genroapp_revokeDevice=True,
+        pane.dataRpc(device_tbl.revokeDevice, subscribe_genroapp_revokeDevice=True,
                      _onResult='FIRE #WORKSPACE.reload_devices;')
         grid = pane.div(height='200px', position='relative').quickGrid('^#WORKSPACE.devices')
         grid.column('device_name', name='!![en]Computer', width='100%')
@@ -54,12 +61,3 @@ class Formlet(BaseComponent):
                                       if(!row.revoked){
                                           genro.publish('genroapp_revokeDevice',{pkey:row.id});
                                       }""")
-
-    @public_method
-    def genroapp_userDevices(self):
-        return self.db.table('adm.user_device').userDevices(self.avatar.user_id)
-
-    @public_method
-    def genroapp_revokeDevice(self, pkey=None):
-        self.db.table('adm.user_device').revokeDevice(pkey, self.avatar.user_id)
-        self.db.commit()

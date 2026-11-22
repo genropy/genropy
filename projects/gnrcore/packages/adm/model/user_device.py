@@ -16,6 +16,7 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 
 from gnr.core.gnrbag import Bag
+from gnr.core.gnrdecorator import public_method
 
 # a login signed by a registered key proves the possession of that key: _DEVICE_
 DEVICE_TAG = '_DEVICE_'
@@ -53,6 +54,7 @@ class Table(object):
                    values='biometry:[!![en]Biometry],user_presence:[!![en]User presence]')
         tbl.column('last_used_ts', dtype='DHZ', name_long='!![en]Last used')
         tbl.column('revoked', dtype='B', name_long='!![en]Revoked')
+        tbl.column('connector_id', size=':40', indexed=True, name_long='!![en]Connector id')
 
     def newChallenge(self):
         """A single use challenge: the string GenroApp signs and the time it expires."""
@@ -85,10 +87,12 @@ class Table(object):
 
     def registerDevice(self, user_id=None, user=None, origin=None, challenge=None, key_id=None,
                        public_key=None, alg=None, device_name=None, platform=None,
-                       verification=None, signature=None):
+                       verification=None, signature=None, connector_id=None):
         """Store the key GenroApp created for ``user`` when it signed ``challenge`` with it.
-        Returns the new record, None when the key or its signature are refused."""
+        Returns the new record, None when the key, its signature or ``connector_id`` are refused."""
         if alg != ALGORITHM or verification not in VERIFICATIONS:
+            return None
+        if not self.connectorAccepted(connector_id, user):
             return None
         if not self.verifySignature(public_key, signature, self.signedBytes(origin, user, challenge)):
             return None
@@ -96,15 +100,26 @@ class Table(object):
             return None
         record = self.newrecord(user_id=user_id, key_id=key_id, alg=alg, public_key=public_key,
                                 device_name=device_name, platform=platform,
-                                verification=verification,
+                                verification=verification, connector_id=connector_id,
                                 last_used_ts=datetime.now(timezone.utc))
         self.insert(record)
         return record
 
-    def verifyLogin(self, origin=None, user=None, challenge=None, key_id=None, signature=None):
+    def connectorAccepted(self, connector_id, user):
+        """False when ``connector_id`` is not a connector of ``user``, is revoked or is
+        expired. No ``connector_id`` is accepted: the GenroApp releases that send none."""
+        if not connector_id:
+            return True
+        return self.db.table('adm.user_connector').validConnector(connector_id=connector_id, user=user)
+
+    def verifyLogin(self, origin=None, user=None, challenge=None, key_id=None, signature=None,
+                    connector_id=None):
         """The device row (id) of the key ``key_id`` of ``user`` when it signed ``challenge``;
-        None for an unknown or revoked key or a wrong signature."""
-        rows = self.query(columns='$id,$public_key',
+        None for an unknown or revoked key, a wrong signature or a refused connector.
+        The connector is ``connector_id``, which is then stored on the device, or without
+        it the one already stored: a revoked connector stays refused when GenroApp
+        sends none."""
+        rows = self.query(columns='$id,$public_key,$connector_id',
                           where='$key_id=:key_id AND @user_id.username=:user AND $revoked IS NOT TRUE',
                           key_id=key_id, user=user).fetch()
         if not rows:
@@ -112,8 +127,12 @@ class Table(object):
         row = rows[0]
         if not self.verifySignature(row['public_key'], signature, self.signedBytes(origin, user, challenge)):
             return None
+        if not self.connectorAccepted(connector_id or row['connector_id'], user):
+            return None
         with self.recordToUpdate(row['id']) as record:
             record['last_used_ts'] = datetime.now(timezone.utc)
+            if connector_id:
+                record['connector_id'] = connector_id
         return Bag(dict(id=row['id']))
 
     def connectionTags(self, user_local_tags, device=False):
@@ -160,18 +179,21 @@ class Table(object):
             return bool(preference['required_tags']) and check(preference['required_tags'], user_tags)
         raise ValueError(f'Unknown GenroApp requirement {required}')
 
-    def userDevices(self, user_id):
-        """The devices of ``user_id``, most recent first."""
+    @public_method
+    def userDevices(self):
+        """The devices of the logged user, most recent first."""
         rows = self.query(columns='$id,$device_name,$platform,$verification,$__ins_ts,$last_used_ts,$revoked',
-                          where='$user_id=:user_id', user_id=user_id, order_by='$__ins_ts DESC').fetch()
+                          where='$user_id=:env_user_id', order_by='$__ins_ts DESC').fetch()
         result = Bag()
         for row in rows:
             result.setItem(row['id'], Bag(dict(row)))
         return result
 
-    def revokeDevice(self, pkey, user_id):
-        """Revoke the device ``pkey`` of ``user_id``: its key no longer logs in."""
+    @public_method
+    def revokeDevice(self, pkey=None):
+        """Revoke the device ``pkey`` of the logged user: its key no longer logs in."""
         with self.recordToUpdate(pkey) as record:
-            if record['user_id'] != user_id:
+            if record['user_id'] != self.db.currentEnv.get('user_id'):
                 raise self.exception('business_logic', msg='!![en]This device belongs to another user')
             record['revoked'] = True
+        self.db.commit()

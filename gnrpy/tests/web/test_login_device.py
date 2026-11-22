@@ -230,7 +230,8 @@ def test_device_login_refused(application, case):
     else:
         tbl = application.db.table('adm.user_device')
         row = tbl.query(columns='$id,$user_id', where='$key_id=:k', k=key.key_id).fetch()[0]
-        tbl.revokeDevice(row['id'], row['user_id'])
+        with application.db.tempEnv(user_id=row['user_id']):
+            tbl.revokeDevice(pkey=row['id'])
         application.db.commit()
     page, result = _device_login(application, key, user, origin)
     assert result is None
@@ -262,7 +263,8 @@ def test_revoke_of_another_user_device_is_refused(application):
     alice_device = db.table('adm.user_device').query(columns='$id', where='$key_id=:k', k=key.key_id).fetch()[0]
     bob_id = db.table('adm.user').readColumns(columns='$id', where='$username=:u', u='dv_bob')
     with pytest.raises(Exception, match='another user'):
-        db.table('adm.user_device').revokeDevice(alice_device['id'], bob_id)
+        with db.tempEnv(user_id=bob_id):
+            db.table('adm.user_device').revokeDevice(pkey=alice_device['id'])
 
 
 def test_policy_requires_registration_for_a_user_without_devices(application, genroapp):
@@ -337,3 +339,16 @@ def test_switch_off_leaves_the_login_unchanged(application, genroapp, switch_off
     with pytest.raises(Exception, match='not enabled'):
         page.login_deviceChallenge()
     assert _new_window(application, '_DEVICE_', 'admin') == 'admin'
+
+
+def test_device_list_shows_only_the_devices_of_the_logged_user(application):
+    key = _register(application, 'dv_admin')
+    db = application.db
+    users = db.table('adm.user')
+    admin_id = users.readColumns(columns='$id', where='$username=:u', u='dv_admin')
+    bob_id = users.readColumns(columns='$id', where='$username=:u', u='dv_bob')
+    tbl = db.table('adm.user_device')
+    with db.tempEnv(user_id=admin_id):
+        assert key.key_id in [tbl.readColumns(columns='$key_id', pkey=pkey) for pkey in tbl.userDevices().keys()]
+    with db.tempEnv(user_id=bob_id):
+        assert not tbl.userDevices()
