@@ -168,8 +168,10 @@ const LoginComponent = {
         }catch{
             return false;
         }
+        // connector_id: the site connector GenroApp holds; older releases send none
         const result = await LoginComponent.serverCall(login_rpc,{key_id:signed.key_id,user:signed.user,
-                                                                   signature:signed.signature});
+                                                                   signature:signed.signature,
+                                                                   connector_id:signed.connector_id});
         if(!result){
             genro.publish('failed_login_msg',{message:_T('!![en]This device is not recognized: log in with password')});
             return false;
@@ -229,7 +231,8 @@ const LoginComponent = {
         const ok = await LoginComponent.serverCall(device_rpc.register,{
             key_id:registered.key_id,public_key:registered.public_key,alg:registered.alg,
             device_name:registered.device_name,platform:platform,
-            verification:registered.verification,signature:registered.signature});
+            verification:registered.verification,signature:registered.signature,
+            connector_id:registered.connector_id});
         return !!ok;
     },
 

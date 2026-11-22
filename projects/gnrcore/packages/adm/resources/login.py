@@ -429,8 +429,9 @@ class LoginComponent(BaseComponent):
         return challenge['challenge']
 
     @public_method(sessionless=True)
-    def login_deviceLogin(self,key_id=None,user=None,signature=None):
-        """Check the challenge signed by GenroApp: the user it names is the one of this login."""
+    def login_deviceLogin(self,key_id=None,user=None,signature=None,connector_id=None):
+        """Check the challenge signed by GenroApp: the user it names is the one of this login.
+        ``connector_id`` is the site connector GenroApp holds: a revoked one is refused."""
         self.login_checkGenroappDevice()
         self.login_setDevice(None)
         challenge = self.login_popChallenge()
@@ -438,9 +439,9 @@ class LoginComponent(BaseComponent):
             return None
         device_tbl = self.db.table('adm.user_device')
         device = device_tbl.verifyLogin(origin=self.login_deviceOrigin(),user=user,challenge=challenge,
-                                        key_id=key_id,signature=signature)
+                                        key_id=key_id,signature=signature,connector_id=connector_id)
         if not device:
-            logger.warning("Device login refused for user %s, key %s", user, key_id)
+            logger.warning("Device login refused for user %s, key %s, connector %s", user, key_id, connector_id)
             return None
         self.db.commit()
         self.login_setDevice(user)
@@ -448,7 +449,7 @@ class LoginComponent(BaseComponent):
 
     @public_method(sessionless=True)
     def login_deviceRegister(self,key_id=None,public_key=None,alg=None,device_name=None,platform=None,
-                             verification=None,signature=None):
+                             verification=None,signature=None,connector_id=None):
         """Register the computer of the user this page checked, password and OTP included."""
         self.login_checkGenroappDevice()
         page_store = self.pageStore()
@@ -463,9 +464,10 @@ class LoginComponent(BaseComponent):
         record = self.db.table('adm.user_device').registerDevice(
                     user_id=checked_rootenv['user_id'],user=user,origin=self.login_deviceOrigin(),
                     challenge=challenge,key_id=key_id,public_key=public_key,alg=alg,
-                    device_name=device_name,platform=platform,verification=verification,signature=signature)
+                    device_name=device_name,platform=platform,verification=verification,signature=signature,
+                    connector_id=connector_id)
         if not record:
-            logger.warning("Device registration refused for user %s, key %s", user, key_id)
+            logger.warning("Device registration refused for user %s, key %s, connector %s", user, key_id, connector_id)
             return None
         self.db.commit()
         self.login_setDevice(user)

@@ -1,4 +1,5 @@
 from gnr.web.gnrbaseclasses import BaseComponent
+from gnr.web.gnrgenroapp import connector_config
 
 info = {
     "code":'genroapp',
@@ -12,7 +13,7 @@ PLATFORMS = (('mac', '!![en]Download for macOS'), ('windows', '!![en]Download fo
 def is_enabled(page):
     platform = page.connection.user_device.split(':')[0]
     return bool(page.site.get_genroapp_download_url(platform)
-                or page.site.get_genroapp_connector_path())
+                or connector_config(page.application))
 
 class Formlet(BaseComponent):
     def flt_main(self, pane):
@@ -28,6 +29,10 @@ class Formlet(BaseComponent):
             if download_url:
                 buttons.button(label, action="window.open(url,'_blank');", url=download_url,
                                margin_right='10px')
+        if connector_config(self.application):
+            # the personal connector: opened with GenroApp it adds this site
+            buttons.button('!![en]Download the site connector', action="window.open(url,'_blank');",
+                           url=f'{self.site.home_uri}_tools/connector', margin_right='10px')
         if self.application.experimentalFlag('login', 'genroapp_device'):
             self.genroapp_devices(box)
 
