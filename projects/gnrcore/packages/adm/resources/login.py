@@ -11,6 +11,7 @@ from gnr.core.gnrdecorator import customizable
 from gnr.core.gnrdecorator import public_method
 from gnr.core.gnrbag import Bag
 from gnr.app import pkglog as logger
+from gnr.core.gnrlang import GnrException
 from gnr.app.gnrapp import GnrRestrictedAccessException
 from gnr.web.gnrwebpage import BaseComponent
 from gnr.web.gnrwebstruct import struct_method
@@ -97,10 +98,14 @@ class LoginComponent(BaseComponent):
         rpcmethod = self.login_newWindow
         start = 0
         if doLogin:
-            start = 3
+            start = 4
             tbuser = fb.textbox(value='^_login.user',lbl='!!Username',
                                 nodeId='tb_login_user',autocomplete='username',disabled=self.external_verified_user,
+                                hidden='^_login.device_user',
                                 validate_onAccept="""genro.publish('onUserEntered',{username:value})""")
+            # the user named by the GenroApp signature: fixed, only the password is typed
+            fb.div('^_login.device_user',lbl='!!Username',nodeId='tb_login_device_user',
+                   hidden='^_login.device_user?=!#v')
             tbpwd = fb.PasswordTextBox(value='^_login.password',lbl='!!Password',hidden=self.external_verified_user,
                                     nodeId='tb_login_pwd',autocomplete='current-password')
             fb.filteringSelect(value='^_login.group_code',storepath='gnr.avatar.login_groups',
@@ -150,12 +155,19 @@ class LoginComponent(BaseComponent):
                         kwargs.serverTimeDelta = genro.serverTimeDelta;
                         this._explicitCheck = !!(_node && _node.label=='checkAvatar');
                         """,
-                        _if='user&&password',
+                        device_user='=_login.device_user',
+                        _if='user&&(password||device_user==user)',
                         _fb = fb,
                         _error_msg=self.login_error_msg,
                         _onResult="""LoginComponent.onCheckAvatar(kwargs._fb,result,kwargs._error_msg,this._explicitCheck)""",
                         sync=True,_POST=True,
                         _userChanges=True)
+            if self.login_genroappDevice():
+                pane.dataController("LoginComponent.deviceLogin(fb,dlg,challenge_rpc,login_rpc);",_onBuilt=True,
+                                    fb=fb,dlg=dlg.js_widget,
+                                    challenge_rpc=self.login_deviceChallenge,login_rpc=self.login_deviceLogin)
+                dlg.dataController("LoginComponent.hideLoginDialog(dlg,false);",dlg=dlg.js_widget,
+                                   subscribe_failed_login_msg=True)
             rpcmethod = self.login_doLogin    
         else:
             fb.dataController("""FIRE do_login;""",_fired='^do_login_check')
@@ -224,8 +236,11 @@ class LoginComponent(BaseComponent):
                     dlg_otp=self.login_otpDialog(pane,dlg).js_widget,subscribe_getOtpDialog=True)
 
         pane.dataController("""
-            LoginComponent.confirmAvatar(fb,rpcmethod,dlg,doLogin,error_msg,standAlonePage)
+            LoginComponent.confirmAvatar(fb,rpcmethod,dlg,doLogin,error_msg,standAlonePage,
+                                         {challenge:challenge_rpc,register:register_rpc})
         """,fb=fb,
+            challenge_rpc=self.login_deviceChallenge,
+            register_rpc=self.login_deviceRegister,
             _fired='^do_login',
             subscribe_confirmNewWindow=True,
             rpcmethod=rpcmethod,
@@ -247,6 +262,11 @@ class LoginComponent(BaseComponent):
         kwargs.pop('authenticate',None)
         kwargs.pop('guestName',None)
         page_store = self.pageStore()
+        device = self.login_deviceChecked(login['user'])
+        if not device and page_store.getItem('login_device_required'):
+            return {'error':'!![en]This user must log in with GenroApp'}
+        if device and self.db.table('adm.user_device').loginMode() == 'signature':
+            kwargs['authenticate'] = False
         derived = page_store.getItem('login_rootenv_derived') or Bag()
         checked_rootenv = page_store.getItem('login_checked_rootenv') or Bag()
         sent_rootenv = rootenv
@@ -260,6 +280,11 @@ class LoginComponent(BaseComponent):
         self.doLogin(login=login,rootenv=rootenv,**kwargs)
         if login['error']:
             return dict(error=login['error'])
+        if self.login_genroappDevice():
+            # after doLogin: the onAuthenticating hooks may rewrite user_local_tags,
+            # a password login included
+            rootenv['user_local_tags'] = self.db.table('adm.user_device').connectionTags(
+                                                rootenv['user_local_tags'], device=bool(device))
         rootenv['user'] = self.avatar.user
         rootenv['user_id'] = self.avatar.user_id
         rootenv['user_group_code'] = getattr(self.avatar,'group_code',None)
@@ -269,6 +294,7 @@ class LoginComponent(BaseComponent):
         self.login_enforceWorkdate(rootenv)
         rootenv['language'] = rootenv['language'] or self.language
         self.login_setChecked(None)
+        self.login_setDevice(None)
         self.connectionStore().setItem('defaultRootenv',rootenv) #no need to be locked because it's just one set
         return self.login_newWindow(rootenv=rootenv)
 
@@ -298,8 +324,14 @@ class LoginComponent(BaseComponent):
         with self.pageStore() as ps:
             ps.setItem('confirm_user_id',None)
             ps.setItem('waiting2fa',None)
+            ps.setItem('login_device_required',None)
+        device_tbl = self.db.table('adm.user_device')
+        device = self.login_deviceChecked(user)
+        # a device signature of this page names the user: in mode signature it replaces the password
+        authenticate = not (device and device_tbl.loginMode() == 'signature')
         try:
-            avatar = self.application.getAvatar(user, password=password,group_code=group_code,authenticate=True)
+            avatar = self.application.getAvatar(user, password=password,group_code=group_code,
+                                                authenticate=authenticate)
             if not avatar:
                 logger.error("Login failed for %s", user)
                 return result
@@ -330,6 +362,15 @@ class LoginComponent(BaseComponent):
         self.login_setChecked(user,group_code,default_group_code=getattr(avatar,'group_code',None),
                               rootenv=checked_rootenv)
         result['avatar.login_groups'] = self.login_selectableGroups(avatar,result['rootenv.all_groups'])
+        if not device and self.login_genroappDevice():
+            registration = self.login_deviceRegistration(avatar)
+            if registration == 'refused':
+                self.login_setChecked(None)
+                return Bag(login_error_msg='!![en]Log in with GenroApp from your registered computer')
+            result['avatar.device_registration'] = registration
+            if registration == 'required':
+                with self.pageStore() as ps:
+                    ps.setItem('login_device_required',True)
         if self.login_require2fa(avatar):
             result['waiting2fa'] = avatar.user_id
             with self.pageStore() as ps:
@@ -340,6 +381,96 @@ class LoginComponent(BaseComponent):
         logger.info("User %s logged in", user)
         return result
     
+    def login_genroappDevice(self):
+        """The GenroApp device login is on: ``<experimental><login genroapp_device="true"/></experimental>``."""
+        return self.application.experimentalFlag('login','genroapp_device')
+
+    def login_checkGenroappDevice(self):
+        if not self.login_genroappDevice():
+            raise GnrException('GenroApp device login is not enabled')
+
+    def login_deviceRegistration(self,avatar):
+        """What a password login asks about this computer: ``offer`` its registration,
+        ``required`` (a user who must use GenroApp and has no device yet) or ``refused``
+        (a user who must use GenroApp and already has a device)."""
+        device_tbl = self.db.table('adm.user_device')
+        if not device_tbl.deviceRequired(avatar.user_tags):
+            return 'offer'
+        if device_tbl.query(where='$user_id=:user_id AND $revoked IS NOT TRUE', user_id=avatar.user_id).count():
+            return 'refused'
+        return 'required'
+
+    def login_deviceOrigin(self):
+        return self.request.host_url.rstrip('/')
+
+    def login_setDevice(self,user):
+        with self.pageStore() as ps:
+            ps.setItem('login_device',Bag(dict(user=user)) if user else None)
+
+    def login_deviceChecked(self,user):
+        """The device check of this page when it named ``user``."""
+        device = self.pageStore().getItem('login_device')
+        if device and user and device['user'] == user:
+            return device
+
+    def login_popChallenge(self):
+        with self.pageStore() as ps:
+            challenge = ps.getItem('login_device_challenge')
+            ps.setItem('login_device_challenge',None)
+        return self.db.table('adm.user_device').validChallenge(challenge)
+
+    @public_method(sessionless=True)
+    def login_deviceChallenge(self):
+        """A single use challenge for GenroApp to sign, kept in the page store."""
+        self.login_checkGenroappDevice()
+        challenge = self.db.table('adm.user_device').newChallenge()
+        with self.pageStore() as ps:
+            ps.setItem('login_device_challenge',challenge)
+        return challenge['challenge']
+
+    @public_method(sessionless=True)
+    def login_deviceLogin(self,key_id=None,user=None,signature=None):
+        """Check the challenge signed by GenroApp: the user it names is the one of this login."""
+        self.login_checkGenroappDevice()
+        self.login_setDevice(None)
+        challenge = self.login_popChallenge()
+        if not challenge:
+            return None
+        device_tbl = self.db.table('adm.user_device')
+        device = device_tbl.verifyLogin(origin=self.login_deviceOrigin(),user=user,challenge=challenge,
+                                        key_id=key_id,signature=signature)
+        if not device:
+            logger.warning("Device login refused for user %s, key %s", user, key_id)
+            return None
+        self.db.commit()
+        self.login_setDevice(user)
+        return Bag(dict(user=user,mode=device_tbl.loginMode()))
+
+    @public_method(sessionless=True)
+    def login_deviceRegister(self,key_id=None,public_key=None,alg=None,device_name=None,platform=None,
+                             verification=None,signature=None):
+        """Register the computer of the user this page checked, password and OTP included."""
+        self.login_checkGenroappDevice()
+        page_store = self.pageStore()
+        checked = page_store.getItem('login_checked')
+        checked_rootenv = page_store.getItem('login_checked_rootenv')
+        if not checked or page_store.getItem('waiting2fa'):
+            return None
+        challenge = self.login_popChallenge()
+        if not challenge:
+            return None
+        user = checked['user']
+        record = self.db.table('adm.user_device').registerDevice(
+                    user_id=checked_rootenv['user_id'],user=user,origin=self.login_deviceOrigin(),
+                    challenge=challenge,key_id=key_id,public_key=public_key,alg=alg,
+                    device_name=device_name,platform=platform,verification=verification,signature=signature)
+        if not record:
+            logger.warning("Device registration refused for user %s, key %s", user, key_id)
+            return None
+        self.db.commit()
+        self.login_setDevice(user)
+        return True
+
     def login_setChecked(self,user,group_code=None,default_group_code=None,rootenv=None):
         checked = Bag(dict(user=user,group_code=group_code or None,
                            default_group_code=default_group_code or None)) if user else None
@@ -656,9 +787,18 @@ class LoginComponent(BaseComponent):
     
     @public_method
     def login_newWindow(self, rootenv=None, **kwargs): 
+        genroapp_device = self.login_genroappDevice()
+        if genroapp_device:
+            # the connection tags are the server's: the onAuthenticating hooks start from them,
+            # never from the ones the client sends for a new window
+            connection_tags = Bag(self.connectionStore().getItem('defaultRootenv'))['user_local_tags']
+            rootenv['user_local_tags'] = connection_tags
         errdict = self.callPackageHooks('onAuthenticating',self.avatar,rootenv=rootenv)
         result = self.avatar.as_dict()
         err = [err for err in errdict.values() if err is not None]
+        if genroapp_device:
+            rootenv['user_local_tags'] = self.db.table('adm.user_device').restoreConnectionTags(
+                                                rootenv['user_local_tags'], connection_tags)
         with self.pageStore() as ps:
             rootenv['new_window_context'] = True
             self.login_enforceWorkdate(rootenv)

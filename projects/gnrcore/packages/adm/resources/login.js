@@ -72,7 +72,200 @@ const LoginComponent = {
         return visible;
     },
 
-    confirmAvatar:(sourceNode,rpcmethod,dlg,doLogin,error_msg,standAlonePage)=>{
+    // GenroApp gives the page window.__TAURI__ (or to its top window): elsewhere none of
+    // the device calls below runs
+    tauri:()=>{
+        if(window.__TAURI__){
+            return window.__TAURI__;
+        }
+        try{
+            return window.top.__TAURI__;
+        }catch(e){
+            return null;
+        }
+    },
+
+    serverCall:(method,kwargs)=>{
+        return new Promise(resolve=>genro.serverCall(method,kwargs || {},resolve,null,'POST'));
+    },
+
+    // the name the operating system gives to the biometric reading
+    biometryName:(platform)=>{
+        return platform=='windows'? 'Windows Hello' : 'Touch ID';
+    },
+
+    // the login dialog stays hidden while GenroApp asks the biometric reading
+    hideLoginDialog:(dlg,hidden)=>{
+        if(hidden){
+            genro.dom.addClass(dlg.domNode,'genroapp_signing');
+        }else{
+            genro.dom.removeClass(dlg.domNode,'genroapp_signing');
+        }
+    },
+
+    // a full-window screen with the logo and the title of the login dialog: a title, an
+    // optional line, one button and an optional link
+    fullScreen:(dlg,{title,line,button,link})=>{
+        const make = (tag,cls,text,parent)=>{
+            const node = document.createElement(tag);
+            node.className = cls;
+            if(text){
+                node.textContent = text;
+            }
+            parent.appendChild(node);
+            return node;
+        };
+        const screen = document.createElement('div');
+        screen.className = 'genroapp_lockscreen';
+        const box = make('div','genroapp_lockscreen_box',null,screen);
+        const logo = dlg.domNode.querySelector('.login_logo');
+        if(logo){
+            const logo_copy = logo.cloneNode(true);
+            logo_copy.className = 'genroapp_lockscreen_logo';
+            box.appendChild(logo_copy);
+        }
+        const site_title = dlg.domNode.querySelector('.index_logintitle');
+        make('div','genroapp_lockscreen_site',site_title? site_title.textContent : document.title,box);
+        make('div','genroapp_lockscreen_title',title,box);
+        if(line){
+            make('div','genroapp_lockscreen_line',line,box);
+        }
+        const button_node = make('button','genroapp_lockscreen_unlock',button,box);
+        let link_node = null;
+        if(link){
+            link_node = make('a','genroapp_lockscreen_password',link,box);
+            link_node.href = '#';
+        }
+        document.body.appendChild(screen);
+        button_node.focus();
+        return {button:button_node,link:link_node,close:()=>screen.remove()};
+    },
+
+    // after a logout the biometric reading is not asked at once: the lock screen lets the
+    // user choose
+    lockScreen:(dlg,platform,onUnlock,onPassword)=>{
+        const screen = LoginComponent.fullScreen(dlg,{
+            title:_T('!![en]Session closed'),
+            button:_T('!![en]Unlock with {biometry}').replace('{biometry}',LoginComponent.biometryName(platform)),
+            link:_T('!![en]Log in with password')
+        });
+        screen.button.onclick = ()=>onUnlock(screen.close);
+        screen.link.onclick = (e)=>{
+            e.preventDefault();
+            screen.close();
+            onPassword();
+        };
+    },
+
+    // asks the biometric reading and logs in with the signature; false when the reading is
+    // cancelled or fails, or the device is not recognized
+    deviceSign:async (sourceNode,dlg,origin,challenge_rpc,login_rpc)=>{
+        const tauri = LoginComponent.tauri();
+        let signed;
+        try{
+            const challenge = await LoginComponent.serverCall(challenge_rpc);
+            signed = await tauri.core.invoke('device_sign',{origin,challenge});
+        }catch{
+            return false;
+        }
+        const result = await LoginComponent.serverCall(login_rpc,{key_id:signed.key_id,user:signed.user,
+                                                                   signature:signed.signature});
+        if(!result){
+            genro.publish('failed_login_msg',{message:_T('!![en]This device is not recognized: log in with password')});
+            return false;
+        }
+        sourceNode.setRelativeData('_login.device_user',result.getItem('user'));
+        sourceNode.setRelativeData('_login.user',result.getItem('user'));
+        if(result.getItem('mode')=='signature'){
+            // the dialog stays hidden: a failed login shows it again (failed_login_msg)
+            genro.fireEvent('do_login_check');
+        }else{
+            LoginComponent.hideLoginDialog(dlg,false);
+        }
+        return true;
+    },
+
+    deviceLogin:async (sourceNode,dlg,challenge_rpc,login_rpc)=>{
+        const tauri = LoginComponent.tauri();
+        if(!tauri){
+            return;
+        }
+        const after_logout = genro.loggedOut(true);
+        const origin = window.location.origin;
+        const status = await tauri.core.invoke('device_status',{origin});
+        if(!status.registered){
+            return;
+        }
+        LoginComponent.hideLoginDialog(dlg,true);
+        const sign = ()=>LoginComponent.deviceSign(sourceNode,dlg,origin,challenge_rpc,login_rpc);
+        if(after_logout){
+            // the lock screen stays until the reading succeeds or the user picks the password
+            LoginComponent.lockScreen(dlg,status.platform,
+                                      async close=>{
+                                          if(await sign()){
+                                              close();
+                                          }
+                                      },
+                                      ()=>LoginComponent.hideLoginDialog(dlg,false));
+            return;
+        }
+        if(!await sign()){
+            LoginComponent.hideLoginDialog(dlg,false);
+        }
+    },
+
+    // registers this device: the key is created and its signature sent to the server;
+    // true when the server stored the key
+    registerDevice:async (origin,user,platform,device_rpc)=>{
+        const tauri = LoginComponent.tauri();
+        let registered;
+        try{
+            const challenge = await LoginComponent.serverCall(device_rpc.challenge);
+            registered = await tauri.core.invoke('device_register',{origin,user,challenge});
+        }catch{
+            // biometric reading cancelled or failed
+            return false;
+        }
+        const ok = await LoginComponent.serverCall(device_rpc.register,{
+            key_id:registered.key_id,public_key:registered.public_key,alg:registered.alg,
+            device_name:registered.device_name,platform:platform,
+            verification:registered.verification,signature:registered.signature});
+        return !!ok;
+    },
+
+    // null when the login may go on, else the message that stops it; inside GenroApp the
+    // registration of a device not yet registered is imposed by a full-window screen that
+    // stays until the registration succeeds
+    deviceRegistration:async (dlg,registration,user,device_rpc)=>{
+        const tauri = LoginComponent.tauri();
+        if(!tauri){
+            return registration=='required'? _T('!![en]This user must log in with GenroApp') : null;
+        }
+        const origin = window.location.origin;
+        const status = await tauri.core.invoke('device_status',{origin});
+        if(registration=='offer' && status.registered){
+            return null;
+        }
+        const biometry = LoginComponent.biometryName(status.platform);
+        LoginComponent.hideLoginDialog(dlg,true);
+        await new Promise(resolve=>{
+            const screen = LoginComponent.fullScreen(dlg,{
+                title:_T('!![en]Register this device'),
+                line:_T('!![en]Next time, unlock with {biometry}.').replace('{biometry}',biometry),
+                button:_T('!![en]Register with {biometry}').replace('{biometry}',biometry)
+            });
+            screen.button.onclick = async ()=>{
+                if(await LoginComponent.registerDevice(origin,user,status.platform,device_rpc)){
+                    screen.close();
+                    resolve();
+                }
+            };
+        });
+        LoginComponent.hideLoginDialog(dlg,false);
+        return null;
+    },
+
+    confirmAvatar:async (sourceNode,rpcmethod,dlg,doLogin,error_msg,standAlonePage,device_rpc)=>{
         var avatar = sourceNode.getRelativeData('gnr.avatar');
         var rootenv = sourceNode.getRelativeData('gnr.rootenv');
         var login = sourceNode.getRelativeData('_login');
@@ -97,6 +290,13 @@ const LoginComponent = {
         if(invalid_fields.length){
             invalid_fields[0].focus();
             //genro.publish('failed_login_msg',{'message':'Invalid data'});
+            return;
+        }
+        let registration = doLogin && avatar.getItem('device_registration');
+        let registration_error = registration &&
+                await LoginComponent.deviceRegistration(dlg,registration,login.getItem('user'),device_rpc);
+        if(registration_error){
+            genro.publish('failed_login_msg',{'message':registration_error});
             return;
         }
         dlg.hide();
