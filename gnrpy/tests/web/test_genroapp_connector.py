@@ -137,6 +137,12 @@ def _device_login(application, key, user, connector_id=None):
                                   connector_id=connector_id)
 
 
+def _expire(application, connector_id):
+    with application.db.table('adm.user_connector').recordToUpdate(where='$connector_id=:c', c=connector_id) as record:
+        record['expires'] = datetime.now(timezone.utc) - timedelta(days=1)
+    application.db.commit()
+
+
 def _device_connector(application, key):
     return application.db.table('adm.user_device').readColumns(columns='$connector_id',
                                                                where='$key_id=:k', k=key.key_id)
@@ -248,6 +254,18 @@ def test_a_new_user_over_max_users_is_refused_before_the_signature(application, 
     assert len(signer.calls) == 2
 
 
+def test_the_place_is_counted_under_a_table_lock(application, tag, signer, monkeypatch):
+    """Two requests never count the same free place: the table is locked before the
+    count and until the commit. sqlite has no table lock, so the order is what is checked."""
+    tbl = application.db.table('adm.user_connector')
+    steps = []
+    monkeypatch.setattr(tbl, 'lock', lambda: steps.append('lock'))
+    count = tbl.placeHolders
+    monkeypatch.setattr(tbl, 'placeHolders', lambda: steps.append('count') or count())
+    _connector(application, tag(max_users='1'), 'cn_alice')
+    assert steps == ['lock', 'count']
+
+
 def test_a_user_that_holds_a_place_renews_on_a_full_site(application, tag, signer):
     config = tag(max_users='1')
     first = connector_payload(_connector(application, config, 'cn_alice'))
@@ -282,10 +300,7 @@ def test_a_user_keeps_the_place_while_one_connector_is_not_revoked(application, 
 def test_an_expired_connector_frees_a_place(application, tag, signer):
     config = tag(max_users='1')
     connector_id = connector_payload(_connector(application, config, 'cn_alice'))['connector_id']
-    tbl = application.db.table('adm.user_connector')
-    with tbl.recordToUpdate(where='$connector_id=:c', c=connector_id) as record:
-        record['expires'] = datetime.now(timezone.utc) - timedelta(days=1)
-    application.db.commit()
+    _expire(application, connector_id)
     assert _connector(application, config, 'cn_bob')
 
 
@@ -334,13 +349,39 @@ def test_a_login_without_connector_id_is_accepted_and_keeps_the_stored_one(appli
     assert _device_connector(application, key) == connector_id
 
 
-@pytest.mark.parametrize('case', ['revoked', 'unknown', 'other_user'])
+@pytest.mark.parametrize('case', ['revoked', 'expired'])
+def test_a_login_without_connector_id_checks_the_stored_one(application, tag, signer, case):
+    """A device that logged in with a connector stays refused once that connector is
+    revoked or expired, also when GenroApp sends no ``connector_id``."""
+    connector_id = connector_payload(_connector(application, tag(), 'cn_alice'))['connector_id']
+    key, registered = _register(application, 'cn_alice', connector_id=connector_id)
+    if case == 'revoked':
+        _revoke(application, connector_id)
+    else:
+        _expire(application, connector_id)
+    assert _device_login(application, key, 'cn_alice') is None
+
+
+def test_a_new_connector_lets_a_refused_device_log_in_again(application, tag, signer):
+    config = tag()
+    first = connector_payload(_connector(application, config, 'cn_alice'))['connector_id']
+    key, registered = _register(application, 'cn_alice', connector_id=first)
+    _revoke(application, first)
+    second = connector_payload(_connector(application, config, 'cn_alice'))['connector_id']
+    assert _device_login(application, key, 'cn_alice', connector_id=second)['user'] == 'cn_alice'
+    assert _device_connector(application, key) == second
+    assert _device_login(application, key, 'cn_alice')['user'] == 'cn_alice'
+
+
+@pytest.mark.parametrize('case', ['revoked', 'expired', 'unknown', 'other_user'])
 def test_the_device_login_refuses_a_connector_that_is_not_valid(application, tag, signer, case):
     config = tag()
     key, registered = _register(application, 'cn_alice')
     connector_id = connector_payload(_connector(application, config, 'cn_alice'))['connector_id']
     if case == 'revoked':
         _revoke(application, connector_id)
+    elif case == 'expired':
+        _expire(application, connector_id)
     elif case == 'unknown':
         connector_id = '000000000000-20260101T000000Z'
     else:
@@ -349,9 +390,13 @@ def test_the_device_login_refuses_a_connector_that_is_not_valid(application, tag
     assert _device_connector(application, key) is None
 
 
-def test_the_registration_refuses_a_revoked_connector(application, tag, signer):
+@pytest.mark.parametrize('case', ['revoked', 'expired'])
+def test_the_registration_refuses_a_connector_that_is_not_valid(application, tag, signer, case):
     connector_id = connector_payload(_connector(application, tag(), 'cn_alice'))['connector_id']
-    _revoke(application, connector_id)
+    if case == 'revoked':
+        _revoke(application, connector_id)
+    else:
+        _expire(application, connector_id)
     key, registered = _register(application, 'cn_alice', connector_id=connector_id)
     assert registered is None
     assert application.db.table('adm.user_device').query(where='$key_id=:k', k=key.key_id).count() == 0

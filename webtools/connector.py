@@ -19,7 +19,10 @@ class Connector(BaseWebtool):
     - 404: the site has no ``<genroapp>`` tag;
     - 401: no logged user;
     - 409: the user holds no connector and the site already has ``max_users`` users;
-    - 502: the signing service gave no signed connector."""
+    - 502: the signing service gave no signed connector.
+
+    The connector names the public URL of the site, with its path and, on a multidomain
+    site, the current domain. The answer is personal: it is never cached."""
 
     content_type = 'application/vnd.softwell.connection+json'
 
@@ -37,9 +40,10 @@ class Connector(BaseWebtool):
         try:
             connector = site.db.table('adm.user_connector').newConnector(
                 config, user_id=connection['user_id'], user=connection['user'],
-                url=site.currentRequest.host_url)
+                url=site.currentRequest.host_url.rstrip('/') + site.home_uri)
         except ConnectorError as e:
             return self.refusal(str(e), e.status)
         site.db.commit()
         self.download_name = f'{site.site_name}.site'
+        self.headers = [('Cache-Control', 'private, no-store')]
         return json.dumps(connector)

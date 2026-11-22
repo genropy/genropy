@@ -139,16 +139,31 @@ class TestGenroAppDownload(BaseGnrDaemonTest):
         headers = dict(response['headers'])
         assert headers['Content-Type'].startswith(CONNECTOR_MIME)
         assert headers['Content-Disposition'] == f'attachment; filename={self.site.site_name}.site'
+        assert headers['Cache-Control'] == 'private, no-store'
         connector = json.loads(response['data'])
         assert set(connector) == {'payload', 'signature'}
         payload = connector_payload(connector)
         assert payload['user'] == USER and payload['capabilities'] == ['signature']
         call = signer.calls[0]
         assert call['headers'] == {'Authorization': 'Bearer tag-token'}
-        assert call['body']['url'] == payload['url'] and payload['url'].startswith('http')
+        assert call['body']['url'] == payload['url'] == 'http://127.0.0.1/'
         row = self.site.db.table('adm.user_connector').query(
             columns='$connector_id', where='@user_id.username=:u', u=USER).fetch()[0]
         assert row['connector_id'] == payload['connector_id']
+
+    def test_the_connector_names_the_site_with_its_path(self, tag, signer, logged, monkeypatch):
+        """A site mounted under a path: the connector opens that path, not the root of the host."""
+        tag()
+        monkeypatch.setattr(self.site, 'default_uri', '/gestionale/')
+        response = self.client.get('/_tools/connector', headers=logged)
+        assert response['status'].startswith('200 ')
+        assert signer.calls[0]['body']['url'] == 'http://127.0.0.1/gestionale/'
+
+    def test_two_downloads_do_not_share_the_cache_header_list(self, tag, signer, logged):
+        tag()
+        for _ in range(2):
+            headers = self.client.get('/_tools/connector', headers=logged)['headers']
+            assert [value for name, value in headers if name == 'Cache-Control'] == ['private, no-store']
 
     def test_webtool_answers_409_to_a_new_user_on_a_full_site(self, tag, signer, logged):
         tag(max_users='0')

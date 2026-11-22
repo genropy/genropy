@@ -40,6 +40,8 @@ class Table(object):
         here. A user with no place on a full site is refused before the signing service
         is called."""
         if config['max_users'] is not None:
+            # until the commit: two requests never count the same free place
+            self.lock()
             holders = self.placeHolders()
             if user_id not in holders and len(holders) >= config['max_users']:
                 raise gnrgenroapp.ConnectorUsersExceeded(
@@ -50,14 +52,16 @@ class Table(object):
         return connector
 
     def validConnector(self, connector_id=None, user=None):
-        """True when ``connector_id`` is a connector of ``user`` that is not revoked."""
-        return self.query(where='$connector_id=:connector_id AND @user_id.username=:user AND $revoked IS NOT TRUE',
-                          connector_id=connector_id, user=user).count() > 0
+        """True when ``connector_id`` is a connector of ``user``, neither revoked nor expired:
+        the same condition that makes its user hold a place."""
+        return self.query(where="""$connector_id=:connector_id AND @user_id.username=:user
+                                   AND $revoked IS NOT TRUE AND $expires>:now""",
+                          connector_id=connector_id, user=user, now=datetime.now(timezone.utc)).count() > 0
 
     @public_method(tags=REVOKE_TAGS)
     def revokeConnector(self, pkey=None):
         """Revoke the connector ``pkey``: the device login refuses it and, with no other
-        connector, its user frees a place. Only for an administrator."""
+        valid connector, its user frees a place. Only for an administrator."""
         application = self.db.application
         if not application.checkResourcePermission(REVOKE_TAGS, self.db.currentEnv.get('userTags')):
             raise self.exception('business_logic', msg='!![en]Only an administrator revokes a GenroApp connector')

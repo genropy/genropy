@@ -106,8 +106,8 @@ class Table(object):
         return record
 
     def connectorAccepted(self, connector_id, user):
-        """False when GenroApp sent a ``connector_id`` that is not a connector of ``user``
-        or is revoked. A GenroApp that sends none is accepted."""
+        """False when ``connector_id`` is not a connector of ``user``, is revoked or is
+        expired. No ``connector_id`` is accepted: the GenroApp releases that send none."""
         if not connector_id:
             return True
         return self.db.table('adm.user_connector').validConnector(connector_id=connector_id, user=user)
@@ -115,9 +115,11 @@ class Table(object):
     def verifyLogin(self, origin=None, user=None, challenge=None, key_id=None, signature=None,
                     connector_id=None):
         """The device row (id) of the key ``key_id`` of ``user`` when it signed ``challenge``;
-        None for an unknown or revoked key, a wrong signature or a refused ``connector_id``,
-        which is otherwise stored on the device."""
-        rows = self.query(columns='$id,$public_key',
+        None for an unknown or revoked key, a wrong signature or a refused connector.
+        The connector is ``connector_id``, which is then stored on the device, or without
+        it the one already stored: a revoked connector stays refused when GenroApp
+        sends none."""
+        rows = self.query(columns='$id,$public_key,$connector_id',
                           where='$key_id=:key_id AND @user_id.username=:user AND $revoked IS NOT TRUE',
                           key_id=key_id, user=user).fetch()
         if not rows:
@@ -125,7 +127,7 @@ class Table(object):
         row = rows[0]
         if not self.verifySignature(row['public_key'], signature, self.signedBytes(origin, user, challenge)):
             return None
-        if not self.connectorAccepted(connector_id, user):
+        if not self.connectorAccepted(connector_id or row['connector_id'], user):
             return None
         with self.recordToUpdate(row['id']) as record:
             record['last_used_ts'] = datetime.now(timezone.utc)
