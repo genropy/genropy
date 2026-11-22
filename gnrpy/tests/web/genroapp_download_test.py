@@ -1,7 +1,7 @@
 """GenroApp download from the user settings.
 
 The site exposes the GenroApp link for each desktop platform and the signed
-RunDoc placed in ``site:genroapp/connection.rundoc``; the ``rundoc`` webtool
+site connector placed in ``site:genroapp/connector.site``; the ``connector`` webtool
 serves that file as an attachment; the ``apps`` formlet group shows up only
 when at least one of the two is available.
 """
@@ -20,8 +20,8 @@ from webcommon import BaseGnrDaemonTest
 FORMLET_DIR = (pathlib.Path(__file__).parents[3] / 'projects' / 'gnrcore' / 'packages'
                / 'adm' / 'resources' / 'tables' / 'user_setting' / 'formlet' / 'apps')
 
-RUNDOC = json.dumps({'payload': 'cGF5bG9hZA==', 'signature': 'c2lnbmF0dXJl'}).encode()
-RUNDOC_MIME = 'application/vnd.softwell.connection+json'
+CONNECTOR = json.dumps({'payload': 'cGF5bG9hZA==', 'signature': 'c2lnbmF0dXJl'}).encode()
+CONNECTOR_MIME = 'application/vnd.softwell.connection+json'
 
 
 def _load(name):
@@ -45,10 +45,10 @@ class _PageStub(object):
 class TestGenroAppDownload(BaseGnrDaemonTest):
 
     @pytest.fixture
-    def rundoc(self):
-        path = self.site.getStaticPath(gws.GENROAPP_RUNDOC, autocreate=-1)
+    def connector(self):
+        path = self.site.getStaticPath(gws.GENROAPP_CONNECTOR, autocreate=-1)
         with open(path, 'wb') as f:
-            f.write(RUNDOC)
+            f.write(CONNECTOR)
         yield path
         os.remove(path)
 
@@ -69,23 +69,23 @@ class TestGenroAppDownload(BaseGnrDaemonTest):
                             lambda site, mobile_os=None: {'download_url': 'https://example.org/app.dmg'})
         assert self.site.get_genroapp_download_url('mac') == 'https://example.org/app.dmg'
 
-    def test_rundoc_path_is_none_without_the_file(self):
-        assert not os.path.exists(self.site.getStaticPath(gws.GENROAPP_RUNDOC))
-        assert self.site.get_genroapp_rundoc_path() is None
+    def test_connector_path_is_none_without_the_file(self):
+        assert not os.path.exists(self.site.getStaticPath(gws.GENROAPP_CONNECTOR))
+        assert self.site.get_genroapp_connector_path() is None
 
-    def test_rundoc_path_points_to_the_file(self, rundoc):
-        assert self.site.get_genroapp_rundoc_path() == rundoc
+    def test_connector_path_points_to_the_file(self, connector):
+        assert self.site.get_genroapp_connector_path() == connector
 
-    def test_webtool_serves_the_rundoc_as_attachment(self, rundoc):
-        response = self.client.get('/_tools/rundoc')
+    def test_webtool_serves_the_connector_as_attachment(self, connector):
+        response = self.client.get('/_tools/connector')
         assert response['status'].startswith('200 ')
         headers = dict(response['headers'])
-        assert headers['Content-Type'].startswith(RUNDOC_MIME)
-        assert headers['Content-Disposition'] == f'attachment; filename={self.site.site_name}.rundoc'
-        assert response['data'] == RUNDOC
+        assert headers['Content-Type'].startswith(CONNECTOR_MIME)
+        assert headers['Content-Disposition'] == f'attachment; filename={self.site.site_name}.site'
+        assert response['data'] == CONNECTOR
 
     def test_webtool_answers_404_without_the_file(self):
-        response = self.client.get('/_tools/rundoc')
+        response = self.client.get('/_tools/connector')
         assert response['status'].startswith('404 ')
         assert 'Content-Disposition' not in dict(response['headers'])
 
@@ -94,9 +94,9 @@ class TestGenroAppDownload(BaseGnrDaemonTest):
         assert _load(name).is_enabled(_PageStub(self.site, 'mac:desktop')) is True
 
     @pytest.mark.parametrize('name', ['__info__', 'genroapp'])
-    def test_formlet_hidden_without_app_and_rundoc(self, name, no_bundles):
+    def test_formlet_hidden_without_app_and_connector(self, name, no_bundles):
         assert _load(name).is_enabled(_PageStub(self.site, 'linux:desktop')) is False
 
     @pytest.mark.parametrize('name', ['__info__', 'genroapp'])
-    def test_formlet_enabled_by_rundoc_alone(self, name, no_bundles, rundoc):
+    def test_formlet_enabled_by_connector_alone(self, name, no_bundles, connector):
         assert _load(name).is_enabled(_PageStub(self.site, 'linux:desktop')) is True

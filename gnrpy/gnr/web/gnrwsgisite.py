@@ -64,7 +64,7 @@ IS_MOBILE = re.compile(r'iPhone|iPad|Android')
 GENROAPP_DOWNLOADS = {
     'mac': 'https://genroapp-downloads.fsn1.your-objectstorage.com/GenroApp.dmg',
 }
-GENROAPP_RUNDOC = 'site:genroapp/connection.rundoc'
+GENROAPP_CONNECTOR = 'site:genroapp/connector.site'
 
 STORAGE_TYPES = ['_storage']
 STATIC_HANDLER_TYPES = ['_site','_dojo','_gnr','_conn',
@@ -1264,10 +1264,10 @@ class GnrWsgiSite(object):
         return self.get_mobile_app_config(platform).get('download_url') \
             or GENROAPP_DOWNLOADS.get(platform)
 
-    def get_genroapp_rundoc_path(self):
-        """Return the path of the signed RunDoc that opens this site in GenroApp,
+    def get_genroapp_connector_path(self):
+        """Return the path of the signed site connector that opens this site in GenroApp,
         or ``None`` when the site has none."""
-        path = self.getStaticPath(GENROAPP_RUNDOC)
+        path = self.getStaticPath(GENROAPP_CONNECTOR)
         return path if os.path.isfile(path) else None
 
 
