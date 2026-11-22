@@ -3,9 +3,12 @@ import datetime
 import json
 from decimal import Decimal
 
+from gnr.app import pkglog as logger
 from gnr.core.gnrbag import Bag
 
 BATCH_LOCK = "hashtext('audit.batch')"
+QUEUE_COLUMNS = ('queue_id, ts, txid, tbl, record_pkey, op, version, username, '
+                 'caller, sqlcommand, data::text AS data, old_full::text AS old_full')
 
 
 class Table(object):
@@ -28,8 +31,38 @@ class Table(object):
         tbl.index('tbl,record_pkey')
         tbl.sqlCode(text='ALTER TABLE {sqlfullname} ALTER COLUMN data SET COMPRESSION lz4;')
 
+    def eventsFromTransaction(self):
+        """Turn into events the queue rows of the records changed by the current transaction.
+
+        Deferred to commit by the ORM updates and deletes on a table with
+        ``audit='external'``: the events are written in the transaction of
+        the write, and a failure fails its commit. All the queue rows of
+        those records are taken, in ``queue_id`` order: also the rows left
+        by earlier writes outside the ORM, which come first in the version
+        chain of the record. The return value of a deferred call is lost,
+        so every version gap is logged as a warning.
+
+        :returns: the events written with a version gap, as in ``batch``
+        """
+        queue = self.db.table('audit.queue').model.sqlfullname
+        rows = self.db.execute(f'DELETE FROM {queue} WHERE (tbl, record_pkey) IN '
+                               f'(SELECT tbl, record_pkey FROM {queue} WHERE txid = txid_current()) '
+                               f'RETURNING {QUEUE_COLUMNS}').fetchall()
+        gaps = []
+        for row in sorted(rows, key=lambda r: r['queue_id']):
+            gaps.extend(self.eventsFromQueueRow(dict(row)))
+        for gap in gaps:
+            logger.warning('Audit version gap: %(tbl)s %(record_pkey)s version %(version)s, '
+                           'expected %(expected_version)s', gap)
+        return gaps
+
     def batch(self, block_size=1000):
-        """Turn the rows of ``audit.queue`` into events.
+        """Turn the rows left in ``audit.queue`` into events.
+
+        The ORM writes turn their own queue rows into events at commit
+        (``eventsFromTransaction``); the rows left in the queue come from
+        writes outside the ORM: SQL run with ``db.execute`` or outside
+        GenroPy.
 
         One run at a time: a run that finds the advisory lock taken returns
         None. A run takes only the rows up to the ``max(queue_id)`` read at
@@ -52,8 +85,7 @@ class Table(object):
             sql = (f'DELETE FROM {queue} WHERE queue_id IN '
                    f'(SELECT queue_id FROM {queue} WHERE queue_id <= :max_queue_id '
                    'ORDER BY queue_id LIMIT :block_size) '
-                   'RETURNING queue_id, ts, txid, tbl, record_pkey, op, version, username, '
-                   'caller, sqlcommand, data::text AS data, old_full::text AS old_full')
+                   f'RETURNING {QUEUE_COLUMNS}')
             while max_queue_id is not None:
                 rows = db.execute(sql, dict(max_queue_id=max_queue_id,
                                             block_size=block_size)).fetchall()

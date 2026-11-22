@@ -7,7 +7,7 @@ class Table(object):
                         name_plural='!!Audit queue')
         tbl.column('queue_id', dtype='serial', name_long='!!Queue id')
         tbl.column('ts', dtype='DHZ', name_long='!!Timestamp')
-        tbl.column('txid', dtype='L', name_long='!!Transaction id')
+        tbl.column('txid', dtype='L', indexed=True, name_long='!!Transaction id')
         tbl.column('tbl', name_long='!!Table')
         tbl.column('record_pkey', name_long='!!Record pkey')
         tbl.column('op', size='1', name_long='!!Operation')
@@ -17,3 +17,4 @@ class Table(object):
         tbl.column('sqlcommand', name_long='!!Sql command')
         tbl.column('data', dtype='jsonb', name_long='!!Data')
         tbl.column('old_full', dtype='jsonb', name_long='!!Record before the first change')
+        tbl.index('tbl,record_pkey')
