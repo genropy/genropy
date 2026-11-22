@@ -46,7 +46,8 @@ class Modules(BaseWebtool):
         result = []
         for name in sorted(os.listdir(root)):
             module_folder = os.path.join(root, name)
-            if not os.path.isdir(module_folder):
+            # a linked module is skipped before listing it: it may be a folder the service cannot read
+            if os.path.realpath(module_folder) != module_folder or not os.path.isdir(module_folder):
                 continue
             for version in sorted(os.listdir(module_folder)):
                 manifest = os.path.join(module_folder, version, MANIFEST)

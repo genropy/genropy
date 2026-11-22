@@ -89,6 +89,23 @@ class TestGenroAppModules(BaseGnrDaemonTest):
         assert response['status'].startswith('200 ')
         assert json.loads(response['data']) == [DRAWER, SCALE]
 
+    @pytest.fixture
+    def unreadable_module(self, modules, tmp_path):
+        """The module ``locked`` links a folder that cannot be listed: listing it raises."""
+        locked = tmp_path / 'locked'
+        _write(str(locked / '1.0.0' / 'manifest.json'), json.dumps(OUTSIDE).encode())
+        os.symlink(locked, os.path.join(modules, 'locked'))
+        os.chmod(locked, 0)
+        yield modules
+        os.chmod(locked, 0o755)
+
+    def test_index_never_lists_a_linked_module(self, unreadable_module):
+        with pytest.raises(PermissionError):
+            os.listdir(os.path.join(unreadable_module, 'locked'))
+        response = self.client.get('/_tools/modules')
+        assert response['status'].startswith('200 ')
+        assert json.loads(response['data']) == [DRAWER, SCALE]
+
     def test_file_is_served_as_is(self, modules):
         response = self.client.get('/_tools/modules/scale/1.2.0/scale/__init__.py')
         assert response['status'].startswith('200 ')
