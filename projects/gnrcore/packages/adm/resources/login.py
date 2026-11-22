@@ -280,10 +280,11 @@ class LoginComponent(BaseComponent):
         self.doLogin(login=login,rootenv=rootenv,**kwargs)
         if login['error']:
             return dict(error=login['error'])
-        if device:
-            # after doLogin: the onAuthenticating hooks may rewrite user_local_tags
-            rootenv['user_local_tags'] = self.db.table('adm.user_device').addConnectionTags(
-                                                rootenv['user_local_tags'])
+        if self.login_genroappDevice():
+            # after doLogin: the onAuthenticating hooks may rewrite user_local_tags,
+            # a password login included
+            rootenv['user_local_tags'] = self.db.table('adm.user_device').connectionTags(
+                                                rootenv['user_local_tags'], device=bool(device))
         rootenv['user'] = self.avatar.user
         rootenv['user_id'] = self.avatar.user_id
         rootenv['user_group_code'] = getattr(self.avatar,'group_code',None)

@@ -116,11 +116,13 @@ class Table(object):
             record['last_used_ts'] = datetime.now(timezone.utc)
         return Bag(dict(id=row['id']))
 
-    def addConnectionTags(self, user_local_tags):
-        """``user_local_tags`` of a login signed by a registered key: _DEVICE_ added, whatever
+    def connectionTags(self, user_local_tags, device=False):
+        """``user_local_tags`` of a login without the server tags a hook may have added:
+        _DEVICE_ only for a login signed by a registered key (``device``), whatever
         verification the key declared."""
         tags = [t for t in (user_local_tags or '').split(',') if t and t not in SERVER_TAGS]
-        tags.append(DEVICE_TAG)
+        if device:
+            tags.append(DEVICE_TAG)
         return ','.join(tags)
 
     def restoreConnectionTags(self, user_local_tags, connection_tags):

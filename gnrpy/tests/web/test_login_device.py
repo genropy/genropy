@@ -187,6 +187,15 @@ def test_password_login_has_no_device_tag(application, genroapp):
     assert not _tags(page)
 
 
+def test_password_login_drops_the_server_tags_of_a_hook(application, genroapp):
+    """A hook writes both server tags on a password login: the connection and the page keep its other tags only."""
+    page = _page(application)
+    page.hook_tags = 'SEDE_A,_DEVICE_,_BIOMETRIC_'
+    page.login_checkAvatar(user='dv_bob', password='secret')
+    page.login_doLogin(rootenv=Bag(), login=_login('dv_bob', 'DVMAIN'))
+    assert _tags(page) == 'SEDE_A'
+
+
 def test_signature_mode_logs_in_without_password(application, genroapp):
     genroapp(login_mode='signature')
     key = _register(application, 'dv_alice')
