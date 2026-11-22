@@ -45,7 +45,7 @@ function createPage() {
     };
     vm.createContext(context);
     const sourceDir = process.env.GNR_JS_SOURCE || path.join(__dirname, '../gnr_d11/js');
-    for (const filename of ['gnrlang.js', 'genro_toast.js', 'genro_dev.js']) {
+    for (const filename of ['gnrlang.js', 'gnrbag.js', 'genro_toast.js', 'genro_dev.js']) {
         vm.runInContext(readFileSync(path.join(sourceDir, filename), 'utf8'), context, {filename});
     }
     const genro = context.genro;
@@ -67,4 +67,29 @@ test('a refused save stays on screen until the user closes it', () => {
     assert.equal(toast.classList.contains('gnr-toast-out'), false);
     toast.querySelector('.gnr-toast-close').fire('click');
     assert.equal(toast.classList.contains('gnr-toast-out'), true);
+});
+
+test('an exception that declares its feedback decides title, level, color and sound of the toast', () => {
+    const {genro, timers, shown} = createPage();
+    const played = [];
+    genro.playSound = name => played.push(name);
+    const feedback = {message: 'Upload of report.pdf failed: virus detected', title: 'Error',
+                      level: 'warning', color: '#800080', sound: 'Basso'};
+    genro.dev.handleRpcError('gnrexception', {getValue: () => feedback});
+    const [toast] = shown();
+    assert.equal(toast.className, 'gnr-toast gnr-toast-centered');
+    assert.equal(toast.attributes['data-level'], 'warning');
+    assert.match(toast.innerHTML, /Error.*Upload of report.pdf failed: virus detected/s);
+    assert.doesNotMatch(toast.innerHTML, /Warning/);
+    assert.equal(toast.style.borderLeftColor, '#800080');
+    assert.equal(toast.querySelector('.gnr-toast-icon').style.color, '#800080');
+    assert.deepEqual(played, ['Basso']);
+    assert.deepEqual(timers, []);
+});
+
+test('a toast without a color keeps the color of its level', () => {
+    const {genro, shown} = createPage();
+    genro.toast.show({message: 'Saved', level: 'success', centered: true});
+    const [toast] = shown();
+    assert.equal(toast.style.borderLeftColor, undefined);
 });
