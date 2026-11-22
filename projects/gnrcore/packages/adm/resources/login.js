@@ -103,14 +103,21 @@ const LoginComponent = {
         }
     },
 
-    // after a logout the biometric reading is not asked at once: a full-window lock screen
-    // with the logo and the title of the login dialog lets the user choose
-    lockScreen:(dlg,platform,onUnlock,onPassword)=>{
+    // a full-window screen with the logo and the title of the login dialog: a title, an
+    // optional line, one button and an optional link
+    fullScreen:(dlg,{title,line,button,link})=>{
+        const make = (tag,cls,text,parent)=>{
+            const node = document.createElement(tag);
+            node.className = cls;
+            if(text){
+                node.textContent = text;
+            }
+            parent.appendChild(node);
+            return node;
+        };
         const screen = document.createElement('div');
         screen.className = 'genroapp_lockscreen';
-        const box = document.createElement('div');
-        box.className = 'genroapp_lockscreen_box';
-        screen.appendChild(box);
+        const box = make('div','genroapp_lockscreen_box',null,screen);
         const logo = dlg.domNode.querySelector('.login_logo');
         if(logo){
             const logo_copy = logo.cloneNode(true);
@@ -118,37 +125,40 @@ const LoginComponent = {
             box.appendChild(logo_copy);
         }
         const site_title = dlg.domNode.querySelector('.index_logintitle');
-        const site = document.createElement('div');
-        site.className = 'genroapp_lockscreen_site';
-        site.textContent = site_title? site_title.textContent : document.title;
-        box.appendChild(site);
-        const title = document.createElement('div');
-        title.className = 'genroapp_lockscreen_title';
-        title.textContent = _T('!![en]Session closed');
-        box.appendChild(title);
-        const unlock = document.createElement('button');
-        unlock.className = 'genroapp_lockscreen_unlock';
-        unlock.textContent = _T('!![en]Unlock with {biometry}').replace('{biometry}',
-                                                                      LoginComponent.biometryName(platform));
-        box.appendChild(unlock);
-        const password = document.createElement('a');
-        password.className = 'genroapp_lockscreen_password';
-        password.href = '#';
-        password.textContent = _T('!![en]Log in with password');
-        box.appendChild(password);
-        const close = ()=>screen.remove();
-        unlock.onclick = ()=>onUnlock(close);
-        password.onclick = (e)=>{
+        make('div','genroapp_lockscreen_site',site_title? site_title.textContent : document.title,box);
+        make('div','genroapp_lockscreen_title',title,box);
+        if(line){
+            make('div','genroapp_lockscreen_line',line,box);
+        }
+        const button_node = make('button','genroapp_lockscreen_unlock',button,box);
+        let link_node = null;
+        if(link){
+            link_node = make('a','genroapp_lockscreen_password',link,box);
+            link_node.href = '#';
+        }
+        document.body.appendChild(screen);
+        button_node.focus();
+        return {button:button_node,link:link_node,close:()=>screen.remove()};
+    },
+
+    // after a logout the biometric reading is not asked at once: the lock screen lets the
+    // user choose
+    lockScreen:(dlg,platform,onUnlock,onPassword)=>{
+        const screen = LoginComponent.fullScreen(dlg,{
+            title:_T('!![en]Session closed'),
+            button:_T('!![en]Unlock with {biometry}').replace('{biometry}',LoginComponent.biometryName(platform)),
+            link:_T('!![en]Log in with password')
+        });
+        screen.button.onclick = ()=>onUnlock(screen.close);
+        screen.link.onclick = (e)=>{
             e.preventDefault();
-            close();
+            screen.close();
             onPassword();
         };
-        document.body.appendChild(screen);
-        unlock.focus();
     },
 
     // asks the biometric reading and logs in with the signature; false when the reading is
-    // cancelled or fails, or the computer is not recognized
+    // cancelled or fails, or the device is not recognized
     deviceSign:async (sourceNode,dlg,origin,challenge_rpc,login_rpc)=>{
         const tauri = LoginComponent.tauri();
         let signed;
@@ -161,7 +171,7 @@ const LoginComponent = {
         const result = await LoginComponent.serverCall(login_rpc,{key_id:signed.key_id,user:signed.user,
                                                                    signature:signed.signature});
         if(!result){
-            genro.publish('failed_login_msg',{message:_T('!![en]This computer is not recognized: log in with password')});
+            genro.publish('failed_login_msg',{message:_T('!![en]This device is not recognized: log in with password')});
             return false;
         }
         sourceNode.setRelativeData('_login.device_user',result.getItem('user'));
@@ -204,24 +214,29 @@ const LoginComponent = {
         }
     },
 
-    imposeDeviceRegistration:(platform)=>{
-        const biometry = LoginComponent.biometryName(platform);
-        return new Promise(resolve=>{
-            const message = [
-                _T('!![en]GenroApp keeps a key for this application on this computer.'),
-                _T('!![en]Press the button and confirm with {biometry}.'),
-                _T('!![en]From the next login {biometry} is enough on this computer: no password.'),
-                _T('!![en]On other computers you keep logging in with your password.')
-            ].join(' ').replaceAll('{biometry}',biometry);
-            genro.dlg.ask(_T('!![en]Register this computer now'),message,
-                          {register:_T('!![en]Register this computer now')},
-                          {register:()=>resolve()},{closable:false});
-        });
+    // registers this device: the key is created and its signature sent to the server;
+    // true when the server stored the key
+    registerDevice:async (origin,user,platform,device_rpc)=>{
+        const tauri = LoginComponent.tauri();
+        let registered;
+        try{
+            const challenge = await LoginComponent.serverCall(device_rpc.challenge);
+            registered = await tauri.core.invoke('device_register',{origin,user,challenge});
+        }catch{
+            // biometric reading cancelled or failed
+            return false;
+        }
+        const ok = await LoginComponent.serverCall(device_rpc.register,{
+            key_id:registered.key_id,public_key:registered.public_key,alg:registered.alg,
+            device_name:registered.device_name,platform:platform,
+            verification:registered.verification,signature:registered.signature});
+        return !!ok;
     },
 
     // null when the login may go on, else the message that stops it; inside GenroApp the
-    // registration of a computer not yet registered is always imposed
-    deviceRegistration:async (registration,user,device_rpc)=>{
+    // registration of a device not yet registered is imposed by a full-window screen that
+    // stays until the registration succeeds
+    deviceRegistration:async (dlg,registration,user,device_rpc)=>{
         const tauri = LoginComponent.tauri();
         if(!tauri){
             return registration=='required'? _T('!![en]This user must log in with GenroApp') : null;
@@ -231,21 +246,23 @@ const LoginComponent = {
         if(registration=='offer' && status.registered){
             return null;
         }
-        await LoginComponent.imposeDeviceRegistration(status.platform);
-        const failed = _T('!![en]This computer is not registered: the login stops here');
-        let registered;
-        try{
-            const challenge = await LoginComponent.serverCall(device_rpc.challenge);
-            registered = await tauri.core.invoke('device_register',{origin,user,challenge});
-        }catch{
-            // biometric reading cancelled or failed
-            return failed;
-        }
-        const ok = await LoginComponent.serverCall(device_rpc.register,{
-            key_id:registered.key_id,public_key:registered.public_key,alg:registered.alg,
-            device_name:registered.device_name,platform:status.platform,
-            verification:registered.verification,signature:registered.signature});
-        return ok? null : failed;
+        const biometry = LoginComponent.biometryName(status.platform);
+        LoginComponent.hideLoginDialog(dlg,true);
+        await new Promise(resolve=>{
+            const screen = LoginComponent.fullScreen(dlg,{
+                title:_T('!![en]Register this device'),
+                line:_T('!![en]Next time, unlock with {biometry}.').replace('{biometry}',biometry),
+                button:_T('!![en]Register with {biometry}').replace('{biometry}',biometry)
+            });
+            screen.button.onclick = async ()=>{
+                if(await LoginComponent.registerDevice(origin,user,status.platform,device_rpc)){
+                    screen.close();
+                    resolve();
+                }
+            };
+        });
+        LoginComponent.hideLoginDialog(dlg,false);
+        return null;
     },
 
     confirmAvatar:async (sourceNode,rpcmethod,dlg,doLogin,error_msg,standAlonePage,device_rpc)=>{
@@ -277,7 +294,7 @@ const LoginComponent = {
         }
         let registration = doLogin && avatar.getItem('device_registration');
         let registration_error = registration &&
-                await LoginComponent.deviceRegistration(registration,login.getItem('user'),device_rpc);
+                await LoginComponent.deviceRegistration(dlg,registration,login.getItem('user'),device_rpc);
         if(registration_error){
             genro.publish('failed_login_msg',{'message':registration_error});
             return;

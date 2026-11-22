@@ -129,6 +129,13 @@
     margin-bottom: 1.2em;
 }
 
+.genroapp_lockscreen_line{
+    font-size: .95em;
+    color: var(--text-secondary);
+    margin-top: -0.8em;
+    margin-bottom: 1.2em;
+}
+
 .genroapp_lockscreen_unlock{
     min-width: 16em;
     padding: 0.8em 2em;
