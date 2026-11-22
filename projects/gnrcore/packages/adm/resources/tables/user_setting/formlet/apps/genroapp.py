@@ -1,4 +1,3 @@
-from gnr.core.gnrdecorator import public_method
 from gnr.web.gnrbaseclasses import BaseComponent
 
 info = {
@@ -35,9 +34,12 @@ class Formlet(BaseComponent):
     def genroapp_devices(self, pane):
         pane.div('!![en]Computers registered for the GenroApp login', font_weight='bold',
                  margin_bottom='5px')
-        pane.dataRpc('#WORKSPACE.devices', self.genroapp_userDevices, _onBuilt=True,
+        # table methods: the Formlet is mixed in only while the remote pane is built,
+        # so an RPC of its own would not exist when the client calls it
+        device_tbl = self.db.table('adm.user_device')
+        pane.dataRpc('#WORKSPACE.devices', device_tbl.userDevices, _onBuilt=True,
                      _fired='^#WORKSPACE.reload_devices')
-        pane.dataRpc(self.genroapp_revokeDevice, subscribe_genroapp_revokeDevice=True,
+        pane.dataRpc(device_tbl.revokeDevice, subscribe_genroapp_revokeDevice=True,
                      _onResult='FIRE #WORKSPACE.reload_devices;')
         grid = pane.div(height='200px', position='relative').quickGrid('^#WORKSPACE.devices')
         grid.column('device_name', name='!![en]Computer', width='100%')
@@ -54,12 +56,3 @@ class Formlet(BaseComponent):
                                       if(!row.revoked){
                                           genro.publish('genroapp_revokeDevice',{pkey:row.id});
                                       }""")
-
-    @public_method
-    def genroapp_userDevices(self):
-        return self.db.table('adm.user_device').userDevices(self.avatar.user_id)
-
-    @public_method
-    def genroapp_revokeDevice(self, pkey=None):
-        self.db.table('adm.user_device').revokeDevice(pkey, self.avatar.user_id)
-        self.db.commit()

@@ -16,6 +16,7 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 
 from gnr.core.gnrbag import Bag
+from gnr.core.gnrdecorator import public_method
 
 # a login signed by a registered key proves the possession of that key: _DEVICE_
 DEVICE_TAG = '_DEVICE_'
@@ -160,18 +161,21 @@ class Table(object):
             return bool(preference['required_tags']) and check(preference['required_tags'], user_tags)
         raise ValueError(f'Unknown GenroApp requirement {required}')
 
-    def userDevices(self, user_id):
-        """The devices of ``user_id``, most recent first."""
+    @public_method
+    def userDevices(self):
+        """The devices of the logged user, most recent first."""
         rows = self.query(columns='$id,$device_name,$platform,$verification,$__ins_ts,$last_used_ts,$revoked',
-                          where='$user_id=:user_id', user_id=user_id, order_by='$__ins_ts DESC').fetch()
+                          where='$user_id=:env_user_id', order_by='$__ins_ts DESC').fetch()
         result = Bag()
         for row in rows:
             result.setItem(row['id'], Bag(dict(row)))
         return result
 
-    def revokeDevice(self, pkey, user_id):
-        """Revoke the device ``pkey`` of ``user_id``: its key no longer logs in."""
+    @public_method
+    def revokeDevice(self, pkey=None):
+        """Revoke the device ``pkey`` of the logged user: its key no longer logs in."""
         with self.recordToUpdate(pkey) as record:
-            if record['user_id'] != user_id:
+            if record['user_id'] != self.db.currentEnv.get('user_id'):
                 raise self.exception('business_logic', msg='!![en]This device belongs to another user')
             record['revoked'] = True
+        self.db.commit()
