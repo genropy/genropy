@@ -168,6 +168,16 @@ class TestGenroAppDownload(BaseGnrDaemonTest):
         assert connector_payload(json.loads(response['data']))['url'] == 'http://127.0.0.1/reviewstore/'
         assert signer.calls[0]['body']['url'] == 'http://127.0.0.1/reviewstore/'
 
+    def test_a_store_among_the_request_parameters_does_not_change_the_url(self, tag, signer, logged, monkeypatch):
+        """A download at the site root with ``base_dbstore`` as a request parameter:
+        only the route decides the signed URL, which stays the site root."""
+        tag()
+        monkeypatch.setitem(self.site.db.stores_handler.dbstores, 'reviewstore', {})
+        response = self.client.get('/_tools/connector', query={'base_dbstore': 'reviewstore'}, headers=logged)
+        assert response['status'].startswith('200 ')
+        assert signer.calls[0]['body']['url'] == 'http://127.0.0.1/'
+        assert connector_payload(json.loads(response['data']))['url'] == 'http://127.0.0.1/'
+
     def test_two_downloads_do_not_share_the_cache_header_list(self, tag, signer, logged):
         tag()
         for _ in range(2):

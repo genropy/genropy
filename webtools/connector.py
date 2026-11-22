@@ -8,6 +8,8 @@ from werkzeug.wrappers import Response
 from gnr.web.gnrbaseclasses import BaseWebtool
 from gnr.web.gnrgenroapp import ConnectorError, connector_config
 
+TOOLS_SEGMENT = '_tools'
+
 
 class Connector(BaseWebtool):
     """Give the logged user the personal site connector that opens this site in GenroApp.
@@ -30,17 +32,18 @@ class Connector(BaseWebtool):
     def refusal(self, message, status):
         return Response(message, status=status, mimetype='text/plain')
 
-    def public_url(self, base_dbstore=None):
-        """The URL GenroApp opens: host, path of the site and, when the request named
-        one, the store. On a multidomain site the store is the domain ``home_uri``
-        already carries."""
+    def public_url(self):
+        """The URL GenroApp opens: host, path of the site and the segment of the request
+        path the router resolved before ``_tools`` (a store or a domain), if any. Only
+        the path of the request is read: a ``base_dbstore`` among the request
+        parameters never changes the signed URL."""
         site = self.site
-        url = site.currentRequest.host_url.rstrip('/') + site.home_uri
-        if base_dbstore and not site.multidomain:
-            url = f'{url}{base_dbstore}/'
-        return url
+        request = site.currentRequest
+        route = site.get_path_list(request.path)
+        prefix = route[:route.index(TOOLS_SEGMENT)]
+        return request.host_url.rstrip('/') + site.default_uri + ''.join(f'{segment}/' for segment in prefix)
 
-    def __call__(self, base_dbstore=None, **kwargs):
+    def __call__(self, **kwargs):
         site = self.site
         config = connector_config(site.gnrapp)
         if config is None:
@@ -51,7 +54,7 @@ class Connector(BaseWebtool):
         try:
             connector = site.db.table('adm.user_connector').newConnector(
                 config, user_id=connection['user_id'], user=connection['user'],
-                url=self.public_url(base_dbstore))
+                url=self.public_url())
         except ConnectorError as e:
             return self.refusal(str(e), e.status)
         site.db.commit()
