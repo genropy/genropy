@@ -21,15 +21,26 @@ class Connector(BaseWebtool):
     - 409: the user holds no connector and the site already has ``max_users`` users;
     - 502: the signing service gave no signed connector.
 
-    The connector names the public URL of the site, with its path and, on a multidomain
-    site, the current domain. The answer is personal: it is never cached."""
+    The connector names the public URL the request came through: the path of the site
+    and the domain or the store the router resolved. The answer is personal: it is
+    never cached."""
 
     content_type = 'application/vnd.softwell.connection+json'
 
     def refusal(self, message, status):
         return Response(message, status=status, mimetype='text/plain')
 
-    def __call__(self, **kwargs):
+    def public_url(self, base_dbstore=None):
+        """The URL GenroApp opens: host, path of the site and, when the request named
+        one, the store. On a multidomain site the store is the domain ``home_uri``
+        already carries."""
+        site = self.site
+        url = site.currentRequest.host_url.rstrip('/') + site.home_uri
+        if base_dbstore and not site.multidomain:
+            url = f'{url}{base_dbstore}/'
+        return url
+
+    def __call__(self, base_dbstore=None, **kwargs):
         site = self.site
         config = connector_config(site.gnrapp)
         if config is None:
@@ -40,7 +51,7 @@ class Connector(BaseWebtool):
         try:
             connector = site.db.table('adm.user_connector').newConnector(
                 config, user_id=connection['user_id'], user=connection['user'],
-                url=site.currentRequest.host_url.rstrip('/') + site.home_uri)
+                url=self.public_url(base_dbstore))
         except ConnectorError as e:
             return self.refusal(str(e), e.status)
         site.db.commit()

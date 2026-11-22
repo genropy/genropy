@@ -107,6 +107,8 @@ def sign_connector(config, token, url, user):
     try:
         answer = response.json()
         connector = dict(payload=answer['payload'], signature=answer['signature'])
+        if not all(isinstance(value, str) and value for value in connector.values()):
+            raise ValueError('empty payload or signature')
         payload = json.loads(base64.b64decode(connector['payload'], validate=True))
         connector_id = payload['connector_id']
         expires = datetime.strptime(payload['expires'], EXPIRES_FORMAT).replace(tzinfo=timezone.utc)

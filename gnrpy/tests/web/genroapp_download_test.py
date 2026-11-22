@@ -159,6 +159,15 @@ class TestGenroAppDownload(BaseGnrDaemonTest):
         assert response['status'].startswith('200 ')
         assert signer.calls[0]['body']['url'] == 'http://127.0.0.1/gestionale/'
 
+    def test_the_connector_names_the_store_of_the_request(self, tag, signer, logged, monkeypatch):
+        """A request through a named store of a single-domain site: the connector opens that store."""
+        tag()
+        monkeypatch.setitem(self.site.db.stores_handler.dbstores, 'reviewstore', {})
+        response = self.client.get('/reviewstore/_tools/connector', headers=logged)
+        assert response['status'].startswith('200 ')
+        assert connector_payload(json.loads(response['data']))['url'] == 'http://127.0.0.1/reviewstore/'
+        assert signer.calls[0]['body']['url'] == 'http://127.0.0.1/reviewstore/'
+
     def test_two_downloads_do_not_share_the_cache_header_list(self, tag, signer, logged):
         tag()
         for _ in range(2):
@@ -170,6 +179,15 @@ class TestGenroAppDownload(BaseGnrDaemonTest):
         response = self.client.get('/_tools/connector', headers=logged)
         assert response['status'].startswith('409 ')
         assert not signer.calls
+
+    def test_webtool_answers_502_to_an_empty_signature(self, tag, signer, logged):
+        tag()
+        signer.answer = dict(signer.signed(dict(name='Test site', url='http://127.0.0.1/', user=USER,
+                                                duration_days=30)), signature='')
+        response = self.client.get('/_tools/connector', headers=logged)
+        assert response['status'].startswith('502 ')
+        assert self.site.db.table('adm.user_connector').query(
+            where='@user_id.username=:u', u=USER).count() == 0
 
     def test_webtool_answers_502_when_the_signature_fails(self, tag, signer, logged):
         tag()

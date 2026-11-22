@@ -23,6 +23,7 @@ from test_login_device import ORIGIN, _Key, _page
 
 SIGNING_URL = 'https://signing.test/signing/genroapp/connectors/sign'
 SITE_URL = ORIGIN + '/'
+BODY = dict(name='Test site', url=SITE_URL, user='cn_alice', duration_days=30)
 TAG = dict(name='Test site', signing_url=SIGNING_URL, signing_token='tag-token', duration_days='30')
 
 
@@ -225,7 +226,8 @@ def test_no_token_and_no_keycloak_package_is_an_error(application, tag, signer):
     assert not signer.calls
 
 
-@pytest.mark.parametrize('case', ['status', 'network', 'not_a_connector', 'no_connector_id'])
+@pytest.mark.parametrize('case', ['status', 'network', 'not_a_connector', 'no_connector_id',
+                                  'empty_signature', 'no_signature_text'])
 def test_a_failed_signature_gives_no_connector_and_no_record(application, tag, signer, case):
     if case == 'status':
         signer.status_code = 401
@@ -233,6 +235,10 @@ def test_a_failed_signature_gives_no_connector_and_no_record(application, tag, s
         signer.error = requests.ConnectionError('refused')
     elif case == 'not_a_connector':
         signer.answer = dict(error='no')
+    elif case == 'empty_signature':
+        signer.answer = dict(signer.signed(BODY), signature='')
+    elif case == 'no_signature_text':
+        signer.answer = dict(signer.signed(BODY), signature=None)
     else:
         signer.answer = dict(payload=base64.b64encode(b'{"expires":"2027-01-01T00:00:00Z"}').decode(),
                              signature='c2ln')
