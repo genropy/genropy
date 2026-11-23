@@ -180,9 +180,6 @@
     min-height: 14px;
     position: relative;
 }
-.grouplet_chunk_box > .iconbox.pencil{
-    background-size: 10px 10px;
-}
 
 
 .clientlogo{
@@ -525,10 +522,6 @@
 .th_linkerBoxFooter{
     min-height:var(--groupbar-min-height);
     box-sizing:border-box;
-}
-/* the edit pencil of a linker box: a small glyph, not a button */
-.th_linkerBoxFooter .iconbox.pencil{
-    transform:scale(.7);
 }
 
 /* --- Zoom cell (grid hyperlinks) --- */
