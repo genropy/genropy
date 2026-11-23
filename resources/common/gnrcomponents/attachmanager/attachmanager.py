@@ -720,7 +720,8 @@ class AttachManager(BaseComponent):
                  columns='$description,$fileurl,$filepath,$external_url,$_row_count',
                  order_by='$_row_count',applymethod=self.atc_chipsApply,
                  _if='maintable_id && maintable_id!="*newrecord*" && maintable_id!="*norecord*"',
-                 _else='this.store.clear();',_reloader='^.reload',**store_kwargs)
+                 _else='this.store.clear();',_reloader='^.reload',
+                 liveUpdateUnattended=True,**store_kwargs)
         wrapper.div(emptyMessage or '!!No attachments',_class='atc_chips_message')
         wrapper.dropUploader(label=addLabel or '!!Attach',openOnClick=True,
                              ask=ask,
