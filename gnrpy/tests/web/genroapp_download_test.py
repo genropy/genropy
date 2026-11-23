@@ -98,6 +98,10 @@ class TestGenroAppDownload(BaseGnrDaemonTest):
     def test_mac_falls_back_to_the_published_link(self, no_bundles):
         assert self.site.get_genroapp_download_url('mac') == gws.GENROAPP_DOWNLOADS['mac']
 
+    def test_windows_falls_back_to_the_published_installer(self, no_bundles):
+        assert self.site.get_genroapp_download_url('windows') == gws.GENROAPP_DOWNLOADS['windows']
+        assert gws.GENROAPP_DOWNLOADS['windows'].endswith('/GenroApp-setup.exe')
+
     def test_platform_without_app_has_no_link(self, no_bundles):
         assert self.site.get_genroapp_download_url('linux') is None
         assert self.site.get_genroapp_download_url('mobile') is None

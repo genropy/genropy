@@ -63,6 +63,7 @@ IS_MOBILE = re.compile(r'iPhone|iPad|Android')
 
 GENROAPP_DOWNLOADS = {
     'mac': 'https://genroapp-downloads.fsn1.your-objectstorage.com/GenroApp.dmg',
+    'windows': 'https://genroapp-downloads.fsn1.your-objectstorage.com/GenroApp-setup.exe',
 }
 GENROAPP_MODULES = 'site:genroapp/modules'
 
