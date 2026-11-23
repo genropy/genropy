@@ -430,6 +430,7 @@ def test_an_expired_or_unknown_ticket_is_refused(application):
     assert tbl.consume('unknown') is None
     assert tbl.consume('') is None
     assert tbl.consume('a' * 129) is None
+    assert tbl.consume('caf\u00e9') is None
 
 
 def test_only_the_hash_of_a_ticket_is_stored(application):

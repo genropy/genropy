@@ -369,9 +369,11 @@ class FrameIndex(BaseComponent):
         """Open with GenroApp, on a site with the ``<genroapp>`` tag, in the browser only.
 
         When this browser opened GenroApp once (``localStorage``), the button opens
-        ``genroapp://add?url=<origin>`` at once: GenroApp asks the user to confirm and adds the
-        site. The browser decides, not the user: a user of GenroApp on one computer may not have
-        it on the computer of this browser. Otherwise the button shows the download for
+        ``genroapp://add?url=<site>`` at once: GenroApp asks the user to confirm and adds the
+        site. ``<site>`` is host and ``home_uri`` (path of the site, domain or store), the URL
+        the site connector of ``webtools/connector.py`` signs. The browser decides, not the
+        user: a user of GenroApp on one computer may not have it on the computer of this
+        browser. Otherwise the button shows the download for
         the platform of the browser with the steps that follow it, and a link to open GenroApp
         when it is installed. A page cannot tell whether an app handles a link: Safari answers
         an unknown link with "the address is not valid", so the link is never tried blindly.
@@ -384,9 +386,10 @@ class FrameIndex(BaseComponent):
         slot.dataFormula('gnr.genroapp.inside','!!(window.top.__TAURI__)',_onBuilt=True)
         # the ticket carries the login of this page into GenroApp (adm.genroapp_ticket); it is asked
         # synchronously, so the link still opens inside the click of the user
+        site_url = self.request.host_url.rstrip('/') + self.site.home_uri
         open_js = """try{ localStorage.setItem('genroapp_installed','1'); }catch(e){}
                      var ticket = genro.serverCall(ticket_rpc,{});
-                     window.location.href = 'genroapp://add?url=' + encodeURIComponent(window.location.origin + '/')
+                     window.location.href = 'genroapp://add?url=' + encodeURIComponent(site_url)
                                             + (ticket ? '&ticket=' + encodeURIComponent(ticket) : '');"""
         dlg = slot.dialog(title='!![en]Get GenroApp',closable=True,nodeId='genroapp_dialog')
         box = dlg.div(padding='20px 24px',width='400px',line_height='1.45')
@@ -419,11 +422,11 @@ class FrameIndex(BaseComponent):
             box.div('!![en]GenroApp is not published for this platform.',margin_bottom='16px')
         footer = box.div(border_top='1px solid var(--border-color, #ddd)',padding_top='12px')
         footer.div('!![en]GenroApp installed? Open this site in it: you stay logged in.',margin_bottom='8px')
-        footer.button('!![en]Open GenroApp',font_size='14px',padding='4px 14px',ticket_rpc=self.genroapp_newTicket,
+        footer.button('!![en]Open GenroApp',font_size='14px',padding='4px 14px',ticket_rpc=self.genroapp_newTicket,site_url=site_url,
                       action=open_js + " genro.wdgById('genroapp_dialog').hide();")
         slot.lightButton(_class='iconbox laptop',tip='!![en]Open with GenroApp',
                          hidden='^gnr.genroapp.inside',dlg=dlg.js_widget,
-                         ticket_rpc=self.genroapp_newTicket,
+                         ticket_rpc=self.genroapp_newTicket,site_url=site_url,
                          action="""
             var installed = false;
             try{ installed = localStorage.getItem('genroapp_installed') === '1'; }catch(e){}
