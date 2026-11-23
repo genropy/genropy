@@ -24,7 +24,8 @@ function readComponent() {
         body: controller[1],
         IMAGES_EXT: extensions('IMAGES_EXT'),
         VIDEOS_EXT: extensions('VIDEOS_EXT'),
-        UNPLAYABLE_VIDEOS_EXT: extensions('UNPLAYABLE_VIDEOS_EXT')
+        UNPLAYABLE_VIDEOS_EXT: extensions('UNPLAYABLE_VIDEOS_EXT'),
+        NO_PREVIEW_EXT: extensions('NO_PREVIEW_EXT')
     };
 }
 
@@ -61,8 +62,9 @@ function route(src, state = {}) {
     const sourceNode = {setRelativeData: (pathname, value) => { state[pathname] = value; }};
     const sc = {switchPage: page => { state.page = page; }};
     const controller = context.funcCreate(component.body,
-                                          'src,sc,IMAGES_EXT,VIDEOS_EXT,UNPLAYABLE_VIDEOS_EXT', sourceNode);
-    controller(src, sc, component.IMAGES_EXT, component.VIDEOS_EXT, component.UNPLAYABLE_VIDEOS_EXT);
+                                          'src,sc,IMAGES_EXT,VIDEOS_EXT,UNPLAYABLE_VIDEOS_EXT,NO_PREVIEW_EXT', sourceNode);
+    controller(src, sc, component.IMAGES_EXT, component.VIDEOS_EXT, component.UNPLAYABLE_VIDEOS_EXT,
+               component.NO_PREVIEW_EXT);
     return state;
 }
 

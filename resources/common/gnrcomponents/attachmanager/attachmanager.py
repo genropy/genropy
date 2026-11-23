@@ -410,18 +410,21 @@ class AttachManager(BaseComponent):
         actions.button('!!Open in a new tab',
                             action='genro.openBrowserTab(url,{target:"_blank"})',url=src)
 
-        parent.dataController("""       
-        const parsedSrc = parseURL(src);
-        const ext = (parsedSrc.params.source_ext || parsedSrc.file.split('.').pop() || '').toLowerCase();
-        SET .$ext = ext;
-        if(IMAGES_EXT.includes(`.${ext}`)){
-            sc.switchPage('image');
-        }else if(VIDEOS_EXT.includes(`.${ext}`)){
-            sc.switchPage('video');
-        }else if(UNPLAYABLE_VIDEOS_EXT.includes(`.${ext}`) || NO_PREVIEW_EXT.includes(`.${ext}`)){
-            sc.switchPage('unsupported');
-        }else{
-            sc.switchPage('document');
+        parent.dataController("""
+        let ext = '';
+        let page = null;
+        if(src){
+            const parsedSrc = parseURL(src);
+            ext = (parsedSrc.params.source_ext || parsedSrc.file.split('.').pop() || '').toLowerCase();
+            if(IMAGES_EXT.includes(`.${ext}`)){
+                page = 'image';
+            }else if(VIDEOS_EXT.includes(`.${ext}`)){
+                page = 'video';
+            }else if(UNPLAYABLE_VIDEOS_EXT.includes(`.${ext}`) || NO_PREVIEW_EXT.includes(`.${ext}`)){
+                page = 'unsupported';
+            }else{
+                page = 'document';
+            }
         }
         SET .$ext = ext;
         SET .$preview_src.document = page=='document' ? src : '';
