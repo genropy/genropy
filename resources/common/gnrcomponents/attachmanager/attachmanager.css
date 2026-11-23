@@ -68,3 +68,202 @@
     opacity: 1;
     border: none;
 }
+
+.atc_chips{
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .4em;
+    padding: .4em;
+}
+.atc_chips .multibutton_container{
+    display: contents;
+    font-size: inherit;
+}
+.atc_chips .multibutton,
+.atc_chips .multibutton:first-child,
+.atc_chips .multibutton:last-child,
+.atc_chips_add{
+    display: inline-flex;
+    align-items: center;
+    gap: .4em;
+    max-width: 24em;
+    padding: .2em .7em;
+    font-size: .95em;
+    font-variant: normal;
+    font-weight: normal;
+    line-height: 1.5em;
+    color: var(--text-color, #333);
+    background: transparent;
+    border: 1px solid var(--border-color, #ccc);
+    border-radius: var(--radius-pill, 999px);
+    cursor: pointer;
+}
+.atc_chips .multibutton.multibutton_closable{
+    padding-right: 1.6em;
+}
+.atc_chips .multibutton:hover{
+    background: var(--gray-100, #f2f2f4);
+}
+.atc_chips .multibutton_caption{
+    display: inline-flex;
+    align-items: center;
+    gap: .4em;
+    min-width: 0;
+}
+.atc_chips .multibutton_closer{
+    top: 50%;
+    right: .5em;
+    margin-top: -5px;
+    color: var(--text-muted, #888);
+}
+.atc_chip_icon{
+    flex: none;
+    width: 1.1em;
+    height: 1.1em;
+    background-color: var(--text-muted, #888);
+    -webkit-mask: url('/_rsrc/common/css_icons/google_icons/file.svg') no-repeat center / contain;
+    mask: url('/_rsrc/common/css_icons/google_icons/file.svg') no-repeat center / contain;
+}
+.atc_chip_icon.atc_chip_pdf{
+    background-color: var(--danger-color, #c0392b);
+}
+.atc_chip_icon.atc_chip_image,.atc_chip_icon.atc_chip_video{
+    background-color: var(--accent-color, #007AFF);
+}
+.atc_chip_icon.atc_chip_link{
+    -webkit-mask-image: url('/_rsrc/common/css_icons/google_icons/language.svg');
+    mask-image: url('/_rsrc/common/css_icons/google_icons/language.svg');
+}
+.atc_chip_name{
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+.atc_chip_meta{
+    flex: none;
+    font-size: .85em;
+    color: var(--text-muted, #888);
+}
+.atc_chips_add{
+    position: relative;
+    color: var(--text-muted, #888);
+    border-style: dashed;
+}
+.atc_chips_add:hover{
+    color: var(--text-color, #333);
+    border-color: var(--border-strong, #aab4c4);
+}
+.atc_chips_add .dropUploaderBoxInner{
+    position: static;
+    line-height: inherit;
+}
+.atc_chips_add::before{
+    content: '';
+    width: 1.1em;
+    height: 1.1em;
+    background-color: currentColor;
+    -webkit-mask: url('/_rsrc/common/css_icons/google_icons/upload.svg') no-repeat center / contain;
+    mask: url('/_rsrc/common/css_icons/google_icons/upload.svg') no-repeat center / contain;
+}
+.atc_chips_message{
+    display: none;
+    color: var(--text-muted, #888);
+}
+.atc_chips_isempty{
+    flex-direction: column;
+    justify-content: center;
+    min-height: 6em;
+}
+.atc_chips_isempty .atc_chips_message{
+    display: block;
+}
+.atc_chips_locked .multibutton_closer,
+.atc_chips_locked .atc_chips_add{
+    display: none;
+}
+
+.atc_form_title{
+    display: flex;
+    align-items: baseline;
+    gap: .8em;
+    max-width: 60vw;
+}
+.atc_form_name,.atc_form_link{
+    min-width: 0;
+}
+.atc_inline_text{
+    padding: .1em .4em;
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    cursor: text;
+}
+.atc_inline_text:hover{
+    background: var(--gray-100, #f2f2f4);
+}
+.atc_form_name .atc_inline_text{
+    font-weight: 600;
+}
+.atc_form_link .atc_inline_text{
+    color: var(--text-muted, #888);
+    font-size: .9em;
+}
+.atc_inline_input.dijitTextBox{
+    width: 30em;
+    max-width: 50vw;
+}
+.atc_form_btn{
+    width: 1.3em;
+    height: 1.3em;
+    margin: 0 .35em;
+    cursor: pointer;
+    background-color: var(--text-muted, #888);
+    -webkit-mask: no-repeat center / contain;
+    mask: no-repeat center / contain;
+}
+.atc_form_btn:hover{
+    background-color: var(--text-color, #333);
+}
+.atc_form_download{
+    -webkit-mask-image: var(--icon-download-file);
+    mask-image: var(--icon-download-file);
+}
+.atc_form_stage{
+    background: var(--surface-light, #f6f6f6);
+}
+.atc_form_stage :has(> img){
+    display: grid;
+    place-items: safe center;
+}
+.atc_form_zoombar{
+    position: absolute;
+    bottom: 1em;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    padding: .2em .4em;
+    background: var(--surface-bg, #fff);
+    border: 1px solid var(--border-color, #ccc);
+    border-radius: var(--radius-pill, 999px);
+    user-select: none;
+}
+.atc_form_zoomstep,.atc_form_zoomlabel{
+    padding: .1em .6em;
+    cursor: pointer;
+    color: var(--text-color, #333);
+}
+.atc_form_zoomstep{
+    font-size: 1.2em;
+}
+.atc_form_zoomlabel{
+    min-width: 3.5em;
+    text-align: center;
+    font-size: .9em;
+}
+.atc_form_zoomstep:hover,.atc_form_zoomlabel:hover{
+    color: var(--accent-color, #007AFF);
+}

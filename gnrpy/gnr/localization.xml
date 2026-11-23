@@ -2,6 +2,7 @@
 <GenRoBag><gnrpy><gnr><app><gnrapp path="gnrpy/gnr/app/gnrapp.py" ext="py"><en_user_not_allowed base="User not allowed" de="Benutzer nicht erlaubt" en="User not allowed" fr="Utilisateur non autorisé" it="Utente non autorizzato"></en_user_not_allowed></gnrapp>
 <gnrdbo path="gnrpy/gnr/app/gnrdbo.py" ext="py"><en_system fr="Système" de="System" en="System" it="Sistema" base="System"></en_system>
 <en_id fr="Ça" de="Identifikation" en="ID" it="Id" base="Id"></en_id>
+<en_heic_heif_attachments_were_omitted_from_the_pdf_you_can_download_the_originals_separately_ base="HEIC/HEIF attachments were omitted from the PDF. You can download the originals separately." it="Gli allegati HEIC/HEIF sono stati esclusi dal PDF. Puoi scaricare gli originali separatamente."></en_heic_heif_attachments_were_omitted_from_the_pdf_you_can_download_the_originals_separately_>
 <en_record_pointer base="Record pointer"></en_record_pointer>
 <en_insert_date base="Insert date" de="Datum einfügen" en="Insert date" fr="Date d'insertion" it="Data di inserimento"></en_insert_date>
 <en_logical_delete_date base="Logical delete date" de="Logical Löschdatum" en="Logical delete date" fr="Date de suppression logique" it="Logical data di eliminazione"></en_logical_delete_date>

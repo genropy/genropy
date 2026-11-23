@@ -880,6 +880,16 @@ dojo.declare("gnr.GridEditor", null, {
         this.formId = sourceNode.getInheritedAttributes()['formId'];
         this.deletedRows = new gnr.GnrBag()
         this._status_list = ['error','changed'];
+        // VirtualGrid's deferred resize update replaces the row DOM, including the focused input.
+        grid.sizeChange = function() {
+            dojox.grid.jobs.job(grid.id + 'SizeChange', 50, function() {
+                if (grid.gnrediting) {
+                    that.pendingResizeUpdate = true;
+                } else {
+                    grid.update();
+                }
+            });
+        };
         this.grid.rows.isOver = function(inRowIndex) {
             return ((this.overRow == inRowIndex) && !grid.gnrediting);
         };
@@ -1870,6 +1880,10 @@ dojo.declare("gnr.GridEditor", null, {
                     that.grid.currRenderedRowIndex = null;
                     that.grid.updateRow(editingInfo.row);
                 }
+            }
+            if (that.pendingResizeUpdate) {
+                that.pendingResizeUpdate = false;
+                that.grid.update();
             }
             if (delta) {
                 var rc = that.findNextEditableCell({row:editingInfo.row, col:editingInfo.col}, delta);

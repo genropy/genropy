@@ -5,6 +5,7 @@ import datetime
 import warnings as warnings_module
 import os
 import re
+import tempfile
 import pytz
 import mimetypes
 from collections import defaultdict
@@ -15,6 +16,7 @@ from gnr.core.gnrstring import splitAndStrip,templateReplace,fromJson,slugify,to
 from gnr.core.gnrdecorator import public_method,extract_kwargs
 from gnr.core.gnrdict import dictExtract
 
+from gnr.lib.gnrheif import HEIF_EXTENSIONS, heif_storage_path, is_heif_path
 from gnr.app import logger
 from gnr.sql.gnrsql_exceptions import NotMatchingModelError
 from gnr.app.gnrsqltable_proxy.selection import SelectionProxy
@@ -1860,7 +1862,7 @@ class AttachmentTable(GnrDboTable):
         tbl.formulaColumn('adapted_url',"""CASE WHEN position('\\:' in $filepath)>0 THEN '/'||$filepath
              ELSE '/_vol/' || $filepath
             END""",group='_')
-        tbl.pyColumn('fileurl',py_method='filepath_endpoint_url',name_long='Fileurl',
+        tbl.pyColumn('fileurl',py_method='filepath_preview_url',name_long='Fileurl',
                         outdatedWatermark = tbl.attributes.get('outdatedWatermark'),
                         required_columns='$external_url,$filepath',
                         static=True)
@@ -1883,6 +1885,14 @@ class AttachmentTable(GnrDboTable):
             main_pkg_obj = site.gnrapp.packages[site.mainpackage]
             result = main_pkg_obj.attributes.get('atc_endpoint_url')
         return result or False
+
+    def filepath_preview_url(self, record, field=None):
+        filepath = record['filepath']
+        if (not record.get('external_url') and is_heif_path(filepath)
+                and getattr(self.db.application, 'site', None)):
+            return self.endpointColumn(record=record, field='filepath',
+                                       heif_preview=True, source_ext=os.path.splitext(filepath)[1][1:].lower())
+        return self.filepath_endpoint_url(record, field=field)
 
     def filepath_endpoint_url(self,record,field=None):
         if record.get('external_url'):
@@ -2060,22 +2070,39 @@ class AttachmentTable(GnrDboTable):
         pass
     
     def getAttachmentsPdf(self, maintable_id, output_path=None):
-        imgConverter = self.db.application.site.getService('imgtopdf')
-        pdfJoiner = self.db.application.site.getService('pdf')
+        site = self.db.application.site
+        imgConverter = site.getService('imgtopdf')
+        pdfJoiner = site.getService('pdf')
         attachments = self.query(where='$maintable_id=:m_id', m_id = maintable_id).fetch()
-        resultNode = sn = self.db.application.site.storageNode(output_path)
+        resultNode = site.storageNode(output_path)
         joinable_pdf = []
-        for a in attachments:
-            path = a['filepath']
-            sn = self.db.application.site.storageNode(path)
-            if not sn.ext.lower() in ['pdf','jpg','jpeg','png','gif','tiff']:
-                continue
-            if sn.ext.lower() == 'pdf':
-                joinable_pdf.append(sn)
-                continue
-            outPdfSn = self.db.application.site.storageNode(f'temp:{sn.cleanbasename}.pdf')
-            joinable_pdf.append(imgConverter.imgToPdf(sn, outPdfSn))
-        pdfJoiner.joinPdf(joinable_pdf,resultNode)
+        skipped_heif = False
+        with tempfile.TemporaryDirectory() as tmpdir:
+            for index, attachment in enumerate(attachments):
+                path = attachment['filepath']
+                if not path:
+                    continue
+                sn = site.storageNode(heif_storage_path(path))
+                ext = sn.ext.lower()
+                if ext == 'pdf':
+                    joinable_pdf.append(sn)
+                elif ext in ('jpg', 'jpeg', 'png', 'gif', 'tiff', *HEIF_EXTENSIONS):
+                    outPdfSn = site.storageNode(os.path.join(tmpdir, f'{index}.pdf'))
+                    try:
+                        converted = imgConverter.imgToPdf(sn, outPdfSn)
+                    except ModuleNotFoundError as error:
+                        if ext not in HEIF_EXTENSIONS or error.name != 'pillow_heif':
+                            raise
+                        skipped_heif = True
+                        continue
+                    joinable_pdf.append(converted)
+            pdfJoiner.joinPdf(joinable_pdf, resultNode)
+        if skipped_heif:
+            logger.warning('HEIC/HEIF attachments were omitted from the PDF because pillow-heif is not installed.')
+            page = self.db.currentPage
+            if page and page.page_id:
+                message = page._('!![en]HEIC/HEIF attachments were omitted from the PDF. You can download the originals separately.')
+                page.clientPublish('floating_message', message=message, messageType='warning')
         return resultNode
 
 class TotalizeTable(GnrDboTable):
