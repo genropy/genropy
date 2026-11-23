@@ -2095,6 +2095,7 @@ class AttachmentTable(GnrDboTable):
         attachments = self.query(where='$maintable_id=:m_id', m_id = maintable_id).fetch()
         resultNode = site.storageNode(output_path)
         joinable_pdf = []
+        skipped_heif = False
         with tempfile.TemporaryDirectory() as tmpdir:
             for index, attachment in enumerate(attachments):
                 path = attachment['filepath']
@@ -2106,8 +2107,21 @@ class AttachmentTable(GnrDboTable):
                     joinable_pdf.append(sn)
                 elif ext in ('jpg', 'jpeg', 'png', 'gif', 'tiff', *HEIF_EXTENSIONS):
                     outPdfSn = site.storageNode(os.path.join(tmpdir, f'{index}.pdf'))
-                    joinable_pdf.append(imgConverter.imgToPdf(sn, outPdfSn))
+                    try:
+                        converted = imgConverter.imgToPdf(sn, outPdfSn)
+                    except ModuleNotFoundError as error:
+                        if ext not in HEIF_EXTENSIONS or error.name != 'pillow_heif':
+                            raise
+                        skipped_heif = True
+                        continue
+                    joinable_pdf.append(converted)
             pdfJoiner.joinPdf(joinable_pdf, resultNode)
+        if skipped_heif:
+            logger.warning('HEIC/HEIF attachments were omitted from the PDF because pillow-heif is not installed.')
+            page = self.db.currentPage
+            if page and page.page_id:
+                message = page._('!![en]HEIC/HEIF attachments were omitted from the PDF. You can download the originals separately.')
+                page.clientPublish('floating_message', message=message, messageType='warning')
         return resultNode
 
 class TotalizeTable(GnrDboTable):

@@ -1,5 +1,6 @@
 """HEIC attachments keep their original file while offering a JPEG preview and PDF export."""
 
+import sys
 from io import BytesIO
 from pathlib import Path
 from types import SimpleNamespace
@@ -7,14 +8,13 @@ from urllib.parse import parse_qs, urlsplit
 
 import pytest
 from PIL import Image
-from PyPDF2 import PdfReader
+from PyPDF2 import PdfReader, PdfWriter
 
 from core.common import BaseGnrTest
 from gnr.app.gnrapp import GnrApp
 from gnr.core.gnrlang import gnrImport
 from gnr.web.gnrdummysite import GnrDummySite
 
-pillow_heif = pytest.importorskip('pillow_heif')
 ROOT = Path(__file__).resolve().parents[3]
 endpoint = gnrImport(str(ROOT / 'projects/gnrcore/packages/sys/webpages/ep_table.py'), avoidDup=True)
 externalcall = gnrImport(str(ROOT / 'resources/common/gnrcomponents/externalcall.py'), avoidDup=True)
@@ -64,6 +64,7 @@ class TestHeifAttachments(BaseGnrTest):
 
     @pytest.mark.parametrize('extension,legacy', [('HEIC', False), ('heif', True)])
     def test_preview_download_and_pdf(self, extension, legacy, monkeypatch):
+        pillow_heif = pytest.importorskip('pillow_heif')
         buf = BytesIO()
         pillow_heif.from_pillow(Image.new('RGB', (96, 64), 'red')).save(buf)
         data = buf.getvalue()
@@ -98,6 +99,39 @@ class TestHeifAttachments(BaseGnrTest):
             pages = PdfReader(pdf).pages
             assert len(pages) == 2
             assert len({tuple(p.mediabox) for p in pages}) == 2
+
+    @pytest.mark.parametrize('interactive', [False, True])
+    def test_export_without_heif_decoder(self, monkeypatch, caplog, interactive):
+        monkeypatch.setitem(sys.modules, 'pillow_heif', None)
+        self.attach('scan.HEIC', b'')
+        pdf = BytesIO()
+        writer = PdfWriter()
+        writer.add_blank_page(width=72, height=144)
+        writer.write(pdf)
+        self.attach('document.pdf', pdf.getvalue())
+        jpeg = BytesIO()
+        Image.new('RGB', (100, 50)).save(jpeg, 'JPEG')
+        self.attach('photo.jpg', jpeg.getvalue())
+        self.attach('second.heif', b'')
+
+        notifications = []
+        if interactive:
+            page = self.site.dummyPage
+            page.locale = 'it'
+            monkeypatch.setattr(page, 'page_id', 'test')
+            monkeypatch.setattr(page, 'clientPublish', lambda topic, **kw: notifications.append((topic, kw)))
+            monkeypatch.setattr(self.site, 'currentPage', page)
+        out = self.table.getAttachmentsPdf(self.parent['id'], output_path='home:partial.pdf')
+        with out.open('rb') as exported:
+            pages = PdfReader(exported).pages
+            assert len(pages) == 2
+            assert {(p.mediabox.width, p.mediabox.height) for p in pages} == {(72, 144), (72, 36)}
+        warnings = [r.getMessage() for r in caplog.records if 'pillow-heif' in r.getMessage()]
+        assert len(warnings) == 1
+        assert 'omitted' in warnings[0]
+        if interactive:
+            assert notifications == [('floating_message', dict(message='Gli allegati HEIC/HEIF sono stati esclusi dal PDF. Puoi scaricare gli originali separatamente.',
+                                                               messageType='warning'))]
 
     def test_invalid_heif_offers_original(self, monkeypatch):
         rec = self.attach('broken.heic', b'unsupported content')
