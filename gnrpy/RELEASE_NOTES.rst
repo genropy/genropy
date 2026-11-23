@@ -1,3 +1,27 @@
+Release 26.11.23
+================
+
+Bug fixes
+---------
+
+* adm: login redirects a user assigned to a store to that store's path
+  and start page again, also when the application is served under a
+  URL prefix (#1944)
+* attachmanager: only the element of the selected preview page requests
+  the url. A hidden image no longer poisons the browser cache for
+  PDF.js, which left the viewer empty on the first click on PDFs stored
+  on S3 (#1921, #1922)
+
+Docker
+------
+
+* Images carry the framework version, source commit and UTC build time
+  as ``org.genropy.version``, ``org.genropy.revision`` and
+  ``org.genropy.build_timestamp``, plus the OCI version and revision
+  labels. Images derived from them may override the OCI keys, so read
+  the ``org.genropy.*`` labels on an application image. The nightly
+  image has version ``develop`` (#1896)
+
 Release 26.11.16.1
 ==================
 
