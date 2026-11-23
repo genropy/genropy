@@ -183,9 +183,12 @@
     display: none;
 }
 
-.atc_form_info{
-    padding: .4em .8em .6em;
-    border-top: 1px solid var(--border-color);
+.atc_form_name{
+    font-weight: normal;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 50vw;
 }
 .atc_form_btn{
     width: 1.3em;

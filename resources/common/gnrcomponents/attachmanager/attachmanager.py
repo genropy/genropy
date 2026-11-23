@@ -172,11 +172,11 @@ class Form(BaseComponent):
         return askMetadata
     
     def _atc_viewerStack(self,parent,askMetadata=None,attachment_table=None,frameCode=None,
-                     onUploadingMethod=None,onUploadedMethod=None,**kwargs):
+                     onUploadingMethod=None,onUploadedMethod=None,imageOnClick=None,**kwargs):
         sc = parent.stackContainer(**kwargs)
         bc = sc.borderContainer(title='!![en]Viewer')
         bc.attachmentPreviewViewer(src='^.fileurl',selectedPage='^#FORM.viewerMode',region='center',
-                                    currentPreviewZoom='^#FORM.currentPreviewZoom')
+                                    currentPreviewZoom='^#FORM.currentPreviewZoom',imageOnClick=imageOnClick)
         da = sc.contentPane(title='!![en]Uploader').div(position='absolute',top='10px',left='10px',right='10px',bottom='10px',
             text_align='center',border='3px dotted #999',rounded=8)
         upload_message = '!!Drag here or double click to upload' if not self.isMobile else "!!Double click to upload"
@@ -236,20 +236,27 @@ class FormPlaceholder(BaseComponent):
 class FormChips(Form):
 
     def th_form(self, form):
-        bar = form.top.bar.replaceSlots('right_placeholder','download,8')
+        bar = form.top.bar.replaceSlots('left_placeholder','12,atcname,6,changeName,4,externalUrl')
+        bar = bar.replaceSlots('right_placeholder','download,8')
         if form.attributes.get('atcDownload'):
             bar.download.lightButton(_class='atc_form_btn atc_form_download',tip='!!Download',
                                      action='genro.download(fileurl);',fileurl='=#FORM.record.fileurl')
+        name = bar.atcname.div(_class='atc_form_name')
+        bar.dataController("node.textContent = value || '';",value='^#FORM.record.description',node=name.js_domNode)
+        fb = bar.changeName.div(_class='iconbox tag',tip='!!Change description').tooltipPane().div(
+                    padding='10px').formbuilder(cols=1,border_spacing='3px',datapath='#FORM.record')
+        fb.textbox(value='^.description',lbl='!!Description')
+        fb = bar.externalUrl.div(_class='iconbox globe',hidden='^#FORM.record.external_url?=!#v',
+                                 tip='!!External url').tooltipPane().div(
+                    padding='10px').formbuilder(cols=1,border_spacing='3px',datapath='#FORM.record')
+        fb.textbox(value='^.external_url',lbl='!!External url')
         bc = form.center.borderContainer()
-        info = bc.contentPane(region='bottom',datapath='#FORM.record',_class='atc_form_info')
-        fb = info.formlet(cols=2)
-        fb.textbox(value='^.description',lbl='!!Title',width='100%')
-        fb.textbox(value='^.external_url',lbl='!!Link',width='100%',hidden='^.external_url?=!#v')
         stage = bc.contentPane(region='center',overflow='hidden',_class='atc_form_stage')
         viewer = stage.borderContainer(position='absolute',top=0,left=0,right=0,bottom=0,
                                        datapath='.record')
         self._atc_viewerStack(viewer,region='center',attachment_table=form.attributes['table'],
-                              frameCode=form.attributes['frameCode'])
+                              frameCode=form.attributes['frameCode'],
+                              imageOnClick='AttachManager.zoomStep(this,this.getRelativeData("#FORM.currentPreviewZoom")?0:1);')
         zoombar = stage.div(_class='atc_form_zoombar',hidden='^#FORM.viewerMode?=#v!="image"')
         zoombar.div('−',_class='atc_form_zoomstep',connect_onclick='AttachManager.zoomStep(this,-1);')
         zoombar.div('^#FORM.chips.zoomLabel',_class='atc_form_zoomlabel',
@@ -258,7 +265,8 @@ class FormChips(Form):
         form.dataController("AttachManager.zoomStep(this,0);",_fired='^#FORM.controller.loaded')
 
     def th_options(self):
-        return dict(modal='navigation',modal_dismissTitle='!![en]Back',autoSave='onLeave',showfooter=False)
+        return dict(modal='navigation',modal_dismissTitle='!![en]Back',autoSave='onLeave',showfooter=False,
+                    titleTemplate='!![en]Attachment')
 
 
 class ViewPalette(BaseComponent):
@@ -363,7 +371,7 @@ class AttachManager(BaseComponent):
         return th 
 
     @struct_method
-    def at_attachmentPreviewViewer(self,parent,src=None,currentPreviewZoom=None,**kwargs):
+    def at_attachmentPreviewViewer(self,parent,src=None,currentPreviewZoom=None,imageOnClick=None,**kwargs):
         sc = parent.stackContainer(_virtual_column='fileurl',**kwargs)
         # each page gets its own src: a hidden element must never request the url.
         # A hidden img fetching a PDF without Origin poisons the browser cache for
@@ -371,9 +379,10 @@ class AttachManager(BaseComponent):
         sc.contentPane(pageName='document', overflow='hidden').iframe(src='^.$preview_src.document',height='100%',
                                     avoidCache=True,width='100%',border='0px',documentClasses=True)
         imgPane = sc.contentPane(pageName='image', overflow='auto')
+        click_kw = dict(connect_onclick=imageOnClick) if imageOnClick else \
+            dict(onclick="genro.openBrowserTab(this.src, {target:'_blank'})")
         img = imgPane.img(src='^.$preview_src.image', _class='atc_img_fit',
-                                    style='display:block;cursor:zoom-in;',
-                                    onclick="genro.openBrowserTab(this.src, {target:'_blank'})")
+                                    style='display:block;cursor:zoom-in;',**click_kw)
         if currentPreviewZoom:
             imgPane.dataController("""
                 genro.dom.setClass(imgDom,'atc_img_fit',!zoomValue);

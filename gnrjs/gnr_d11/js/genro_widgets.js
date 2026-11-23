@@ -2084,11 +2084,15 @@ dojo.declare("gnr.widgets.Dialog", gnr.widgets.baseDojo, {
             cancel:closeAttrs['cancel']}, {confirm:closeAction, cancel:''});
     },
     attributes_mixin_onCancelPublish:function(event) {
-        if(genro.activeForm && genro.activeForm.currentFocused){
-            genro.activeForm.currentFocused.focusNode.blur();
+        var focused = genro.activeForm && genro.activeForm.currentFocused;
+        if(focused){
+            if(focused._focused && focused._setBlurValue){
+                // dijit writes the value of a blurred field only when its focus manager
+                // catches up, after the form has been dismissed
+                focused._setBlurValue();
+            }
+            focused.focusNode.blur();
             genro.activeForm.currentFocused = null;
-            this.sourceNode.publish('close',{modifiers:genro.dom.getEventModifiers(event)});
-            return;
         }
         this.sourceNode.publish('close',{modifiers:genro.dom.getEventModifiers(event)});
     },
