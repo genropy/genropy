@@ -110,15 +110,13 @@ const LoginComponent = {
                 genro.publish('failed_login_msg',{'message':result?result.error:error_msg});
             }else{
                 genro.setData('gnr.avatar',new gnr.GnrBag(result))
-                var user_dbstore = genro.getData('gnr.avatar.user_record.dbstore')
+                const userStore = genro.getData('gnr.avatar.user_record.dbstore');
                 let startPage = result['rootpage'] || sourceNode.getRelativeData('gnr.rootenv.rootpage');
-                if(user_dbstore){
-                    if(!window.location.pathname.slice(1).startsWith(user_dbstore)){
-                        var redirect_url = window.location.protocol+'//'+window.location.host+'/'+user_dbstore;
-                        if(rootpage){
-                            redirect_url+=startPage;
-                        }
-                        window.location.assign(redirect_url);
+                if(userStore){
+                    const storePath = genro.joinPath(genro.getData('gnr.defaultUrl') || '/', encodeURIComponent(userStore));
+                    const pathname = window.location.pathname;
+                    if(pathname !== storePath && !pathname.startsWith(storePath + '/')){
+                        window.location.assign(genro.joinPath(storePath, startPage || ''));
                         return;
                     }
                 }
