@@ -28,24 +28,12 @@ class XTDHandler(object):
         self.db = self.tblobj.db
     
 
-    def __getattr__(self, fname): 
-        return getattr(self.xtdtable, fname,None)
+    def __getattr__(self, fname):
+        return getattr(self.xtdtable, fname)
 
     @property
     def xtdtable(self):
         return self.db.table(self.tblobj.attributes['xtdtable'])
-
-    def onDeletedMain(self,mainrecord):
-        if not self.tblobj.attributes.get('copy_deleted_record'):
-            self.xtdtable.delete(mainrecord[self.tblobj.pkey])
-            return
-        with self.xtdtable.recordToUpdate(mainrecord[self.tblobj.pkey],insertMissing=True) as xtd:
-            xtd['id'] = mainrecord[self.tblobj.pkey]
-            deleted_record = self.tblobj.newrecord()
-            deleted_record['xtd_id'] = xtd['id']
-            for k,v in mainrecord.items():
-                deleted_record[k] = v
-            xtd['deleted_record'] = deleted_record
 
     def realignRelatedRelIdxAll(self):
         f = self.tblobj.query(columns='${}'.format(self.tblobj.pkey), 
@@ -54,7 +42,7 @@ class XTDHandler(object):
                             excludeLogicalDeleted=False,
                             order_by='$__ins_ts').fetch()
         for r in f:
-            self.realignRelatedRelIdx(r['id'])
+            self.realignRelatedRelIdx(r[self.tblobj.pkey])
 
     def realignRelatedRelIdx(self,pkey):
         relidx_dict = {}
@@ -89,12 +77,3 @@ class XTDHandler(object):
             ur['_relidx'] = idx
             manytable.raw_update(ur,r)
         return idx
-        
-
-
-
-    def mainChangelog(self,record=None,old_record=None,**kwargs):
-        pass
-    
-    def relatedChangelog(self,tblobj,record=None,old_record=None,**kwargs):
-        pass

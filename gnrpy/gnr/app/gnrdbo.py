@@ -16,6 +16,7 @@ from gnr.core.gnrdecorator import public_method,extract_kwargs
 from gnr.core.gnrdict import dictExtract
 
 from gnr.app import logger
+from gnr.sql.gnrsql_exceptions import NotMatchingModelError
 from gnr.app.gnrsqltable_proxy.selection import SelectionProxy
 
 mimetypes.init() # Required for python 2.6 (fixes a multithread bug)
@@ -680,6 +681,11 @@ class TableBase(object):
             masterpkg,mastertbl,masterpkey = master_table_link
         rel_tbl_src = model.src['packages.{}.tables.{}'.format(pkg,tblname)]
         xtd_tbl_src = model.src['packages.{}.tables.{}_xtd'.format(masterpkg,mastertbl)]
+        if xtd_tbl_src is None:
+            raise NotMatchingModelError(
+                "{reltbl} declares relidx='{relidx}': it needs the model module "
+                "{pkg}/{tbl}_xtd with a Table class derived from XTDTable".format(
+                    reltbl=reltbl, relidx=relidx, pkg=masterpkg, tbl=mastertbl))
         xtd_tbl_src.column('{}_relidx'.format(reltbl.replace('.','_')),dtype='L',
                             name_long='{name_long} relidx count'.format(**rel_tbl_src.attributes))
 
@@ -1031,9 +1037,6 @@ class TableBase(object):
         last_counter = last_counter_fetch[0].get(fldname) or 1 if last_counter_fetch else 0
         record[fldname] = last_counter +1
     
-    def trigger_xtdDeletedRecord(self,record,fldname,**kwargs):
-        return self.xtd.onDeletedMain(record)
-
     def trigger_setRelidx(self,record,fldname,**kwargs):
         """field trigger used for manage rowCounter field"""
         if record.get(fldname) is not None:
@@ -1146,11 +1149,9 @@ class TableBase(object):
 
     def dbo_onInserting(self,record=None,**kwargs):
         self.checkDiagnostic(record)
-        self.checkChangelog(record)
 
     def dbo_onUpdating(self,record=None,old_record=None,pkey=None,**kwargs):
         self.checkDiagnostic(record)
-        self.checkChangelog(record,old_record=old_record)
 
         if self.draftField:
             if hasattr(self,'protect_draft'):
@@ -1161,18 +1162,6 @@ class TableBase(object):
             if not record.get(logicalDeletionField) and record.get('__moved_related'):
                 self.restoreUnifiedRecord(record)
     
-    def checkChangelog(self,record=None,old_record=None,**kwargs):
-        chlog = self.attributes.get('chlog')
-        if not chlog:
-            return
-        if chlog is True:
-            self.xtd.mainChangelog(record=record,old_record=old_record)
-        else:
-            self.xtd.relatedChangelog(self,record=record,old_record=old_record)
-
-    def dbo_onDeleting(self,record,**kwargs):
-        self.checkChangelog(None,old_record=record)
-
     def df_getQuerableFields(self,field,group=None,caption_field=None,grouped=False,**kwargs):
         column = self.column(field)
         df_field = column.attributes['subfields']
@@ -1800,24 +1789,16 @@ class XTDTable(GnrDboTable):
         master_attr = mastertbl.attributes
         master_attr['xtdtable'] = '%s.%s' %(pkgname,tblname)
         mastertbl_name_long = master_attr.get('name_long')        
-        tbl.attributes.setdefault('caption_field','description')
-        tbl.attributes.setdefault('rowcaption','$description')
         tbl.attributes.setdefault('name_long','%s  Extra Data' %mastertbl_name_long)
         tbl.attributes.setdefault('name_plural','%s Extra Data' %mastertbl_name_long)
         #self.sysFields(tbl,id=False, ins=False, upd=False)
         masterPkeyAttributes = mastertbl.getAttr('columns.{pkey}'.format(**master_attr))
         tbl.column('main_id',size=masterPkeyAttributes.get('size'),group='_',name_long='!![it]Main id').\
-            relation('{pkg}.{tbl}.id'.format(pkg=pkgname,tbl=mastertblname),
+            relation('{pkg}.{tbl}.{pkey}'.format(pkg=pkgname,tbl=mastertblname,pkey=master_attr['pkey']),
                         onDelete=self.xtd_options().get('onDelete'),
                         one_one=True,relation_name='xtd',
                         one_name='!![en]Main',
                         many_name='!![en]XTD')
-        if master_attr.get('copy_deleted_record'):
-            tbl.column('deleted_record',dtype='X',name_long='!![it]Deleted record')
-        if master_attr.get('chlog'):
-            tbl.column('chlog_sessions',dtype='X',name_long='!![it]Changelog')
-            tbl.column('chlog_owner_user')
-
         self.onTableConfig(tbl)
     
     def onTableConfig(self,tbl):
