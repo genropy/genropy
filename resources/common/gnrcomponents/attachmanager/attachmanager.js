@@ -20,3 +20,43 @@ var AttachManager = {
         });
     }
 };
+AttachManager.zoomSteps = [0.25,0.5,0.75,1,1.5,2,3];
+
+AttachManager.zoomStep = function(sourceNode,direction){
+    var zoom = sourceNode.getRelativeData('#FORM.currentPreviewZoom') || 0;
+    var steps = AttachManager.zoomSteps;
+    if(direction>0){
+        zoom = zoom? (steps.find(s=>s>zoom) || zoom) : 1;
+    }else if(direction<0){
+        zoom = zoom? ([...steps].reverse().find(s=>s<zoom) || zoom) : 0.5;
+    }else{
+        zoom = 0;
+    }
+    sourceNode.setRelativeData('#FORM.currentPreviewZoom',zoom);
+    sourceNode.setRelativeData('#FORM.chips.zoomLabel',zoom? Math.round(zoom*100)+'%' : _T('Fit'));
+};
+
+AttachManager.chipsLoaded = function(formId){
+    AttachManager.openChipsForm = formId;
+    if(AttachManager._chipsKeyHandler){
+        return;
+    }
+    var commands = {ArrowLeft:'prev',ArrowRight:'next',Escape:'dismiss'};
+    AttachManager._chipsKeyHandler = dojo.connect(document,'onkeydown',function(e){
+        var openFormId = AttachManager.openChipsForm;
+        var tag = e.target && e.target.tagName;
+        var command = commands[e.key];
+        if(!openFormId || !command || tag=='INPUT' || tag=='TEXTAREA'){
+            return;
+        }
+        dojo.stopEvent(e);
+        genro.formById(openFormId).publish('navigationEvent',{command:command});
+    });
+};
+
+AttachManager.chipsDismissed = function(chipsNode,formId){
+    if(AttachManager.openChipsForm==formId){
+        AttachManager.openChipsForm = null;
+    }
+    chipsNode.fireEvent('.reload',true);
+};

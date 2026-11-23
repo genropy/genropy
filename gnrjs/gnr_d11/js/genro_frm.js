@@ -203,7 +203,9 @@ dojo.declare("gnr.GnrFrmHandler", null, {
             });
             if(this.store.autoSave){
                 this.autoSave = this.store.autoSave===true?2000:this.store.autoSave;
-                dojo.connect(this,'updateStatus',this.doAutoSave);
+                if(this.autoSave!='onLeave'){
+                    dojo.connect(this,'updateStatus',this.doAutoSave);
+                }
             }
             var startKey = kw.startKey || this.store.startKey || this.getCurrentPkey();
             if(startKey){
@@ -1285,7 +1287,7 @@ dojo.declare("gnr.GnrFrmHandler", null, {
     },
     
     onBlurForm:function(){
-        if(this.autoSave && this.changed){
+        if(this.autoSave && this.autoSave!='onLeave' && this.changed){
             this.doAutoSave();
         }
         genro.dom.removeClass(this.sourceNode,'form_activeForm');

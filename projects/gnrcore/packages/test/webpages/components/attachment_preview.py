@@ -18,7 +18,8 @@ class GnrCustomWebPage(object):
                          'm4v:m4v (video)', 'avi:avi (unsupported)', 'mpg:mpg (unsupported)',
                          'mpeg:mpeg (unsupported)', 'wmv:wmv (unsupported)',
                          'mkv:mkv (unsupported)', 'flv:flv (unsupported)',
-                         'pdf:pdf (document)', 'txt:txt (document)')
+                         'pdf:pdf (document)', 'txt:txt (document)',
+                         'docx:docx (unsupported)', 'xlsx:xlsx (unsupported)', 'zip:zip (unsupported)')
 
     def test_0_previewRouting(self, pane):
         """Pick an extension and read back the pane the stack switched to
