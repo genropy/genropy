@@ -27,7 +27,7 @@ LOGIN = (pathlib.Path(__file__).parents[3] / 'projects' / 'gnrcore'
 LOGIN_METHODS = ('login_checkAvatar', 'login_setChecked', 'login_isChecked', 'login_doLogin', 'login_setSelectedRootenv',
                  'login_completeRootEnv', 'login_selectableGroups', 'login_require2fa',
                  'login_canSetWorkdate', 'login_confirmUser', 'login_confirmNewPassword',
-                 'loginPreference', '_immediate_message_parameters', 'login_deviceChecked',
+                 'loginPreference', '_immediate_message_parameters', 'login_deviceChecked', 'login_ticketChecked', 'login_setTicket', 'login_ticketLogin',
                  'login_deviceRegistration', 'login_setDevice', 'login_genroappDevice')
 
 
