@@ -19,7 +19,7 @@
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
 
-import hashlib, os
+import hashlib, html, os
 
 from gnr.core.gnrdict import dictExtract
 from gnr.web.gnrbaseclasses import BaseComponent
@@ -34,6 +34,24 @@ VIDEOS_EXT = ('.mp4','.webm','.mov','.m4v')
 UNPLAYABLE_VIDEOS_EXT = ('.avi','.mpg','.mpeg','.wmv','.mkv','.flv')
 NO_PREVIEW_EXT = ('.doc','.docx','.xls','.xlsx','.ppt','.pptx','.odt','.ods','.odp','.rtf',
                   '.zip','.rar','.7z','.gz','.tar')
+
+
+def formatSize(size):
+    if not size:
+        return None
+    for unit in ('B','KB','MB','GB'):
+        if size < 1024 or unit == 'GB':
+            return '%s %s' %(size if unit == 'B' else '%.1f' %size,unit)
+        size = size/1024.
+
+
+def chipCaption(description=None,ext=None,size=None,kind=None):
+    caption = '<span class="atc_chip_icon atc_chip_%s"></span><span class="atc_chip_name">%s</span>' %(
+                        kind or 'file',html.escape(description or ''))
+    meta = ' '.join([v for v in ((ext or '').lstrip('.').upper(),formatSize(size)) if v])
+    if meta:
+        caption = '%s<span class="atc_chip_meta">%s</span>' %(caption,html.escape(meta))
+    return caption
 
 
 class ViewAtcMobile(BaseComponent):
@@ -243,8 +261,10 @@ class FormChips(Form):
     def _atc_inlineEdit(self,pane,field,_class=None,**kwargs):
         editing = '#FORM.chips.editing_%s' %field
         box = pane.div(_class=_class,**kwargs)
-        box.div('^#FORM.record.%s' %field,_class='atc_inline_text',hidden='^%s' %editing,
-                connect_onclick="if(!this.form.isDisabled()){this.setRelativeData('%s',true);}" %editing)
+        text = box.div(_class='atc_inline_text',hidden='^%s' %editing,
+                       connect_onclick="if(!this.form.isDisabled()){this.setRelativeData('%s',true);}" %editing)
+        box.dataController("node.textContent = value || '';",value='^#FORM.record.%s' %field,
+                           node=text.js_domNode)
         editor = box.textbox(value='^#FORM.record.%s' %field,_class='atc_inline_input',
                              hidden='^%s?=!#v' %editing,
                              connect_onBlur="this.setRelativeData('%s',false);" %editing,
@@ -254,7 +274,8 @@ class FormChips(Form):
         box.dataController("SET %s = false;" %editing,_fired='^#FORM.controller.loaded')
 
     def th_options(self):
-        return dict(modal='navigation',modal_dismissTitle='!![en]Back',autoSave='onLeave',showfooter=False)
+        return dict(modal='navigation',modal_dismissTitle='!![en]Back',autoSave='onLeave',showfooter=False,
+                    titleTemplate='!![en]Attachment')
 
 
 class ViewPalette(BaseComponent):
@@ -737,20 +758,9 @@ class AttachManager(BaseComponent):
                 kind = 'image' if ext in IMAGES_EXT else 'video' if ext in VIDEOS_EXT else 'pdf' if ext == '.pdf' else 'file'
                 sn = tblobj._atcStorageNode(row) if filepath else None
                 size = sn.size if sn and sn.exists else None
-            meta = ' '.join([v for v in (ext[1:].upper(),self._atc_formatSize(size)) if v])
-            caption = '<span class="atc_chip_icon atc_chip_%s"></span><span class="atc_chip_name">%s</span>' %(kind,row.get('description') or '')
-            if meta:
-                caption = '%s<span class="atc_chip_meta">%s</span>' %(caption,meta)
-            return dict(atc_chip_caption=caption)
+            return dict(atc_chip_caption=chipCaption(description=row.get('description'),ext=ext,
+                                                     size=size,kind=kind))
         selection.apply(apply_chip)
-
-    def _atc_formatSize(self,size):
-        if not size:
-            return None
-        for unit in ('B','KB','MB','GB'):
-            if size < 1024 or unit == 'GB':
-                return '%s %s' %(size if unit == 'B' else '%.1f' %size,unit)
-            size = size/1024.
 
     def _handleFileHash(self,kwargs):
         file_handle = kwargs.get('file_handle')
