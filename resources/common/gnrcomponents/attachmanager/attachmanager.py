@@ -236,17 +236,16 @@ class FormPlaceholder(BaseComponent):
 class FormChips(Form):
 
     def th_form(self, form):
-        bar = form.top.bar.replaceSlots('left_placeholder','*,atctitle')
-        bar = bar.replaceSlots('right_placeholder','download,8')
-        title = bar.atctitle.div(_class='atc_form_title')
-        self._atc_inlineEdit(title,'description',_class='atc_form_name')
-        self._atc_inlineEdit(title,'external_url',_class='atc_form_link',
-                             hidden='^#FORM.record.external_url?=!#v')
+        bar = form.top.bar.replaceSlots('right_placeholder','download,8')
         if form.attributes.get('atcDownload'):
             bar.download.lightButton(_class='atc_form_btn atc_form_download',tip='!!Download',
                                      action='genro.download(fileurl);',fileurl='=#FORM.record.fileurl')
-        stage = form.center.borderContainer().contentPane(region='center',overflow='hidden',
-                                                          _class='atc_form_stage')
+        bc = form.center.borderContainer()
+        info = bc.contentPane(region='bottom',datapath='#FORM.record',_class='atc_form_info')
+        fb = info.formlet(cols=2)
+        fb.textbox(value='^.description',lbl='!!Title',width='100%')
+        fb.textbox(value='^.external_url',lbl='!!Link',width='100%',hidden='^.external_url?=!#v')
+        stage = bc.contentPane(region='center',overflow='hidden',_class='atc_form_stage')
         viewer = stage.borderContainer(position='absolute',top=0,left=0,right=0,bottom=0,
                                        datapath='.record')
         self._atc_viewerStack(viewer,region='center',attachment_table=form.attributes['table'],
@@ -258,24 +257,8 @@ class FormChips(Form):
         zoombar.div('+',_class='atc_form_zoomstep',connect_onclick='AttachManager.zoomStep(this,1);')
         form.dataController("AttachManager.zoomStep(this,0);",_fired='^#FORM.controller.loaded')
 
-    def _atc_inlineEdit(self,pane,field,_class=None,**kwargs):
-        editing = '#FORM.chips.editing_%s' %field
-        box = pane.div(_class=_class,**kwargs)
-        text = box.div(_class='atc_inline_text',hidden='^%s' %editing,
-                       connect_onclick="if(!this.form.isDisabled()){this.setRelativeData('%s',true);}" %editing)
-        box.dataController("node.textContent = value || '';",value='^#FORM.record.%s' %field,
-                           node=text.js_domNode)
-        editor = box.textbox(value='^#FORM.record.%s' %field,_class='atc_inline_input',
-                             hidden='^%s?=!#v' %editing,
-                             connect_onBlur="this.setRelativeData('%s',false);" %editing,
-                             connect_onkeydown="if($1.key=='Enter' || $1.key=='Escape'){this.widget.focusNode.blur();}")
-        box.dataController("if(editing){setTimeout(function(){editor.focus();editor.focusNode.select();},1);}",
-                           editing='^%s' %editing,editor=editor.js_widget)
-        box.dataController("SET %s = false;" %editing,_fired='^#FORM.controller.loaded')
-
     def th_options(self):
-        return dict(modal='navigation',modal_dismissTitle='!![en]Back',autoSave='onLeave',showfooter=False,
-                    titleTemplate='!![en]Attachment')
+        return dict(modal='navigation',modal_dismissTitle='!![en]Back',autoSave='onLeave',showfooter=False)
 
 
 class ViewPalette(BaseComponent):
@@ -738,7 +721,7 @@ class AttachManager(BaseComponent):
             wrapper.thFormHandler(table=table,formId=formId,datapath='.preview',
                                   formResource='gnrcomponents/attachmanager/attachmanager:FormChips',
                                   store_storeType='Collection',store_parentStore=nodeId,atcDownload=download,
-                                  **({'dialog_fullScreen':True} if self.isMobile else {'dialog_parentRatio':.9,'dialog__class':'hideDialogTitle'}))
+                                  **({'dialog_fullScreen':True} if self.isMobile else {'dialog_parentRatio':.9}))
             wrapper.attributes.update({
                 'subscribe_form_%s_onLoaded' %formId:"AttachManager.chipsLoaded('%s');" %formId,
                 'subscribe_form_%s_onSaved' %formId:"this.fireEvent('.reload',true);",

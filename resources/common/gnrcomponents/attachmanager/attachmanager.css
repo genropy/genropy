@@ -183,36 +183,9 @@
     display: none;
 }
 
-.atc_form_title{
-    display: flex;
-    align-items: baseline;
-    gap: .8em;
-    max-width: 60vw;
-}
-.atc_form_name,.atc_form_link{
-    min-width: 0;
-}
-.atc_inline_text{
-    padding: .1em .4em;
-    border-radius: var(--radius-sm);
-    overflow: hidden;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-    cursor: text;
-}
-.atc_inline_text:hover{
-    background: var(--gray-100, #f2f2f4);
-}
-.atc_form_name .atc_inline_text{
-    font-weight: 600;
-}
-.atc_form_link .atc_inline_text{
-    color: var(--text-muted, #888);
-    font-size: .9em;
-}
-.atc_inline_input.dijitTextBox{
-    width: 30em;
-    max-width: 50vw;
+.atc_form_info{
+    padding: .4em .8em .6em;
+    border-top: 1px solid var(--border-color);
 }
 .atc_form_btn{
     width: 1.3em;
