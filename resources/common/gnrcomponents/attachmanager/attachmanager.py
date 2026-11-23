@@ -737,8 +737,8 @@ class AttachManager(BaseComponent):
         if preview:
             wrapper.thFormHandler(table=table,formId=formId,datapath='.preview',
                                   formResource='gnrcomponents/attachmanager/attachmanager:FormChips',
-                                  dialog_fullScreen=True,store_storeType='Collection',store_parentStore=nodeId,
-                                  atcDownload=download)
+                                  store_storeType='Collection',store_parentStore=nodeId,atcDownload=download,
+                                  **({'dialog_fullScreen':True} if self.isMobile else {'dialog_parentRatio':.9,'dialog__class':'hideDialogTitle'}))
             wrapper.attributes.update({
                 'subscribe_form_%s_onLoaded' %formId:"AttachManager.chipsLoaded('%s');" %formId,
                 'subscribe_form_%s_onSaved' %formId:"this.fireEvent('.reload',true);",
