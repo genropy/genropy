@@ -247,3 +247,12 @@ def test_realign_every_series_of_the_field(counter):
     c.invoice.realignCounterColumn('inv_number')
     c.db.commit()
     assert c.number(c.insert(3)) == 2
+
+
+def test_realign_of_a_switched_off_counter_does_nothing(counter):
+    c = counter.series('P')
+    c.insert(1)
+    c.monkeypatch.setattr(c.invoice, 'counter_inv_number', lambda record=None: False, raising=False)
+    c.invoice.realignCounterColumn('inv_number')
+    if c.kind == 'adm':
+        c.db.table('adm.counter').initializeTableSequences(c.invoice)

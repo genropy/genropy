@@ -28,6 +28,8 @@ class Table(object):
 
     def getFieldSequences(self,tblobj,field=None):
         pars = getattr(tblobj,'counter_%s' %field)()
+        if not pars:
+            return
         N_start,N_end = self._getBoundaries(**pars)['N']
         if N_start is None:
             return
@@ -62,6 +64,8 @@ class Table(object):
         if isinstance(to_align,str):
             to_align = to_align.split(',')
         pars = getattr(tblobj,'counter_%s' %field)()
+        if not pars:
+            return
         boundaries = self._getBoundaries(**pars)
         if boundaries['N'][0] is not None:
             to_align = thermo_wrapper(to_align,line_code='sequences',message='Sequence') if thermo_wrapper else to_align
