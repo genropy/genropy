@@ -17,6 +17,7 @@ from gnr.web.gnrwebpage import BaseComponent
 from gnr.web.gnrwebstruct import struct_method
 from gnr.web.loginfields import (client_only_keys, collect_login_rpcs, form_derived_values, form_value_keys,
                                  trusted_rootenv)
+from gnr.web.gnrgenroapp import connector_config
 
 CONFIRMABLE_STATUSES = ('invt', 'new', 'wait')
 
@@ -162,6 +163,11 @@ class LoginComponent(BaseComponent):
                         _onResult="""LoginComponent.onCheckAvatar(kwargs._fb,result,kwargs._error_msg,this._explicitCheck)""",
                         sync=True,_POST=True,
                         _userChanges=True)
+            if connector_config(self.application):
+                # GenroApp opened from "Open with GenroApp" in the browser: the ticket in the URL
+                # logs in the user of the browser page without the password
+                pane.dataController("LoginComponent.ticketLogin(fb,dlg,ticket_rpc);",_onBuilt=True,
+                                    fb=fb,dlg=dlg.js_widget,ticket_rpc=self.login_ticketLogin)
             if self.login_genroappDevice():
                 pane.dataController("LoginComponent.deviceLogin(fb,dlg,challenge_rpc,login_rpc);",_onBuilt=True,
                                     fb=fb,dlg=dlg.js_widget,
@@ -265,7 +271,7 @@ class LoginComponent(BaseComponent):
         device = self.login_deviceChecked(login['user'])
         if not device and page_store.getItem('login_device_required'):
             return {'error':'!![en]This user must log in with GenroApp'}
-        if device and self.db.table('adm.user_device').loginMode() == 'signature':
+        if (device and self.db.table('adm.user_device').loginMode() == 'signature') or self.login_ticketChecked(login['user']):
             kwargs['authenticate'] = False
         derived = page_store.getItem('login_rootenv_derived') or Bag()
         checked_rootenv = page_store.getItem('login_checked_rootenv') or Bag()
@@ -295,6 +301,7 @@ class LoginComponent(BaseComponent):
         rootenv['language'] = rootenv['language'] or self.language
         self.login_setChecked(None)
         self.login_setDevice(None)
+        self.login_setTicket(None)
         self.connectionStore().setItem('defaultRootenv',rootenv) #no need to be locked because it's just one set
         return self.login_newWindow(rootenv=rootenv)
 
@@ -327,8 +334,9 @@ class LoginComponent(BaseComponent):
             ps.setItem('login_device_required',None)
         device_tbl = self.db.table('adm.user_device')
         device = self.login_deviceChecked(user)
-        # a device signature of this page names the user: in mode signature it replaces the password
-        authenticate = not (device and device_tbl.loginMode() == 'signature')
+        # a device signature of this page names the user: in mode signature it replaces the password;
+        # so does a GenroApp ticket of this page
+        authenticate = not ((device and device_tbl.loginMode() == 'signature') or self.login_ticketChecked(user))
         try:
             avatar = self.application.getAvatar(user, password=password,group_code=group_code,
                                                 authenticate=authenticate)
@@ -412,6 +420,30 @@ class LoginComponent(BaseComponent):
         device = self.pageStore().getItem('login_device')
         if device and user and device['user'] == user:
             return device
+
+    def login_setTicket(self,user):
+        with self.pageStore() as ps:
+            ps.setItem('login_ticket',user)
+
+    def login_ticketChecked(self,user):
+        """True when a GenroApp ticket consumed by this page named ``user``."""
+        ticket_user = self.pageStore().getItem('login_ticket')
+        return bool(ticket_user and user and ticket_user == user)
+
+    @public_method(sessionless=True)
+    def login_ticketLogin(self,ticket=None):
+        """Consume the GenroApp ticket of the URL: the user of the browser page that asked it
+        is logged in here without the password. None for an unknown, used or expired ticket."""
+        self.login_setTicket(None)
+        if not connector_config(self.application):
+            return None
+        user = self.db.table('adm.genroapp_ticket').consume(ticket)
+        self.db.commit()
+        if not user:
+            logger.warning("GenroApp ticket refused")
+            return None
+        self.login_setTicket(user)
+        return Bag(dict(user=user))
 
     def login_popChallenge(self):
         with self.pageStore() as ps:
