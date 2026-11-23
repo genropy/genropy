@@ -3,6 +3,7 @@
 
 
 import os
+import contextlib
 import re
 import random
 import shutil
@@ -804,10 +805,10 @@ class BaseLocalService(StorageService):
         return LocalPath(fullpath=internalpath)
 
     def makedirs(self, *args, **kwargs):
-        os.makedirs(self.internal_path(*args))
+        os.makedirs(self.internal_path(*args), exist_ok=True)
 
     def mkdir(self, *args, **kwargs):
-        if not self.exists(*args):
+        with contextlib.suppress(FileExistsError):
             os.mkdir(self.internal_path(*args))
 
     def _stat(self, *args):
