@@ -1,5 +1,5 @@
 from gnr.web.gnrbaseclasses import BaseComponent
-from gnr.web.gnrgenroapp import connector_config
+from gnr.web.gnrgenroapp import connector_config, site_user
 
 info = {
     "code":'genroapp',
@@ -29,11 +29,13 @@ class Formlet(BaseComponent):
             if download_url:
                 buttons.button(label, action="window.open(url,'_blank');", url=download_url,
                                margin_right='10px')
-        if connector_config(self.application):
+        # the users of xml_auth have no row in adm.user: no connector and no device for them
+        site_db_user = site_user(self.db, self.avatar.user_id if self.avatar else None)
+        if site_db_user and connector_config(self.application):
             # the personal connector: opened with GenroApp it adds this site
             buttons.button('!![en]Download the site connector', action="window.open(url,'_blank');",
                            url=f'{self.site.home_uri}_tools/connector', margin_right='10px')
-        if self.application.experimentalFlag('login', 'genroapp_device'):
+        if site_db_user and self.application.experimentalFlag('login', 'genroapp_device'):
             self.genroapp_devices(box)
 
     def genroapp_devices(self, pane):

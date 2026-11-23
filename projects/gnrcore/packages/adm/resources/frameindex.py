@@ -9,7 +9,7 @@ from gnr.core.gnrbag import Bag
 from gnr.core.gnrdecorator import customizable, public_method
 from gnr.core.gnrconfig import getRmsOptions
 from gnr.core.gnrdict import dictExtract
-from gnr.web.gnrgenroapp import connector_config
+from gnr.web.gnrgenroapp import connector_config, site_user
 from gnr.web.gnrmanual import is_storage_path
 from gnr.web.gnrwebpage import BaseComponent
 from gnr.web.gnrwebstruct import struct_method
@@ -377,8 +377,11 @@ class FrameIndex(BaseComponent):
         the platform of the browser with the steps that follow it, and a link to open GenroApp
         when it is installed. A page cannot tell whether an app handles a link: Safari answers
         an unknown link with "the address is not valid", so the link is never tried blindly.
-        Shift-click shows the download box again."""
+        Shift-click shows the download box again. A user that is not a user of the site
+        database (``xml_auth``) gets no button."""
         if not connector_config(self.application):
+            return
+        if not site_user(self.db, self.avatar.user_id if self.avatar else None):
             return
         windows = 'Windows' in (self.user_agent or '')
         download_url = self.site.get_genroapp_download_url('windows' if windows else 'mac')
@@ -440,7 +443,7 @@ class FrameIndex(BaseComponent):
     @public_method
     def genroapp_newTicket(self):
         """A single use ticket for the logged user: GenroApp uses it to log the same user in."""
-        if not (self.avatar and self.avatar.user_id and connector_config(self.application)):
+        if not (self.avatar and site_user(self.db, self.avatar.user_id) and connector_config(self.application)):
             return None
         ticket = self.db.table('adm.genroapp_ticket').newTicket(self.avatar.user_id)
         self.db.commit()

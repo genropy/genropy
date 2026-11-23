@@ -44,9 +44,21 @@ class ConnectorUsersExceeded(ConnectorError):
     status = 409
 
 
+class ConnectorNotSiteUser(ConnectorError):
+    """The user is not a user of the site database: GenroApp is not for it."""
+    status = 403
+
+
 class ConnectorSigningError(ConnectorError):
     """The signing service did not answer a signed connector."""
     status = 502
+
+
+def site_user(db, user_id):
+    """True when ``user_id`` is a row of ``adm.user``. GenroApp is only for these users: a
+    user of ``xml_auth`` has its username as ``user_id`` and no row, so connectors, devices
+    and tickets, which refer to ``adm.user``, cannot be recorded for it."""
+    return bool(user_id) and db.table('adm.user').existsRecord(user_id)
 
 
 def connector_config(application):

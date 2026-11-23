@@ -458,3 +458,12 @@ def test_the_ticket_login_needs_the_genroapp_tag(application):
     ticket = application.db.table('adm.genroapp_ticket').newTicket(_user_id(application, 'cn_bob'))
     application.db.commit()
     assert _page(application).login_ticketLogin(ticket=ticket) is None
+
+
+def test_a_user_outside_the_site_database_gets_no_connector(application, tag, signer):
+    # a user of xml_auth has its username as user_id and no row in adm.user
+    with pytest.raises(gnrgenroapp.ConnectorNotSiteUser) as refusal:
+        application.db.table('adm.user_connector').newConnector(
+            tag(), user_id='cn_xml', user='cn_xml', url=SITE_URL)
+    assert refusal.value.status == 403
+    assert signer.calls == []
