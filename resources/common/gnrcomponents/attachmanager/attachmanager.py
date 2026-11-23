@@ -685,7 +685,7 @@ class AttachManager(BaseComponent):
     @extract_kwargs(default=True,uploader=True)
     @struct_method
     def at_attachmentChips(self,pane,datapath='.attachments',table=None,maintable_id=None,
-                           ask=None,preview=True,download=False,parentForm=True,addLabel=None,emptyMessage=None,
+                           ask=None,download=False,parentForm=True,addLabel=None,emptyMessage=None,
                            nodeId=None,default_kwargs=None,uploader_kwargs=None,**kwargs):
         if not table:
             maintable = pane.getInheritedAttributes().get('table') or self.maintable
@@ -726,26 +726,25 @@ class AttachManager(BaseComponent):
                              **{f'rpc_{k}':v for k,v in default_kwargs.items()},
                              **uploader_kwargs)
         formId = '%s_form' %nodeId
-        if preview:
-            wrapper.thFormHandler(table=table,formId=formId,datapath='.preview',
-                                  formResource='gnrcomponents/attachmanager/attachmanager:FormChips',
-                                  store_storeType='Collection',store_parentStore=nodeId,atcDownload=download,
-                                  **({'dialog_fullScreen':True} if self.isMobile else {'dialog_parentRatio':.9}))
-            wrapper.attributes.update({
-                'subscribe_form_%s_onLoaded' %formId:"AttachManager.chipsLoaded('%s');" %formId,
-                'subscribe_form_%s_onSaved' %formId:"this.fireEvent('.reload',true);",
-                'subscribe_form_%s_onDismissed' %formId:"AttachManager.chipsDismissed(this,'%s');" %formId})
+        wrapper.thFormHandler(table=table,formId=formId,datapath='.preview',
+                              formResource='gnrcomponents/attachmanager/attachmanager:FormChips',
+                              store_storeType='Collection',store_parentStore=nodeId,atcDownload=download,
+                              **({'dialog_fullScreen':True} if self.isMobile else {'dialog_parentRatio':.9}))
+        wrapper.attributes.update({
+            'subscribe_form_%s_onLoaded' %formId:"AttachManager.chipsLoaded('%s');" %formId,
+            'subscribe_form_%s_onSaved' %formId:"this.fireEvent('.reload',true);",
+            'subscribe_form_%s_onDismissed' %formId:"AttachManager.chipsDismissed(this,'%s');" %formId})
         wrapper.dataController("""
             var row = store?store.getNodeByAttr('_pkey',clicked.action):null;
             if(!row){
                 return;
             }
-            if(!preview || row.attr.external_url){
-                genro.openBrowserTab(row.attr.fileurl,{target:'_blank'});
+            if(row.attr.external_url){
+                genro.openBrowserTab(row.attr.fileurl);
                 return;
             }
             genro.formById(formId).load({destPkey:row.attr._pkey});
-            """,clicked='^.clicked',store='=.store',preview=preview,formId=formId,_if='clicked')
+            """,clicked='^.clicked',store='=.store',formId=formId,_if='clicked')
         wrapper.dataController("genro.dom.setClass(chips,'atc_chips_isempty',!(store && store.len()));",
                                store='^.store',chips=wrapper.js_domNode)
         if parentForm:
