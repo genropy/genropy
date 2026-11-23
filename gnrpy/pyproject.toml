@@ -91,6 +91,7 @@ developer = [
   "psycopg2-binary",
   "psycopg",
   "pymysql",
+  "pillow-heif", # exercises HEIC attachment previews and PDF export in CI
   "testing.postgresql", # needed for tests, assuming developers runs tests
   "genro-storage>=0.8,<0.9" # needed by the storage comparison tests
 ]
