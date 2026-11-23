@@ -46,6 +46,12 @@ function stripJsFromHtml(str) {
     return str;
 }
 
+function escapeHtmlText(str) {
+    if (str === null || str === undefined) return '';
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
 var _TEMPLATE_HANDLER_ATTR = _JS_EXEC_PATTERNS[1][0];
 
 // An on* attribute is HTML-decoded before it is parsed as JS, so entity escaping

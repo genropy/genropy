@@ -144,6 +144,11 @@
 ._common_d11 .dijitDialogUnderlay.fullscreenDialog_underlay{
     display: none;
 }
+/* dlg__class='... dlg_cover': the dialog hides the page behind it, e.g. a prompt that comes before its form */
+._common_d11 .dijitDialogUnderlay.dlg_cover_underlay{
+    background: var(--surface-bg, #fff);
+    opacity: 1;
+}
 
 /* @group FileInput */
 

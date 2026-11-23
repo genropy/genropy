@@ -180,6 +180,9 @@
     min-height: 14px;
     position: relative;
 }
+.grouplet_chunk_box > .iconbox.pencil{
+    background-size: 10px 10px;
+}
 
 
 .clientlogo{
