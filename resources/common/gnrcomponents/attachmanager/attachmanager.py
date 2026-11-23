@@ -19,7 +19,7 @@
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
 
-import hashlib, os
+import hashlib, html, os
 
 from gnr.core.gnrdict import dictExtract
 from gnr.web.gnrbaseclasses import BaseComponent
@@ -32,6 +32,26 @@ DEFAULT_DROPAREA_LABEL = '<div>[!!Drop document here]</div><div>[!!or double cli
 IMAGES_EXT = ('.png','.jpg','.jpeg','.gif','.webp')
 VIDEOS_EXT = ('.mp4','.webm','.mov','.m4v')
 UNPLAYABLE_VIDEOS_EXT = ('.avi','.mpg','.mpeg','.wmv','.mkv','.flv')
+NO_PREVIEW_EXT = ('.doc','.docx','.xls','.xlsx','.ppt','.pptx','.odt','.ods','.odp','.rtf',
+                  '.zip','.rar','.7z','.gz','.tar')
+
+
+def formatSize(size):
+    if not size:
+        return None
+    for unit in ('B','KB','MB','GB'):
+        if size < 1024 or unit == 'GB':
+            return '%s %s' %(size if unit == 'B' else '%.1f' %size,unit)
+        size = size/1024.
+
+
+def chipCaption(description=None,ext=None,size=None,kind=None):
+    caption = '<span class="atc_chip_icon atc_chip_%s"></span><span class="atc_chip_name">%s</span>' %(
+                        kind or 'file',html.escape(description or ''))
+    meta = ' '.join([v for v in ((ext or '').lstrip('.').upper(),formatSize(size)) if v])
+    if meta:
+        caption = '%s<span class="atc_chip_meta">%s</span>' %(caption,html.escape(meta))
+    return caption
 
 
 class ViewAtcMobile(BaseComponent):
@@ -213,6 +233,51 @@ class FormPlaceholder(BaseComponent):
 
  
 
+class FormChips(Form):
+
+    def th_form(self, form):
+        bar = form.top.bar.replaceSlots('left_placeholder','*,atctitle')
+        bar = bar.replaceSlots('right_placeholder','download,8')
+        title = bar.atctitle.div(_class='atc_form_title')
+        self._atc_inlineEdit(title,'description',_class='atc_form_name')
+        self._atc_inlineEdit(title,'external_url',_class='atc_form_link',
+                             hidden='^#FORM.record.external_url?=!#v')
+        if form.attributes.get('atcDownload'):
+            bar.download.lightButton(_class='atc_form_btn atc_form_download',tip='!!Download',
+                                     action='genro.download(fileurl);',fileurl='=#FORM.record.fileurl')
+        stage = form.center.borderContainer().contentPane(region='center',overflow='hidden',
+                                                          _class='atc_form_stage')
+        viewer = stage.borderContainer(position='absolute',top=0,left=0,right=0,bottom=0,
+                                       datapath='.record')
+        self._atc_viewerStack(viewer,region='center',attachment_table=form.attributes['table'],
+                              frameCode=form.attributes['frameCode'])
+        zoombar = stage.div(_class='atc_form_zoombar',hidden='^#FORM.viewerMode?=#v!="image"')
+        zoombar.div('−',_class='atc_form_zoomstep',connect_onclick='AttachManager.zoomStep(this,-1);')
+        zoombar.div('^#FORM.chips.zoomLabel',_class='atc_form_zoomlabel',
+                    connect_onclick='AttachManager.zoomStep(this,0);')
+        zoombar.div('+',_class='atc_form_zoomstep',connect_onclick='AttachManager.zoomStep(this,1);')
+        form.dataController("AttachManager.zoomStep(this,0);",_fired='^#FORM.controller.loaded')
+
+    def _atc_inlineEdit(self,pane,field,_class=None,**kwargs):
+        editing = '#FORM.chips.editing_%s' %field
+        box = pane.div(_class=_class,**kwargs)
+        text = box.div(_class='atc_inline_text',hidden='^%s' %editing,
+                       connect_onclick="if(!this.form.isDisabled()){this.setRelativeData('%s',true);}" %editing)
+        box.dataController("node.textContent = value || '';",value='^#FORM.record.%s' %field,
+                           node=text.js_domNode)
+        editor = box.textbox(value='^#FORM.record.%s' %field,_class='atc_inline_input',
+                             hidden='^%s?=!#v' %editing,
+                             connect_onBlur="this.setRelativeData('%s',false);" %editing,
+                             connect_onkeydown="if($1.key=='Enter' || $1.key=='Escape'){this.widget.focusNode.blur();}")
+        box.dataController("if(editing){setTimeout(function(){editor.focus();editor.focusNode.select();},1);}",
+                           editing='^%s' %editing,editor=editor.js_widget)
+        box.dataController("SET %s = false;" %editing,_fired='^#FORM.controller.loaded')
+
+    def th_options(self):
+        return dict(modal='navigation',modal_dismissTitle='!![en]Back',autoSave='onLeave',showfooter=False,
+                    titleTemplate='!![en]Attachment')
+
+
 class ViewPalette(BaseComponent):
     def th_hiddencolumns(self):
         return '$filepath'
@@ -255,7 +320,7 @@ class UploaderViewerPane(BaseComponent):
 
 
 class AttachManager(BaseComponent):
-    py_requires = 'gnrcomponents/attachmanager/attachmanager:UploaderViewerPane'
+    py_requires = 'th/th:TableHandler,gnrcomponents/attachmanager/attachmanager:UploaderViewerPane'
     js_requires='gnrcomponents/attachmanager/attachmanager'
     css_requires = 'gnrcomponents/attachmanager/attachmanager'
 
@@ -335,9 +400,11 @@ class AttachManager(BaseComponent):
                             flex_direction='column',align_items='center',justify_content='center',
                             padding='30px',text_align='center')
         unsupportedbox.div(_class='iconbox warning',font_size='40px',color='#bbb',margin_bottom='16px')
-        unsupportedbox.div('!!This video format cannot be played in the browser. Download it to watch it.',
+        unsupportedbox.div('!!This file cannot be previewed in the browser.',
                             color='#666',font_size='15px',margin_bottom='20px',max_width='420px')
-        unsupportedbox.button('!!Open in a new tab',
+        actions = unsupportedbox.div(display='flex',gap='10px')
+        actions.button('!!Download',action='genro.download(url)',url=src)
+        actions.button('!!Open in a new tab',
                             action='genro.openBrowserTab(url,{target:"_blank"})',url=src)
         parent.dataController("""       
         const parsedSrc = parseURL(src);
@@ -347,14 +414,14 @@ class AttachManager(BaseComponent):
             sc.switchPage('image');
         }else if(VIDEOS_EXT.includes(`.${ext}`)){
             sc.switchPage('video');
-        }else if(UNPLAYABLE_VIDEOS_EXT.includes(`.${ext}`)){
+        }else if(UNPLAYABLE_VIDEOS_EXT.includes(`.${ext}`) || NO_PREVIEW_EXT.includes(`.${ext}`)){
             sc.switchPage('unsupported');
         }else{
             sc.switchPage('document');
         }
         """,src=src,_if='src',sc=sc.js_widget,
             IMAGES_EXT=IMAGES_EXT, VIDEOS_EXT=VIDEOS_EXT,
-            UNPLAYABLE_VIDEOS_EXT=UNPLAYABLE_VIDEOS_EXT)
+            UNPLAYABLE_VIDEOS_EXT=UNPLAYABLE_VIDEOS_EXT,NO_PREVIEW_EXT=NO_PREVIEW_EXT)
 
     @extract_kwargs(default=True,vpane=True,fpane=True,uploader=True)
     @struct_method
@@ -608,6 +675,92 @@ class AttachManager(BaseComponent):
             frm=frame.form.js_form,frame=frame)
         frame.dataController("frm.lazySave()",frm=frame.form.js_form,_fired='^.saveDescription')
         return frame
+
+    @extract_kwargs(default=True,uploader=True)
+    @struct_method
+    def at_attachmentChips(self,pane,datapath='.attachments',table=None,maintable_id=None,
+                           ask=None,preview=True,download=False,parentForm=True,addLabel=None,emptyMessage=None,
+                           nodeId=None,default_kwargs=None,uploader_kwargs=None,**kwargs):
+        if not table:
+            maintable = pane.getInheritedAttributes().get('table') or self.maintable
+            table = self.db.table(maintable).attributes['atc_attachmenttable']
+        nodeId = nodeId or 'atc_chips_%i' %id(pane)
+        uploaderId = '%s_uploader' %nodeId
+        store_kwargs = dict()
+        if maintable_id:
+            store_kwargs['maintable_id'] = maintable_id
+        else:
+            store_kwargs['maintable_id'] = '=#FORM.pkey'
+            store_kwargs['_loader'] = '^#FORM.controller.loaded'
+        wrapper = pane.div(datapath=datapath,nodeId=nodeId,_class='atc_chips',
+                           dropTarget=True,dropTypes='Files',
+                           onDrop="genro.nodeById('%s').attr.onDrop(dropInfo,files);" %uploaderId,
+                           **kwargs)
+        self.subscribeTable(table,True)
+        mb = wrapper.multibutton(value='^.clicked',sticky=False,caption='atc_chip_caption',
+                                 deleteAction="""if(this.form && this.form.isDisabled()){
+                                                     return;
+                                                 }
+                                                 this._value.getNode('store').gnrwdg.store.deleteAsk([value]);""")
+        mb.store(table=table,storepath='.store',nodeId='%s_store' %nodeId,condition='$maintable_id=:maintable_id',
+                 columns='$description,$fileurl,$filepath,$external_url,$_row_count',
+                 order_by='$_row_count',applymethod=self.atc_chipsApply,
+                 _if='maintable_id && maintable_id!="*newrecord*" && maintable_id!="*norecord*"',
+                 _else='this.store.clear();',_reloader='^.reload',**store_kwargs)
+        wrapper.div(emptyMessage or '!!No attachments',_class='atc_chips_message')
+        wrapper.dropUploader(label=addLabel or '!!Attach',openOnClick=True,
+                             ask=ask,
+                             onUploadingMethod=self.onUploadingAttachment,
+                             onUploadedMethod=self.onUploadedAttachment,
+                             rpc_maintable_id=maintable_id.replace('^','=') if maintable_id else '=#FORM.pkey',
+                             rpc_attachment_table=table,
+                             onResult="this.fireEvent('.reload',true);%s" %(uploader_kwargs.pop('onResult',None) or ''),
+                             _class='atc_chips_add',nodeId=uploaderId,
+                             **{f'rpc_{k}':v for k,v in default_kwargs.items()},
+                             **uploader_kwargs)
+        formId = '%s_form' %nodeId
+        if preview:
+            wrapper.thFormHandler(table=table,formId=formId,datapath='.preview',
+                                  formResource='gnrcomponents/attachmanager/attachmanager:FormChips',
+                                  dialog_fullScreen=True,store_storeType='Collection',store_parentStore=nodeId,
+                                  atcDownload=download)
+            wrapper.attributes.update({
+                'subscribe_form_%s_onLoaded' %formId:"AttachManager.chipsLoaded('%s');" %formId,
+                'subscribe_form_%s_onSaved' %formId:"this.fireEvent('.reload',true);",
+                'subscribe_form_%s_onDismissed' %formId:"AttachManager.chipsDismissed(this,'%s');" %formId})
+        wrapper.dataController("""
+            var row = store?store.getNodeByAttr('_pkey',clicked.action):null;
+            if(!row){
+                return;
+            }
+            if(!preview || row.attr.external_url){
+                genro.openBrowserTab(row.attr.fileurl,{target:'_blank'});
+                return;
+            }
+            genro.formById(formId).load({destPkey:row.attr._pkey});
+            """,clicked='^.clicked',store='=.store',preview=preview,formId=formId,_if='clicked')
+        wrapper.dataController("genro.dom.setClass(chips,'atc_chips_isempty',!(store && store.len()));",
+                               store='^.store',chips=wrapper.js_domNode)
+        if parentForm:
+            wrapper.dataController("genro.dom.setClass(chips,'atc_chips_locked',locked);",
+                                   locked='^#FORM.controller.locked',chips=wrapper.js_domNode)
+        return wrapper
+
+    @public_method
+    def atc_chipsApply(self,selection,**kwargs):
+        tblobj = selection.dbtable
+        def apply_chip(row):
+            filepath = row.get('filepath')
+            ext = os.path.splitext(filepath or row.get('external_url') or '')[1].lower()
+            if row.get('external_url'):
+                kind,size = 'link',None
+            else:
+                kind = 'image' if ext in IMAGES_EXT else 'video' if ext in VIDEOS_EXT else 'pdf' if ext == '.pdf' else 'file'
+                sn = tblobj._atcStorageNode(row) if filepath else None
+                size = sn.size if sn and sn.exists else None
+            return dict(atc_chip_caption=chipCaption(description=row.get('description'),ext=ext,
+                                                     size=size,kind=kind))
+        selection.apply(apply_chip)
 
     def _handleFileHash(self,kwargs):
         file_handle = kwargs.get('file_handle')

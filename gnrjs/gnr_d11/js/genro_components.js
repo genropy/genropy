@@ -4462,7 +4462,7 @@ dojo.declare("gnr.widgets.DropUploader", gnr.widgets.gnrwdg, {
         var containerKw = objectExtract(kw,'position,top,left,right,bottom,height,width,border,rounded,_class,style')
 
         gnrwdg.pendingHandlers = [];
-        var uploadhandler_key = genro.isMobile? 'connect_onclick':'connect_ondblclick'
+        var uploadhandler_key = (genro.isMobile || objectPop(kw,'openOnClick'))? 'connect_onclick':'connect_ondblclick'
         dropAreaKw[uploadhandler_key] = function(){
             if(gnrwdg.pendingHandlers.length){
                 genro.dlg.ask(_T("Abort upload"),
