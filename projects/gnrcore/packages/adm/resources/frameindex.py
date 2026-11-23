@@ -368,10 +368,10 @@ class FrameIndex(BaseComponent):
     def fi_slotbar_genroapp(self,slot,**kwargs):
         """Open with GenroApp, on a site with the ``<genroapp>`` tag, in the browser only.
 
-        When GenroApp is known to be there, the button opens ``genroapp://add?url=<origin>``
-        at once: GenroApp asks the user to confirm and adds the site. It is known when the user
-        already uses GenroApp on this site (a connector or a registered computer) or when this
-        browser opened it once (``localStorage``). Otherwise the button shows the download for
+        When this browser opened GenroApp once (``localStorage``), the button opens
+        ``genroapp://add?url=<origin>`` at once: GenroApp asks the user to confirm and adds the
+        site. The browser decides, not the user: a user of GenroApp on one computer may not have
+        it on the computer of this browser. Otherwise the button shows the download for
         the platform of the browser with the steps that follow it, and a link to open GenroApp
         when it is installed. A page cannot tell whether an app handles a link: Safari answers
         an unknown link with "the address is not valid", so the link is never tried blindly.
@@ -380,7 +380,6 @@ class FrameIndex(BaseComponent):
             return
         windows = 'Windows' in (self.user_agent or '')
         download_url = self.site.get_genroapp_download_url('windows' if windows else 'mac')
-        uses_genroapp = self.db.table('adm.user_connector').usesGenroApp(self.avatar.user_id if self.avatar else None)
         # GenroApp exposes window.__TAURI__ to the top window: inside the app the button is useless
         slot.dataFormula('gnr.genroapp.inside','!!(window.top.__TAURI__)',_onBuilt=True)
         # the ticket carries the login of this page into GenroApp (adm.genroapp_ticket); it is asked
@@ -423,11 +422,11 @@ class FrameIndex(BaseComponent):
         footer.button('!![en]Open GenroApp',font_size='14px',padding='4px 14px',ticket_rpc=self.genroapp_newTicket,
                       action=open_js + " genro.wdgById('genroapp_dialog').hide();")
         slot.lightButton(_class='iconbox laptop',tip='!![en]Open with GenroApp',
-                         hidden='^gnr.genroapp.inside',dlg=dlg.js_widget,known=uses_genroapp,
+                         hidden='^gnr.genroapp.inside',dlg=dlg.js_widget,
                          ticket_rpc=self.genroapp_newTicket,
                          action="""
-            var installed = known;
-            try{ installed = installed || localStorage.getItem('genroapp_installed') === '1'; }catch(e){}
+            var installed = false;
+            try{ installed = localStorage.getItem('genroapp_installed') === '1'; }catch(e){}
             if(installed && !event.shiftKey){
         """ + open_js + """
             }else{

@@ -34,17 +34,6 @@ class Table(object):
                           now=datetime.now(timezone.utc)).fetch()
         return {row['user_id'] for row in rows}
 
-    def usesGenroApp(self, user_id):
-        """True when ``user_id`` already uses GenroApp on this site: a connector neither revoked
-        nor expired, or a computer registered and not revoked."""
-        if not user_id:
-            return False
-        if self.query(where='$user_id=:user_id AND $revoked IS NOT TRUE AND $expires>:now',
-                      user_id=user_id, now=datetime.now(timezone.utc)).count():
-            return True
-        return bool(self.db.table('adm.user_device').query(
-            where='$user_id=:user_id AND $revoked IS NOT TRUE', user_id=user_id).count())
-
     def newConnector(self, config, user_id=None, user=None, url=None):
         """The signed connector ``{payload, signature}`` of ``user`` for the site at ``url``,
         asked to the signing service with the ``<genroapp>`` data of ``config`` and recorded

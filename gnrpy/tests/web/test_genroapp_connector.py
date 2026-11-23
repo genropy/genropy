@@ -457,12 +457,3 @@ def test_the_ticket_login_needs_the_genroapp_tag(application):
     ticket = application.db.table('adm.genroapp_ticket').newTicket(_user_id(application, 'cn_bob'))
     application.db.commit()
     assert _page(application).login_ticketLogin(ticket=ticket) is None
-
-
-def test_a_user_uses_genroapp_with_a_connector_or_a_device(application, tag, signer):
-    config = tag()
-    tbl = application.db.table('adm.user_connector')
-    assert not tbl.usesGenroApp(_user_id(application, 'cn_carl'))
-    _connector(application, config, 'cn_carl')
-    assert tbl.usesGenroApp(_user_id(application, 'cn_carl'))
-    assert not tbl.usesGenroApp(None)
