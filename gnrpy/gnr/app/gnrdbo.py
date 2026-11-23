@@ -820,7 +820,10 @@ class TableBase(object):
     @public_method
     def getHierarchicalData(self,caption_field=None,condition=None,caption=None,
                             dbstore=None,columns=None,related_kwargs=None,
-                            resolved=False,**kwargs):
+                            resolved=False,hierarchical=None,**kwargs):
+        if hierarchical:
+            return self._hdata_grouped(hierarchical,caption_field=caption_field,condition=condition,
+                                       caption=caption,columns=columns,**kwargs)
         related_kwargs = related_kwargs or dict()
         if hasattr(self,'hierarchicalHandler'):
             return self.hierarchicalHandler.getHierarchicalData(caption_field=caption_field,condition=condition,
@@ -830,6 +833,56 @@ class TableBase(object):
             return self.getHierarchicalDataBag(caption_field=caption_field,condition=condition,
                                                 caption=caption,dbstore=dbstore,columns=columns,
                                                 related_kwargs=related_kwargs,resolved=resolved,**kwargs)
+
+    def _hdata_grouped(self,hierarchical,caption_field=None,condition=None,caption=None,columns=None,**kwargs):
+        caption_field = caption_field or self.attributes.get('caption_field') or self.pkey
+        caption_expr = caption_field if caption_field[0] in '$@' else '$%s' %caption_field
+        querycols = [columns or '*','%s AS _h_caption' %caption_expr]
+        order_by = []
+        levels = hierarchical.split(',')
+        for i,field in enumerate(levels):
+            field = field.strip()
+            querycols.append('%s AS _h_%i' %(field,i))
+            label_field = field
+            related_tbl = self.column(field.lstrip('$')).relatedTable()
+            if related_tbl is not None:
+                parts = field.lstrip('$').split('.')
+                parts[-1] = '@%s' %parts[-1]
+                related_caption = related_tbl.attributes.get('caption_field') or related_tbl.pkey
+                label_field = '.'.join(parts+[related_caption])
+            querycols.append('%s AS _h_label_%i' %(label_field,i))
+            order_by.append(label_field)
+        order_by.append(caption_expr)
+        rows = self.query(columns=','.join(querycols),where=condition,order_by=','.join(order_by),
+                          **dictExtract(kwargs,'condition_')).fetch()
+        root = Bag()
+        for r in rows:
+            r = dict(r)
+            pkey = r.pop('pkey')
+            curr = root
+            for i in range(len(levels)):
+                value = r.pop('_h_%i' %i)
+                label = r.pop('_h_label_%i' %i)
+                nodelabel = str(value if value is not None else '').replace('.','_') or '_none_'
+                node = curr.getNode(nodelabel)
+                if node is None:
+                    curr.setItem(nodelabel,Bag(),caption=label if label is not None else '',
+                                 hierarchical_value=value)
+                    node = curr.getNode(nodelabel)
+                curr = node.value
+            leafcaption = r.pop('_h_caption')
+            curr.setItem(str(pkey).replace('.','_'),None,**dict(r,caption=leafcaption,pkey=pkey,
+                                                               child_count=0,treeIdentifier=pkey))
+        def set_child_count(bag):
+            for n in bag:
+                if isinstance(n.value,Bag):
+                    n.attr['child_count'] = len(n.value)
+                    set_child_count(n.value)
+        set_child_count(root)
+        result = Bag()
+        result.setItem('root',root,caption=caption or self.name_plural,child_count=1,pkey='',
+                       treeIdentifier='_root_')
+        return result
 
     @public_method
     def hierarchicalSearch(self,seed=None,related_table=None,**kwargs):

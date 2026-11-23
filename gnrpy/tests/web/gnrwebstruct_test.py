@@ -124,10 +124,10 @@ def test_invalid_override_methods():
 def test_genroNameSpace_total_count():
     """Freeze the cardinality of the public widget namespace.
 
-    Lowercased dedup of htmlNS + dijitNS + dojoxNS + gnrNS yields 257
+    Lowercased dedup of htmlNS + dijitNS + dojoxNS + gnrNS yields 258
     entries today. Drift in either direction must be intentional.
     """
-    assert len(GnrDomSrc_dojo_11.genroNameSpace) == 257
+    assert len(GnrDomSrc_dojo_11.genroNameSpace) == 258
 
 
 def test_genroNameSpace_samples_per_dialect():
