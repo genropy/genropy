@@ -1140,7 +1140,8 @@ class BagToHtml(object):
                             top=.1,bottom=.1,left=.1,right=.1,
                             font_size='9pt',
                             border_width=.3,lbl_class='caption',
-                            text_align='left')
+                            text_align='left',
+                            style='line-height:{}mm;'.format(self.grid_row_height))
 
     def gridHeader(self, row):
         """It can be overridden
@@ -1475,6 +1476,7 @@ class BagToHtml(object):
                         .extrasmall {font-size:6pt;text-align:left;line-height:3mm;}
                         .textfield {text-indent:0mm;margin:1mm;line-height:3mm}
                         .dotted_bottom {border-bottom:1px dotted gray;}
+                        .gridLayout_layout .gnrlayout:not(.gridLayout_layout){line-height:normal;}
 
                         .aligned_right{
                             text-align:right;

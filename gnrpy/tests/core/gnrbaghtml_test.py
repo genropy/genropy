@@ -231,6 +231,12 @@ def _render_across_first_page_break(tmp_path, totalize_mode):
     return rendered
 
 
+def test_grid_line_height_matches_row_height(tmp_path):
+    printer = _TotalizedPrint(3, 'doc')
+    html = printer(folder=str(tmp_path))
+    assert 'line-height:{}mm'.format(printer.grid_row_height) in html
+
+
 def test_totalize_footer_doc_mode_only_on_last_page(tmp_path):
     rendered = _render_across_first_page_break(tmp_path, 'doc')
     assert {n: footers for n, (footers, _) in rendered.items() if footers != 1} == {}
