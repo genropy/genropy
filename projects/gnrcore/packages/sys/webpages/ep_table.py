@@ -30,7 +30,7 @@ class GnrCustomWebPage(object):
             documentNode = self._get_documentNode(tblobj,pkey=pkey,source=source,version=version,**kwargs)
         except GnrUserNotAllowed:
             self._response.status_code = 403
-            return ''
+            return '' if self.connection.loggedUser else self._notLoggedPage()
         if not documentNode:
             self._response.status_code = 404
             return ''
@@ -59,6 +59,14 @@ class GnrCustomWebPage(object):
                 tpl,{'download_url':download_url}
             )
 
+
+    def _notLoggedPage(self):
+        # a saved link opened without a live session: say why and point to the login
+        tpl = self.getResourceContent(resource='ep_table/not_logged_tpl', ext='html')
+        return templateReplace(tpl,{
+            'message':self._('!![en]You are not logged in, or your session has expired. Log in, then open the link again.'),
+            'login_label':self._('!![en]Log in'),
+            'login_url':self.site.home_uri})
 
     def _checkUserPermission(self,tags,_current_page_id=None,_calling_page_id=None,**kwargs):
         # authorised by the user of the request's own connection, never by the page id in the url

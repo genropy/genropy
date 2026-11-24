@@ -53,8 +53,9 @@ class TestHeifAttachments(BaseGnrTest):
         self.page.response = self.page._response = SimpleNamespace(status_code=200)
         self.page.getPublicMethod = lambda *args: None
         self.page.setInClientRecord = lambda *args, **kwargs: None
-        template = ROOT / 'projects/gnrcore/packages/sys/resources/ep_table/download_file_tpl.html'
-        self.page.getResourceContent = lambda **kwargs: template.read_text()
+        resources = ROOT / 'projects/gnrcore/packages/sys/resources'
+        self.page.getResourceContent = lambda resource, ext: (resources / f'{resource}.{ext}').read_text()
+        self.page._ = lambda value: value
 
     def attach(self, name, data):
         node = self.site.storageNode('home:', self.parent['id'], name)
@@ -77,7 +78,7 @@ class TestHeifAttachments(BaseGnrTest):
         params = {k: v[0] for k, v in parse_qs(urlsplit(url).query).items()}
         assert 'heif_preview' in params
         args = ('adm', 'htmltemplate_atc', rec['id'], 'get', 'filepath')
-        assert self.page.rootPage(*args, **params) == ''
+        assert 'Log in' in self.page.rootPage(*args, **params)
         assert self.page._response.status_code == 403
         self.page.connection.loggedUser = 'tester'
         preview = self.page.rootPage(*args, **params)

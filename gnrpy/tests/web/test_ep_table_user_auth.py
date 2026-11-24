@@ -138,7 +138,7 @@ class TestEpTableUserAuth(BaseGnrTest):
         page_id = self._open_page('ep_alice', connection_id)
         status, body = self._get(_current_page_id=page_id)
         assert status == 403
-        assert body == ''
+        assert self._points_to_login(body)
 
     def _datachanges(self, page_id):
         return self.site.register.siteregister.page_register.get_datachanges(page_id)
@@ -162,14 +162,15 @@ class TestEpTableUserAuth(BaseGnrTest):
     def test_cookie_of_an_expired_connection_is_refused(self):
         connection_id, cookie = self._connect('ep_alice')
         self.site.register.siteregister.drop_connection(connection_id)
-        status, _ = self._get(cookie=cookie)
+        status, body = self._get(cookie=cookie)
         assert status == 403
+        assert self._points_to_login(body)
 
     def test_read_tags_are_checked_on_the_logged_user(self, monkeypatch):
         colattr = self.db.table('adm.htmltemplate_atc').column('filepath').attributes
         monkeypatch.setitem(colattr, 'readTags', 'ep_reader')
         _, cookie = self._connect('ep_alice')
-        assert self._get(cookie=cookie)[0] == 403
+        assert self._get(cookie=cookie) == (403, '')  # logged in: no login page to offer
         _, cookie = self._connect('ep_carol')
         status, body = self._get(cookie=cookie)
         assert status == 200
@@ -181,7 +182,10 @@ class TestEpTableUserAuth(BaseGnrTest):
         assert status == 404
         assert body == ''
 
-    def test_no_session_is_refused(self):
+    def test_no_session_is_refused_with_a_way_to_log_in(self):
         status, body = self._get()
         assert status == 403
-        assert body == ''
+        assert self._points_to_login(body)
+
+    def _points_to_login(self, body):
+        return f'href="{self.site.home_uri}"' in body and 'Log in' in body
