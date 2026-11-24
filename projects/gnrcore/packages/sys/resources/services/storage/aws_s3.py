@@ -5,6 +5,7 @@
 
 import os
 import tempfile
+import threading
 import mimetypes
 from datetime import datetime
 import warnings
@@ -18,6 +19,9 @@ from smart_open import open as so_open
 from gnr.core.gnrlang import GnrException
 from gnr.lib.services.storage import StorageService, StorageNode
 from gnr.web.gnrbaseclasses import BaseComponent
+
+# boto3 sessions are not thread-safe: one thread at a time rebuilds a session or a client
+_BOTO_LOCK = threading.RLock()
 
 class S3LocalFile(object):
     def __init__(self, mode='rb', bucket=None, key=None, s3_client=None):
@@ -273,14 +277,15 @@ class Service(StorageService):
 
     @property
     def _session(self):
-        if not hasattr(self, '_boto_session') or (hasattr(self,'_boto_session_ts') and (datetime.now()-self._boto_session_ts).seconds>120):
-            self._boto_session = boto3.Session(
-                aws_access_key_id=self.aws_access_key_id,
-                aws_session_token=self.aws_session_token,
-                aws_secret_access_key= self.aws_secret_access_key,
-                region_name= self.region_name)
-            self._boto_session_ts = datetime.now()
-        return self._boto_session
+        with _BOTO_LOCK:
+            if not hasattr(self, '_boto_session') or (hasattr(self,'_boto_session_ts') and (datetime.now()-self._boto_session_ts).seconds>120):
+                self._boto_session = boto3.Session(
+                    aws_access_key_id=self.aws_access_key_id,
+                    aws_session_token=self.aws_session_token,
+                    aws_secret_access_key= self.aws_secret_access_key,
+                    region_name= self.region_name)
+                self._boto_session_ts = datetime.now()
+            return self._boto_session
 
     def _s3_copy(self, source_bucket=None, source_key=None,
         dest_bucket=None, dest_key=None):
@@ -292,15 +297,16 @@ class Service(StorageService):
 
     @property
     def _client(self):
-        if not hasattr(self, '_boto_client') or (hasattr(self,'_boto_client_ts') and (datetime.now()-self._boto_client_ts).seconds>120):
-            session_kwargs={}
-            if self.endpoint_url:
-                session_kwargs['endpoint_url'] = self.endpoint_url
-            if self.disable_cert_verify:
-                session_kwargs['verify'] = False
-            self._boto_client = self._session.client('s3', config= boto3.session.Config(signature_version='s3v4'), **session_kwargs)
-            self._boto_client_ts = datetime.now()
-        return self._boto_client
+        with _BOTO_LOCK:
+            if not hasattr(self, '_boto_client') or (hasattr(self,'_boto_client_ts') and (datetime.now()-self._boto_client_ts).seconds>120):
+                session_kwargs={}
+                if self.endpoint_url:
+                    session_kwargs['endpoint_url'] = self.endpoint_url
+                if self.disable_cert_verify:
+                    session_kwargs['verify'] = False
+                self._boto_client = self._session.client('s3', config= boto3.session.Config(signature_version='s3v4'), **session_kwargs)
+                self._boto_client_ts = datetime.now()
+            return self._boto_client
 
     def delete_file(self, *args):
         if self.readonly:
