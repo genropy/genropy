@@ -187,9 +187,34 @@ const LoginComponent = {
         return true;
     },
 
+    // the ticket GenroApp received from "Open with GenroApp" in the browser, in the URL
+    ticketParam:()=>new URL(window.location.href).searchParams.get('genroapp_ticket'),
+
+    // GenroApp opened the site with ?genroapp_ticket=...: the ticket logs in the user of the
+    // browser page without the password; the registration of the computer follows
+    ticketLogin:async (sourceNode,dlg,ticket_rpc)=>{
+        const ticket = LoginComponent.ticketParam();
+        if(!ticket || !LoginComponent.tauri()){
+            return;
+        }
+        const url = new URL(window.location.href);
+        url.searchParams.delete('genroapp_ticket');
+        window.history.replaceState(null,'',url.toString());
+        LoginComponent.hideLoginDialog(dlg,true);
+        const result = await LoginComponent.serverCall(ticket_rpc,{ticket});
+        if(!result){
+            LoginComponent.hideLoginDialog(dlg,false);
+            genro.publish('failed_login_msg',{message:_T('!![en]The link from the browser has expired: log in with password')});
+            return;
+        }
+        sourceNode.setRelativeData('_login.device_user',result.getItem('user'));
+        sourceNode.setRelativeData('_login.user',result.getItem('user'));
+        genro.fireEvent('do_login_check');
+    },
+
     deviceLogin:async (sourceNode,dlg,challenge_rpc,login_rpc)=>{
         const tauri = LoginComponent.tauri();
-        if(!tauri){
+        if(!tauri || LoginComponent.ticketParam()){
             return;
         }
         const after_logout = genro.loggedOut(true);
@@ -329,6 +354,7 @@ const LoginComponent = {
                 }
                 let kwreload = Object.fromEntries(new URL(window.location.href).searchParams);
                 objectPop(kwreload,'gnrtoken');
+                objectPop(kwreload,'genroapp_ticket');
                 if(doLogin){
                     let singlepage = avatar.getItem('avatar_rootpage') || rootenv.getItem('singlepage');
                     if(singlepage && !standAlonePage){

@@ -175,11 +175,11 @@ class Form(BaseComponent):
         return askMetadata
     
     def _atc_viewerStack(self,parent,askMetadata=None,attachment_table=None,frameCode=None,
-                     onUploadingMethod=None,onUploadedMethod=None,**kwargs):
+                     onUploadingMethod=None,onUploadedMethod=None,imageOnClick=None,**kwargs):
         sc = parent.stackContainer(**kwargs)
         bc = sc.borderContainer(title='!![en]Viewer')
         bc.attachmentPreviewViewer(src='^.fileurl',selectedPage='^#FORM.viewerMode',region='center',
-                                    currentPreviewZoom='^#FORM.currentPreviewZoom')
+                                    currentPreviewZoom='^#FORM.currentPreviewZoom',imageOnClick=imageOnClick)
         da = sc.contentPane(title='!![en]Uploader').div(position='absolute',top='10px',left='10px',right='10px',bottom='10px',
             text_align='center',border='3px dotted #999',rounded=8)
         upload_message = '!!Drag here or double click to upload' if not self.isMobile else "!!Double click to upload"
@@ -252,33 +252,24 @@ class FormPlaceholder(BaseComponent):
 class FormChips(Form):
 
     def th_form(self, form):
-        bar = form.top.bar.replaceSlots('left_placeholder','*,atctitle')
+        bar = form.top.bar.replaceSlots('left_placeholder','12,atcname,6,changeName,4,externalUrl')
         bar = bar.replaceSlots('right_placeholder','download,8')
-        title = bar.atctitle.div(_class='atc_form_title')
-        self._atc_inlineEdit(title,'description',_class='atc_form_name')
-        self._atc_inlineEdit(title,'external_url',_class='atc_form_link',
-                             hidden='^#FORM.record.external_url?=!#v')
         if form.attributes.get('atcDownload'):
             bar.download.lightButton(_class='atc_form_btn atc_form_download',tip='!!Download',
                                      action='genro.download(fileurl);',fileurl='=#FORM.record.fileurl')
+        name = bar.atcname.div(_class='atc_form_name')
+        bar.dataController("node.textContent = value || '';",value='^#FORM.record.description',node=name.js_domNode)
+        fb = bar.changeName.div(_class='iconbox tag',tip='!!Change description').tooltipPane().div(
+                    padding='10px').formbuilder(cols=1,border_spacing='3px',datapath='#FORM.record')
+        fb.textbox(value='^.description',lbl='!!Description')
+        fb = bar.externalUrl.div(_class='iconbox globe',hidden='^#FORM.record.external_url?=!#v',
+                                 tip='!!External url').tooltipPane().div(
+                    padding='10px').formbuilder(cols=1,border_spacing='3px',datapath='#FORM.record')
+        fb.textbox(value='^.external_url',lbl='!!External url')
         self._atc_viewerStack(self._atc_zoomStage(form.center),region='center',
                               attachment_table=form.attributes['table'],
-                              frameCode=form.attributes['frameCode'])
-
-    def _atc_inlineEdit(self,pane,field,_class=None,**kwargs):
-        editing = '#FORM.chips.editing_%s' %field
-        box = pane.div(_class=_class,**kwargs)
-        text = box.div(_class='atc_inline_text',hidden='^%s' %editing,
-                       connect_onclick="if(!this.form.isDisabled()){this.setRelativeData('%s',true);}" %editing)
-        box.dataController("node.textContent = value || '';",value='^#FORM.record.%s' %field,
-                           node=text.js_domNode)
-        editor = box.textbox(value='^#FORM.record.%s' %field,_class='atc_inline_input',
-                             hidden='^%s?=!#v' %editing,
-                             connect_onBlur="this.setRelativeData('%s',false);" %editing,
-                             connect_onkeydown="if($1.key=='Enter' || $1.key=='Escape'){this.widget.focusNode.blur();}")
-        box.dataController("if(editing){setTimeout(function(){editor.focus();editor.focusNode.select();},1);}",
-                           editing='^%s' %editing,editor=editor.js_widget)
-        box.dataController("SET %s = false;" %editing,_fired='^#FORM.controller.loaded')
+                              frameCode=form.attributes['frameCode'],
+                              imageOnClick='AttachManager.zoomStep(this,this.getRelativeData("#FORM.currentPreviewZoom")?0:1);')
 
     def th_options(self):
         return dict(modal='navigation',modal_dismissTitle='!![en]Back',autoSave='onLeave',showfooter=False,
@@ -387,7 +378,7 @@ class AttachManager(BaseComponent):
         return th 
 
     @struct_method
-    def at_attachmentPreviewViewer(self,parent,src=None,currentPreviewZoom=None,**kwargs):
+    def at_attachmentPreviewViewer(self,parent,src=None,currentPreviewZoom=None,imageOnClick=None,**kwargs):
         sc = parent.stackContainer(_virtual_column='fileurl',**kwargs)
         # each page gets its own src: a hidden element must never request the url.
         # A hidden img fetching a PDF without Origin poisons the browser cache for
@@ -395,9 +386,10 @@ class AttachManager(BaseComponent):
         sc.contentPane(pageName='document', overflow='hidden').iframe(src='^.$preview_src.document',height='100%',
                                     avoidCache=True,width='100%',border='0px',documentClasses=True)
         imgPane = sc.contentPane(pageName='image', overflow='auto')
+        click_kw = dict(connect_onclick=imageOnClick) if imageOnClick else \
+            dict(onclick="genro.openBrowserTab(this.src, {target:'_blank'})")
         img = imgPane.img(src='^.$preview_src.image', _class='atc_img_fit',
-                                    style='display:block;cursor:zoom-in;',
-                                    onclick="genro.openBrowserTab(this.src, {target:'_blank'})")
+                                    style='display:block;cursor:zoom-in;',**click_kw)
         if currentPreviewZoom:
             imgPane.dataController("""
                 genro.dom.setClass(imgDom,'atc_img_fit',!zoomValue);
@@ -698,7 +690,7 @@ class AttachManager(BaseComponent):
     @extract_kwargs(default=True,uploader=True)
     @struct_method
     def at_attachmentChips(self,pane,datapath='.attachments',table=None,maintable_id=None,
-                           ask=None,preview=True,download=False,parentForm=True,addLabel=None,emptyMessage=None,
+                           ask=None,download=False,parentForm=True,addLabel=None,emptyMessage=None,
                            nodeId=None,default_kwargs=None,uploader_kwargs=None,**kwargs):
         if not table:
             maintable = pane.getInheritedAttributes().get('table') or self.maintable
@@ -739,26 +731,25 @@ class AttachManager(BaseComponent):
                              **{f'rpc_{k}':v for k,v in default_kwargs.items()},
                              **uploader_kwargs)
         formId = '%s_form' %nodeId
-        if preview:
-            wrapper.thFormHandler(table=table,formId=formId,datapath='.preview',
-                                  formResource='gnrcomponents/attachmanager/attachmanager:FormChips',
-                                  store_storeType='Collection',store_parentStore=nodeId,atcDownload=download,
-                                  **({'dialog_fullScreen':True} if self.isMobile else {'dialog_parentRatio':.9,'dialog__class':'hideDialogTitle'}))
-            wrapper.attributes.update({
-                'subscribe_form_%s_onLoaded' %formId:"AttachManager.chipsLoaded('%s');" %formId,
-                'subscribe_form_%s_onSaved' %formId:"this.fireEvent('.reload',true);",
-                'subscribe_form_%s_onDismissed' %formId:"AttachManager.chipsDismissed(this,'%s');" %formId})
+        wrapper.thFormHandler(table=table,formId=formId,datapath='.preview',
+                              formResource='gnrcomponents/attachmanager/attachmanager:FormChips',
+                              store_storeType='Collection',store_parentStore=nodeId,atcDownload=download,
+                              **({'dialog_fullScreen':True} if self.isMobile else {'dialog_parentRatio':.9}))
+        wrapper.attributes.update({
+            'subscribe_form_%s_onLoaded' %formId:"AttachManager.chipsLoaded('%s');" %formId,
+            'subscribe_form_%s_onSaved' %formId:"this.fireEvent('.reload',true);",
+            'subscribe_form_%s_onDismissed' %formId:"AttachManager.chipsDismissed(this,'%s');" %formId})
         wrapper.dataController("""
             var row = store?store.getNodeByAttr('_pkey',clicked.action):null;
             if(!row){
                 return;
             }
-            if(!preview || row.attr.external_url){
-                genro.openBrowserTab(row.attr.fileurl,{target:'_blank'});
+            if(row.attr.external_url){
+                genro.openBrowserTab(row.attr.fileurl);
                 return;
             }
             genro.formById(formId).load({destPkey:row.attr._pkey});
-            """,clicked='^.clicked',store='=.store',preview=preview,formId=formId,_if='clicked')
+            """,clicked='^.clicked',store='=.store',formId=formId,_if='clicked')
         wrapper.dataController("genro.dom.setClass(chips,'atc_chips_isempty',!(store && store.len()));",
                                store='^.store',chips=wrapper.js_domNode)
         if parentForm:

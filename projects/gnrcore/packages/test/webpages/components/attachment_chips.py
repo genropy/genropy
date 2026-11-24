@@ -30,24 +30,20 @@ class GnrCustomWebPage(object):
 
     def test_0_chipsInForm(self, pane):
         """Attachments of the loaded record: click a chip to open the viewer, x to delete it,
-        the dashed chip or a drop on the area to upload. In the viewer, click the title to
-        rename it: it is saved when you move to another attachment or go back. Lock the form:
-        the x and the upload chip disappear."""
+        the dashed chip or a drop on the area to upload. In the viewer, the tag icon next to
+        the name renames it: it is saved when you move to another attachment or close the
+        viewer. Lock the form: the x and the upload chip disappear."""
         form = self._templateForm(pane, 'atcChipsForm')
         form.center.contentPane().attachmentChips()
 
-    def test_1_noPreview(self, pane):
-        """preview=False: a click opens the file in a new browser tab instead of the dialog"""
-        form = self._templateForm(pane, 'atcChipsNoPreview')
-        form.center.contentPane().attachmentChips(preview=False, addLabel='Add file',
-                                                  emptyMessage='Nothing attached yet')
-
-    def test_2_explicitTable(self, pane):
-        """Outside a record form: table and maintable_id given explicitly, and download=True
-        adds the download button to the viewer. maintable_id is resolved inside the component
-        datapath, like the other attachment components"""
+    def test_1_explicitTable(self, pane):
+        """Outside a record form: table and maintable_id given explicitly, download=True
+        adds the download button to the viewer, with a custom upload label and empty message.
+        maintable_id is resolved inside the component datapath, like the other attachment
+        components"""
         fb = pane.formbuilder(cols=1, border_spacing='4px')
         fb.dbSelect(value='^.attachments.template_id', dbtable='adm.htmltemplate',
                     lbl='Template', hasDownArrow=True)
         pane.attachmentChips(table='adm.htmltemplate_atc', maintable_id='^.template_id',
-                             parentForm=False, download=True)
+                             parentForm=False, download=True, addLabel='Add file',
+                             emptyMessage='Nothing attached yet')

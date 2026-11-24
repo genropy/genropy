@@ -23,7 +23,7 @@ ORIGIN = 'https://app.test'
 
 LOGIN_METHODS = ('login_checkAvatar', 'login_setChecked', 'login_isChecked', 'login_doLogin',
                  'login_setSelectedRootenv', 'login_completeRootEnv', 'login_selectableGroups',
-                 'login_require2fa', 'login_canSetWorkdate', 'login_deviceChecked', 'login_deviceRegistration',
+                 'login_require2fa', 'login_canSetWorkdate', 'login_deviceChecked', 'login_ticketChecked', 'login_setTicket', 'login_ticketLogin', 'login_deviceRegistration',
                  'login_deviceOrigin', 'login_setDevice', 'login_popChallenge', 'login_deviceChallenge',
                  'login_deviceLogin', 'login_deviceRegister', 'login_newWindow', 'login_enforceWorkdate',
                  'login_genroappDevice', 'login_checkGenroappDevice')

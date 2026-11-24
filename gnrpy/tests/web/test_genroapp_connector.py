@@ -406,3 +406,55 @@ def test_the_registration_refuses_a_connector_that_is_not_valid(application, tag
     key, registered = _register(application, 'cn_alice', connector_id=connector_id)
     assert registered is None
     assert application.db.table('adm.user_device').query(where='$key_id=:k', k=key.key_id).count() == 0
+
+
+# ---------------------------------------------------------------- GenroApp tickets
+
+def test_a_ticket_logs_in_its_user_once(application):
+    tbl = application.db.table('adm.genroapp_ticket')
+    ticket = tbl.newTicket(_user_id(application, 'cn_alice'))
+    application.db.commit()
+    assert tbl.consume(ticket) == 'cn_alice'
+    application.db.commit()
+    assert tbl.consume(ticket) is None
+
+
+def test_an_expired_or_unknown_ticket_is_refused(application):
+    tbl = application.db.table('adm.genroapp_ticket')
+    ticket = tbl.newTicket(_user_id(application, 'cn_alice'))
+    application.db.commit()
+    with tbl.recordToUpdate(where='$used IS NOT TRUE') as record:
+        record['expires'] = datetime.now(timezone.utc) - timedelta(seconds=1)
+    application.db.commit()
+    assert tbl.consume(ticket) is None
+    assert tbl.consume('unknown') is None
+    assert tbl.consume('') is None
+    assert tbl.consume('a' * 129) is None
+    assert tbl.consume('caf\u00e9') is None
+
+
+def test_only_the_hash_of_a_ticket_is_stored(application):
+    tbl = application.db.table('adm.genroapp_ticket')
+    ticket = tbl.newTicket(_user_id(application, 'cn_alice'))
+    application.db.commit()
+    assert not tbl.query(where='$id=:t', t=ticket).count()
+    assert tbl.query(where='$id=:h', h=hashlib.sha256(ticket.encode()).hexdigest()).count() == 1
+
+
+def test_the_ticket_login_replaces_the_password_of_its_user_only(application, tag):
+    tag()
+    ticket = application.db.table('adm.genroapp_ticket').newTicket(_user_id(application, 'cn_bob'))
+    application.db.commit()
+    page = _page(application)
+    assert page.login_ticketLogin(ticket=ticket)['user'] == 'cn_bob'
+    assert page.login_checkAvatar(user='cn_bob', password=None)['avatar.user'] == 'cn_bob'
+    assert not page.login_checkAvatar(user='cn_carl', password=None)['avatar']
+    other = _page(application)
+    assert not other.login_checkAvatar(user='cn_bob', password=None)['avatar']
+
+
+def test_the_ticket_login_needs_the_genroapp_tag(application):
+    application.config.popNode('genroapp')
+    ticket = application.db.table('adm.genroapp_ticket').newTicket(_user_id(application, 'cn_bob'))
+    application.db.commit()
+    assert _page(application).login_ticketLogin(ticket=ticket) is None
