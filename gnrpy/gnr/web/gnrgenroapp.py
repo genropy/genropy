@@ -5,15 +5,24 @@ The instance configuration holds the GenroApp data of the site::
 
     <genroapp name="My site"
               signing_url="https://host/signing/genroapp/connectors/sign"
-              signing_token="..."
+              signing_client_id="my-site"
+              signing_client_secret="..."
               capabilities="signature,printers"
               lock_minutes_max="30"
               duration_days="30"
               max_users="10"/>
 
-``name``, ``signing_url`` and ``duration_days`` are mandatory. Without ``signing_token``
-the token is asked to the package ``keycloak``, when the instance loads it. Without
-``max_users`` the number of users is not limited. A site without the tag gives no connector.
+``name``, ``signing_url`` and ``duration_days`` are mandatory. The site proves itself to the
+signing service with a Bearer token, taken in this order:
+
+- ``signing_token``: a token written in the tag;
+- ``signing_client_id`` and ``signing_client_secret``: the Keycloak client of the site in
+  the realm ``signing_issuer`` (default ``SIGNING_ISSUER``); the site asks the token with
+  the client credentials and asks it again before it expires;
+- the package ``keycloak`` of the instance, when the instance loads it.
+
+Without ``max_users`` the number of users is not limited. A site without the tag gives no
+connector.
 
 The site never signs: it sends the fields of the tag, its own URL and the user to
 ``signing_url``; the signing service adds ``connector_id`` and ``expires`` and answers
@@ -23,6 +32,7 @@ the signed connector ``{payload, signature}``.
 import base64
 import binascii
 import json
+import time
 from datetime import datetime, timezone
 
 import requests
@@ -30,6 +40,9 @@ import requests
 CONFIG_TAG = 'genroapp'
 MANDATORY_ATTRIBUTES = ('name', 'signing_url', 'duration_days')
 KEYCLOAK_PACKAGE = 'keycloak'
+SIGNING_ISSUER = 'https://auth.gpkube.genro.dev/realms/genroapp-signer'
+TOKEN_PATH = '/protocol/openid-connect/token'
+TOKEN_RENEW_MARGIN = 30
 SIGNING_TIMEOUT = 20
 EXPIRES_FORMAT = '%Y-%m-%dT%H:%M:%SZ'
 
@@ -73,6 +86,9 @@ def connector_config(application):
     config = dict(name=attributes['name'],
                   signing_url=attributes['signing_url'],
                   signing_token=attributes.get('signing_token'),
+                  signing_client_id=attributes.get('signing_client_id'),
+                  signing_client_secret=attributes.get('signing_client_secret'),
+                  signing_issuer=(attributes.get('signing_issuer') or SIGNING_ISSUER).rstrip('/'),
                   duration_days=int(attributes['duration_days']),
                   capabilities=[c.strip() for c in (attributes.get('capabilities') or '').split(',') if c.strip()],
                   lock_minutes_max=None,
@@ -84,14 +100,42 @@ def connector_config(application):
 
 
 def signing_token(application, config):
-    """The Bearer token for the signing service: the one of the tag, else an access
-    token of the package ``keycloak`` of the instance."""
+    """The Bearer token for the signing service: the one of the tag, else the token of the
+    Keycloak client of the site, else an access token of the package ``keycloak`` of the
+    instance."""
     if config['signing_token']:
         return config['signing_token']
+    if config['signing_client_id'] and config['signing_client_secret']:
+        return client_token(application, config)
     keycloak = application.packages[KEYCLOAK_PACKAGE]
     if keycloak is None:
-        raise ValueError(f'<{CONFIG_TAG}> has no signing_token and the instance has no package {KEYCLOAK_PACKAGE}')
+        raise ValueError(f'<{CONFIG_TAG}> has no signing_token, no signing_client_id and signing_client_secret, '
+                         f'and the instance has no package {KEYCLOAK_PACKAGE}')
     return keycloak.getToken()
+
+
+def client_token(application, config):
+    """An access token of the Keycloak client ``signing_client_id``, asked with the client
+    credentials to the realm ``signing_issuer``. It is kept on the application and asked
+    again TOKEN_RENEW_MARGIN seconds before it expires."""
+    tokens = application.__dict__.setdefault('genroapp_signing_tokens', {})
+    key = (config['signing_issuer'], config['signing_client_id'])
+    token, expiry = tokens.get(key, (None, 0))
+    if token is None or time.time() > expiry - TOKEN_RENEW_MARGIN:
+        try:
+            response = requests.post(config['signing_issuer'] + TOKEN_PATH,
+                                     data=dict(grant_type='client_credentials',
+                                               client_id=config['signing_client_id'],
+                                               client_secret=config['signing_client_secret']),
+                                     timeout=SIGNING_TIMEOUT)
+        except requests.RequestException as e:
+            raise ConnectorSigningError(f'The token service is not reachable: {type(e).__name__}')
+        if response.status_code != 200:
+            raise ConnectorSigningError(f'The token service answered {response.status_code}')
+        answer = response.json()
+        token, expiry = answer['access_token'], time.time() + answer['expires_in']
+        tokens[key] = (token, expiry)
+    return token
 
 
 def signing_request(config, url, user):
