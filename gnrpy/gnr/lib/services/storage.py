@@ -22,6 +22,13 @@ from gnr.core import gnrstring
 from gnr.core.gnrbag import Bag, BagResolver
 from gnr.lib.services import GnrBaseService, BaseServiceType
 
+WRITE_MODE_CHARS = set('wax+')
+
+
+def is_write_mode(mode):
+    return bool(set(mode or '') & WRITE_MODE_CHARS)
+
+
 class _FileIter:
     block_size = 4096 * 16
 
@@ -357,7 +364,8 @@ class StorageNode(object):
 
     def open(self, mode='rb'):
         """Is a context manager that returns the open file pointed"""
-        self.service.autocreate(self.path, autocreate=-1)
+        if is_write_mode(mode):
+            self.service.autocreate(self.path, autocreate=-1)
         kwargs = {'mode':mode}
         if self.version and self.service.is_versioned:
             kwargs['version_id'] = self.version
@@ -401,7 +409,9 @@ class StorageNode(object):
         with the pointed file content, if modified, the new content will replace
         the original content. Useful to let an external process work on a file
         stored in cloud (like in a s3 bucket)"""
-        self.service.autocreate(self.path, autocreate=-1)
+        # without an explicit mode a caller may still write on a local storage's path
+        if mode is None or is_write_mode(mode):
+            self.service.autocreate(self.path, autocreate=-1)
         return self.service.local_path(self.path, mode=mode or self.mode, keep=keep)
 
     def child(self, path=None):
