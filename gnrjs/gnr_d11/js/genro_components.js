@@ -5882,12 +5882,20 @@ dojo.declare("gnr.widgets.HierarchicalSelect", gnr.widgets.gnrwdg, {
         var hierarchical = objectPop(kw,'hierarchical');
         var folderSelectable = objectPop(kw,'folderSelectable');
         var caption_field = objectPop(kw,'caption_field');
+        var searchMode = objectPop(kw,'searchMode');
         var tree_kw = objectExtract(kw,'tree_*');
         var box_kw = objectExtract(tree_kw,'max_height,min_width');
         var selected_kw = objectExtract(kw,'selected_*',true,true);
         var menuId = kw.connectedMenu || 'hselect_'+sourceNode.getStringId();
-        var pars = {table:table,grouped:!!hierarchical || !table,storepath:'gnr.hierarchicalSelect.'+menuId};
+        var pars = {table:table,grouped:!!hierarchical || !table,menuId:menuId,
+                    storepath:'gnr.hierarchicalSelect.'+menuId};
         objectUpdate(kw,{hasDownArrow:true,connectedMenu:menuId});
+        var that = this;
+        if(searchMode=='tree'){
+            kw.onCreated = function(widget){
+                that.typingFiltersTree(widget,pars);
+            };
+        }
         var select;
         if(table){
             pars.rpc_kw = this.rpcKwargs(kw,hierarchical,caption_field,selected_kw);
@@ -5909,7 +5917,6 @@ dojo.declare("gnr.widgets.HierarchicalSelect", gnr.widgets.gnrwdg, {
         }
         var selectNode = select.getParentNode();
         pars.selectNode = selectNode;
-        var that = this;
         var openKw;
         var menu = select._('menu',{id:menuId,modifiers:'*',_class:'menupane',connectToParent:false,
                                      connect_onOpeningPopup:function(popupKw){
@@ -5919,11 +5926,19 @@ dojo.declare("gnr.widgets.HierarchicalSelect", gnr.widgets.gnrwdg, {
                                              popupKw.popup.domNode.style.minWidth = popupKw.around.offsetWidth+'px';
                                          }
                                          openKw = popupKw;
+                                         pars.menuNode = this;
                                          that.loadStore(this,pars);
                                      },
                                      connect_onOpen:function(){
-                                         that.selectCurrentValue(this,pars);
+                                         pars.isOpen = true;
+                                         if(!pars.typing){
+                                             that.selectCurrentValue(this,pars);
+                                         }
                                          that.placeMenu(openKw,pars);
+                                     },
+                                     connect_onClose:function(){
+                                         pars.isOpen = false;
+                                         pars.typing = false;
                                      }});
         var treeattr = objectUpdate({storepath:pars.storepath+'.root',hideValues:true,autoCollapse:true,
                                      excludeRoot:true,labelAttribute:'caption',selectedLabelClass:'selectedTreeNode',
@@ -5936,6 +5951,50 @@ dojo.declare("gnr.widgets.HierarchicalSelect", gnr.widgets.gnrwdg, {
                                     overflow:'auto'})
             ._('div',{padding_top:'4px',padding_bottom:'4px'})._('tree',objectUpdate(treeattr,tree_kw));
         return select;
+    },
+
+    typingFiltersTree:function(widget,pars){
+        var that = this;
+        widget._startSearch = function(key){
+            that.filterTree(widget,pars,key);
+        };
+        dojo.connect(widget,'_onBlur',function(){
+            setTimeout(function(){
+                var menu = pars.menuNode && pars.menuNode.widget;
+                if(pars.typing && menu && !dojo.isDescendant(document.activeElement,menu.domNode)){
+                    dijit.popup.close(menu);
+                }
+            },1);
+        });
+    },
+
+    filterTree:function(widget,pars,key){
+        var menu = dijit.byId(pars.menuId);
+        if(!pars.isOpen){
+            if(!key){
+                return;
+            }
+            pars.typing = true;
+            //the menu takes the focus when it opens: the text being typed must keep it
+            menu.focus = function(){};
+            menu._contextMouse({target:widget.downArrowNode,button:0,shiftKey:false,ctrlKey:false,altKey:false,metaKey:false,
+                                preventDefault:function(){},stopPropagation:function(){}});
+            setTimeout(function(){
+                delete menu.focus;
+            },10);
+        }
+        var treeWdg = pars.menuNode.getValue().getNodeByAttr('tag','tree',true).widget;
+        treeWdg.stopApplyFilter();
+        if(!key){
+            treeWdg._filteringValue = null;
+            treeWdg.collapseAll();
+            treeWdg.applyFilter();
+            return;
+        }
+        treeWdg._filteringValue = key.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+        pars.selectNode.delayedCall(function(){
+            treeWdg.applyFilter();
+        },key.length==1?300:150,'hierarchicalSelect_filter');
     },
 
     placeMenu:function(openKw,pars){

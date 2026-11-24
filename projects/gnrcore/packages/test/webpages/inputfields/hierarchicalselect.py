@@ -21,14 +21,15 @@ class GnrCustomWebPage(object):
     def test_1_grouped_by_fk(self, pane):
         """Users under their group: hierarchical names the field the tree groups by.
         The username filter reaches both the typed search and the tree, and a group left
-        with no user disappears. selected_group_code writes the group of the chosen user"""
+        with no user disappears. selected_group_code writes the group of the chosen user.
+        searchMode='tree': typing filters the tree instead of opening the dbSelect list"""
         fb = pane.formlet(cols=2)
         fb.textbox(value='^.prefix', lbl='Username like', default='%', placeholder='e.g. a%')
         fb.div('^.group_code', lbl='Selected group')
         fb.hierarchicalSelect(value='^.user_id', table='adm.user', hierarchical='$group_code',
                               lbl='User', condition='$username ILIKE :prefix',
                               condition_prefix='^.prefix', selected_group_code='.group_code',
-                              colspan=2)
+                              searchMode='tree', colspan=2)
 
     def test_2_several_levels(self, pane):
         """Provinces by zone, then by region: a field of a related table, then a foreign key"""
@@ -39,12 +40,16 @@ class GnrCustomWebPage(object):
         fb.div('^.regione', lbl='Selected region')
 
     def test_3_values(self, pane):
-        """No table: the rows of a Bag grouped by their fields. Typing searches them, as a select does"""
+        """No table: the rows of a Bag grouped by their fields. Typing searches them, as a select does;
+        with searchMode='tree' it filters the tree instead"""
         pane.data('.fruits', self.fruits())
         fb = pane.formlet(cols=2)
         fb.hierarchicalSelect(value='^.fruit', values='^.fruits', hierarchical='color,taste',
                               lbl='Fruit')
         fb.div('^.fruit', lbl='Value')
+        fb.hierarchicalSelect(value='^.fruit_t', values='^.fruits', hierarchical='color,taste',
+                              lbl='Fruit, tree search', searchMode='tree')
+        fb.div('^.fruit_t', lbl='Value')
 
     def fruits(self):
         result = Bag()
