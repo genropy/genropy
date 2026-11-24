@@ -4661,7 +4661,8 @@ dojo.declare("gnr.widgets.ModalUploader", gnr.widgets.gnrwdg, {
                                                 ...kw},this);
             },dest_stn:dest_stn.replace('^','=')
         });
-        wrapper._('iframe',{src:'^#WORKSPACE.preview_url',width:'100%',border:0,_class:'modalUploader_preview'});
+        wrapper._('iframe',{src:'^#WORKSPACE.preview_url',width:'100%',border:0,_class:'modalUploader_preview',
+                            documentClasses:true});
         let iframeStarterKw = {script:function(scriptKwargs){
             let value = scriptKwargs.value;
             let prevurl = null;
