@@ -33,6 +33,7 @@ from werkzeug.wrappers import Request, Response
 from gnr.web.daemon.siteregister import SiteRegister
 from gnr.web.daemon.siteregister_client import ServerStore
 from gnr.web.gnrcookie import MarshalCookie
+from gnr.web.gnrshutdown import announce_shutdown
 from gnr.web.gnrwebpage import GnrWebPage
 from gnr.web.gnrwebstruct import GnrDomSrc_dojo_11
 from gnr.web.gnrwsgisite import GnrWsgiSite
@@ -269,11 +270,17 @@ class _PingSite:
 
     serve_ping = GnrWsgiSite.serve_ping
     failed_exception = GnrWsgiSite.failed_exception
+    shutdownNotice = GnrWsgiSite.shutdownNotice
+    SHUTDOWN_CACHE_SECONDS = GnrWsgiSite.SHUTDOWN_CACHE_SECONDS
+    _shutdown_entry = GnrWsgiSite._shutdown_entry
     currentDomainIdentifier = 'testsite'
     config = {'secret': 'testsecret'}
 
     def __init__(self, register, connection_id=None):
         self.register = register
+        self.main_register = types.SimpleNamespace(
+            globalStore=lambda triggered=False: ServerStore(register, register_name='global',
+                                                            register_item_id='*'))
         headers = {}
         if connection_id:
             cookie = MarshalCookie({'user': 'anna', 'connection_id': connection_id}, 'testsecret')
@@ -300,6 +307,18 @@ def test_serve_ping_runs_only_for_a_page_of_the_cookie_connection():
     assert refused[0].startswith('412')
     assert refused == ghost
     assert sr.page_register.registerItems['v1']['datachanges'] != []
+
+
+def test_serve_ping_carries_the_announced_shutdown():
+    sr = _two_connections()
+    site = _PingSite(sr, connection_id='conn-a')
+    assert '<shutdown' not in site.ping('p1')[1]
+    site._shutdown_entry = (None, 0)
+    announce_shutdown(site.main_register.globalStore(), 120, 'Upgrading the application')
+    status, body = site.ping('p1')
+    assert status == 'ok'
+    assert '<reason>Upgrading the application</reason>' in body
+    assert '<seconds_left _T="R">' in body
 
 
 def test_serve_ping_without_the_connection_cookie_is_refused():
