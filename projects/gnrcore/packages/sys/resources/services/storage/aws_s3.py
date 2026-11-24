@@ -20,9 +20,6 @@ from gnr.core.gnrlang import GnrException
 from gnr.lib.services.storage import StorageService, StorageNode
 from gnr.web.gnrbaseclasses import BaseComponent
 
-# boto3 sessions are not thread-safe: one thread at a time rebuilds a session or a client
-_BOTO_LOCK = threading.RLock()
-
 class S3LocalFile(object):
     def __init__(self, mode='rb', bucket=None, key=None, s3_client=None):
         self.bucket = bucket
@@ -135,6 +132,8 @@ class Service(StorageService):
         self.readonly = readonly or local_readonly
         self.versioned = versioned
         self._content_md5_cache = {}
+        # boto3 sessions are not thread-safe: one thread at a time rebuilds this service's session or client
+        self._boto_lock = threading.RLock()
 
     @property
     def is_versioned(self):
@@ -277,7 +276,7 @@ class Service(StorageService):
 
     @property
     def _session(self):
-        with _BOTO_LOCK:
+        with self._boto_lock:
             if not hasattr(self, '_boto_session') or (hasattr(self,'_boto_session_ts') and (datetime.now()-self._boto_session_ts).seconds>120):
                 self._boto_session = boto3.Session(
                     aws_access_key_id=self.aws_access_key_id,
@@ -297,7 +296,7 @@ class Service(StorageService):
 
     @property
     def _client(self):
-        with _BOTO_LOCK:
+        with self._boto_lock:
             if not hasattr(self, '_boto_client') or (hasattr(self,'_boto_client_ts') and (datetime.now()-self._boto_client_ts).seconds>120):
                 session_kwargs={}
                 if self.endpoint_url:
