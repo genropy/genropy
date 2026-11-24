@@ -37,8 +37,10 @@ class Table(object):
     def newConnector(self, config, user_id=None, user=None, url=None):
         """The signed connector ``{payload, signature}`` of ``user`` for the site at ``url``,
         asked to the signing service with the ``<genroapp>`` data of ``config`` and recorded
-        here. A user with no place on a full site is refused before the signing service
-        is called."""
+        here. A user that is not a user of the site database, or with no place on a full
+        site, is refused before the signing service is called."""
+        if not gnrgenroapp.site_user(self.db, user_id):
+            raise gnrgenroapp.ConnectorNotSiteUser('GenroApp is only for the users of the site database')
         if config['max_users'] is not None:
             # until the commit: two requests never count the same free place
             self.lock()

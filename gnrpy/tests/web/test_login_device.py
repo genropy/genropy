@@ -15,6 +15,7 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 
 from gnr.core.gnrbag import Bag
+from gnr.web import gnrgenroapp
 
 from test_login_checked_avatar import _AppPage, _Application, _bind, _login
 from test_login_checked_avatar import setup_module, teardown_module  # noqa: F401
@@ -352,3 +353,39 @@ def test_device_list_shows_only_the_devices_of_the_logged_user(application):
         assert key.key_id in [tbl.readColumns(columns='$key_id', pkey=pkey) for pkey in tbl.userDevices().keys()]
     with db.tempEnv(user_id=bob_id):
         assert not tbl.userDevices()
+
+
+@pytest.fixture
+def xml_user(application):
+    """``dv_xml``, a user of ``xml_auth``: its ``user_id`` is its username, with no row in ``adm.user``."""
+    application.config.setItem('authentication.xml_auth', None, defaultTags='user,xml')
+    application.config.setItem('authentication.xml_auth.dv_xml', None, pwd='secret', tags='admin,user')
+    yield 'dv_xml'
+    application.config.popNode('authentication.xml_auth')
+
+
+def test_an_xml_user_is_not_a_site_user(application, xml_user):
+    assert not gnrgenroapp.site_user(application.db, xml_user)
+    assert not gnrgenroapp.site_user(application.db, None)
+    user_id = application.db.table('adm.user').readColumns(columns='$id', where='$username=:u', u='dv_alice')
+    assert gnrgenroapp.site_user(application.db, user_id)
+
+
+def test_an_xml_user_logs_in_with_the_password_even_when_genroapp_is_required(application, genroapp, xml_user):
+    genroapp(required='all')
+    page = _page(application)
+    result = page.login_checkAvatar(user=xml_user, password='secret')
+    assert not result['login_error_msg']
+    assert result['avatar.device_registration'] is None
+    assert page.login_doLogin(rootenv=Bag(), login=_login(xml_user, None)) != \
+        {'error': '!![en]This user must log in with GenroApp'}
+
+
+def test_an_xml_user_cannot_register_a_computer(application, xml_user):
+    page = _page(application)
+    page.login_checkAvatar(user=xml_user, password='secret')
+    key = _Key()
+    challenge = page.login_deviceChallenge()
+    assert page.login_deviceRegister(key_id=key.key_id, public_key=key.public_key, alg='ES256',
+                                     verification='biometry', signature=key.sign(xml_user, challenge)) is None
+    assert not application.db.table('adm.user_device').query(where='$key_id=:k', k=key.key_id).count()

@@ -20,6 +20,7 @@ class Connector(BaseWebtool):
 
     - 404: the site has no ``<genroapp>`` tag;
     - 401: no logged user;
+    - 403: the user is not a user of the site database (``xml_auth``);
     - 409: the user holds no connector and the site already has ``max_users`` users;
     - 502: the signing service gave no signed connector.
 

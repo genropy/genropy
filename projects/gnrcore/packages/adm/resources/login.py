@@ -17,7 +17,7 @@ from gnr.web.gnrwebpage import BaseComponent
 from gnr.web.gnrwebstruct import struct_method
 from gnr.web.loginfields import (client_only_keys, collect_login_rpcs, form_derived_values, form_value_keys,
                                  trusted_rootenv)
-from gnr.web.gnrgenroapp import connector_config
+from gnr.web.gnrgenroapp import connector_config, site_user
 
 CONFIRMABLE_STATUSES = ('invt', 'new', 'wait')
 
@@ -400,7 +400,10 @@ class LoginComponent(BaseComponent):
     def login_deviceRegistration(self,avatar):
         """What a password login asks about this computer: ``offer`` its registration,
         ``required`` (a user who must use GenroApp and has no device yet) or ``refused``
-        (a user who must use GenroApp and already has a device)."""
+        (a user who must use GenroApp and already has a device). None for a user that is not a
+        user of the site database (``xml_auth``): no GenroApp for it, the password login goes on."""
+        if not site_user(self.db, avatar.user_id):
+            return None
         device_tbl = self.db.table('adm.user_device')
         if not device_tbl.deviceRequired(avatar.user_tags):
             return 'offer'
@@ -493,6 +496,9 @@ class LoginComponent(BaseComponent):
         if not challenge:
             return None
         user = checked['user']
+        if not site_user(self.db, checked_rootenv['user_id']):
+            logger.warning("Device registration refused for user %s: not a user of the site database", user)
+            return None
         record = self.db.table('adm.user_device').registerDevice(
                     user_id=checked_rootenv['user_id'],user=user,origin=self.login_deviceOrigin(),
                     challenge=challenge,key_id=key_id,public_key=public_key,alg=alg,
