@@ -5891,6 +5891,9 @@ dojo.declare("gnr.widgets.HierarchicalSelect", gnr.widgets.gnrwdg, {
         var select;
         if(table){
             pars.rpc_kw = this.rpcKwargs(kw,hierarchical,caption_field,selected_kw);
+            if(kw._storename){
+                pars.rpc_kw.dbstore = kw._storename;
+            }
             if(!hierarchical && !folderSelectable){
                 kw.condition = kw.condition?'('+kw.condition+') AND $child_count=0':'$child_count=0';
             }
@@ -5968,7 +5971,7 @@ dojo.declare("gnr.widgets.HierarchicalSelect", gnr.widgets.gnrwdg, {
         }
         var selectedColumns = Object.keys(selected_kw).map(function(k){return '$'+k.slice(9);});
         if(selectedColumns.length){
-            rpc_kw.columns = '*,'+selectedColumns.join(',');
+            rpc_kw.columns = (hierarchical?'':'*,')+selectedColumns.join(',');
         }
         return rpc_kw;
     },
@@ -6012,20 +6015,21 @@ dojo.declare("gnr.widgets.HierarchicalSelect", gnr.widgets.gnrwdg, {
 
     valuesTree:function(pars){
         var root = new gnr.GnrBag();
-        var nodelabel = function(v){
-            return isNullOrBlank(v)?'_none_':(''+v).replace(/\./g,'_');
-        };
+        var groups = {};
         this.valuesRows(pars).forEach(function(row){
             var curr = root;
+            var path = [];
             pars.levels.forEach(function(field){
                 var v = row[field];
-                var label = nodelabel(v);
-                if(!curr.getNode(label)){
-                    curr.setItem(label,new gnr.GnrBag(),{caption:isNullOrBlank(v)?'':v,hierarchical_value:v});
+                path.push(isNullOrBlank(v)?null:v);
+                var key = JSON.stringify(path);
+                if(!groups[key]){
+                    groups[key] = new gnr.GnrBag();
+                    curr.setItem('n'+curr.len(),groups[key],{caption:isNullOrBlank(v)?'':v,hierarchical_value:v});
                 }
-                curr = curr.getItem(label);
+                curr = groups[key];
             });
-            curr.setItem(nodelabel(row._pkey),null,objectUpdate(objectUpdate({},row),
+            curr.setItem('n'+curr.len(),null,objectUpdate(objectUpdate({},row),
                             {pkey:row._pkey,child_count:0,treeIdentifier:row._pkey}));
         });
         var setChildCount = function(bag){

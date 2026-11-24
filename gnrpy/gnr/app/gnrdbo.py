@@ -823,7 +823,7 @@ class TableBase(object):
                             resolved=False,hierarchical=None,**kwargs):
         if hierarchical:
             return self._hdata_grouped(hierarchical,caption_field=caption_field,condition=condition,
-                                       caption=caption,columns=columns,**kwargs)
+                                       caption=caption,dbstore=dbstore,columns=columns,**kwargs)
         related_kwargs = related_kwargs or dict()
         if hasattr(self,'hierarchicalHandler'):
             return self.hierarchicalHandler.getHierarchicalData(caption_field=caption_field,condition=condition,
@@ -834,10 +834,12 @@ class TableBase(object):
                                                 caption=caption,dbstore=dbstore,columns=columns,
                                                 related_kwargs=related_kwargs,resolved=resolved,**kwargs)
 
-    def _hdata_grouped(self,hierarchical,caption_field=None,condition=None,caption=None,columns=None,**kwargs):
+    def _hdata_grouped(self,hierarchical,caption_field=None,condition=None,caption=None,
+                       dbstore=None,columns=None,**kwargs):
         caption_field = caption_field or self.attributes.get('caption_field') or self.pkey
         caption_expr = caption_field if caption_field[0] in '$@' else '$%s' %caption_field
-        querycols = [columns or '*','%s AS _h_caption' %caption_expr]
+        querycols = [columns] if columns else []
+        querycols.append('%s AS _h_caption' %caption_expr)
         order_by = []
         levels = hierarchical.split(',')
         for i,field in enumerate(levels):
@@ -854,25 +856,26 @@ class TableBase(object):
             order_by.append(label_field)
         order_by.append(caption_expr)
         rows = self.query(columns=','.join(querycols),where=condition,order_by=','.join(order_by),
-                          **dictExtract(kwargs,'condition_')).fetch()
+                          _storename=dbstore,**dictExtract(kwargs,'condition_')).fetch()
         root = Bag()
+        groups = {}
         for r in rows:
             r = dict(r)
             pkey = r.pop('pkey')
             curr = root
+            path = ()
             for i in range(len(levels)):
                 value = r.pop('_h_%i' %i)
                 label = r.pop('_h_label_%i' %i)
-                nodelabel = str(value if value is not None else '').replace('.','_') or '_none_'
-                node = curr.getNode(nodelabel)
-                if node is None:
-                    curr.setItem(nodelabel,Bag(),caption=label if label is not None else '',
+                path += (value,)
+                if path not in groups:
+                    curr.setItem('n%i' %len(curr),Bag(),caption=label if label is not None else '',
                                  hierarchical_value=value)
-                    node = curr.getNode(nodelabel)
-                curr = node.value
+                    groups[path] = curr.getNodes()[-1].value
+                curr = groups[path]
             leafcaption = r.pop('_h_caption')
-            curr.setItem(str(pkey).replace('.','_'),None,**dict(r,caption=leafcaption,pkey=pkey,
-                                                               child_count=0,treeIdentifier=pkey))
+            curr.setItem('n%i' %len(curr),None,**dict(r,caption=leafcaption,pkey=pkey,
+                                                     child_count=0,treeIdentifier=pkey))
         def set_child_count(bag):
             for n in bag:
                 if isinstance(n.value,Bag):
