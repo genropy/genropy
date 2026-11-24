@@ -6,6 +6,15 @@ on:
     branches: ["**"]
   # Called by the release and nightly docker workflows as a gate
   workflow_call:
+    inputs:
+      full_suite:
+        description: >-
+          Run the whole Python suite instead of only the tests affected by
+          the changes. A called run inherits the caller's event and ref (a
+          release tag push is a "push"), so the gates must not rely on them.
+        required: false
+        type: boolean
+        default: true
 
 jobs:
   base-install:
@@ -75,10 +84,11 @@ jobs:
     # pytest-testmon records which tests execute which code in
     # gnrpy/.testmondata. A branch push restores the newest database of its
     # own branch, or the develop one on its first push, and runs only the
-    # tests affected by the changes since then. develop, master and the
-    # workflow_call runs (release and nightly gates) always run the whole
-    # suite and refresh the database, so they also catch what testmon cannot
-    # see, such as a change to a non-Python file read by a test.
+    # tests affected by the changes since then. Every other run is a full
+    # one: develop, master, any ref that is not a branch and the
+    # workflow_call runs (release and nightly gates, through full_suite).
+    # They run the whole suite, so they also catch what testmon cannot see,
+    # such as a change to a non-Python file read by a test.
     - name: Restore the testmon database
       uses: actions/cache/restore@v5
       with:
@@ -101,9 +111,16 @@ jobs:
         #flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
     - name: Test with pytest
       env:
-        FULL_RUN: ${{ github.event_name != 'push' || github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/master' }}
+        # incremental only on a direct push of a feature branch, full otherwise
+        FULL_RUN: >-
+          ${{ inputs.full_suite == true
+          || github.event_name != 'push'
+          || !startsWith(github.ref, 'refs/heads/')
+          || github.ref == 'refs/heads/develop'
+          || github.ref == 'refs/heads/master' }}
       run: |
         cd gnrpy
+        echo "Full suite: $FULL_RUN (event $GITHUB_EVENT_NAME, ref $GITHUB_REF)"
         if [ "$FULL_RUN" = "true" ]; then
           pytest --testmon-noselect
         else
@@ -111,7 +128,7 @@ jobs:
           pytest --testmon || [ $? -eq 5 ]
         fi
     - name: Save the testmon database
-      if: ${{ !cancelled() && hashFiles('gnrpy/.testmondata') != '' }}
+      if: ${{ !cancelled() && startsWith(github.ref, 'refs/heads/') && hashFiles('gnrpy/.testmondata') != '' }}
       uses: actions/cache/save@v5
       with:
         path: gnrpy/.testmondata
