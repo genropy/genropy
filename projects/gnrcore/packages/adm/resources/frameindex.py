@@ -14,6 +14,10 @@ from gnr.web.gnrmanual import is_storage_path
 from gnr.web.gnrwebpage import BaseComponent
 from gnr.web.gnrwebstruct import struct_method
 
+GENROAPP_DOWNLOAD_LABELS = {'mac': '!![en]Download GenroApp for macOS',
+                            'windows': '!![en]Download GenroApp for Windows',
+                            'linux': '!![en]Download GenroApp for Linux'}
+
 class FrameIndex(BaseComponent):
     py_requires="""frameplugin_menu/frameplugin_menu:MenuIframes,
                    login:LoginComponent,
@@ -373,18 +377,21 @@ class FrameIndex(BaseComponent):
         site. ``<site>`` is host and ``home_uri`` (path of the site, domain or store), the URL
         the site connector of ``webtools/connector.py`` signs. The browser decides, not the
         user: a user of GenroApp on one computer may not have it on the computer of this
-        browser. Otherwise the button shows the download for
-        the platform of the browser with the steps that follow it, and a link to open GenroApp
-        when it is installed. A page cannot tell whether an app handles a link: Safari answers
-        an unknown link with "the address is not valid", so the link is never tried blindly.
+        browser. Otherwise the button shows the download for the platform of the browser
+        (``connection.user_device``: mac, windows, linux) with the steps that follow it, and a
+        link to open GenroApp when it is installed. A platform without a download link (Linux,
+        unless ``mobile_app/bundles.xml`` gives one) gets the message that GenroApp is not
+        published for it, and the link to open GenroApp. A page cannot tell whether an app
+        handles a link: Safari answers an unknown link with "the address is not valid", so the
+        link is never tried blindly.
         Shift-click shows the download box again. A user that is not a user of the site
         database (``xml_auth``) gets no button."""
         if not connector_config(self.application):
             return
         if not site_user(self.db, self.avatar.user_id if self.avatar else None):
             return
-        windows = 'Windows' in (self.user_agent or '')
-        download_url = self.site.get_genroapp_download_url('windows' if windows else 'mac')
+        platform = self.connection.user_device.split(':')[0]
+        download_url = self.site.get_genroapp_download_url(platform)
         # GenroApp exposes window.__TAURI__ to the top window: inside the app the button is useless
         slot.dataFormula('gnr.genroapp.inside','!!(window.top.__TAURI__)',_onBuilt=True)
         # the ticket carries the login of this page into GenroApp (adm.genroapp_ticket); it is asked
@@ -401,10 +408,13 @@ class FrameIndex(BaseComponent):
         box.div('!![en]GenroApp also signs in with the fingerprint and reaches the printers and devices of this computer.',
                 color='var(--text-secondary, #666)',margin_bottom='16px')
         if download_url:
-            box.button('!![en]Download GenroApp for Windows' if windows else '!![en]Download GenroApp for macOS',
+            box.button(GENROAPP_DOWNLOAD_LABELS.get(platform, '!![en]Download GenroApp'),
                        action="window.open(url,'_blank');",url=download_url,
                        font_size='14px',padding='4px 14px',margin_bottom='16px')
-            if windows:
+            if platform == 'linux':
+                lines = ['!![en]Install the downloaded package: the .deb with the package manager, or extract the .tar.gz and run genropy-runner.',
+                         '!![en]Come back to this page and click Open GenroApp below.']
+            elif platform == 'windows':
                 lines = ['!![en]Run GenroApp-setup.exe from the Downloads folder.',
                          '!![en]If Windows says it protected your PC, choose More info, then Run anyway.',
                          '!![en]Finish the installation and open GenroApp.',
@@ -417,7 +427,7 @@ class FrameIndex(BaseComponent):
             ol = box.ol(margin='0 0 16px 0',padding_left='22px',font_size='14px')
             for n,line in enumerate(lines):
                 li = ol.li(line,margin_bottom='6px')
-                if n == 1 and not windows:
+                if n == 1 and platform == 'mac':
                     # the window of the disk image: GenroApp beside the Applications folder
                     li.div(margin_top='6px').img(src='/_rsrc/pkg_adm/app_stores/genroapp_install_macos.png',
                                                  width='300px',border_radius='6px')

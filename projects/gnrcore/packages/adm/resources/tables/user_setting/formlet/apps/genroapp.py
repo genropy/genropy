@@ -7,7 +7,8 @@ info = {
     "priority":0,
 }
 
-PLATFORMS = (('mac', '!![en]Download for macOS'), ('windows', '!![en]Download for Windows'))
+PLATFORMS = (('mac', '!![en]Download for macOS'), ('windows', '!![en]Download for Windows'),
+             ('linux', '!![en]Download for Linux'))
 
 
 def is_enabled(page):
