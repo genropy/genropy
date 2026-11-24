@@ -1136,12 +1136,13 @@ class BagToHtml(object):
         return body.layout(**self.gridLayoutParameters())
 
     def gridLayoutParameters(self):
-        return dict(name='gridLayout',um='mm',border_color='#e0e0e0',
+        um = 'mm'
+        return dict(name='gridLayout',um=um,border_color='#e0e0e0',
                             top=.1,bottom=.1,left=.1,right=.1,
                             font_size='9pt',
                             border_width=.3,lbl_class='caption',
                             text_align='left',
-                            style='line-height:{}mm;'.format(self.grid_row_height))
+                            style='line-height:{}{};'.format(self.grid_row_height, um))
 
     def gridHeader(self, row):
         """It can be overridden
