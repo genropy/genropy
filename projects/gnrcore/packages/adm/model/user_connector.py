@@ -49,7 +49,12 @@ class Table(object):
                 raise gnrgenroapp.ConnectorUsersExceeded(
                     f"This site already has {config['max_users']} GenroApp users")
         token = gnrgenroapp.signing_token(self.db.application, config)
-        connector, connector_id, expires = gnrgenroapp.sign_connector(config, token, url, user)
+        try:
+            connector, connector_id, expires = gnrgenroapp.sign_connector(config, token, url, user)
+        except gnrgenroapp.ConnectorTokenRefused:
+            # a kept client token the signing service refuses is asked again at the next request
+            gnrgenroapp.forget_client_token(self.db.application, config)
+            raise
         self.insert(self.newrecord(user_id=user_id, connector_id=connector_id, expires=expires))
         return connector
 
