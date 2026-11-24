@@ -64,7 +64,7 @@ def test_expired_client_is_rebuilt_once_by_concurrent_threads(monkeypatch):
     SlowSession.created = []
     service = _make_service()
     clients = []
-    barrier = threading.Barrier(8)
+    barrier = threading.Barrier(8, timeout=5)
 
     def read_client():
         barrier.wait()
@@ -74,7 +74,8 @@ def test_expired_client_is_rebuilt_once_by_concurrent_threads(monkeypatch):
     for t in threads:
         t.start()
     for t in threads:
-        t.join()
+        t.join(5)
+        assert not t.is_alive()
     assert SlowSession.created == ['session', 'client']
     assert len({id(c) for c in clients}) == 1
 
@@ -94,9 +95,10 @@ def test_slow_rebuild_does_not_block_another_service(monkeypatch):
     slow, fresh = _make_service(), _make_service(expired=False)
     thread = threading.Thread(target=lambda: slow._client)
     thread.start()
-    rebuilding.wait()
+    assert rebuilding.wait(5)
     start = time.monotonic()
     fresh._client
     elapsed = time.monotonic() - start
-    thread.join()
+    thread.join(5)
+    assert not thread.is_alive()
     assert elapsed < 0.1
