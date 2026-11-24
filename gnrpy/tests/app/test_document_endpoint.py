@@ -6,19 +6,10 @@ from types import SimpleNamespace
 
 import pytest
 
-from core.common import BaseGnrTest
 
 from gnr.core.gnrlang import gnrImport
 from gnr.lib.services.storage import StorageNode
 from gnr.web.gnrwebpage import GnrUserNotAllowed
-
-
-def setup_module(module):
-    BaseGnrTest.setup_class()
-
-
-def teardown_module(module):
-    BaseGnrTest.teardown_class()
 
 
 ROOT = Path(__file__).resolve().parents[3]

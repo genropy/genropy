@@ -7,16 +7,6 @@ on the current connection and roll back with it.
 """
 import _thread
 
-from core.common import BaseGnrTest
-
-
-def setup_module(module):
-    BaseGnrTest.setup_class()
-
-
-def teardown_module(module):
-    BaseGnrTest.teardown_class()
-
 
 def _system_in_transaction(db):
     connections = db._connections.get(_thread.get_ident(), {})

@@ -6,20 +6,11 @@ identity, and packages add their own keys through onApiTokenValidation.
 
 import pytest
 
-from core.common import BaseGnrTest
 
 from gnr.core.gnrlang import GnrException
 
 
 SECRET_KEYS = ('pwd', 'md5pwd', 'avatar_secret_2fa', 'avatar_last_2fa_otp')
-
-
-def setup_module(module):
-    BaseGnrTest.setup_class()
-
-
-def teardown_module(module):
-    BaseGnrTest.teardown_class()
 
 
 def _tag(db, code):

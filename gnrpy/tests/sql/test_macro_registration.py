@@ -187,18 +187,13 @@ class TestPackageMacroRegistration:
     @pytest.fixture(scope='class')
     def app_db(self, tmp_path_factory):
         """Create a real GnrApp('test_invoice') with SQLite."""
-        from core.common import BaseGnrTest
         from gnr.app.gnrapp import GnrApp
-        BaseGnrTest.setup_class()
-        try:
-            tmpdir = tmp_path_factory.mktemp('macro_reg')
-            app = GnrApp('test_invoice', db_attrs=dict(
-                implementation='sqlite',
-                dbname=os.path.join(str(tmpdir), 'testing'),
-            ))
-            yield app.db
-        finally:
-            BaseGnrTest.teardown_class()
+        tmpdir = tmp_path_factory.mktemp('macro_reg')
+        app = GnrApp('test_invoice', db_attrs=dict(
+            implementation='sqlite',
+            dbname=os.path.join(str(tmpdir), 'testing'),
+        ))
+        yield app.db
 
     def test_package_macro_registered(self, app_db):
         """invc package must register #UPPERCASE via registerMacros."""

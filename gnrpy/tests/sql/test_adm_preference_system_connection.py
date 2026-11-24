@@ -5,16 +5,6 @@ connection stayed idle in transaction until the end of the request.
 """
 import _thread
 
-from core.common import BaseGnrTest
-
-
-def setup_module(module):
-    BaseGnrTest.setup_class()
-
-
-def teardown_module(module):
-    BaseGnrTest.teardown_class()
-
 
 def _in_transaction(connection):
     return connection.get_transaction_status() != 0

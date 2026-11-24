@@ -9,19 +9,9 @@ import pytest
 
 from gnr.core.gnrbag import Bag
 
-from core.common import BaseGnrTest
-
 # A value whose serialization holds more than one ':', the shape that broke
 # loadTemplate in the original report.
 DETAILS = Bag(dict(link='http://example.com/a:b'))
-
-
-def setup_module(module):
-    BaseGnrTest.setup_class()
-
-
-def teardown_module(module):
-    BaseGnrTest.teardown_class()
 
 
 @pytest.fixture(scope='module')

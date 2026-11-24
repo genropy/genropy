@@ -7,16 +7,6 @@ update triggers.
 
 from gnr.core.gnrbag import Bag
 
-from core.common import BaseGnrTest
-
-
-def setup_module(module):
-    BaseGnrTest.setup_class()
-
-
-def teardown_module(module):
-    BaseGnrTest.teardown_class()
-
 
 def _product_with_empty_details(db):
     tbl = db.table('invc.product')

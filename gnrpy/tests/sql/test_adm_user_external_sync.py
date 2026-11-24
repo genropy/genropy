@@ -4,15 +4,6 @@ An external authentication service (ldaps) hands over a plain dict with only
 the user data, without ``md5pwd`` or ``status`` and with keys that are not
 columns: the user must still be inserted as a complete record.
 """
-from core.common import BaseGnrTest
-
-
-def setup_module(module):
-    BaseGnrTest.setup_class()
-
-
-def teardown_module(module):
-    BaseGnrTest.teardown_class()
 
 
 def test_sync_creates_a_new_external_user_without_md5pwd(db_pg):
