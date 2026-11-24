@@ -72,10 +72,26 @@ jobs:
           ${{ runner.os }}-python-${{ matrix.python-version }}-
           ${{ runner.os }}-python-
     
+    # pytest-testmon records which tests execute which code in
+    # gnrpy/.testmondata. A branch push restores the newest database of its
+    # own branch, or the develop one on its first push, and runs only the
+    # tests affected by the changes since then. develop, master and the
+    # workflow_call runs (release and nightly gates) always run the whole
+    # suite and refresh the database, so they also catch what testmon cannot
+    # see, such as a change to a non-Python file read by a test.
+    - name: Restore the testmon database
+      uses: actions/cache/restore@v5
+      with:
+        path: gnrpy/.testmondata
+        key: testmon-${{ runner.os }}-python-${{ matrix.python-version }}-${{ github.ref_name }}-${{ github.sha }}
+        restore-keys: |
+          testmon-${{ runner.os }}-python-${{ matrix.python-version }}-${{ github.ref_name }}-
+          testmon-${{ runner.os }}-python-${{ matrix.python-version }}-develop-
+
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        python -m pip install flake8==7.1.2 pytest==9.2.0
+        python -m pip install flake8==7.1.2 pytest==9.2.0 pytest-testmon==2.3.1
         cd gnrpy && pip install -e .[developer]
     - name: Lint with flake8
       run: |
@@ -84,8 +100,22 @@ jobs:
         # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
         #flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
     - name: Test with pytest
+      env:
+        FULL_RUN: ${{ github.event_name != 'push' || github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/master' }}
       run: |
-        cd gnrpy &&  pytest
+        cd gnrpy
+        if [ "$FULL_RUN" = "true" ]; then
+          pytest --testmon-noselect
+        else
+          # exit code 5: no test is affected by the changes, nothing to run
+          pytest --testmon || [ $? -eq 5 ]
+        fi
+    - name: Save the testmon database
+      if: ${{ !cancelled() && hashFiles('gnrpy/.testmondata') != '' }}
+      uses: actions/cache/save@v5
+      with:
+        path: gnrpy/.testmondata
+        key: testmon-${{ runner.os }}-python-${{ matrix.python-version }}-${{ github.ref_name }}-${{ github.sha }}
     - name: Documentation ratchet on the test-page packages
       run: |
         # gnrpy's pytest config restricts collection to gnrpy/tests, so the
