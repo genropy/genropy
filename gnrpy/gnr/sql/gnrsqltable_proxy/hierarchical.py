@@ -25,6 +25,18 @@ from gnr.core.gnrbag import Bag,BagResolver
 from gnr.core.gnrdict import dictExtract
 from gnr.core.gnrdecorator import extract_kwargs
 
+
+def treeNodeRecords(tblobj, rows, permissionPars=None):
+    """Rows as dicts holding only what a tree node may carry to the browser:
+    no system columns, no columns forbidden to the user of permissionPars."""
+    forbidden = set()
+    user_conf = tblobj.getUserConfiguration(**permissionPars) if permissionPars else None
+    if user_conf:
+        forbidden = {n.label for n in user_conf['cols_permission'] or [] if n.attr.get('forbidden')}
+    return [{k: v for k, v in dict(r).items() if not k.startswith('__') and k not in forbidden}
+            for r in rows]
+
+
 class TableHandlerTreeResolver(BagResolver):
     classKwargs = {'cacheTime': -1,
                    'table':None,
@@ -54,15 +66,21 @@ class TableHandlerTreeResolver(BagResolver):
     def db(self):
         return self._page.db
 
+    @property
+    def permissionPars(self):
+        return getattr(self._page, 'permissionPars', None)
+
     def load(self):
         result = Bag()
         if self.related_kwargs:
-            for related_row in self.getRelatedChildren(self.parent_id):
-                r = dict(related_row)
+            related_rows = self.getRelatedChildren(self.parent_id)
+            related_records = treeNodeRecords(self.db.table(self.related_kwargs['table']),
+                                              related_rows, self.permissionPars)
+            for related_row, r in zip(related_rows, related_records):
                 pkey = r.pop('pkey',None)
-                caption = r[self.relatedCaptionField]
+                caption = related_row[self.relatedCaptionField]
                 if self.relatedCaptionField == 'caption':
-                    r.pop('caption')
+                    r.pop('caption', None)
                 result.setItem(pkey, None,
                                 child_count=0,
                                  caption=caption,
@@ -134,8 +152,9 @@ class TableHandlerTreeResolver(BagResolver):
         return q.fetch()
 
     def setChildren(self,result,children):
-        pkeyfield = self.db.table(self.table).pkey
-        for r in children:
+        tblobj = self.db.table(self.table)
+        pkeyfield = tblobj.pkey
+        for r, node_record in zip(children, treeNodeRecords(tblobj, children, self.permissionPars)):
             record = dict(r)
             caption = r[self.caption_field]
             pkey = record[pkeyfield]
@@ -164,7 +183,7 @@ class TableHandlerTreeResolver(BagResolver):
                                     child_count=child_count,pkey=record.get(self.alt_pkey_field) if self.alt_pkey_field else (pkey or '_all_'),
                                     parent_id=self.parent_id,
                                     hierarchical_pkey=record['hierarchical_pkey'],
-                                    treeIdentifier=pkey,_record=record))
+                                    treeIdentifier=pkey,_record=node_record))
         return result
 
     def applyOnTreeNodeAttr(self,**kwargs):

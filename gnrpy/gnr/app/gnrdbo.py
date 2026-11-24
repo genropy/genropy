@@ -19,6 +19,7 @@ from gnr.core.gnrdict import dictExtract
 from gnr.lib.gnrheif import HEIF_EXTENSIONS, heif_storage_path, is_heif_path
 from gnr.app import logger
 from gnr.sql.gnrsql_exceptions import NotMatchingModelError
+from gnr.sql.gnrsqltable_proxy.hierarchical import treeNodeRecords
 from gnr.app.gnrsqltable_proxy.selection import SelectionProxy
 
 mimetypes.init() # Required for python 2.6 (fixes a multithread bug)
@@ -851,27 +852,29 @@ class TableBase(object):
         f = self.query(where=condition,columns='%s,$%s' %(columns,caption_field),**condition_kwargs).fetch()
         related_tblobj = self.db.table(related_kwargs['table'])
         related_caption_field = related_kwargs.get('caption_field') or related_tblobj.attributes.get('caption_field')
-        for r in f:
+        currentPage = self.db.currentPage
+        permissionPars = getattr(currentPage, 'permissionPars', None)
+        for r, node_record in zip(f, treeNodeRecords(self, f, permissionPars)):
             pkey = r['pkey']
             value = Bag()
             relchidren = self._hdata_getRelatedChildren(fkey=pkey,related_tblobj=related_tblobj,
                                                               related_caption_field=related_caption_field,
                                                               related_kwargs = related_kwargs)
-            for related_row in relchidren:
-                related_row = dict(related_row)
-                relpkey = related_row.pop('pkey',None)
+            for related_row, related_record in zip(relchidren,
+                                                   treeNodeRecords(related_tblobj, relchidren, permissionPars)):
+                relpkey = related_record.pop('pkey',None)
                 value.setItem(relpkey, None,
                                 child_count=0,
                                 caption=related_row[related_caption_field],
                                 pkey=relpkey, treeIdentifier='%s_%s'%(pkey, relpkey),
-                                node_class='tree_related',**related_row)    
+                                node_class='tree_related',**related_record)
             b.setItem(pkey.replace('.','_'),value,
                         pkey=pkey or '_all_',
                         caption=r[caption_field],child_count=len(value),
                         treeIdentifier = pkey,
                         parent_id=None,
                         hierarchical_pkey=pkey,
-                       _record=dict(r))
+                       _record=node_record)
         result = Bag()
         result.setItem('root',b,caption=caption,child_count=1,pkey='',treeIdentifier='_root_')
         return result
