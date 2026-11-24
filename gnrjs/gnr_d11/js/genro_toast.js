@@ -5,7 +5,7 @@
  * notification component.
  *
  * API:
- *   genro.toast.show({message, title, level, duration, target, onClose, copyable, centered, modal})
+ *   genro.toast.show({message, title, level, duration, target, onClose, copyable, centered, modal, color})
  *   genro.toast.dismiss(el)
  *
  * Levels: info, success, warning, error
@@ -15,6 +15,7 @@
  * copyable: if true, adds a copy-to-clipboard button.
  * centered: if true, centers the toast on the viewport.
  * modal: if true, shows a blocking overlay behind the toast (implies centered + persistent).
+ * color: optional CSS color for border, icon and progress bar, instead of the one of the level.
  * Listens to dojo topic 'gnrToast' for pub/sub integration.
  */
 
@@ -101,6 +102,15 @@ dojo.declare("gnr.GnrToast", null, {
             '<div class="gnr-toast-body">' + bodyHtml + '</div>' +
             actionsHtml +
             progressHtml;
+
+        if(opts.color){
+            /* overrides the color the level gives to border, icon and progress bar */
+            el.style.borderLeftColor = opts.color;
+            el.querySelector('.gnr-toast-icon').style.color = opts.color;
+            if(!persistent){
+                el.querySelector('.gnr-toast-progress').style.background = opts.color;
+            }
+        }
 
         if(opts.onClose){
             el._gnrToastOnClose = opts.onClose;

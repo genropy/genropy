@@ -46,6 +46,12 @@ function stripJsFromHtml(str) {
     return str;
 }
 
+function escapeHtmlText(str) {
+    if (str === null || str === undefined) return '';
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
 var _TEMPLATE_HANDLER_ATTR = _JS_EXEC_PATTERNS[1][0];
 
 // An on* attribute is HTML-decoded before it is parsed as JS, so entity escaping
@@ -1681,10 +1687,10 @@ function toTypedJSON(value){
         if(dtype=='SET'){
             value = [...value];
         }
-        return '['+value.map(toTypedJSON).join(',')+']';
+        return '['+value.map(item=>{let txt = toTypedJSON(item); return txt===undefined?'null':txt;}).join(',')+']';
     }
     if(dtype=='OBJ'){
-        return '{'+Object.keys(value).map(key=>`${toTypedJSON(key)}:${toTypedJSON(value[key])}`).join(',')+'}';
+        return '{'+Object.keys(value).filter(key=>value[key]!==undefined && typeof value[key]!='function').map(key=>`${toTypedJSON(key)}:${toTypedJSON(value[key])}`).join(',')+'}';
     } 
     if(dtype == 'N' && value._gnrdtype=='N' || !['L','N','NN','B'].includes(dtype)){
         return JSON.stringify(asTypedTxt(value));
@@ -1782,7 +1788,7 @@ function xml_buildTag(tagName, value, attributes, xmlMode) {
     }
 
     if (tagName != originalTag) {
-        var result = '<' + tagName + ' _tag="' + originalTag + '"';
+        var result = '<' + tagName + ' ' + objectAsXmlAttributes({_tag: originalTag});
     } else {
         var result = '<' + tagName;
     }

@@ -5,6 +5,7 @@ import datetime
 import warnings as warnings_module
 import os
 import re
+import tempfile
 import pytz
 import mimetypes
 from collections import defaultdict
@@ -15,7 +16,9 @@ from gnr.core.gnrstring import splitAndStrip,templateReplace,fromJson,slugify,to
 from gnr.core.gnrdecorator import public_method,extract_kwargs
 from gnr.core.gnrdict import dictExtract
 
+from gnr.lib.gnrheif import HEIF_EXTENSIONS, heif_storage_path, is_heif_path
 from gnr.app import logger
+from gnr.sql.gnrsql_exceptions import NotMatchingModelError
 from gnr.app.gnrsqltable_proxy.selection import SelectionProxy
 
 mimetypes.init() # Required for python 2.6 (fixes a multithread bug)
@@ -469,7 +472,12 @@ class TableBase(object):
             for k,v in counter_kwargs.items():
                 self.sysFields_counter(tbl,'_row_count_%s' %k,counter=v,group=group,name_long='!![en]Counter %s' %k)
         audit = tbl.attributes.get('audit')
-        if audit:
+        if audit == 'external':
+            if 'audit' not in self.db.application.packages:
+                raise ValueError("audit='external' needs package gnrcore:audit")
+            tbl.column('__version','L',name_long='Audit version',_sysfield=True,group=group)
+            self.db.model.deferOnBuilding(self.declareExternalAudit, tbl=tbl)
+        elif audit:
             tbl.column('__version','L',name_long='Audit version',
                         onUpdating='setAuditVersionUpd', onInserting='setAuditVersionIns',_sysfield=True,
                         group=group)
@@ -615,6 +623,54 @@ class TableBase(object):
                 rec.update(updater)
         
 
+    def declareExternalAudit(self, tbl=None):
+        """Declare the audit triggers of a table with ``audit='external'``.
+
+        The ``audit`` attribute of a column decides whether it enters the
+        audit; without it the table ``audit_whitelist`` or ``audit_blacklist``
+        decides (``'*'`` or column and colgroup names); without a list every
+        column enters except the system fields that change at every write or
+        derive from other columns. Runs on building, when every column of
+        the table is declared."""
+        fullname = '%s.%s' % (tbl.parentNode.parentNode.parentNode.label, tbl.parentNode.label)
+        attributes = tbl.attributes
+        whitelist = attributes.get('audit_whitelist')
+        blacklist = attributes.get('audit_blacklist')
+        if whitelist and blacklist:
+            raise ValueError('%s declares both audit_whitelist and audit_blacklist' % fullname)
+        columns = tbl['columns']
+        if attributes['pkey'] not in columns:
+            raise ValueError("audit='external' on %s needs a physical pkey column" % fullname)
+        listed = whitelist or blacklist
+        names = splitAndStrip(listed, ',') if listed and listed != '*' else []
+        colgroups = tbl['colgroups'] or Bag()
+        unknown = [name for name in names if name not in columns and name not in colgroups]
+        if unknown:
+            raise ValueError('%s audit lists unknown columns or colgroups: %s' % (fullname, ','.join(unknown)))
+        default_excluded = {'__mod_ts', '__full_mod_ts', '__mod_user', '__rec_md5', '_h_count',
+                            '_parent_h_count', '__warnings', '__errors', '__invalid_fields',
+                            '__moved_related', attributes.get('draftField')}
+        excluded = ['__version']
+        for node in columns:
+            name = node.label
+            if name == '__version':
+                continue
+            audited = node.attr.get('audit')
+            if audited is None:
+                named = name in names or node.attr.get('colgroup_label') in names
+                if whitelist and names:
+                    audited = named
+                elif blacklist == '*':
+                    audited = False
+                else:
+                    audited = not (named or name in default_excluded
+                                   or name.startswith(('hierarchical_', '_parent_h_')))
+            if not audited:
+                excluded.append(name)
+        audit_schema = self.db.model.src.getNode('packages.audit').attr.get('sqlschema') or 'audit'
+        tbl.sqlCode(pkg='audit', sql_file='table_triggers.sql', excluded=','.join(excluded),
+                    audit_schema=audit_schema)
+
     def addRelXtdRelidxColumn(self,reltbl=None,relidx=None):
         model = self.db.model
         pkg,tblname = reltbl.split('.')
@@ -627,6 +683,11 @@ class TableBase(object):
             masterpkg,mastertbl,masterpkey = master_table_link
         rel_tbl_src = model.src['packages.{}.tables.{}'.format(pkg,tblname)]
         xtd_tbl_src = model.src['packages.{}.tables.{}_xtd'.format(masterpkg,mastertbl)]
+        if xtd_tbl_src is None:
+            raise NotMatchingModelError(
+                "{reltbl} declares relidx='{relidx}': it needs the model module "
+                "{pkg}/{tbl}_xtd with a Table class derived from XTDTable".format(
+                    reltbl=reltbl, relidx=relidx, pkg=masterpkg, tbl=mastertbl))
         xtd_tbl_src.column('{}_relidx'.format(reltbl.replace('.','_')),dtype='L',
                             name_long='{name_long} relidx count'.format(**rel_tbl_src.attributes))
 
@@ -978,9 +1039,6 @@ class TableBase(object):
         last_counter = last_counter_fetch[0].get(fldname) or 1 if last_counter_fetch else 0
         record[fldname] = last_counter +1
     
-    def trigger_xtdDeletedRecord(self,record,fldname,**kwargs):
-        return self.xtd.onDeletedMain(record)
-
     def trigger_setRelidx(self,record,fldname,**kwargs):
         """field trigger used for manage rowCounter field"""
         if record.get(fldname) is not None:
@@ -1093,11 +1151,9 @@ class TableBase(object):
 
     def dbo_onInserting(self,record=None,**kwargs):
         self.checkDiagnostic(record)
-        self.checkChangelog(record)
 
     def dbo_onUpdating(self,record=None,old_record=None,pkey=None,**kwargs):
         self.checkDiagnostic(record)
-        self.checkChangelog(record,old_record=old_record)
 
         if self.draftField:
             if hasattr(self,'protect_draft'):
@@ -1108,18 +1164,6 @@ class TableBase(object):
             if not record.get(logicalDeletionField) and record.get('__moved_related'):
                 self.restoreUnifiedRecord(record)
     
-    def checkChangelog(self,record=None,old_record=None,**kwargs):
-        chlog = self.attributes.get('chlog')
-        if not chlog:
-            return
-        if chlog is True:
-            self.xtd.mainChangelog(record=record,old_record=old_record)
-        else:
-            self.xtd.relatedChangelog(self,record=record,old_record=old_record)
-
-    def dbo_onDeleting(self,record,**kwargs):
-        self.checkChangelog(None,old_record=record)
-
     def df_getQuerableFields(self,field,group=None,caption_field=None,grouped=False,**kwargs):
         column = self.column(field)
         df_field = column.attributes['subfields']
@@ -1515,6 +1559,10 @@ class TableBase(object):
                 counter_pars = self.getCounterPars(field,record) 
                 if not counter_pars or not counter_pars.get('recycle') or (backToDraft and counter_pars.get('assignIfDraft')):
                     continue
+                #releaseOnDraft (default True): False keeps the number of a record going back to draft;
+                #counter_<field>(record) may compute it from the record
+                if backToDraft and not counter_pars.get('releaseOnDraft',True):
+                    continue
                 self.releaseCounterColumn(field=field,record=record)
 
     def trigger_assignCounters(self,record=None,old_record=None):
@@ -1523,21 +1571,67 @@ class TableBase(object):
             self.trigger_releaseCounters(record,backToDraft=True)
         else:
             for field in self.counterColumns():
-                self.assignCounterColumn(field=field,record=record)
+                self.assignCounterColumn(field=field,record=record,old_record=old_record)
+
+    def sysCounter(self,field,record=None):
+        """sys.counter when the experimental switch new_counters/counters enables
+        the counter of field, None when adm.counter numbers it"""
+        if 'sys' not in self.db.packages:
+            return None
+        sys_counter = self.db.table('sys.counter')
+        return sys_counter if sys_counter.isEnabledFor(self,field,record=record) else None
 
     def releaseCounterColumn(self,field=None,record=None):
         _tenant_schema = record.get('_tenant_schema')
         with self.db.tempEnv(tenant_schema=_tenant_schema):
-            self.db.table('adm.counter').releaseCounter(tblobj=self,field=field,record=record)
+            counter = self.sysCounter(field,record) or self.db.table('adm.counter')
+            counter.releaseCounter(tblobj=self,field=field,record=record)
 
-    def assignCounterColumn(self,field=None,record=None):
+    def assignCounterColumn(self,field=None,record=None,old_record=None):
         _tenant_schema = record.get('_tenant_schema')
         with self.db.tempEnv(tenant_schema=_tenant_schema):
-            self.db.table('adm.counter').assignCounter(tblobj=self,field=field,record=record)
+            counter = self.sysCounter(field,record) or self.db.table('adm.counter')
+            counter.assignCounter(tblobj=self,field=field,record=record,old_record=old_record)
+
+    def realignCounterColumn(self,field=None,record=None,floor=None):
+        """Forget the stored state of the counter of field for the series of record (every
+        series of field without record) and rebuild it from the numbers in the table.
+        floor, with record: a number the series must not stay below, for numbers in use
+        outside this table. A series whose numbers are not consistent is left to the
+        counter's own report (adm.counter errors, sys.counter analyzeCounter)"""
+        _tenant_schema = record.get('_tenant_schema') if record else None
+        with self.db.tempEnv(tenant_schema=_tenant_schema):
+            counter = self.sysCounter(field,record) or self.db.table('adm.counter')
+            return counter.realignCounter(tblobj=self,field=field,record=record,floor=floor)
+
+    def freeCounterSequences(self,field=None,record=None,limit=500):
+        """The free numbers of the series of record, lowest first: a list of
+        dict(number, sequence, date_from, date_to), the dates a number accepts.
+        Empty for a counter that does not recycle: it never gives a number back"""
+        pars = self.getCounterPars(field,record)
+        if not pars or not pars.get('recycle'):
+            return []
+        with self.db.tempEnv(tenant_schema=record.get('_tenant_schema')):
+            counter = self.sysCounter(field,record) or self.db.table('adm.counter')
+            return [dict(number=s['number'],sequence=s['sequence'],date_from=s['date_from'],date_to=s['date_to'])
+                    for s in counter.freeSequences(tblobj=self,field=field,record=record,limit=limit)]
+
+    def lastCounterSequence(self,field=None,record=None):
+        """dict(number, date) of the last number given in the series of record: its
+        starting value and no date when the series has none"""
+        with self.db.tempEnv(tenant_schema=record.get('_tenant_schema')):
+            counter = self.sysCounter(field,record) or self.db.table('adm.counter')
+            return counter.lastSequence(tblobj=self,field=field,record=record)
+
+    def formatCounterSequence(self,field=None,record=None,number=None):
+        "The sequence of number in the series of record"
+        counter = self.sysCounter(field,record) or self.db.table('adm.counter')
+        return counter.formatSequence(self,field,record,number)
 
     @public_method
     def guessCounter(self,record=None,field=None,**kwargs):
-        sequence,sequenceInfo = self.db.table('adm.counter').guessNextSequence(tblobj=self,field=field,record=record)
+        counter = self.sysCounter(field,record) or self.db.table('adm.counter')
+        sequence,sequenceInfo = counter.guessNextSequence(tblobj=self,field=field,record=record)
         result = dict(promised=True,wdg_color='green',sequence=sequence)
         pars = getattr(self,'counter_%s' %field)(record=record)
         if sequenceInfo.get('recycled'):
@@ -1557,7 +1651,8 @@ class TableBase(object):
             if self.isDraft(newrecord) and not pars.get('assignIfDraft'):
                 continue
             if pars.get('showOnLoad'):
-                sequence,sequenceInfo = self.db.table('adm.counter').guessNextSequence(tblobj=self,field=field,record=newrecord)
+                counter = self.sysCounter(field,newrecord) or self.db.table('adm.counter')
+                sequence,sequenceInfo = counter.guessNextSequence(tblobj=self,field=field,record=newrecord)
                 kw = dict(promised=True,wdg_color='green')
                 if sequenceInfo.get('recycled'):
                     kw['wdg_color'] = 'darkblue'
@@ -1696,24 +1791,16 @@ class XTDTable(GnrDboTable):
         master_attr = mastertbl.attributes
         master_attr['xtdtable'] = '%s.%s' %(pkgname,tblname)
         mastertbl_name_long = master_attr.get('name_long')        
-        tbl.attributes.setdefault('caption_field','description')
-        tbl.attributes.setdefault('rowcaption','$description')
         tbl.attributes.setdefault('name_long','%s  Extra Data' %mastertbl_name_long)
         tbl.attributes.setdefault('name_plural','%s Extra Data' %mastertbl_name_long)
         #self.sysFields(tbl,id=False, ins=False, upd=False)
         masterPkeyAttributes = mastertbl.getAttr('columns.{pkey}'.format(**master_attr))
         tbl.column('main_id',size=masterPkeyAttributes.get('size'),group='_',name_long='!![it]Main id').\
-            relation('{pkg}.{tbl}.id'.format(pkg=pkgname,tbl=mastertblname),
+            relation('{pkg}.{tbl}.{pkey}'.format(pkg=pkgname,tbl=mastertblname,pkey=master_attr['pkey']),
                         onDelete=self.xtd_options().get('onDelete'),
                         one_one=True,relation_name='xtd',
                         one_name='!![en]Main',
                         many_name='!![en]XTD')
-        if master_attr.get('copy_deleted_record'):
-            tbl.column('deleted_record',dtype='X',name_long='!![it]Deleted record')
-        if master_attr.get('chlog'):
-            tbl.column('chlog_sessions',dtype='X',name_long='!![it]Changelog')
-            tbl.column('chlog_owner_user')
-
         self.onTableConfig(tbl)
     
     def onTableConfig(self,tbl):
@@ -1775,7 +1862,7 @@ class AttachmentTable(GnrDboTable):
         tbl.formulaColumn('adapted_url',"""CASE WHEN position('\\:' in $filepath)>0 THEN '/'||$filepath
              ELSE '/_vol/' || $filepath
             END""",group='_')
-        tbl.pyColumn('fileurl',py_method='filepath_endpoint_url',name_long='Fileurl',
+        tbl.pyColumn('fileurl',py_method='filepath_preview_url',name_long='Fileurl',
                         outdatedWatermark = tbl.attributes.get('outdatedWatermark'),
                         required_columns='$external_url,$filepath',
                         static=True)
@@ -1793,17 +1880,26 @@ class AttachmentTable(GnrDboTable):
         if not result:
             jsPdfViewerPref = self.db.application.getPreference('jsPdfViewer',pkg='sys') 
             site =  self.db.application.site
-            if jsPdfViewerPref or site.currentPage.isMobile:
+            if jsPdfViewerPref or (site.currentPage and site.currentPage.isMobile):
                 return True
             main_pkg_obj = site.gnrapp.packages[site.mainpackage]
             result = main_pkg_obj.attributes.get('atc_endpoint_url')
         return result or False
 
+    def filepath_preview_url(self, record, field=None):
+        filepath = record['filepath']
+        if (not record.get('external_url') and is_heif_path(filepath)
+                and getattr(self.db.application, 'site', None)):
+            return self.endpointColumn(record=record, field='filepath',
+                                       heif_preview=True, source_ext=os.path.splitext(filepath)[1][1:].lower())
+        return self.filepath_endpoint_url(record, field=field)
+
     def filepath_endpoint_url(self,record,field=None):
         if record.get('external_url'):
             return record['external_url']
         filepath = record['filepath']
-        if not filepath:
+        # outside a site (e.g. gnr app cleanup) no url can be built
+        if not filepath or not getattr(self.db.application, 'site', None):
             return
         if ':' in filepath:
             if self.atc_exposeEndpointUrl():
@@ -1921,6 +2017,8 @@ class AttachmentTable(GnrDboTable):
         mimetype = mimetype or mimetypes.guess_type(originStorageNode.path)[0]
         filename = filename or originStorageNode.basename
         if copyFile or moveFile:
+            if not originStorageNode.exists:
+                raise FileNotFoundError(f'Attachment origin not found: {originStorageNode.fullpath}')
             if destFolder:
                 destStorageNode = site.storageNode(destFolder,filename)
             else:
@@ -1972,22 +2070,39 @@ class AttachmentTable(GnrDboTable):
         pass
     
     def getAttachmentsPdf(self, maintable_id, output_path=None):
-        imgConverter = self.db.application.site.getService('imgtopdf')
-        pdfJoiner = self.db.application.site.getService('pdf')
+        site = self.db.application.site
+        imgConverter = site.getService('imgtopdf')
+        pdfJoiner = site.getService('pdf')
         attachments = self.query(where='$maintable_id=:m_id', m_id = maintable_id).fetch()
-        resultNode = sn = self.db.application.site.storageNode(output_path)
+        resultNode = site.storageNode(output_path)
         joinable_pdf = []
-        for a in attachments:
-            path = a['filepath']
-            sn = self.db.application.site.storageNode(path)
-            if not sn.ext.lower() in ['pdf','jpg','jpeg','png','gif','tiff']:
-                continue
-            if sn.ext.lower() == 'pdf':
-                joinable_pdf.append(sn)
-                continue
-            outPdfSn = self.db.application.site.storageNode(f'temp:{sn.cleanbasename}.pdf')
-            joinable_pdf.append(imgConverter.imgToPdf(sn, outPdfSn))
-        pdfJoiner.joinPdf(joinable_pdf,resultNode)
+        skipped_heif = False
+        with tempfile.TemporaryDirectory() as tmpdir:
+            for index, attachment in enumerate(attachments):
+                path = attachment['filepath']
+                if not path:
+                    continue
+                sn = site.storageNode(heif_storage_path(path))
+                ext = sn.ext.lower()
+                if ext == 'pdf':
+                    joinable_pdf.append(sn)
+                elif ext in ('jpg', 'jpeg', 'png', 'gif', 'tiff', *HEIF_EXTENSIONS):
+                    outPdfSn = site.storageNode(os.path.join(tmpdir, f'{index}.pdf'))
+                    try:
+                        converted = imgConverter.imgToPdf(sn, outPdfSn)
+                    except ModuleNotFoundError as error:
+                        if ext not in HEIF_EXTENSIONS or error.name != 'pillow_heif':
+                            raise
+                        skipped_heif = True
+                        continue
+                    joinable_pdf.append(converted)
+            pdfJoiner.joinPdf(joinable_pdf, resultNode)
+        if skipped_heif:
+            logger.warning('HEIC/HEIF attachments were omitted from the PDF because pillow-heif is not installed.')
+            page = self.db.currentPage
+            if page and page.page_id:
+                message = page._('!![en]HEIC/HEIF attachments were omitted from the PDF. You can download the originals separately.')
+                page.clientPublish('floating_message', message=message, messageType='warning')
         return resultNode
 
 class TotalizeTable(GnrDboTable):

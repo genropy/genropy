@@ -544,6 +544,12 @@ class GroupletHandler(BaseComponent):
         top.div('^.selected_caption',
                 _class='grouplet_panel_title',
                 nodeId=title_id)
+        if self.inlineDoc:
+            doc_id = f'{frameCode}_doc'
+            top.docHelpButton(None, tooltip=True, size='large', nodeId=doc_id)
+            top.dataController("gnr_grouplet.panelDocTrack(docId, address, caption);",
+                               docId=doc_id, address='^.selected_docaddress',
+                               caption='=.selected_caption')
         center = right.contentPane(region='center', overflow='auto')
         if useForm:
             bc.dataController("""
@@ -1087,6 +1093,9 @@ class GroupletHandler(BaseComponent):
                 info['grouplet_caption'] = info['caption']
                 resource_path = (f'{parent_path}/{node.label}'
                                  if parent_path else node.label)
+                if self.inlineDoc:
+                    info['docAddress'] = self._gr_cardDocAddress(info.get('doc'), resource=resource_path,
+                                                                 table=table)
                 result.setItem(node.label, None,
                                resource=resource_path,
                                **info)

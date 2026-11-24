@@ -33,9 +33,9 @@ class Table(object):
         
         tbl.formulaColumn('system_userobject',"$code LIKE :scode",var_scode=r'\_\_%%',dtype='B')
         tbl.pyColumn('resource_status',name_long='!![en]Resources',required_columns='$data')
-        tbl.formulaColumn('is_mail', ":email ILIKE ANY(string_to_array($flags,','))", var_email='is_mail', dtype='B', static=True)
-        tbl.formulaColumn('is_row', ":row ILIKE ANY(string_to_array($flags,','))", var_row='is_row', dtype='B', static=True)
-        tbl.formulaColumn('is_print', ":print ILIKE ANY(string_to_array($flags,','))", var_print='is_print', dtype='B', static=True)
+        tbl.formulaColumn('is_mail', self.db.adapter.inCsvColumn('$flags', ':email'), var_email='is_mail', dtype='B', static=True)
+        tbl.formulaColumn('is_row', self.db.adapter.inCsvColumn('$flags', ':row'), var_row='is_row', dtype='B', static=True)
+        tbl.formulaColumn('is_print', self.db.adapter.inCsvColumn('$flags', ':print'), var_print='is_print', dtype='B', static=True)
 
     
     def pyColumn_resource_status(self,record=None,**kwargs):

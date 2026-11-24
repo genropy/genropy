@@ -24,22 +24,18 @@ AUTH_NOT_LOGGED = 1
 class GnrWebRpc(GnrBaseProxy):
     def __call__(self, method=None, _auth=AUTH_FORBIDDEN,**kwargs):
         page = self.page
-        if _auth == AUTH_FORBIDDEN and method != 'main':
-            result = None
-            error = 'forbidden call'
-        elif _auth == AUTH_EXPIRED:
-            result = None
-            error = 'expired'
+        error = None
+        if _auth in (AUTH_FORBIDDEN, AUTH_EXPIRED) and method != 'main':
+            handler = page.getSessionlessMethod(method)
+            if not handler:
+                error = 'expired' if _auth == AUTH_EXPIRED else 'forbidden call'
         else:
             handler = page.getPublicMethod('rpc', method)
             if method == 'main':
                 kwargs['_auth'] = _auth
-            if handler:
-                result = handler(**kwargs)
-                error = None
-            else:
-                result = None
+            if not handler:
                 error = 'missing handler: %s' % method
+        result = handler(**kwargs) if handler else None
         if error:
             self.error = error
         return result
@@ -121,6 +117,33 @@ class GnrWebRpc(GnrBaseProxy):
         return result or error
 
     def rpc_upload_file(self, *args ,**kwargs):
+        # reached as an externalCall, outside the page rpc dispatcher that turns a GnrException into an envelope
+        try:
+            return self._upload_file(**kwargs)
+        except GnrException as e:
+            self.page.site.raiseIfDeveloper()
+            self.error = 'gnrexception'
+            return self.result_bag(self.exceptionResult(e))
+
+    def exceptionResult(self, exception):
+        """The result a bag envelope carries for a GnrException: its message, or,
+        when the exception declares its feedback parameters, a dict with those
+        parameters and the message.
+
+        :param exception: the GnrException raised by the rpc method"""
+        message = str(exception)
+        if not exception.feedback:
+            return message
+        # a dict in the envelope is not translated on its way out, unlike a string:
+        # the message is localized here together with the feedback values
+        result = dict(exception.feedback, message=message)
+        return {key: self.page.localize(value) if isinstance(value, str) else value
+                for key, value in result.items()}
+
+    def _upload_file(self, **kwargs):
+        # the scan comes before the hooks: an onUploadingMethod can import the content
+        self.page.site.scanUpload(file_handle=kwargs.get('file_handle'), dataUrl=kwargs.get('dataUrl'),
+                                  filename=kwargs.get('filename'))
         onUploadingMethod= kwargs.get('onUploadingMethod')
         if onUploadingMethod:
             onUploading = self.page.getPublicMethod('rpc', onUploadingMethod)

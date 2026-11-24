@@ -16,6 +16,7 @@ class AdapterCapabilities(Enum):
     VECTOR = auto()
     SCHEMAS = auto()
     ADMINISTER = auto()
+    SQL_SCRIPTS = auto()
 
 # static list of all available db implementations adapters
 AVAILABLE_DB_IMPLEMENTATIONS = [os.path.basename(x.replace(".py","").replace("gnr", ""))

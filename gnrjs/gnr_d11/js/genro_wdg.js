@@ -198,7 +198,6 @@ dojo.declare("gnr.GnrWdgHandler", null, {
             'GoogleChart':'',
             'GoogleVisualization':'',
             'CkEditor':'',
-            'TinyMce':'',
             'dygraph':'',
             'protovis':'',
             'codemirror':'',
@@ -881,6 +880,16 @@ dojo.declare("gnr.GridEditor", null, {
         this.formId = sourceNode.getInheritedAttributes()['formId'];
         this.deletedRows = new gnr.GnrBag()
         this._status_list = ['error','changed'];
+        // VirtualGrid's deferred resize update replaces the row DOM, including the focused input.
+        grid.sizeChange = function() {
+            dojox.grid.jobs.job(grid.id + 'SizeChange', 50, function() {
+                if (grid.gnrediting) {
+                    that.pendingResizeUpdate = true;
+                } else {
+                    grid.update();
+                }
+            });
+        };
         this.grid.rows.isOver = function(inRowIndex) {
             return ((this.overRow == inRowIndex) && !grid.gnrediting);
         };
@@ -1872,6 +1881,10 @@ dojo.declare("gnr.GridEditor", null, {
                     that.grid.updateRow(editingInfo.row);
                 }
             }
+            if (that.pendingResizeUpdate) {
+                that.pendingResizeUpdate = false;
+                that.grid.update();
+            }
             if (delta) {
                 var rc = that.findNextEditableCell({row:editingInfo.row, col:editingInfo.col}, delta);
                 if (rc) {
@@ -2030,6 +2043,7 @@ dojo.declare("gnr.GridColumnFilterPane", null, {
         this.rangePath = rangePath;
         this.search = '';
         this.items = [];
+        this.allChecked = false;
         domNode.classList.add('gridColumnFilterPane');
         var label = document.createElement('div');
         label.innerHTML = cell.original_name || '';
@@ -2042,21 +2056,32 @@ dojo.declare("gnr.GridColumnFilterPane", null, {
         this.searchNode = this.element('input','gcf_search');
         this.searchNode.type = 'search';
         this.searchNode.placeholder = _T('Search');
-        this.searchBox.appendChild(this.searchNode);
+        this.searchClearNode = this.element('button','gcf_searchclear');
+        this.searchClearNode.type = 'button';
+        this.searchClearNode.hidden = true;
+        this.searchClearNode.title = _T('Clear search');
+        this.searchClearNode.setAttribute('aria-label',_T('Clear search'));
+        this.searchClearNode.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
+        this.searchBox.append(this.searchNode,this.searchClearNode);
         this.searchBox.hidden = true;
         this.listNode = this.element('div','gcf_list');
         this.moreNode = this.element('div','gcf_more');
         this.moreNode.hidden = true;
-        this.clearNode = this.element('button','gcf_clear',_T('Clear filter'));
-        this.clearNode.type = 'button';
+        this.emptyNode = this.element('button','gcf_showempty');
+        this.emptyNode.type = 'button';
+        this.emptyNode.hidden = true;
+        this.selectNode = this.element('button','gcf_action',_T('Select all'));
+        this.deselectNode = this.element('button','gcf_action',_T('Deselect all'));
+        this.clearNode = this.element('button','gcf_action',_T('Clear filter'));
+        this.selectNode.type = this.deselectNode.type = this.clearNode.type = 'button';
         this.countNode = this.element('span','gcf_rowcount');
         var foot = this.element('div','gcf_foot');
-        foot.append(this.clearNode,this.countNode);
+        foot.append(this.selectNode,this.deselectNode,this.clearNode,this.countNode);
         domNode.append(title);
         if(rangeNode){
             domNode.appendChild(rangeNode);
         }
-        domNode.append(this.searchBox,this.listNode,this.moreNode,foot);
+        domNode.append(this.searchBox,this.listNode,this.moreNode,this.emptyNode,foot);
         var that = this;
         this.orderNode.addEventListener('click',function(){
             that.cell._filterDescending = !that.cell._filterDescending;
@@ -2072,7 +2097,29 @@ dojo.declare("gnr.GridColumnFilterPane", null, {
                 that.toggle(e.target);
             }
         });
+        // a focused button that hides itself would blur the dropdown and close it
+        [this.selectNode,this.deselectNode,this.clearNode,this.emptyNode,this.searchClearNode].forEach(function(button){
+            button.addEventListener('mousedown',function(e){
+                e.preventDefault();
+            });
+        });
+        this.searchClearNode.addEventListener('click',function(){
+            that.searchNode.value = '';
+            that.search = '';
+            that.renderList();
+            that.searchNode.focus();
+        });
+        this.emptyNode.addEventListener('click',function(){
+            that.toggleEmpty();
+        });
+        this.selectNode.addEventListener('click',function(){
+            that.selectAll();
+        });
+        this.deselectNode.addEventListener('click',function(){
+            that.deselectAll();
+        });
         this.clearNode.addEventListener('click',function(){
+            that.allChecked = false;
             that.grid.setColumnFilter(that.cell,null);
             that.clearRange();
             that.renderList();
@@ -2101,6 +2148,7 @@ dojo.declare("gnr.GridColumnFilterPane", null, {
         if(!range.from && !range.to){
             values = this.checkedValues(this.checkedKeys());
         }
+        this.allChecked = false;
         this.grid.setColumnFilter(this.cell,values,range);
         this.renderList();
     },
@@ -2132,7 +2180,9 @@ dojo.declare("gnr.GridColumnFilterPane", null, {
         if(this.cell.filterValues){
             return new Set(this.cell.filterValues.map(gnr.columnFilterKey));
         }
-        return new Set(this.rangeItems().map(function(item){
+        // no filter reads as nothing checked, unless every value was checked while this popup is open
+        var items = this.allChecked && !this.cell.filterRange? this.items:this.rangeItems();
+        return new Set(items.map(function(item){
             return item.key;
         }));
     },
@@ -2188,30 +2238,50 @@ dojo.declare("gnr.GridColumnFilterPane", null, {
         });
         items.sort(this.compareItems.bind(this));
         this.items = items;
-        this.searchBox.hidden = items.length<=this.searchThreshold;
         this.renderList();
         if(!this.searchBox.hidden){
             this.searchNode.focus();
         }
     },
 
-    renderList:function(){
+    listedItems:function(includeEmpty){
+        if(includeEmpty===undefined){
+            includeEmpty = !!this.cell._filterShowEmpty;
+        }
         var query = this.search.trim().toLowerCase();
         var range = this.cell.filterRange;
         var checked = this.checkedKeys();
+        var that = this;
+        return this.items.filter(function(item){
+            if(range && !gnr.columnFilterInRange(item.value,range)){
+                return false;
+            }
+            if(query && that.captionText(item).toLowerCase().indexOf(query)<0){
+                return false;
+            }
+            return includeEmpty || item.count>0 || checked.has(item.key);
+        });
+    },
+
+    renderList:function(){
+        var query = this.search.trim();
+        var checked = this.checkedKeys();
+        var withEmpty = this.listedItems(true);
+        var withoutEmpty = this.listedItems(false);
+        var showEmpty = !!this.cell._filterShowEmpty;
+        var listed = new Set(showEmpty? withEmpty:withoutEmpty);
+        this.searchClearNode.hidden = !this.search;
+        if(!query){
+            this.searchBox.hidden = listed.size<=this.searchThreshold;
+        }
         var fragment = document.createDocumentFragment();
         var shown = 0;
-        var matches = 0;
         var that = this;
         this.items.forEach(function(item,idx){
+            if(!listed.has(item)){
+                return;
+            }
             var text = that.captionText(item);
-            if(range && !gnr.columnFilterInRange(item.value,range)){
-                return;
-            }
-            if(query && text.toLowerCase().indexOf(query)<0){
-                return;
-            }
-            matches++;
             var isChecked = checked.has(item.key);
             if(!query && shown>=that.maxRows && !isChecked){
                 return;
@@ -2226,23 +2296,47 @@ dojo.declare("gnr.GridColumnFilterPane", null, {
             fragment.appendChild(row);
             shown++;
         });
-        if(!matches){
+        if(!listed.size){
             fragment.appendChild(this.element('div','gcf_more',_T('No value')));
         }
         this.listNode.replaceChildren(fragment);
         var descending = !!this.cell._filterDescending;
         this.orderNode.textContent = descending? '\u2193':'\u2191';
         this.orderNode.title = descending? _T('Descending order'):_T('Ascending order');
-        var rest = matches-shown;
+        var rest = listed.size-shown;
         this.moreNode.hidden = rest<=0;
         this.moreNode.textContent = rest+' '+_T('more. Type to search.');
+        var emptyCount = withEmpty.length-withoutEmpty.length;
+        this.emptyNode.hidden = !emptyCount;
+        this.emptyNode.textContent = showEmpty? _T('Hide values with no rows'):
+                                                _T('Show values with no rows')+' ('+emptyCount+')';
         this.updateFoot();
     },
 
     updateFoot:function(){
         var store = this.grid.collectionStore();
-        this.clearNode.hidden = !gnr.columnFilterActive(this.cell);
+        var active = gnr.columnFilterActive(this.cell);
+        var checked = this.checkedKeys();
+        var listed = this.listedItems();
+        var isChecked = function(item){
+            return checked.has(item.key);
+        };
+        this.selectNode.hidden = listed.every(isChecked);
+        // with a filter and no search, Deselect all would only repeat Clear filter
+        this.deselectNode.hidden = !listed.some(isChecked) || (active && !this.search.trim());
+        this.clearNode.hidden = !active;
         this.countNode.textContent = store.len(true)+' / '+store.len();
+    },
+
+    applyChecked:function(checked){
+        var range = this.cell.filterRange;
+        var values = this.checkedValues(checked);
+        var pool = range? this.rangeItems():this.items;
+        if(pool.length==values.length && pool.every(function(item){return checked.has(item.key);})){
+            values = null;
+        }
+        this.allChecked = values===null && !range;
+        this.grid.setColumnFilter(this.cell,values,range);
     },
 
     toggle:function(input){
@@ -2253,15 +2347,32 @@ dojo.declare("gnr.GridColumnFilterPane", null, {
         }else{
             checked.delete(item.key);
         }
-        var range = this.cell.filterRange;
-        var values = this.checkedValues(checked);
-        var inRange = this.rangeItems();
-        if(range && inRange.length==values.length && inRange.every(function(i){return checked.has(i.key);})){
-            values = null;
-        }
-        this.grid.setColumnFilter(this.cell,values,range);
+        this.applyChecked(checked);
         input.parentNode.classList.toggle('gcf_checked',input.checked);
         this.updateFoot();
+    },
+
+    selectAll:function(){
+        var checked = this.checkedKeys();
+        this.listedItems().forEach(function(item){
+            checked.add(item.key);
+        });
+        this.applyChecked(checked);
+        this.renderList();
+    },
+
+    deselectAll:function(){
+        var checked = this.checkedKeys();
+        this.listedItems().forEach(function(item){
+            checked.delete(item.key);
+        });
+        this.applyChecked(checked);
+        this.renderList();
+    },
+
+    toggleEmpty:function(){
+        this.cell._filterShowEmpty = !this.cell._filterShowEmpty;
+        this.renderList();
     }
 });
 

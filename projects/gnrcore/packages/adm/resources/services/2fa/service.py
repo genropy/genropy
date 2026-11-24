@@ -39,16 +39,26 @@ class Main(GnrBaseService):
         return otp.provisioning_uri(name=name, 
                                   issuer_name=issuer_name or self.issuer_name)
     
+    def _rememberCookieSecret(self,user_id):
+        page = self.parent.currentPage
+        site_secret = page.site.config['secret'] or page.siteName
+        user_secret = self.parent.db.table('adm.user').readColumns(pkey=user_id,columns='$avatar_secret_2fa')
+        return f'{site_secret}_{self.secret or ""}_{user_secret}'
+
     def remember2fa(self,user_id):
         page = self.parent.currentPage
-        cookie = page.request.newCookie(f'{page.siteName}_{user_id}_otp', user_id)
-        cookie.expires = time.time() + self.expiry_days*24
+        expires = time.time() + self.expiry_days*86400
+        cookie = page.newMarshalCookie(f'{page.siteName}_{user_id}_otp',
+                                       {'user_id':user_id,'_expires':expires},
+                                       secret=self._rememberCookieSecret(user_id))
+        cookie.expires = expires
         page.add_cookie(cookie)
 
     def saved2fa(self,user_id):
         page = self.parent.currentPage
-        result = page.get_cookie(f'{page.siteName}_{user_id}_otp', 'simple')
-        return result
+        cookie = page.get_cookie(f'{page.siteName}_{user_id}_otp', 'marshal',
+                                 secret=self._rememberCookieSecret(user_id))
+        return bool(cookie) and cookie.get('user_id') == user_id
 
 
 class ServiceParameters(BaseComponent):

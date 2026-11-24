@@ -337,3 +337,36 @@ class GnrCustomWebPage(object):
                rowTemplate=ROW_TEMPLATE)
         r.cell('bound_tpl', name='Bound rowTemplate', width='16em',
                rowTemplate='^.bound_template', template_columns='id,description')
+
+    def test_6_one_warning_per_column(self, pane):
+        """Grid: a column emitting an onclick on every row warns once, naming the column;
+        'Check warnings' counts the warning entries of this grid (expected: one, for column 'stato')"""
+        bc = pane.borderContainer(height='350px', datapath='.percolumn_test')
+        top = bc.contentPane(region='top', height='40px', padding='5px')
+        top.button('Check warnings', action='FIRE .check;')
+        top.div('^.test_result', margin_left='10px', display='inline-block',
+                font_size='14px', font_weight='bold')
+        frame = bc.framePane('percolumn_grid', region='center')
+        frame.data('.store', self._percolumn_data())
+        frame.includedView(storepath='.store', datapath=False, nodeId='percolumn_grid',
+                           struct=self._percolumn_struct, datamode='bag', autoWidth=True)
+        bc.dataController("""
+            var keys = Object.keys(genro._sanitizedContents || {}).filter(function(k){
+                return k.indexOf('grid:percolumn_grid:') === 0;
+            });
+            var ok = keys.length === 1 && keys[0] === 'grid:percolumn_grid:stato';
+            SET .test_result = (ok ? 'PASS: ' : 'FAIL: ') + keys.length + ' warning(s) ' + keys.join(', ');
+        """, _fired='^.check')
+
+    def _percolumn_data(self):
+        result = Bag()
+        for i in range(30):
+            result['r_%i' % i] = Bag(dict(
+                nome='Row %i' % i,
+                stato='<span onclick="alert(%i)">open %i</span>' % (i, i)))
+        return result
+
+    def _percolumn_struct(self, struct):
+        r = struct.view().rows()
+        r.cell('nome', name='Name', width='10em')
+        r.cell('stato', name='Status', width='12em')

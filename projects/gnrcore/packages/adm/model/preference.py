@@ -38,7 +38,7 @@ class Table(object):
         if not preference:
             preference = self.getMainStorePreference()
             if self.db.multidomain:
-                store_preference = self.record(MAIN_PREFERENCE).output('record')['data'] or Bag()
+                store_preference = self.record(MAIN_PREFERENCE, ignoreMissing=True).output('record')['data'] or Bag()
             else:
                 store_preference = self.db.package('multidb').getStorePreference()
             for pkgid,pkgobj in self.db.application.packages.items():
@@ -85,7 +85,7 @@ class Table(object):
         hosting = self.hostingPreferenceLeaves()
         if not hosting or not isinstance(data, Bag):
             return
-        tenant_data = self.record(MAIN_PREFERENCE).output('record')['data'] or Bag()
+        tenant_data = self.record(MAIN_PREFERENCE, ignoreMissing=True).output('record')['data'] or Bag()
         for path in hosting:
             tenant_node = tenant_data.getNode(path)
             if tenant_node is None:

@@ -158,6 +158,8 @@ class CommandBuilderMixin(SqlMigratorBaseMixin):
         )
         for table in item['tables'].values():
             self.added_table(item=table)
+        if item['attributes'].get('sql_md5'):
+            self.scheduleSqlScript(schema_name, md5=item['attributes']['sql_md5'])
 
     def added_table(self, item=None, **kwargs):
         """Generate the complete CREATE TABLE command with columns, PK and constraints.
@@ -203,6 +205,9 @@ class CommandBuilderMixin(SqlMigratorBaseMixin):
             self.added_index(item=index_item)
         for rel_item in item['relations'].values():
             self.added_relation(item=rel_item)
+        if item['attributes'].get('sql_md5'):
+            self.scheduleSqlScript(item['schema_name'], table_name=item['table_name'],
+                                   md5=item['attributes']['sql_md5'])
 
     def added_column(self, item=None, **kwargs):
         """Generate the ADD COLUMN command for a new column.
@@ -298,8 +303,8 @@ class CommandBuilderMixin(SqlMigratorBaseMixin):
                       oldvalue=None, newvalue=None, **kwargs):
         """Handle changes in table attributes.
 
-        Currently only handles primary key changes:
-        generates DROP of the old PK + ADD of the new PK.
+        Handles primary key changes (DROP of the old PK + ADD of the new
+        PK) and changes of the ``sqlCode()`` scripts md5.
 
         Args:
             item: Table dictionary.
@@ -309,6 +314,9 @@ class CommandBuilderMixin(SqlMigratorBaseMixin):
         """
         schema_name = item['schema_name']
         table_name = item['table_name']
+        if changed_attribute == 'sql_md5':
+            self.scheduleSqlScript(schema_name, table_name=table_name, md5=newvalue)
+            return
         if changed_attribute == 'pkeys':
             drop_pk_sql = self.db.adapter.struct_drop_table_pkey_sql(
                 schema_name, table_name
@@ -319,6 +327,48 @@ class CommandBuilderMixin(SqlMigratorBaseMixin):
             self.schema_tables(schema_name)[table_name]['command'] = (
                 f"{drop_pk_sql}\n{add_pk_sql}"
             )
+
+    def changed_schema(self, item=None, changed_attribute=None,
+                       oldvalue=None, newvalue=None, **kwargs):
+        """Handle changes in schema attributes: the ``sqlCode()`` scripts md5.
+
+        Args:
+            item: Schema dictionary.
+            changed_attribute: Name of the changed attribute.
+            oldvalue: Previous value.
+            newvalue: New value.
+        """
+        if changed_attribute == 'sql_md5':
+            self.scheduleSqlScript(item['schema_name'], md5=newvalue)
+
+    def scheduleSqlScript(self, schema_name, table_name=None, md5=None):
+        """Store the command that runs the ``sqlCode()`` scripts of a schema or table.
+
+        The scripts run in one transaction together with the COMMENT that
+        records their md5, so a failed script leaves the old md5 in place
+        and the next migration retries it. With ``md5=None`` (scripts
+        removed from the model) only the comment is cleared: the objects
+        the scripts created stay, and a script must drop them explicitly.
+
+        Args:
+            schema_name: Name of the schema.
+            table_name: Name of the table, ``None`` for the schema scripts.
+            md5: The md5 of the expanded scripts, ``None`` to clear it.
+        """
+        comment_sql = self.db.adapter.struct_sql_md5_comment_sql(
+            schema_name, table_name=table_name, md5=md5
+        )
+        if md5:
+            script = self.ormExtractor.sql_scripts[(schema_name, table_name)].rstrip()
+            if not script.endswith(';'):
+                script = f'{script};'
+            command = f'BEGIN;\n{script}\n{comment_sql}\nCOMMIT;'
+        else:
+            command = comment_sql
+        if table_name:
+            self.commands['db']['table_scripts'][f'{schema_name}.{table_name}']['command'] = command
+        else:
+            self.commands['db']['schema_scripts'][schema_name]['command'] = command
 
     def is_empty_column(self, item):
         """Check if a database column is empty (all NULL).

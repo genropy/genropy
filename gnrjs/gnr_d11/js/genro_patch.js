@@ -1000,9 +1000,17 @@ genropatches.borderContainer = function() {
          },*/
 
         _computeSplitterThickness: function(region) {
-            var re = new RegExp("top|bottom");
-            this._splitterThickness[region] =
-                    dojo.marginBox(this._splitters[region])[(re.test(region) ? 'h' : 'w')];
+            var splitter = this._splitters[region];
+            var vertical = /top|bottom/.test(region);
+            var size = dojo.marginBox(splitter)[vertical ? 'h' : 'w'];
+            if (!(size > 0)) {
+                // hidden, the splitter measures 0 or just its negative margins: read its css margin box
+                var cs = dojo.getComputedStyle(splitter);
+                size = Math.max(0, (vertical ?
+                        parseFloat(cs.height) + parseFloat(cs.marginTop) + parseFloat(cs.marginBottom) :
+                        parseFloat(cs.width) + parseFloat(cs.marginLeft) + parseFloat(cs.marginRight)) || 0);
+            }
+            this._splitterThickness[region] = size;
         },
 
         layout: function() {
@@ -1074,7 +1082,13 @@ genropatches.borderContainer = function() {
 
             var sideThickness = function(region){
                 var s = splitters[region];
-                return genro.dom.isVisible(s)?splitterThickness[region]:0;
+                if(!s){
+                    return 0;
+                }
+                // the splitter's own style, not its rendering: a layout done while
+                // the container is hidden must still leave room for it
+                var cs = dojo.getComputedStyle(s);
+                return (cs.display == 'none' || cs.visibility == 'hidden') ? 0 : splitterThickness[region];
             }
             var topSplitter = splitters.top;
             var bottomSplitter = splitters.bottom;

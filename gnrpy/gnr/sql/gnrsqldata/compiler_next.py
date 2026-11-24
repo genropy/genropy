@@ -54,6 +54,8 @@ from gnr.core import gnrstring
 from gnr.core.gnrbag import Bag
 from gnr.sql.gnrsql_exceptions import GnrSqlException, GnrSqlMissingField, GnrSqlInvalidVirtualColumn
 
+ORDER_DIRECTION_RE = re.compile(r'(\s+(asc|desc|ascending|descending))?(\s+nulls\s+(first|last))?\s*$', re.I)
+
 COLFINDER = re.compile(r"(\W|^)\$(\w+)")
 RELFINDER = re.compile(r"([^A-Za-z0-9_]|^)(\@(\w[\w.@:]+))")
 COLRELFINDER = re.compile(r"([@$]\w+(?:\.\w+)*)")
@@ -1058,11 +1060,11 @@ class SqlQueryCompilerNext(object):
                     # expression must appear in the SELECT list.  Add any
                     # missing order columns as hidden __ord_col_N aliases.
                     if order_by:
-                        xorderby= gnrstring.split((('%s '%order_by.lower()).replace(' ascending ','').replace(' descending ','').replace(' asc ','').replace(' desc','')),',')
-                        lowercol=columns.lower()
-                        for i,xrd in enumerate(xorderby):
-                            if not xrd.strip() in lowercol:
-                                columns = '%s, \n%s AS __ord_col_%s' % (columns, xrd,i)
+                        lowercol = columns.lower()
+                        for i, xrd in enumerate(gnrstring.split(order_by, ',')):
+                            xrd = ORDER_DIRECTION_RE.sub('', xrd).strip()
+                            if xrd.lower() not in lowercol:
+                                columns = '%s, \n%s AS __ord_col_%s' % (columns, xrd, i)
                     #order_by=None
                     if count:
                         # REVIEW: counting with DISTINCT on pkey returns the number

@@ -521,6 +521,9 @@ dojo.declare("gnr.GnrSrcHandler", null, {
     },
 
     nodeBySourceNodeId:function(identifier) {
+        if (typeof identifier == 'string' && /^n_\d+$/.test(identifier)) {
+            identifier = identifier.slice(2);
+        }
         return this._main.findNodeById(identifier);
     },
     newRoot:function() {

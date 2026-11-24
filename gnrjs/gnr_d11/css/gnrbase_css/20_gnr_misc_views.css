@@ -523,10 +523,6 @@
     min-height:var(--groupbar-min-height);
     box-sizing:border-box;
 }
-/* the edit pencil of a linker box: a small glyph, not a button */
-.th_linkerBoxFooter .iconbox.pencil{
-    transform:scale(.7);
-}
 
 /* --- Zoom cell (grid hyperlinks) --- */
 .gnrzoomcell {
@@ -724,6 +720,4 @@
     border-radius: var(--radius-sm);
     padding: 2px 6px;
     overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
 }

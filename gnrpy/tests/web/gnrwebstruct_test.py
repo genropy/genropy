@@ -124,10 +124,10 @@ def test_invalid_override_methods():
 def test_genroNameSpace_total_count():
     """Freeze the cardinality of the public widget namespace.
 
-    Lowercased dedup of htmlNS + dijitNS + dojoxNS + gnrNS yields 259
+    Lowercased dedup of htmlNS + dijitNS + dojoxNS + gnrNS yields 257
     entries today. Drift in either direction must be intentional.
     """
-    assert len(GnrDomSrc_dojo_11.genroNameSpace) == 259
+    assert len(GnrDomSrc_dojo_11.genroNameSpace) == 257
 
 
 def test_genroNameSpace_samples_per_dialect():
@@ -238,6 +238,18 @@ def test_getattr_unknown_name_raises_with_page_name():
     msg = str(excinfo.value)
     assert 'this_widget_does_not_exist' in msg
     assert 'fake_page.py' in msg
+
+
+@pytest.mark.parametrize('tag', ['tinyMCE', 'ExtendedTinyMCE'])
+def test_removed_tinymce_tags_do_not_resolve(tag):
+    """The tinyMCE widget was removed (#1726): its tags are no longer in
+    the namespace, so asking for them fails instead of producing an
+    element the client cannot build.
+    """
+    assert tag.lower() not in GnrDomSrc_dojo_11.genroNameSpace
+    node = _attached_node(_make_root())
+    with pytest.raises(AttributeError):
+        getattr(node, tag)
 
 
 # ---------------------------------------------------------------------------

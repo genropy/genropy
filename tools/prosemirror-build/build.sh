@@ -80,6 +80,21 @@ CSS_OUT="$TARGET_DIR/prosemirror.css"
     overflow-y: auto;
     min-height: 0;
 }
+/* When the menubar is enabled, ProseMirror inserts
+ * .ProseMirror-menubar-wrapper between the host and the editor surface.
+ * Without these rules the host's flex column does not propagate down
+ * and tall documents push past the host instead of scrolling inside. */
+.gnr-prosemirror-host > .ProseMirror-menubar-wrapper {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+}
+.gnr-prosemirror-host .ProseMirror-menubar-wrapper > .ProseMirror {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    min-height: 0;
+}
 GNRCSS
 } > "$CSS_OUT"
 

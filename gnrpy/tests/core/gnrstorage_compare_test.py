@@ -21,6 +21,7 @@ without it those tests skip with the reason naming the variable.
 import base64
 import hashlib
 import os
+import threading
 import urllib.parse
 import urllib.request
 import uuid
@@ -374,6 +375,39 @@ class TestLocalDownload:
                 node.serve({}, _capture(captured), **kwargs)
                 assert captured['headers']['Content-Disposition'] == (
                     'attachment; filename=probe.txt'), (mode, kwargs)
+
+
+class TestConcurrentDirectoryCreation:
+    """Requests racing to create the same missing folder all succeed."""
+
+    def test_makedirs_and_mkdir_on_an_existing_folder(self, local):
+        node = local.node('st:tbl/pkey')
+        node.service.makedirs(node.path)
+        node.service.makedirs(node.path)
+        node.service.mkdir(node.path)
+        assert node.isdir
+
+    def test_parallel_writes_into_a_missing_folder(self, local):
+        writers = 8
+        barrier = threading.Barrier(writers)
+        errors = []
+
+        def write(i):
+            barrier.wait()
+            try:
+                node = local.node('st:tbl/pkey/f%i.txt' % i, autocreate=-1)
+                with node.open(mode='wb') as f:
+                    f.write(CONTENT)
+            except Exception as e:
+                errors.append(e)
+
+        threads = [threading.Thread(target=write, args=(i,)) for i in range(writers)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+        assert errors == []
+        assert all(local.node('st:tbl/pkey/f%i.txt' % i).exists for i in range(writers))
 
 
 @requires_s3

@@ -285,11 +285,25 @@ test('filterFieldDefault on the grid turns filterField on for plain data cells o
     assert.equal(structCell(context, on, {field: '@customer_id.name'}).filterField_key, '_customer_id_name');
     assert.equal(structCell(context, on, {field: 'status', filterField: false}).filterField, false);
     assert.equal(structCell(context, on, {field: 'agent', filterField: 'agent_id'}).filterField, 'agent_id');
+    assert.equal(structCell(context, on, {field: 'status', values: 'A:Open,C:Closed'}).filterField, true);
     for (const attrs of [{template: '$a $b'}, {rowTemplate: '$a'}, {template_columns: 'a,b'}, {calculated: true},
-                         {values: 'A:Open,C:Closed'}, {format_isbutton: true}, {format_buttonclass: 'iconbox'}]) {
+                         {format_isbutton: true}, {format_buttonclass: 'iconbox'}]) {
         assert.equal(structCell(context, on, Object.assign({field: 'status'}, attrs)).filterField, undefined, JSON.stringify(attrs));
     }
     assert.equal(structCell(context, {}, {field: 'status'}).filterField, undefined);
+});
+
+test('a values column lists its captions and filters on its keys', () => {
+    const g = createGrid({records: [{status: 'A'}, {status: 'C'}, {status: 'A'}, {status: null}]});
+    const cell = structCell(g.context, {filterFieldDefault: true}, {field: 'status', values: 'A:Open,C:Closed'});
+    g.grid.cellmap = {status: cell};
+    assert.equal(g.grid.columnFilterCaption(cell, {status: 'A'}, 'A'), 'Open');
+    assert.deepEqual(Array.from(g.grid.columnFilterValues(cell), i => [i.value, i.caption, i.count]),
+                     [['A', 'Open', 2], ['C', 'Closed', 1], [null, null, 1]]);
+    cell.filterValues = ['C'];
+    assert.deepEqual(g.visible(), ['I1']);
+    const tags = structCell(g.context, {}, {field: 'tags', values: 'A:Open,C:Closed', filterField: true, filterField_aggr: ','});
+    assert.equal(g.grid.columnFilterCaption(tags, {tags: 'A,C'}, 'C'), 'Closed');
 });
 
 test('a template cell filtered on another field captions the filtered value', () => {
@@ -524,4 +538,172 @@ test('the period fields set the filter only when the period changes', () => {
     assert.deepEqual({...calls[0]}, {from: '2026-05-01', to: '2026-05-31'});
     pane.setRange(date(2026, 4, 1), date(2026, 4, 31));
     assert.equal(calls.length, 1);
+});
+
+function fakeDocument(context) {
+    const element = tag => ({
+        tagName: tag, children: [], dataset: {}, hidden: false, className: '', textContent: '', title: '',
+        classList: {add() {}, toggle() {}},
+        listeners: {},
+        addEventListener(type, handler) { (this.listeners[type] ||= []).push(handler); },
+        attributes: {},
+        setAttribute(name, value) { this.attributes[name] = value; },
+        focus() { context.document.activeElement = this; },
+        append(...nodes) { this.children.push(...nodes); },
+        appendChild(node) { this.children.push(node); },
+        replaceChildren(fragment) { this.children = fragment.children.slice(); }
+    });
+    Object.assign(context.document, {createElement: element, createDocumentFragment: () => element('#fragment')});
+}
+
+// twelve codes C01..C12: group x holds C01..C08, group y holds C09..C12
+function createCodes() {
+    const records = Array.from({length: 12}, (_, i) => ({
+        code: `C${String(i + 1).padStart(2, '0')}`, group: i < 8 ? 'x' : 'y'
+    }));
+    const g = createGrid({records});
+    g.grid.cellmap = {};
+    for (const field of ['code', 'group']) {
+        g.grid.cellmap[field] = filterCell(g.context, {field, field_getter: field, filterField: true});
+    }
+    return g;
+}
+
+function openPane(g, field, {maxRows} = {}) {
+    fakeDocument(g.context);
+    Object.assign(g.grid, {structCellNode: () => null, refreshColumnFilterHeaders() {}, applyColumnFilters() {}});
+    if (maxRows) g.gnr.GridColumnFilterPane.prototype.maxRows = maxRows;
+    const pane = new g.gnr.GridColumnFilterPane(g.grid, g.grid.cellmap[field], g.context.document.createElement('div'));
+    const rows = () => pane.listNode.children.filter(n => n.className.startsWith('gcf_row'));
+    const shown = () => rows().map(n => n.children[1].textContent);
+    const ticked = () => rows().filter(n => n.className.includes('gcf_checked')).map(n => n.children[1].textContent);
+    const search = text => { pane.search = text; pane.renderList(); };
+    const values = () => (pane.cell.filterValues ? Array.from(pane.cell.filterValues) : null);
+    return {pane, shown, ticked, search, values};
+}
+
+test('values with no rows under the other filters are hidden unless checked, a toggle shows them', () => {
+    const g = createGrid();
+    g.filter('_customer_id_name', ['C3']);
+    const {pane, shown} = openPane(g, 'status');
+    assert.deepEqual(shown(), ['Overdue']);
+    assert.equal(pane.emptyNode.hidden, false);
+    assert.ok(pane.emptyNode.textContent.includes('(2)'));
+    pane.toggleEmpty();
+    assert.deepEqual(shown(), ['Overdue', 'Paid', 'Sent']);
+    pane.toggleEmpty();
+    assert.deepEqual(shown(), ['Overdue']);
+    g.filter('status', ['Paid']);
+    pane.renderList();
+    assert.deepEqual(shown(), ['Overdue', 'Paid']);
+    assert.ok(pane.emptyNode.textContent.includes('(1)'));
+    g.filter('_customer_id_name', null);
+    pane.setItems(g.grid.columnFilterValues(pane.cell));
+    assert.equal(pane.emptyNode.hidden, true);
+});
+
+test('the search box appears when the listed values pass the threshold', () => {
+    const g = createCodes();
+    g.filter('group', ['y']);
+    const {pane, shown} = openPane(g, 'code');
+    assert.equal(shown().length, 4);
+    assert.equal(pane.searchBox.hidden, true);
+    pane.toggleEmpty();
+    assert.equal(shown().length, 12);
+    assert.equal(pane.searchBox.hidden, false);
+});
+
+test('select all and deselect all act on the searched values only and keep the other checks', () => {
+    const g = createCodes();
+    g.filter('group', ['x']);
+    g.filter('code', ['C11']);
+    const {pane, search, values} = openPane(g, 'code');
+    assert.equal(pane.deselectNode.hidden, true);
+    search('C0');
+    assert.equal(pane.selectNode.hidden, false);
+    pane.selectAll();
+    assert.deepEqual(values(), ['C01', 'C02', 'C03', 'C04', 'C05', 'C06', 'C07', 'C08', 'C11']);
+    assert.equal(pane.selectNode.hidden, true);
+    assert.equal(pane.deselectNode.hidden, false);
+    search('C0');
+    pane.deselectAll();
+    assert.deepEqual(values(), ['C11']);
+    search('');
+    assert.equal(pane.deselectNode.hidden, true);
+});
+
+test('select all reaches the values past maxRows and leaves out the hidden ones with no rows', () => {
+    const g = createCodes();
+    g.filter('group', ['x']);
+    const {pane, shown, values} = openPane(g, 'code', {maxRows: 3});
+    assert.equal(shown().length, 3);
+    assert.equal(pane.moreNode.hidden, false);
+    pane.selectAll();
+    assert.deepEqual(values(), ['C01', 'C02', 'C03', 'C04', 'C05', 'C06', 'C07', 'C08']);
+    assert.equal(g.gnr.columnFilterActive(pane.cell), true);
+});
+
+test('every value checked leaves no filter and the popup keeps them checked', () => {
+    const g = createCodes();
+    const {pane, values, ticked} = openPane(g, 'code', {maxRows: 3});
+    assert.equal(pane.selectNode.hidden, false);
+    assert.equal(pane.deselectNode.hidden, true);
+    pane.selectAll();
+    assert.equal(values(), null);
+    assert.equal(g.gnr.columnFilterActive(pane.cell), false);
+    assert.equal(ticked().length, 12);
+    assert.equal(pane.selectNode.hidden, true);
+    assert.equal(pane.deselectNode.hidden, false);
+    pane.deselectAll();
+    assert.equal(values(), null);
+    assert.deepEqual(ticked(), []);
+    assert.equal(pane.deselectNode.hidden, true);
+});
+
+test('checking the last value one click at a time keeps the checks, unchecking one filters the rest', () => {
+    const g = createGrid();
+    const {pane, values, ticked} = openPane(g, 'status');
+    const row = (idx, checked) => ({dataset: {idx: `${idx}`}, checked, parentNode: {classList: {toggle() {}}}});
+    pane.toggle(row(0, true));
+    pane.toggle(row(1, true));
+    assert.deepEqual(values(), ['Overdue', 'Paid']);
+    pane.toggle(row(2, true));
+    assert.equal(values(), null);
+    assert.equal(g.gnr.columnFilterActive(pane.cell), false);
+    pane.renderList();
+    assert.deepEqual(ticked(), ['Overdue', 'Paid', 'Sent']);
+    pane.toggle(row(1, false));
+    assert.deepEqual(values(), ['Overdue', 'Sent']);
+    const reopened = openPane(g, 'status');
+    pane.grid.setColumnFilter(pane.cell, null);
+    reopened.pane.renderList();
+    assert.deepEqual(reopened.ticked(), []);
+});
+
+test('the popup buttons never take the focus, so the search keeps it and the popup stays open', () => {
+    const g = createCodes();
+    const {pane} = openPane(g, 'code');
+    for (const button of [pane.selectNode, pane.deselectNode, pane.clearNode, pane.emptyNode, pane.searchClearNode]) {
+        let prevented = false;
+        (button.listeners.mousedown || []).forEach(handler => handler({preventDefault() { prevented = true; }}));
+        assert.equal(prevented, true, button.textContent);
+    }
+});
+
+test('the clear button of the search shows with text, empties it and keeps typing there', () => {
+    const g = createCodes();
+    const {pane, shown} = openPane(g, 'code');
+    const fire = (node, type) => (node.listeners[type] || []).forEach(handler => handler({}));
+    assert.equal(pane.searchClearNode.hidden, true);
+    assert.equal(pane.searchClearNode.attributes['aria-label'], 'Clear search');
+    pane.searchNode.value = 'C1';
+    fire(pane.searchNode, 'input');
+    assert.equal(pane.searchClearNode.hidden, false);
+    assert.equal(shown().length, 3);
+    fire(pane.searchClearNode, 'click');
+    assert.equal(pane.searchNode.value, '');
+    assert.equal(pane.search, '');
+    assert.equal(shown().length, 12);
+    assert.equal(pane.searchClearNode.hidden, true);
+    assert.equal(g.context.document.activeElement, pane.searchNode);
 });

@@ -192,13 +192,18 @@ dojo.declare("gnr.GnrDevHandler", null, {
             return;
         }
         if (error=='gnrexception'){
-            genro.toast.show({
-                title: 'Warning',
-                message: envNode.getValue(),
-                level: 'error',
-                centered: true,
-                duration: 0
-            });
+            // the result is the message, or an object with the message and
+            // the feedback parameters declared by the exception
+            var feedback = envNode.getValue();
+            if(typeof(feedback) == 'string'){
+                feedback = {message: feedback};
+            }
+            feedback = objectUpdate({title: 'Warning', level: 'error', centered: true, duration: 0}, feedback);
+            var sound = objectPop(feedback, 'sound');
+            genro.toast.show(feedback);
+            if(sound){
+                genro.playSound(sound);
+            }
             return;
         }else if (error=='server_exception'){
             var envelope = envNode.getParentBag ? envNode.getParentBag() : null;
@@ -304,13 +309,10 @@ dojo.declare("gnr.GnrDevHandler", null, {
             objectExtract(kw,tableOnlyLbl);
             kw = objectUpdate(objectUpdate({},defaultLblAttr),kw);
             if(kw.lbl && !kw.label && (kw.tag || tag).toLowerCase()=='checkbox'){
+                // the lbl goes beside the box; buildLblWrapper adds a placeholder
+                // label only where a labeled field shares its grid row
                 kw.label = kw.lbl;
-                if((cols || 1)==1){
-                    kw.lbl = false;
-                }else{
-                    kw.lbl = '&nbsp;';
-                    kw.box__class = kw.box__class || 'formlet_placeholder_label';
-                }
+                delete kw.lbl;
             }
             if(kw.lbl){
                 kw.lbl = _T(kw.lbl);

@@ -14,12 +14,16 @@ levels, enough to exercise the transitive case.
 import logging
 import os
 import shutil
+import sys
 import tempfile
 
 import pytest
 
 from gnr.app.gnrapp import GnrApp, GnrPackageNotFoundException, GnrUndeclaredPackageException, \
     GnrUnresolvedPackageException
+from gnr.app.gnrdeploy import GunicornDeployBuilder
+from gnr.core.gnrconfig import IniConfStruct
+from gnr.web.daemon.handler import GnrDaemon
 from core.common import BaseGnrTest
 
 CONFIG = """<?xml version="1.0" ?>
@@ -71,6 +75,12 @@ class Package(GnrDboPackage):
     def config_attributes(self):
         return dict(sqlschema='attrpkg', name_short='attr', name_long='attr', name_full='attr')
 """
+
+NO_REQUIREMENTS_MAIN = """class Package(object):
+    pass
+"""
+
+SECONDARY_SYS = '    <gnrcore_sys pkgcode="gnrcore:sys" secondary="y"/>'
 
 CUSTOM_ATTRIBUTE = """class Package(object):
     required_packages = ['gnrcore:flib']
@@ -255,3 +265,67 @@ class TestRequiredPackagesDeclared(BaseGnrTest):
             app.write_requirements_file(target)
         assert not os.path.exists(target)
         assert 'dynamicpkg' in str(excinfo.value)
+
+    def test_enabled_packages_reach_sys_through_the_closure(self):
+        """The task scheduler builds the app with only sys enabled: an instance
+        declaring only biz still gets sys, reached through adm."""
+        app = self._app('biz', enabled_packages=['gnrcore:sys'])
+        assert list(app.packages.keys()) == ['sys']
+        assert app.db.table('sys.task').fullname == 'sys.task'
+
+    def test_enabled_packages_keep_their_declared_attributes(self):
+        app = self._app('biz', extra=SECONDARY_SYS, enabled_packages=['gnrcore:sys'], checkdepcli=True)
+        assert list(app.config['packages'].keys()) == ['gnrcore:sys']
+        assert app.config['packages'].getAttr('gnrcore:sys')['secondary'] == 'y'
+
+    def test_primary_sys_reached_through_the_closure(self):
+        assert self._app('biz', config_only=True, static_closure=True).has_primary_sys_package()
+        assert self._app('sys', config_only=True, static_closure=True).has_primary_sys_package()
+
+    def test_primary_sys_declared_secondary(self):
+        app = self._app('biz', extra=SECONDARY_SYS, config_only=True, static_closure=True)
+        assert not app.has_primary_sys_package()
+
+    def test_primary_sys_without_sys(self):
+        nosys = self._package('nosyspkg', NO_REQUIREMENTS_MAIN)
+        app = self._app(extra=nosys, config_only=True, static_closure=True)
+        assert not app.has_primary_sys_package()
+
+    def test_daemon_starts_the_scheduler_of_a_flavour(self):
+        self._app('biz', checkdepcli=True)
+        assert GnrDaemon.hasSysPackageAndIsPrimary(None, self.test_instance_name)
+        self._app('biz', extra=SECONDARY_SYS, checkdepcli=True)
+        assert not GnrDaemon.hasSysPackageAndIsPrimary(None, self.test_instance_name)
+
+    def test_deploy_builder_configures_the_task_workers_of_a_flavour(self):
+        app = self._app('biz', checkdepcli=True)
+        group = IniConfStruct().section('group', self.test_instance_name)
+        GunicornDeployBuilder(self.test_instance_name, app=app).taskWorkersConf(group)
+        assert '%s_taskworkers' % self.test_instance_name in group.keys()
+
+    def test_config_only_leaves_no_global_side_effect(self):
+        """The gnrdaemon builds a config only app in its own process: no module
+        finder, no logging.xml, no instance custom.py, no database."""
+        instance_folder = self._app('biz', checkdepcli=True).instanceFolder
+        probe = logging.getLogger('gnrtest.config_only_probe')
+        logging_xml = os.path.join(instance_folder, 'logging.xml')
+        custom_folder = os.path.join(instance_folder, 'custom')
+        with open(logging_xml, 'w', encoding='utf-8') as fp:
+            fp.write('<?xml version="1.0" ?>\n<GenRoBag><probe path="%s" level="DEBUG"/></GenRoBag>' % probe.name)
+        os.makedirs(custom_folder)
+        with open(os.path.join(custom_folder, 'custom.py'), 'w', encoding='utf-8') as fp:
+            fp.write('raise RuntimeError("instance custom.py imported")\n')
+        meta_path = list(sys.meta_path)
+        try:
+            app = self._app('biz', config_only=True, static_closure=True)
+            assert sys.meta_path == meta_path
+            assert probe.level == logging.NOTSET
+            assert not hasattr(app, 'db')
+            assert app.has_primary_sys_package()
+            os.remove(os.path.join(custom_folder, 'custom.py'))
+            self._app('biz', checkdepcli=True)
+            assert probe.level == logging.DEBUG
+        finally:
+            probe.setLevel(logging.NOTSET)
+            os.remove(logging_xml)
+            shutil.rmtree(custom_folder)

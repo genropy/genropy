@@ -11,8 +11,14 @@ virtual store ignores filterField and shows no icon.
 
 filterFieldDefault on the grid (grid_filterFieldDefault in the th options)
 turns filterField on for every cell that shows a plain field, columns added
-from the configurator included; template, calculated, values and button cells
-are left out, and filterField=False opts a cell out.
+from the configurator included; template, calculated and button cells are
+left out, and filterField=False opts a cell out. A cell with values= lists
+its captions and filters on its keys.
+
+Values that have no row under the other filters are hidden unless checked;
+'Show values with no rows' brings them back. 'Select all' checks every listed
+value, past the first 200 too; on a search 'Deselect all' unchecks the found
+values and keeps the other checks. Checking every value removes the filter.
 
 For lists, set filterField=True and filterField_aggr=',' on the cell (or use
 another separator). Choices and counts refer to individual values; selecting
@@ -47,9 +53,10 @@ class GnrCustomWebPage(object):
                                                           view_store_onStart=True)
 
     def test_2_default(self, pane):
-        """Static store with grid_filterFieldDefault: every plain column gets the filter"""
+        """Static store with grid_filterFieldDefault: every plain column gets the filter, Zone (values=) shows its captions"""
         bc = pane.borderContainer(height='450px')
         bc.contentPane(region='center').plainTableHandler(table='glbl.provincia', datapath='.provincia_default',
+                                                          viewResource='ViewColumnFilterDefault',
                                                           grid_filterFieldDefault=True,
                                                           view_store_onStart=True)
 
@@ -89,3 +96,21 @@ class GnrCustomWebPage(object):
         grid.column('supplier', name='Supplier', width='14em', filterField=True)
         grid.column('tags', name='Tag', width='38em', filterField=True, filterField_aggr=',')
         grid.column('amount', name='Amount', width='8em', dtype='N', format='#,##0.00')
+
+    def test_5_select_all(self, pane):
+        """Select all / Deselect all and values with no rows"""
+        pane.div('Filter Group to Alpha: the codes of the other groups have no row and are hidden, '
+                 '"Show values with no rows" lists them. In Code, Select all checks the 210 Alpha codes '
+                 '(past the 200 shown). Search "P-1", Deselect all: only the found codes are unchecked. '
+                 'Checking every Status value removes the Status filter.',
+                 margin_bottom='10px')
+        rows = Bag()
+        groups = ['Alpha', 'Alpha', 'Alpha', 'Beta', 'Gamma']
+        for i in range(350):
+            rows.addItem(f'r_{i}', None, code=f'P-{i:03}', group=groups[i % 5], status='AOS'[i % 3])
+        pane.data('.parts', rows)
+        grid = pane.div(height='400px', position='relative').quickGrid(value='^.parts')
+        grid.column('code', name='Code', width='8em', filterField=True)
+        grid.column('group', name='Group', width='8em', filterField=True)
+        grid.column('status', name='Status', width='8em', filterField=True,
+                    values='A:Open,O:On hold,S:Shipped')

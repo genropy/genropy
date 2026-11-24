@@ -8,6 +8,15 @@
 .tinySplitter.dijitSplitter{
     background: transparent;
 }
+/* negative margins: the drag bar lies over the edge and takes no layout space */
+.tinySplitter.dijitSplitterV{
+    width: 6px;
+    margin: 0 -3px;
+}
+.tinySplitter.dijitSplitterH{
+    height: 6px;
+    margin: -3px 0;
+}
 .tinySplitter .dijitSplitterThumb{
     display: none;
 }

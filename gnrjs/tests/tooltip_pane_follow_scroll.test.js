@@ -195,3 +195,12 @@ test('destroying an open popup removes the scroll listener', () => {
     popup.destroy();
     assert.equal(listeners.length, 0);
 });
+
+test('a scroll inside the popup never closes it, even once its anchor was redrawn', () => {
+    const {anchor, wrapper, scroll, published} = openTooltip();
+    const list = new FakeElement({left: 50, top: 260, width: 200, height: 100}, new FakeElement({}, wrapper), 'auto');
+    anchor.isConnected = false;
+    scroll(list);
+    assert.deepEqual(published, []);
+    assert.equal(wrapper.style.top, '220px');
+});

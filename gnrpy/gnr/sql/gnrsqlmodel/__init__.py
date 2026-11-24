@@ -78,6 +78,8 @@ from gnr.sql.gnrsqlmodel.containers import (  # noqa: F401
     DbIndexListObj,
     DbIndexObj,
     DbPackageListObj,
+    DbSqlScriptListObj,
+    DbSqlScriptObj,
     DbSubtableListObj,
     DbSubtableObj,
     DbTableAliasObj,
@@ -127,6 +129,8 @@ __all__ = [
     'DbPackageListObj',
     'DbTableListObj',
     'DbIndexObj',
+    'DbSqlScriptListObj',
+    'DbSqlScriptObj',
     # resolvers
     'RelationTreeResolver',
     'ModelSrcResolver',

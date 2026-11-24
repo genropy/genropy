@@ -65,9 +65,13 @@ class GnrProjectBuilder(object):
     def git_url_from_path(self, path):
         """
         Retrieve the repository URL for a given local path
+
+        Reads the configured URL as is: `git remote get-url` applies
+        url.*.insteadOf rewrites, which in CI often carry access tokens
+        that would end up in build.json and in the image labels.
         """
         url = subprocess.check_output(
-            ["git", "remote", "get-url", "origin"],
+            ["git", "config", "--get", "remote.origin.url"],
             cwd=path).decode().strip()
         
         logger.debug("For path %s found git url: %s", path, url)

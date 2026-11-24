@@ -746,7 +746,7 @@ class GnrWebSocketSession:
         # Legacy code resets page._db once before calling getWsMethod twice;
         # the double getWsMethod is not load-bearing — keep one call.
         self.page._db = None
-        handler = self.page.getWsMethod(method)
+        handler, error = self.page.resolveWsMethod(method)
         if handler:
             try:
                 result = handler(**kwargs)

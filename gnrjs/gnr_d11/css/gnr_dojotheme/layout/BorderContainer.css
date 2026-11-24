@@ -64,6 +64,17 @@
     width: 100%;
 }
 
+/* After a left slotbar, whose border closes the splitter on the left: a hairline
+   closes it on the right too, and the grip is centered between the two lines. */
+.gnr_dojotheme :has(> .slotbar_left) + .dijitSplitterV,
+.gnr_dojotheme :has(> .slotbar_left) + .dijitSplitterCover + .dijitSplitterV {
+    box-shadow: inset -1px 0 0 var(--border-color);
+}
+.gnr_dojotheme :has(> .slotbar_left) + .dijitSplitterV .dijitSplitterThumb,
+.gnr_dojotheme :has(> .slotbar_left) + .dijitSplitterCover + .dijitSplitterV .dijitSplitterThumb {
+    width: calc(100% - 1px);
+}
+
 /* ==========================================================================
    Hover — background tints, dots become darker
    ========================================================================== */

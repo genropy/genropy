@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from gnr.lib.gnrheif import HEIF_EXTENSIONS, heif_preview_jpeg, heif_storage_path
 from gnr.sql.gnrsql_exceptions import GnrSqlMissingTable
 from gnr.core.gnrstring import templateReplace
 from gnr.core.gnrbag import Bag
@@ -22,7 +23,7 @@ class GnrCustomWebPage(object):
     def ep_missing(self,*args,**kwargs):
         return 'Missing'
 
-    def ep_get(self,tblobj,pkey,source=None,version=None,force_download=False,**kwargs):
+    def ep_get(self,tblobj,pkey,source=None,version=None,force_download=False,heif_preview=False,**kwargs):
         if not source:
             return
         try:
@@ -33,6 +34,14 @@ class GnrCustomWebPage(object):
         if not documentNode:
             self._response.status_code = 404
             return ''
+        if heif_preview and not force_download and documentNode.ext.lower() in HEIF_EXTENSIONS:
+            try:
+                preview = heif_preview_jpeg(documentNode)
+            except (ImportError, OSError, ValueError, SyntaxError, EOFError, RuntimeError):
+                pass  # Keep the original download available when the file cannot be decoded.
+            else:
+                self.response.content_type = 'image/jpeg'
+                return preview
         if self.is_inline_displayable(documentNode) or force_download:
             self.response.content_type = documentNode.mimetype
             if self.response.content_type == 'application/pdf' and documentNode.watermark:
@@ -92,8 +101,11 @@ class GnrCustomWebPage(object):
             related_page_item = self._checkUserPermission(readTags,**kwargs)
         documentNode = None
         clientRecordUpdater = Bag()
+        storage_path = (heif_storage_path(documentPath) if source == 'filepath' and hasattr(tblobj, '_atcStorageNode')
+                        else documentPath)
+        legacy_volume = storage_path != documentPath
         if documentPath:
-            documentNode = self.site.storageNode(documentPath,version=version) 
+            documentNode = self.site.storageNode(storage_path, version=version)
             if documentNode and not version and not documentNode.exists:
                 documentNode = None
         if handler and not documentNode and not version:
@@ -101,7 +113,7 @@ class GnrCustomWebPage(object):
             documentNode = self.site.storageNode(documentPath)
         if not documentNode:
             return
-        if documentNode and isCachedInField and record[source] != documentNode.fullpath:
+        if isCachedInField and not legacy_volume and record[source] != documentNode.fullpath:
             with tblobj.recordToUpdate(pkey,raw=True) as rec:
                 rec[source] = documentNode.fullpath
             clientRecordUpdater[source] = record[source]

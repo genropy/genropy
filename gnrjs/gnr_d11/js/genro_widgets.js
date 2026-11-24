@@ -112,6 +112,11 @@ dojo.declare("gnr.widgets.baseHtml", null, {
             return;
         }
         genro.setInStorage('session',path,value,true);
+        //a value bound to an attribute ('path?attr') writes that attribute only: the widget's
+        //valueAttr (dtype, _formattedValue...) describe the attribute, not the node holding it
+        if(path.indexOf('?')>=0){
+            valueAttr = null;
+        }
         genro._data.setItem(path, value, valueAttr, {'doTrigger':sourceNode,lazySet:true});
         sourceNode.publish('onSetValueInData',value);
     },
@@ -421,8 +426,18 @@ dojo.declare("gnr.widgets.baseHtml", null, {
                 var isValid = this.validate_replaced(isFocused);
                 var sourceNode = this.sourceNode;
                 var gridwidget = sourceNode.attr.gridcell;
-                if (sourceNode.form && !isFocused && !gridwidget){
-                    sourceNode.form.dojoValidation(this,isValid);
+                if (sourceNode.form && !gridwidget){
+                    if(!isFocused){
+                        sourceNode.form.dojoValidation(this,isValid);
+                    }else{
+                        //the gnr isValid(false) clears sourceNode.editing, which the blur check still needs
+                        var editing = sourceNode.editing;
+                        var validOnBlur = this.isValid(false);
+                        sourceNode.editing = editing;
+                        if(validOnBlur){
+                            sourceNode.form.dojoValidation(this,true);
+                        }
+                    }
                 }
                 return isValid;
             };
@@ -1136,8 +1151,9 @@ dojo.declare("gnr.widgets.iframe", gnr.widgets.baseHtml, {
                         v = genro.dom.detectPdfViewer(v, sourceNode.attr.jsPdfViewer);
                     } else if (ext && ext.match(/^(jpe?g|png|gif)$/)) {
                         domnode.removeAttribute('src');
-                        domnode.setAttribute('srcdoc', `<html><body style="margin:0;padding:0;display:flex;align-items:center;justify-content:center;background:#f9f9f9;">
-                            <img src="${v}" style="max-width:100%;display:block;cursor:zoom-in;" onclick="genro.openBrowserTab(this.src, {target:'_blank'})" />
+                        // the whole image fits the frame: a portrait one must not overflow its height
+                        domnode.setAttribute('srcdoc', `<html style="height:100%;"><body style="height:100%;margin:0;padding:0;display:flex;align-items:center;justify-content:center;background:#f9f9f9;">
+                            <img src="${v}" style="max-width:100%;max-height:100%;object-fit:contain;display:block;cursor:zoom-in;" onclick="genro.openBrowserTab(this.src, {target:'_blank'})" />
                         </body></html>`);
                         return;
                     }
@@ -1833,6 +1849,13 @@ dojo.declare("gnr.widgets.Dialog", gnr.widgets.baseDojo, {
         }  
     },
 
+    mixin_getContentMarginSize:function(k){
+        // the margin-box size the content asks for, overflow included, on axis 'h' or 'w'
+        var dn = this.domNode;
+        return k=='h'? dn.scrollHeight+dn.offsetHeight-dn.clientHeight
+                     : dn.scrollWidth+dn.offsetWidth-dn.clientWidth;
+    },
+
     mixin_adjustDialogSize:function(parentDialog){
         var mainDiv = document.getElementById('mainWindowWrapper') || document.getElementById('mainWindow')
         var w = {h:Math.floor(mainDiv.clientHeight*.98),w:Math.floor(mainDiv.clientWidth*.98)};
@@ -1875,10 +1898,15 @@ dojo.declare("gnr.widgets.Dialog", gnr.widgets.baseDojo, {
                     c[k] = w[k];
                     doResize = true;
                 }else if(this[starting]){
-                    if(this[starting]<=w[k]){
-                        c[k] = this[starting];
+                    // the content may have grown while the dialog was capped (a field shown
+                    // while a mobile keyboard shrank the window): the size saved before is
+                    // a floor, the content's current size wins when larger
+                    var needed = Math.max(this[starting],this.getContentMarginSize(k));
+                    if(needed<=w[k]){
+                        c[k] = needed;
                         delete this[starting];
                     }else{
+                        this[starting] = needed;
                         c[k] = w[k];
                     }
                     doResize = true;
@@ -2057,11 +2085,15 @@ dojo.declare("gnr.widgets.Dialog", gnr.widgets.baseDojo, {
             cancel:closeAttrs['cancel']}, {confirm:closeAction, cancel:''});
     },
     attributes_mixin_onCancelPublish:function(event) {
-        if(genro.activeForm && genro.activeForm.currentFocused){
-            genro.activeForm.currentFocused.focusNode.blur();
+        var focused = genro.activeForm && genro.activeForm.currentFocused;
+        if(focused){
+            if(focused._focused && focused._setBlurValue){
+                // dijit writes the value of a blurred field only when its focus manager
+                // catches up, after the form has been dismissed
+                focused._setBlurValue();
+            }
+            focused.focusNode.blur();
             genro.activeForm.currentFocused = null;
-            this.sourceNode.publish('close',{modifiers:genro.dom.getEventModifiers(event)});
-            return;
         }
         this.sourceNode.publish('close',{modifiers:genro.dom.getEventModifiers(event)});
     },
@@ -2649,6 +2681,11 @@ dojo.declare("gnr.widgets.TabContainer", gnr.widgets.StackContainer, {
             if(otherChildren.length>0){
                 var that = this;
                 this.switchPage(this.getChildIndex(otherChildren[0]));
+            }
+        }else if(!hidden && !child.selected){
+            var selected = this.selectedChildWidget;
+            if(selected && selected.sourceNode.getAttributeFromDatasource('hidden')){
+                this.switchPage(this.getChildIndex(child));
             }
         }
         genro.dom.toggleVisible(child.controlButton.domNode,!hidden);
@@ -3485,7 +3522,12 @@ dojo.declare("gnr.widgets.Menuline", gnr.widgets.baseDojo, {
         }
         var selattr = objectExtract(inAttr, 'selected_*', true);
         if (ctxSourceNode) {
-            selattr = objectUpdate(selattr, objectExtract(ctxSourceNode.getInheritedAttributes(), 'selected_*', true));
+            var ctxSelattr = objectExtract(ctxSourceNode.getInheritedAttributes(), 'selected_*', true);
+            for (var ctxSel in ctxSelattr) {
+                if (ctxSel in sourceNode.attr) {
+                    selattr[ctxSel] = ctxSelattr[ctxSel];
+                }
+            }
         }
         for (var sel in selattr) {
             ctxSourceNode.setRelativeData(selattr[sel], sourceNode.attr[sel], null, null, sourceNode);
@@ -3638,6 +3680,10 @@ dojo.declare("gnr.widgets.Menu", gnr.widgets.baseDojo, {
             return;
         }
         var sourceNode = this.sourceNode;
+        var attachedWidget = sourceNode.attr.attachTo && sourceNode.attr.attachTo.widget;
+        if(attachedWidget && (attachedWidget.readOnly || attachedWidget.disabled)){
+            return;
+        }
         var wdg = sourceNode.widget;
         if( (wdg.modifiers || wdg.validclass ) && !(genro.wdg.filterEvent(e, wdg.modifiers, wdg.validclass)) ){
             return;
@@ -4217,6 +4263,11 @@ dojo.declare("gnr.widgets.CheckBox", gnr.widgets.baseDojo, {
         var savedAttrs = objectExtract(attributes, 'action,callback');
         var toggle = objectPop(attributes, 'toggle');
         var label = objectPop(attributes, 'label');
+        // left on the checkbox by buildLblWrapper when no visible label box owns it
+        var docAddress = objectPop(attributes, 'docAddress');
+        if (docAddress && genro.startArgs.inlineDoc) {
+            savedAttrs['docAddress'] = docAddress;
+        }
         if (toggle){
             savedAttrs['toggle'] = toggle;
         }
@@ -4243,6 +4294,13 @@ dojo.declare("gnr.widgets.CheckBox", gnr.widgets.baseDojo, {
         gnrcheckbox_wrapper.setAttribute('class',wrapperClass)
         pn.replaceChild(gnrcheckbox_wrapper,dn);
         gnrcheckbox_wrapper.appendChild(dn);
+        // in a gridbox the wrapper is the grid item: it takes the checkbox placement (colspan, rowspan)
+        ['gridColumn','gridRow'].forEach(function(prop){
+            if(dn.style[prop]){
+                gnrcheckbox_wrapper.style[prop] = dn.style[prop];
+                dn.style[prop] = '';
+            }
+        });
         sourceNode._gnrcheckbox_wrapper = gnrcheckbox_wrapper;
         
         if (label) {
@@ -4257,12 +4315,36 @@ dojo.declare("gnr.widgets.CheckBox", gnr.widgets.baseDojo, {
             domnode.innerHTML = label;
             sourceNode._labelNode = domnode;
         }
+        if (savedAttrs['docAddress']) {
+            gnrcheckbox_wrapper.appendChild(this._docButton(sourceNode, savedAttrs['docAddress']));
+        }
         if (sourceNode.hasDynamicAttr('value')) {
             var value = sourceNode.getAttributeFromDatasource('value');
             //widget.setChecked(value);
             widget.setAttribute('checked', value);
         }
     },
+    _docButton: function(sourceNode, docAddress) {
+        // the doc button of a checkbox with no visible label box, beside its side label
+        var button = document.createElement('div');
+        button.className = 'helperbutton iconbox innericonbox gnrcheckbox_doc';
+        button.setAttribute('role', 'button');
+        button.tabIndex = 0;
+        var open = function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            genro.dlg.openDoc(button, docAddress, {title: sourceNode.getElementLabel(), tooltip: true});
+        };
+        button.addEventListener('click', open);
+        button.addEventListener('keydown', function(e) {
+            if (e.key == 'Enter' || e.key == ' ') {
+                open(e);
+            }
+        });
+        genro.dlg.docTrack(button, docAddress);
+        return button;
+    },
+
     mixin_setHidden: function(hidden) {
         if(!this.sourceNode._hiddenTargets){
             this.sourceNode._hiddenTargets = [this.sourceNode._gnrcheckbox_wrapper, this.domNode];
@@ -4569,6 +4651,7 @@ dojo.declare("gnr.widgets.DateTextBox", gnr.widgets._BaseTextBox, {
                 if(constraints.selector=='datetime'){
                     hours = parseInt(match[4] || '0');
                     minutes = parseInt(match[5] || '0');
+                    seconds = parseInt(match[6] || '0');
                     if(match[6]=='AM' || match[6]=='PM'){
                         seconds = 0;
                         if(match[6]=='PM'){
@@ -5131,6 +5214,16 @@ dojo.declare("gnr.widgets.BaseCombo", gnr.widgets.baseDojo, {
     },
     mixin_setValues:function(values){
         this.store =  this.gnr.storeFromValues(values);
+        var sourceNode = this.sourceNode;
+        var currvalue = sourceNode.getAttributeFromDatasource('value');
+        if(isNullOrBlank(currvalue)){
+            return;
+        }
+        this.store.fetchItemByIdentity({identity:currvalue,onItem:function(item){
+            if(item){
+                sourceNode.doUpdateAttrBuiltObj('value',{},'node');
+            }
+        }});
     },
     
   // patch__onBlur: function(){

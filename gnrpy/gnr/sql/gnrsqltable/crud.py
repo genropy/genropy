@@ -97,6 +97,7 @@ class CrudMixin(SqlTableBaseMixin):
         self.db.adapter.changePrimaryKeyValue(
             self, pkey=pkey, newpkey=newpkey,
         )
+        self.db.deferExternalAudit(self)
 
     @add_sql_comment
     @orm_audit_log
@@ -269,6 +270,7 @@ class CrudMixin(SqlTableBaseMixin):
     def empty(self, truncate=None):
         """Remove all rows from the table."""
         self.db.adapter.emptyTable(self, truncate=None)  # REVIEW: passes None instead of the truncate parameter
+        self.db.deferExternalAudit(self)
 
     def fillFromSqlTable(self, sqltablename):
         self.db.adapter.fillFromSqlTable(self, sqltablename)
@@ -293,6 +295,7 @@ class CrudMixin(SqlTableBaseMixin):
             _pkeys = [x[0] for x in todelete] if todelete else None
         if _pkeys:
             self.db.adapter.sql_deleteSelection(self, pkeyList=_pkeys)
+            self.db.deferExternalAudit(self)
 
     def deleteSelection(self, condition_field=None, condition_value=None,
                         excludeLogicalDeleted=False, excludeDraft=False,

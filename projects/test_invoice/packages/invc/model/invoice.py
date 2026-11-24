@@ -7,7 +7,7 @@ class Table(object):
         tbl = pkg.table('invoice', pkey='id', name_long='!!Invoice', name_plural='!!Invoice',
                         caption_field='inv_number',
                         partition_customer_state='invc_state')
-        self.sysFields(tbl)
+        self.sysFields(tbl, draftField=True)
         tbl.column('inv_number' ,size='10',name_long='!!Invoice number', name_short='Inv N',unique=True)
         tbl.column('customer_id',size='22' ,group='_',name_long='!!Customer'
                                         ).relation('customer.id',

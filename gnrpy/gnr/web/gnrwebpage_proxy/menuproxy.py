@@ -73,7 +73,25 @@ class GnrMenuProxy(GnrBaseProxy):
                 # text, date, etc.: check for non-null
                 where = f'{fieldpath} IS NOT NULL' if positiveCondition else f'{fieldpath} IS NULL'
         return tblobj.query(where=where, **kwargs).count() or None
-            
+
+    @public_method
+    def getMenuLineBadges(self, badges=None, **kwargs):
+        """Get the badge content of several menu lines in one request.
+
+        Args:
+            badges: a Bag with one node per menu line; each node value is a Bag
+                with the kwargs of ``getMenuLineBadge`` for that line.
+
+        Returns:
+            a Bag with the same labels as ``badges`` and the badge content of
+            each line as value. All handlers run in this request, on the same
+            page instance, so they can share a per-request cache.
+        """
+        result = Bag()
+        for node in badges or []:
+            result[node.label] = self.getMenuLineBadge(**node.value.asDict(ascii=True))
+        return result
+
 
     def getRoot(self,pkg=None,indexPagePkg=None,**kwargs):
         result = Bag()

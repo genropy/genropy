@@ -264,6 +264,10 @@ class GnrException(Exception):
     description = '!!Genro base exception'
     caption = """!!Error code %(code)s : %(description)s."""
     localizer = None
+    # How the client shows the exception to the user: a dict of parameters
+    # (title, level, sound, color, ...) that travels with the message.
+    # None leaves the client defaults.
+    feedback = None
 
     def __init__(self, description=None, localizer=None,**kwargs):
         if not description:
@@ -464,7 +468,7 @@ def classMixin(target_class, source_class, methods=None, only_callables=True,
                     new.__order = getmixincount()
                     setattr(target_class, mixin_as, new)
             else:
-                setattr(target_class, mixin_as, new)
+                setattr(target_class, new.mixin_as, new)
         else:
             setattr(target_class, name, new)
             if original:
@@ -587,8 +591,18 @@ def instanceMixin(obj, source, methods=None, attributes=None, only_callables=Tru
         method = getattr(source, name)
         if type(method) == MethodType:
             method = method.__func__
+        id_source = str(id(method))
         method = _routedCallable(method, routing)
         k = MethodType(method, obj)
+        mixin_as = getattr(method, 'mixin_as', None)
+        # a hook that already carries __order was named by an earlier mixin: keep its name and position
+        if mixin_as and '#' in mixin_as and not hasattr(method, '__order'):
+            name_as = mixin_as.replace('#', id_source)
+            if not hasattr(obj, name_as):
+                method.__order = getmixincount()
+                setattr(obj, name_as, k)
+                _mixined.append(name_as)
+            continue
         curr_prefix = prefix
         name_as =getattr(method,'instance_mixin_as',name)
         if mangling_kwargs and '_' in name:

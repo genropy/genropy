@@ -117,7 +117,13 @@ config_attributes()
     * ``name_short`` includes a string of the :ref:`name_short` of the schema.
     * ``name_long`` includes a string of the :ref:`name_long` of the schema.
     * ``name_plural`` includes a string of the :ref:`name_plural` of the schema.
-    
+    * ``th_override_scope``: set it to ``'context'`` to apply the table handler overrides
+      the package ships in ``resources/tables/_packages/<pkg>/<table>/`` only on the pages
+      whose context package it is (and when it is the declared ``mainpkg``). Without it,
+      those overrides apply on every page of the instance. It can also be set per instance
+      as an attribute of the package tag in the ``<packages>`` section of the
+      ``instanceconfig.xml``.
+
     **Example:**
     
     ::

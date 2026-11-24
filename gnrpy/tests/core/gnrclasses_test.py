@@ -226,3 +226,13 @@ def test_gnrclasscatalog():
     res = cc.fromText(1, "JS")
     assert res == 1
 
+
+
+def test_fromtext_invalid_json_logs_an_excerpt(caplog):
+    cc = gnrclasses.GnrClassCatalog()
+    txt = '{"a":1,"b":undefined}' + 'x' * 500
+    with caplog.at_level('ERROR', logger='gnr.core'):
+        assert cc.fromText(txt, 'JS') == txt
+    record = caplog.records[-1]
+    assert record.getMessage() == 'error decoding json: %r' % txt[:200]
+    assert record.exc_info is not None

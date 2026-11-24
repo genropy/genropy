@@ -2504,6 +2504,34 @@ class TestPartitionAllowedStates:
         assert count == CUSTOMER_COUNT
 
 
+class TestPartitionAllowedPartitionColumn:
+    """invc.state.__allowed_partition excludes env denied_state: it applies only without a current partition."""
+
+    def _count(self, db, table='invc.customer', current=None, denied=None):
+        db.currentEnv['current_invc_state'] = current
+        db.currentEnv['denied_state'] = denied
+        try:
+            return db.table(table).query().count()
+        finally:
+            del db.currentEnv['current_invc_state']
+            del db.currentEnv['denied_state']
+
+    def test_no_current_uses_allowed_partition_pg(self, db_pg):
+        assert self._count(db_pg, denied='NSW') == CUSTOMER_COUNT - CUSTOMER_NSW_COUNT
+
+    def test_no_current_uses_allowed_partition_sqlite(self, db_sqlite):
+        assert self._count(db_sqlite, denied='NSW') == CUSTOMER_COUNT - CUSTOMER_NSW_COUNT
+
+    def test_no_current_uses_allowed_partition_through_relation_sqlite(self, db_sqlite):
+        assert self._count(db_sqlite, table='invc.invoice', denied='NSW') == INVOICE_COUNT - INVOICE_NSW_COUNT
+
+    def test_current_without_allowed_ignores_allowed_partition_pg(self, db_pg):
+        assert self._count(db_pg, current='NSW', denied='NSW') == CUSTOMER_NSW_COUNT
+
+    def test_current_without_allowed_ignores_allowed_partition_sqlite(self, db_sqlite):
+        assert self._count(db_sqlite, current='NSW', denied='NSW') == CUSTOMER_NSW_COUNT
+
+
 class TestStaffBasic:
     """Basic staff table queries — VC and cross-package relation."""
 
@@ -3125,6 +3153,29 @@ class TestDistinctExploding:
             order_by='$account_name',
         ).fetch()
         assert isinstance(rows, list)
+
+    CASE_SENSITIVE_ORDER_BY = [
+        '$customer_rank',
+        '$display_name',
+        '$n_invoices',
+        '$display_name DESC',
+        '$account_name Desc',
+        '$account_name asc, $email',
+        '$account_name desc nulls last',
+    ]
+
+    @pytest.mark.parametrize('order_by', CASE_SENSITIVE_ORDER_BY)
+    def test_distinct_exploding_order_by_formula_pg(self, db_pg, order_by):
+        """Hidden __ord_col_N keeps the original case of quoted text."""
+        tbl = db_pg.table('invc.customer')
+        rows = tbl.query(columns='$id, @invoices.total', order_by=order_by).fetch()
+        assert rows
+
+    @pytest.mark.parametrize('order_by', CASE_SENSITIVE_ORDER_BY)
+    def test_distinct_exploding_order_by_formula_sqlite(self, db_sqlite, order_by):
+        tbl = db_sqlite.table('invc.customer')
+        rows = tbl.query(columns='$id, @invoices.total', order_by=order_by).fetch()
+        assert rows
 
     def test_distinct_exploding_count_pg(self, db_pg):
         """8l: count() with distinct + exploding replaces columns with pkey."""

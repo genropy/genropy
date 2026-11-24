@@ -61,6 +61,8 @@ class WriteMixin(GnrSqlDbBaseMixin):
 
         * Totalizer updates (if the table defines totalizers).
         * Change logging (if the table has ``logChanges`` attribute).
+        * Audit events of an update or delete (if the table has
+          ``audit='external'``).
 
         Args:
             tblobj: The table object that was modified.
@@ -82,7 +84,23 @@ class WriteMixin(GnrSqlDbBaseMixin):
                 self.table(self.changeLogTable).logChange(
                     tblobj, evt=evt, record=record
                 )
+        if evt != 'I':
+            self.deferExternalAudit(tblobj)
         self._dbNotify(tblobj, evt, record, old_record=old_record)
+
+    def deferExternalAudit(self, tblobj: Any) -> None:
+        """Defer to commit the audit events of a table with ``audit='external'``.
+
+        The PostgreSQL triggers of the table queue its updates and deletes
+        in ``audit.queue``; table ``audit.event`` turns the queue rows of
+        the transaction into events just before the commit, once per commit.
+
+        Args:
+            tblobj: The table object that was updated or deleted from.
+        """
+        if tblobj.attributes.get('audit') == 'external':
+            self.deferToCommit(self.table('audit.event').eventsFromTransaction,
+                               _deferredId='audit_event')
 
     def _dbNotify(self, tblobj, evt, record, old_record=None, **kwargs):
         """Send a notification if the table has the ``notify`` attribute.

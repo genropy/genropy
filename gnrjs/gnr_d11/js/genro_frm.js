@@ -89,7 +89,6 @@ dojo.declare("gnr.GnrFrmHandler", null, {
             'geocoderfield':null,
             'ckeditor':null,
             'joditeditor':null,
-            'tinymce':null,
             'mdeditor':null,
             'datetimetextbox':null
         };
@@ -204,7 +203,9 @@ dojo.declare("gnr.GnrFrmHandler", null, {
             });
             if(this.store.autoSave){
                 this.autoSave = this.store.autoSave===true?2000:this.store.autoSave;
-                dojo.connect(this,'updateStatus',this.doAutoSave);
+                if(this.autoSave!='onLeave'){
+                    dojo.connect(this,'updateStatus',this.doAutoSave);
+                }
             }
             var startKey = kw.startKey || this.store.startKey || this.getCurrentPkey();
             if(startKey){
@@ -759,6 +760,7 @@ dojo.declare("gnr.GnrFrmHandler", null, {
             objectUpdate(kw.default_kw,objectExtract(that.store.prepareDefaults(kw.destPkey,kw.default_kw),'default_*',true));
             let prompt_dflt = new gnr.GnrBag(that.sourceNode.evaluateOnNode(kw.default_kw));
             genro.dlg.prompt( _T(defaultPrompt.title || '!!Fill parameters'),{
+                ...objectExtract(defaultPrompt,'dlg_*',true,true),
                 widget:defaultPrompt.fields,
                 dflt:prompt_dflt,
                 cols:defaultPrompt.cols,
@@ -1286,7 +1288,7 @@ dojo.declare("gnr.GnrFrmHandler", null, {
     },
     
     onBlurForm:function(){
-        if(this.autoSave && this.changed){
+        if(this.autoSave && this.autoSave!='onLeave' && this.changed){
             this.doAutoSave();
         }
         genro.dom.removeClass(this.sourceNode,'form_activeForm');

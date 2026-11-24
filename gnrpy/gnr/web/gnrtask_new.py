@@ -54,6 +54,27 @@ SCHEDULER_RUN_INTERVAL = 1
 RETRY_LIMIT = 3 # amount of attempt in execution retries
 NOTIFY_ALIVE_INTERVAL = 2
 ACK_TIMEOUT = NOTIFY_ALIVE_INTERVAL * 3 # general timeout from worker
+WORKER_ID_PREFIX = "gnrworker"
+
+
+def build_worker_id(hostname, pid):
+    """Return the default worker id, gnrworker-<hostname>-<pid>"""
+    return f"{WORKER_ID_PREFIX}-{hostname}-{pid}"
+
+
+def parse_worker_id(worker_id):
+    """Split a worker id into (hostname, pid).
+
+    The hostname may contain hyphens, so the pid is taken from the right.
+    A custom id (GNR_WORKER_ID) that does not follow the default format
+    is returned whole as the hostname, with an empty pid.
+    """
+    prefix = f"{WORKER_ID_PREFIX}-"
+    if worker_id.startswith(prefix):
+        hostname, sep, pid = worker_id[len(prefix):].rpartition("-")
+        if sep and hostname and pid.isdigit():
+            return hostname, pid
+    return worker_id, ""
 
 
 class GnrTaskSchedulerClient:
@@ -201,7 +222,12 @@ class GnrTask:
         result = '-'.join([str(y),str(m),str(d),str(int(key_hm/60)),str(key_hm%60)])
         return result
 
-    
+
+# Below the worker's 30 s /next-task client timeout: aiohttp keeps running a handler
+# whose client has gone, and that handler would take the next run.
+NEXT_TASK_TIMEOUT = 20
+
+
 class GnrTaskScheduler:
     """
     ASyncio application which load the scheduling configuration and
@@ -329,7 +355,8 @@ class GnrTaskScheduler:
             logger.debug("Checking for tasks needing retry...")
             now = datetime.now(timezone.utc)
             for task_id, (task, sent_time, retries, worker_id) in list(self.pending_ack.items()):     
-                if worker_id not in self.workers or (now - self.workers[worker_id]['lastseen']).total_seconds() > ACK_TIMEOUT:
+                if worker_id not in self.workers or (now - self.workers[worker_id]['lastseen']).total_seconds() > ACK_TIMEOUT \
+                        or self.lost_by_worker(task_id, sent_time, worker_id):
                     if retries < RETRY_LIMIT:
                         logger.info("Retrying task %s (%s)", task['task_id'], task['run_id'])
                         await self.queues[task['queue_name']].put(task)
@@ -340,6 +367,13 @@ class GnrTaskScheduler:
                         del self.pending_ack[task_id]
             await asyncio.sleep(SCHEDULER_RUN_INTERVAL*2)
             
+    def lost_by_worker(self, run_id, sent_time, worker_id):
+        worker = self.workers.get(worker_id)
+        if not worker or 'inflight' not in worker:
+            return False
+        inflight, reported = worker['inflight']
+        return run_id not in inflight and (reported - sent_time).total_seconds() > ACK_TIMEOUT
+
     async def empty_queue(self, queue_name):
         # safer way to empty the queue is to just replace
         # the referenced object holding the queue
@@ -403,8 +437,12 @@ class GnrTaskScheduler:
         if worker_id:
             self.worker_alive(worker_id, queue_name)
             logger.info("Worker %s (queue %s) connected", worker_id, queue_name)
-            self.workers[worker_id]["worked_tasks"] += 1            
-            task = await self.queues[queue_name].get()
+            try:
+                task = await asyncio.wait_for(self.queues[queue_name].get(),
+                                              timeout=NEXT_TASK_TIMEOUT)
+            except asyncio.TimeoutError:
+                return web.Response(status=204)
+            self.workers[worker_id]["worked_tasks"] += 1
             self.pending_ack[task["run_id"]] = (task, datetime.now(timezone.utc), 0, worker_id)
             return web.json_response(task)
 
@@ -562,6 +600,9 @@ class GnrTaskScheduler:
         queue_name = request.query.get("queue_name")
         logger.debug(f"Worker %s/%s is alive", worker_id, queue_name)
         self.worker_alive(worker_id, queue_name)
+        if worker_id in self.workers and request.query.get("inflight"):
+            self.workers[worker_id]["inflight"] = (set(request.query.getall("run_id", [])),
+                                                   datetime.now(timezone.utc))
         return web.json_response(dict(status="ack"))
     
     async def api_worker_leave(self, request):
@@ -700,7 +741,7 @@ class GnrTaskWorker:
     """
     def __init__(self, sitename, queue_name=None, processes=1):
         self.processes = processes
-        self.worker_id = os.environ.get("GNR_WORKER_ID", f"gnrworker-{socket.getfqdn()}-{os.getpid()}")
+        self.worker_id = os.environ.get("GNR_WORKER_ID", build_worker_id(socket.getfqdn(), os.getpid()))
         self.queue_name = queue_name or os.environ.get("GNR_WORKER_QUEUE_NAME", "general")
         self.sitename = sitename
         self.site = GnrWsgiSite(self.sitename)
@@ -715,6 +756,7 @@ class GnrTaskWorker:
         # executor process, otherwise the first worker in a cluster
         # will get all the tasks
         self.tasks_q = asyncio.Queue(maxsize=self.processes)
+        self.inflight = set()
         self.process_pool = None
 
     def get_task_table(self, domain=None):
@@ -724,13 +766,14 @@ class GnrTaskWorker:
         else:
             return self.db.table("sys.task")
 
-    def _notify_alive(self):
+    def _notify_alive(self, inflight):
         with requests.Session() as session:
             try:
                 logger.debug("Pinging scheduler")
                 resp = session.get(
                     f"{self.scheduler_url}/alive",
-                    params={"worker_id": self.worker_id, "queue_name": self.queue_name},
+                    params={"worker_id": self.worker_id, "queue_name": self.queue_name,
+                            "inflight": 1, "run_id": inflight},
                     timeout=NOTIFY_ALIVE_INTERVAL * 2,
                 )
                 if resp.status_code == 200:
@@ -743,7 +786,7 @@ class GnrTaskWorker:
     async def worker_alive(self):
         while not self.stop_evt.is_set():
             await asyncio.sleep(NOTIFY_ALIVE_INTERVAL)
-            await asyncio.to_thread(self._notify_alive)
+            await asyncio.to_thread(self._notify_alive, list(self.inflight))
 
 
     async def poll(self):
@@ -758,6 +801,7 @@ class GnrTaskWorker:
                         if resp.status == 200:
                             task = await resp.json()
                             logger.info("%s got new task: %s", self.worker_id, task)
+                            self.inflight.add(task["run_id"])
                             await self.tasks_q.put(task)
                             logger.info("Hello")
                 except Exception:
@@ -777,6 +821,7 @@ class GnrTaskWorker:
                 logger.error("Executor %s error: %s", name, e)
                 logger.exception(e)
             finally:
+                self.inflight.discard(task["run_id"])
                 self.tasks_q.task_done()
               
     async def shutdown_worker(self, consumers, alive_task):

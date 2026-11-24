@@ -30,6 +30,7 @@ class Menu(object):
         root.thpage(u"!!Help documents", table="adm.group_helpdoc")
         root.webpage('!!User preferences',filepath='/adm/user_preference')
         root.thpage(u"!!API Tokens", table="adm.api_token", tags="admin")
+        root.thpage(u"!![en]GenroApp connectors", table="adm.user_connector", tags="admin")
 
     def utilitySubmenu(self,utility,**kwargs):
         utility.thpage(u"!!Letterheads", table="adm.htmltemplate")

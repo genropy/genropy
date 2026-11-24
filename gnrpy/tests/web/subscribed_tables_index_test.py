@@ -16,6 +16,7 @@ with stubbed db/site.
 
 import io
 
+from gnr.core.gnrclasses import GnrClassCatalog
 from gnr.web.daemon.siteregister import SiteRegister
 from gnr.web.gnrwebapp import GnrWsgiWebApp
 
@@ -119,21 +120,63 @@ class _FakeDb:
     def updateEnv(self, **kwargs):
         self.currentEnv.update(kwargs)
 
+    def connectionKey(self):
+        return 'main'
+
+
+class _FakePageRegister:
+    def __init__(self):
+        self.notified = []
+        self.items = {}
+
+    def notifyDbEvents(self, dbeventsDict, **kwargs):
+        self.notified.append(dbeventsDict)
+
+    def page(self, page_id):
+        return self.items[page_id]
+
+
+class _FakePage:
+    page_id = 'page-1'
+    pagename = 'a_page'
+
+    def __init__(self):
+        self.notified = []
+
+    def notifyLocalDbEvents(self, dbeventsDict, **kwargs):
+        self.notified.append(dbeventsDict)
+
 
 class _FakeSite:
+    currentPage = None
+
     def __init__(self, tables):
         self.tables = tables
         self.calls = 0
+        self.register = _FakePageRegister()
 
     def allSubscribedTables(self):
         self.calls += 1
         return self.tables
+
+    def getSubscribedTables(self, tables):
+        self.calls += 1
+        return [t for t in tables if t in self.tables]
+
+
+class _FakeTable:
+    pkey = 'id'
+
+    def __init__(self, fullname, broadcast=None):
+        self.fullname = fullname
+        self.attributes = dict(broadcast=broadcast)
 
 
 def _app(tables):
     app = object.__new__(GnrWsgiWebApp)
     app.db = _FakeDb()
     app.site = _FakeSite(tables)
+    app.catalog = GnrClassCatalog()
     return app
 
 
@@ -177,6 +220,65 @@ def test_gate_memo_dies_with_the_env():
     app.site.tables = ['foo.new']
     assert app.subscribedTables('foo.new') is True
     assert app.site.calls == 2
+
+
+# ---------------------------------------------------------------------------
+# the gate covers the broadcast columns and the send, not the record (#1821)
+# ---------------------------------------------------------------------------
+
+
+def test_only_an_observed_table_gets_its_broadcast_columns():
+    app = _app(['foo.bar'])
+    app.notifyDbEvent(_FakeTable('foo.bar', broadcast='code'), {'id': 'r1', 'code': 'x'}, 'U',
+                      old_record={'id': 'r1', 'code': 'y'})
+    app.notifyDbEvent(_FakeTable('foo.other', broadcast='code'), {'id': 'r2', 'code': 'x'}, 'I')
+    dbevents = app.db.currentEnv['dbevents_main']
+    assert dbevents['foo.bar'] == [dict(dbevent='U', pkey='r1', old_pkey='r1', autoCommit=None,
+                                        code='x', old_code='y')]
+    assert dbevents['foo.other'] == [dict(dbevent='I', pkey='r2', old_pkey=None, autoCommit=None)]
+
+
+def test_commit_sends_only_the_tables_in_the_memo():
+    """An event recorded outside the memo lacks its broadcast columns: a page
+    subscribing that table after the write must not receive it."""
+    app = _app(['foo.bar'])
+    app.notifyDbEvent(_FakeTable('foo.bar', broadcast='code'), {'id': 'r1', 'code': 'x'}, 'I')
+    app.notifyDbEvent(_FakeTable('foo.other', broadcast='code'), {'id': 'r2', 'code': 'x'}, 'I')
+    app.site.tables = ['foo.bar', 'foo.other']
+    app.onDbCommitted()
+    assert app.site.register.notified == [{'foo.bar': [dict(dbevent='I', pkey='r1', old_pkey=None,
+                                                            autoCommit=None, code='x')]}]
+
+
+def test_a_hidden_transaction_sends_its_page_only_the_tables_in_the_memo():
+    app = _app(['foo.bar'])
+    page = _FakePage()
+    app.site.currentPage = page
+    app.site.register.items[page.page_id] = dict(subscribed_tables=['foo.bar', 'foo.other'])
+    app.db.updateEnv(hidden_transaction=True)
+    app.notifyDbEvent(_FakeTable('foo.bar', broadcast='code'), {'id': 'r1', 'code': 'x'}, 'I')
+    app.notifyDbEvent(_FakeTable('foo.other', broadcast='code'), {'id': 'r2', 'code': 'x'}, 'I')
+    app.onDbCommitted()
+    assert page.notified == [{'foo.bar': [dict(dbevent='I', pkey='r1', old_pkey=None,
+                                               autoCommit=None, code='x')]}]
+    assert app.site.register.notified == []
+
+
+def test_commit_sends_nothing_when_no_written_table_is_observed():
+    app = _app(['foo.bar'])
+    app.notifyDbEvent(_FakeTable('foo.other'), {'id': 'r2'}, 'I')
+    app.onDbCommitted()
+    assert app.site.register.notified == []
+    assert 'dbevents_main' not in app.db.currentEnv
+
+
+def test_register_is_asked_once_per_request_writes_and_commit_included():
+    app = _app(['foo.bar'])
+    app.notifyDbEvent(_FakeTable('foo.bar', broadcast='code'), {'id': 'r1', 'code': 'x'}, 'I')
+    app.notifyDbEvent(_FakeTable('foo.other', broadcast='code'), {'id': 'r2', 'code': 'x'}, 'I')
+    app.notifyDbEvent(_FakeTable('foo.plain'), {'id': 'r3'}, 'I')
+    app.onDbCommitted()
+    assert app.site.calls == 1
 
 
 # ---------------------------------------------------------------------------

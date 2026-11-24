@@ -3,6 +3,7 @@ import os
 import threading
 from gnr.core import gnrlang as gl
 from gnr.core.gnrbag import Bag, BagResolver
+from gnr.core.gnrdecorator import customizable, oncalling, oncalled
 from gnr.core.gnrerror import tracebackBag
 
 class TestGnrLang():
@@ -93,7 +94,10 @@ class TestGnrLang():
 
     def test_getmixincount(self):
         a = gl.getmixincount()
-        assert int(a) == 1
+        b = gl.getmixincount()
+        assert len(a) == 15
+        assert int(b) == int(a) + 1
+        assert b > a
 
     def test_GnrException(self):
         e = gl.GnrException()
@@ -431,6 +435,106 @@ class TestMixinRouting():
         assert held() == 'pong'
         assert held.__self__.main is first_page
 
+    def test_mixin_as_without_hash_names_the_method(self):
+        class Named(object):
+            def compute(self):
+                return 'computed'
+            compute.mixin_as = 'formulacolumn_compute'
+
+        target = type('Target', (object,), {})
+        gl.classMixin(target, Named)
+
+        assert target().formulacolumn_compute() == 'computed'
+        assert 'compute' not in target.__dict__
+
+
+class TestInstanceMixinHooks():
+    """Several sources hook one @customizable method through instanceMixin (#1883)."""
+
+    @staticmethod
+    def _sources(calls):
+        class Owner(object):
+            @customizable
+            def update(self, x):
+                calls.append('original')
+                return x * 2
+
+        class FirstPkg(object):
+            @oncalling
+            def update(self, x):
+                calls.append('first oncalling')
+
+        class SecondPkg(object):
+            @oncalling
+            def update(self, x):
+                calls.append('second oncalling')
+
+        class ThirdPkg(object):
+            @oncalled
+            def update(self, x, _original_result=None):
+                calls.append('third oncalled %s' % _original_result)
+
+        return Owner, FirstPkg, SecondPkg, ThirdPkg
+
+    @staticmethod
+    def _table(*sources):
+        holder = type('Holder', (object,), {})()
+        for source in sources:
+            gl.instanceMixin(holder, source)
+        table = gl.GnrObject()
+        gl.instanceMixin(table, holder)
+        return table
+
+    def test_hooks_of_every_source_run_in_mixin_order(self):
+        calls = []
+        table = self._table(*self._sources(calls))
+
+        assert table.update(3) == 6
+        assert calls == ['first oncalling', 'second oncalling', 'original', 'third oncalled 6']
+
+    def test_hooks_do_not_replace_the_original(self):
+        table = self._table(*self._sources([]))
+
+        assert not hasattr(table, 'update_')
+        assert len([k for k in dir(table) if k.startswith('update_oncalling_')]) == 2
+        assert len([k for k in dir(table) if k.startswith('update_oncalled_')]) == 1
+
+    def test_oncalling_false_skips_the_original(self):
+        calls = []
+        owner, first, _, third = self._sources(calls)
+
+        class Veto(object):
+            @oncalling
+            def update(self, x):
+                calls.append('veto')
+                return False
+
+        table = self._table(owner, first, Veto, third)
+
+        assert table.update(3) is None
+        assert calls == ['first oncalling', 'veto']
+
+    def test_same_source_twice_hooks_once(self):
+        calls = []
+        owner, first, _, _ = self._sources(calls)
+        table = self._table(owner, first, first)
+
+        table.update(1)
+        assert calls == ['first oncalling', 'original']
+
+    def test_page_path_keeps_names_and_order(self):
+        calls = []
+        owner, first, second, third = self._sources(calls)
+        resource = type('Resource', (object,), {})
+        for source in (owner, first, second, third):
+            gl.classMixin(resource, source)
+        page = gl.GnrObject()
+        gl.instanceMixin(page, resource)
+
+        hooks = sorted(k for k in resource.__dict__ if k.startswith('update_on'))
+        assert sorted(k for k in dir(page) if k.startswith('update_on')) == hooks
+        page.update(2)
+        assert calls == ['first oncalling', 'second oncalling', 'original', 'third oncalled 4']
 
 class TestGnrLang_getEncoding():
     def _get_data_path(self, filename):

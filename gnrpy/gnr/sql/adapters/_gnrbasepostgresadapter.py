@@ -116,7 +116,8 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
     CAPABILITIES = {
         Capabilities.MIGRATIONS,
         Capabilities.VECTOR,
-        Capabilities.SCHEMAS
+        Capabilities.SCHEMAS,
+        Capabilities.SQL_SCRIPTS
     }
     
     _lock = threading.Lock()
@@ -1175,6 +1176,47 @@ class PostgresSqlDbBaseAdapter(SqlDbBaseAdapter):
             }
 
         return event_triggers
+
+    SQL_MD5_PREFIX = 'gnr:md5='
+
+    def struct_get_sql_md5_sql(self):
+        """
+        Generate SQL code to retrieve the md5 of the applied sqlCode() scripts,
+        stored in the comment of their schema or table
+        """
+        return """
+        SELECT n.nspname, NULL, obj_description(n.oid, 'pg_namespace')
+        FROM pg_namespace n
+        WHERE n.nspname = ANY(%s)
+          AND obj_description(n.oid, 'pg_namespace') LIKE 'gnr:md5=%%'
+        UNION ALL
+        SELECT n.nspname, c.relname, obj_description(c.oid, 'pg_class')
+        FROM pg_class c
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE c.relkind IN ('r', 'p')
+          AND n.nspname = ANY(%s)
+          AND obj_description(c.oid, 'pg_class') LIKE 'gnr:md5=%%';
+        """
+
+    @time_measure
+    def struct_get_sql_md5(self, schemas):
+        """
+        Return the md5 of the applied sqlCode() scripts as a list of
+        (schema_name, table_name, md5); table_name is None for a schema script
+        """
+        query = self.struct_get_sql_md5_sql()
+        return [(schema_name, table_name, comment[len(self.SQL_MD5_PREFIX):])
+                for schema_name, table_name, comment in self.raw_fetch(query, (schemas, schemas))]
+
+    def struct_sql_md5_comment_sql(self, schema_name, table_name=None, md5=None):
+        """
+        Generate the COMMENT statement that records the md5 of the sqlCode() scripts
+        of a schema or table; md5=None clears it
+        """
+        target = (f'TABLE {self.adaptSqlName(schema_name)}.{self.adaptSqlName(table_name)}'
+                  if table_name else f'SCHEMA {self.adaptSqlName(schema_name)}')
+        value = f"'{self.SQL_MD5_PREFIX}{md5}'" if md5 else 'NULL'
+        return f'COMMENT ON {target} IS {value};'
 
     def get_primary_key_sql(self):
         """Return the SQL query for fetching primary key constraints."""

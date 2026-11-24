@@ -437,12 +437,17 @@ class Table(object):
     
     def retrySendMessage(self, message_id=None):
         with self.recordToUpdate(message_id) as message:
+            reached_proxy = message['proxy_ts'] or message['error_ts'] or message['send_date']
             message['send_date'] = None
             message['proxy_ts'] = None
             message['error_ts'] = None
             message['error_msg'] = None
             message['sending_attempt'] = None
             message['connection_retry'] = None
+        mailproxy = self.pkg.getMailProxy(raise_if_missing=False) if reached_proxy else None
+        if mailproxy:
+            # the proxy rejects as "already sent" any id it has processed, failed ones included
+            mailproxy.delete_messages([message_id])
         self.db.table('email.message_to_send').addMessageToQueue(message_id)
 
 

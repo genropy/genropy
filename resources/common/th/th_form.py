@@ -171,7 +171,7 @@ class TableHandlerForm(BaseComponent):
                 th_class = th_attributes.get('_class') or ''
                 th_attributes['_class'] = '%s th_form_not_allowed' %th_class
         table = form.getInheritedAttributes()['table']
-        form.dataController("""var title = newrecord?( newTitleTemplate? dataTemplate(newTitleTemplate,record): caption ): (titleTemplate? dataTemplate(titleTemplate,record) : (caption||''));
+        form.dataController("""var title = newrecord?( newTitleTemplate? dataTemplate(newTitleTemplate,record): escapeHtmlText(caption) ): (titleTemplate? dataTemplate(titleTemplate,record) : escapeHtmlText(caption));
                             
                             SET #FORM.controller.title = title;
                             this.form.publish('onChangedTitle',{title:title});
@@ -305,7 +305,7 @@ class TableHandlerForm(BaseComponent):
                 #default_slots = default_slots.replace('form_delete','form_print,100,form_delete')
                 extra_slots.append('form_action')
                 options['form_action'] = actionMenu
-            if options.pop('audit',False):
+            if options.pop('audit',False) or tblobj.attributes.get('audit') == 'external':
                 extra_slots.append('form_audit')
             if copypaste:
                 form.attributes['form_copypaste_isRemote'] = copypaste=='*'
@@ -414,6 +414,10 @@ class TableHandlerForm(BaseComponent):
     def th_slotbar_form_audit(self,pane,**kwargs):
         inattr = pane.getInheritedAttributes()
         th_root = inattr['th_root']
+        if self.db.table(inattr['table']).attributes.get('audit') == 'external':
+            self.mixinComponent('audit_components:AuditHistory')
+            pane.historyPalette(paletteCode='%s_recordHistory' %th_root)
+            return
         pane.paletteGrid(paletteCode='%s_recordHistory' %th_root,
                         title='!!Record History',
                         dockButton=True,

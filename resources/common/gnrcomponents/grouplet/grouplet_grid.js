@@ -3412,6 +3412,7 @@ gnr.GroupletGridController = class GroupletGridController {
             this.entryTile.tileContent.walk((n) => {
                 const attr = n.attr || {};
                 if (!attr.validate_notnull || !n.widget || !n.hasValidations()
+                        || !n.getAttributeFromDatasource('validate_notnull')
                         || !isNullOrBlank(n.getAttributeFromDatasource('value'))) return;
                 this._validateEntryField(n);
             }, 'static');
@@ -4013,10 +4014,8 @@ gnr.GroupletGridController = class GroupletGridController {
     _entryMissingField() {
         return this.entryTile.tileContent.walk((n) => {
             const attr = n.attr || {};
-            if (!attr.validate_notnull || !n.widget
-                    || typeof attr.value !== 'string') return;
-            const v = n.getRelativeData(attr.value.replace(/^\^/, ''));
-            if (v === null || v === undefined || v === '') return n;
+            if (!attr.validate_notnull || !n.widget || typeof attr.value !== 'string') return;
+            if (this._validateEntryField(n).error) return n;
         }, 'static');
     }
 
@@ -5488,10 +5487,24 @@ gnr.GroupletGridPhantomTile = class GroupletGridPhantomTile extends gnr.Grouplet
         this.hasCopy = false;
         this.dragEnabled = false;
         this.editmenuSpec = null;
+        this.profile = this.controller._cardProfile(this.templateKey);
     }
 
-    _usesBand() {
-        return false;
+    _mountBand() {
+        // the band is there before the row is: filling it must not push the
+        // card down, and its doc is read while the card is still blank
+        const c = this.controller;
+        const profile = this.profile;
+        this.card = new gnr.GroupletCard({
+            tools: profile.tools,
+            rootDom: () => this.domNode(),
+            doc: gnr.GroupletCard.docSpec(profile.doc, () => genro.getData(c.phantomPath), profile.doc_kw)
+        });
+        this.card.mount(this.tileContent, '_grtile_band_' + this.pkey);
+    }
+
+    _mountChrome() {
+        // nothing to copy, delete or move yet: a band would offer them
     }
 
     _mountWrapper() {
@@ -5507,7 +5520,8 @@ gnr.GroupletGridPhantomTile = class GroupletGridPhantomTile extends gnr.Grouplet
         return {
             datapath: c.phantomPath,
             parentForm: false,
-            _class: 'grouplet_grid_row grouplet_grid_row--phantom',
+            _class: 'grouplet_grid_row grouplet_grid_row--phantom'
+                + (this._usesBand() ? ' grouplet_card grouplet_card--chrome-' + c.chromeSide : ''),
             nodeId: this.tileNodeId,
             onCreated: function(domnode) {
                 tile.tileDom = domnode.sourceNode
@@ -5560,6 +5574,10 @@ gnr.GroupletGridEntryTile = class GroupletGridEntryTile extends gnr.GroupletGrid
     constructor(controller) {
         super(controller, '_entry');
         this.stripValidations = false;
+    }
+
+    _usesBand() {
+        return false;
     }
 
     _keepsKeepable() {

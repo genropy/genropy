@@ -1,4 +1,5 @@
 import os
+import base64
 import random
 import re
 import io
@@ -34,12 +35,14 @@ from gnr.core.gnrstring import boolean
 from gnr.core.gnrdecorator import extract_kwargs,metadata
 from gnr.core.gnrcrypto import AuthTokenGenerator
 from gnr.lib.services import ServiceHandler
+from gnr.lib.services.antivirus import AntivirusUnavailable
 from gnr.app.pathresolver import PathResolver
 from gnr.app.gnrapp import GnrPackage
 from gnr.web import logger
 from gnr.web.gnrmanual import ManualCache
 from gnr.web.gnrwebapp import GnrWsgiWebApp
 from gnr.web.gnrwebpage import GnrUnsupportedBrowserException
+from gnr.web.gnrwebreqresp import GnrWebRequest
 from gnr.web.gnrwsgisite_proxy.gnrresourceloader import ResourceLoader
 from gnr.web.gnrwsgisite_proxy.gnrstoragehandler import GenroStorageHandler, LegacyStorageHandler
 from gnr.web.gnrwsgisite_proxy.gnrstatichandler import StaticHandlerManager
@@ -57,6 +60,12 @@ except ImportError:
 mimetypes.init()
 
 IS_MOBILE = re.compile(r'iPhone|iPad|Android')
+
+GENROAPP_DOWNLOADS = {
+    'mac': 'https://genroapp-downloads.fsn1.your-objectstorage.com/GenroApp.dmg',
+    'windows': 'https://genroapp-downloads.fsn1.your-objectstorage.com/GenroApp-setup.exe',
+}
+GENROAPP_MODULES = 'site:genroapp/modules'
 
 STORAGE_TYPES = ['_storage']
 STATIC_HANDLER_TYPES = ['_site','_dojo','_gnr','_conn',
@@ -80,6 +89,11 @@ class GnrSiteException(GnrException):
     code = 'GNRSITE-001'
     description = '!!Genro Site exception'
     caption = "!! Site Error : %(message)s"
+
+class GnrUploadException(GnrException):
+    code = 'GNRSITE-002'
+    description = '!!Upload failed'
+    caption = '!!Upload of %(filename)s failed: %(reason)s'
 
 class GnrWebServerError(Exception):
     pass
@@ -849,13 +863,17 @@ class GnrWsgiSite(object):
             path_list.pop(0)
 
         path = '/'.join(path_list)
-        return self.storageNode('%s:%s'%(storage_name,path),_adapt=False)
-    
+        node = self.storageNode('%s:%s'%(storage_name,path),_adapt=False)
+        # checked on the node path: the legacy vol: form turns ':' into '/' only there
+        if node is not None and (node.path.startswith('/') or '..' in node.path.split('/')):
+            return None
+        return node
+
     def storageDispatcher(self,path_list,environ,start_response,storageType=None,**kwargs):
         storageNode = self.storageNodeFromPathList(path_list, storageType)
-        if storageNode and self.storage_handler.isPrivateStorage(storageNode.service.service_name):
+        if storageNode is None or self.storage_handler.isPrivateStorage(storageNode.service.service_name):
             return self.not_found_exception(environ, start_response)
-        exists = storageNode and storageNode.exists
+        exists = storageNode.exists
         if not exists and '_lazydoc' in kwargs:
             #fullpath = None ### QUI NON DOBBIAMO USARE I FULLPATH
             exists = self.build_lazydoc(kwargs['_lazydoc'],fullpath=storageNode.internal_path,**kwargs) 
@@ -1235,6 +1253,36 @@ class GnrWsgiSite(object):
         mobile_config = self.get_mobile_app_config()
         return (mobile_config.get('ios',{}).get('store_url') \
                 or mobile_config.get('android',{}).get('store_url')) is not None
+
+    def get_genroapp_download_url(self, platform):
+        """Return the GenroApp download link for a desktop platform.
+
+        :param platform: the platform part of ``connection.user_device``
+                         (``mac``, ``windows``, ``linux``)
+
+        A ``download_url`` on the platform node of ``mobile_app/bundles.xml``
+        overrides the public link published by Softwell."""
+        return self.get_mobile_app_config(platform).get('download_url') \
+            or GENROAPP_DOWNLOADS.get(platform)
+
+    def get_logged_connection(self):
+        """The register item of the connection named by the cookie of the current request,
+        None when it belongs to no logged user."""
+        cookie = GnrWebRequest(self.currentRequest).get_cookie(
+            self.currentDomainIdentifier, 'marshal', secret=self.config['secret'] or self.site_name)
+        if not cookie:
+            return None
+        cookie = dict(cookie)
+        connection = self.register.connection(cookie.get('connection_id'))
+        if not connection or connection['user'] != cookie.get('user') or not connection.get('user_id'):
+            return None
+        return connection
+
+    def get_genroapp_modules_path(self):
+        """Return the resolved folder of the GenroApp modules signed by Softwell
+        for this site, or ``None`` when the site has none."""
+        path = os.path.realpath(self.getStaticPath(GENROAPP_MODULES))
+        return path if os.path.isdir(path) else None
 
 
     
@@ -2095,6 +2143,9 @@ class GnrWsgiSite(object):
 
     def serve_ping(self, response, environ, start_response, page_id=None, reason=None, **kwargs):
         response.content_type = "text/xml"
+        cookie = GnrWebRequest(self.currentRequest).get_cookie(
+            self.currentDomainIdentifier, 'marshal', secret=self.config['secret'])
+        kwargs['connection_id'] = dict(cookie).get('connection_id') if cookie else None
         result = self.register.handle_ping(page_id=page_id,reason=reason,**kwargs)
         if result is False:
             return self.failed_exception('no longer existing page %s' % page_id, environ, start_response)
@@ -2158,15 +2209,23 @@ class GnrWsgiSite(object):
             os.remove(txtname)
         return result
 
-    def uploadFile(self,file_handle=None,dataUrl=None,filename=None,uploadPath=None):
+    def uploadedContent(self, file_handle=None, dataUrl=None, filename=None):
+        """The bytes and the file name of an upload, ``(None, None)`` when nothing was sent.
+
+        A file handle is read from its start and left at its start, so an upload
+        hook can read it again."""
         if file_handle is not None:
             f = file_handle.stream
+            # an onUploadingMethod hook may have already read the handle
+            if f.seekable():
+                f.seek(0)
             content = f.read()
+            if f.seekable():
+                f.seek(0)
             original_filename = os.path.basename(file_handle.filename)
             original_ext = os.path.splitext(original_filename)[1]
             filename = filename or original_filename
         elif dataUrl:
-            import base64
             dataUrlPattern = re.compile('data:(.*);base64,(.*)$')
             g= dataUrlPattern.match(dataUrl)#.group(2)
             mimetype,base64Content = g.groups()
@@ -2174,10 +2233,41 @@ class GnrWsgiSite(object):
             content = base64.b64decode(base64Content)
         else:
             return None,None
-        file_ext = os.path.splitext(filename)[1]
-        if not file_ext:
+        if not os.path.splitext(filename)[1]:
             filename = '%s%s' %(filename,original_ext)
-            file_ext = original_ext
+        return content, filename
+
+    def scanUpload(self, file_handle=None, dataUrl=None, filename=None):
+        """Scan an upload with the service named ``antivirus``, when one is configured.
+
+        Called before any upload hook runs, since a hook can import the content.
+
+        :raises GnrUploadException: when the file contains a threat, or when the
+            antivirus could not scan it; the technical reason goes to the log"""
+        antivirus = self.getService('antivirus')
+        if antivirus is None:
+            return
+        content, filename = self.uploadedContent(file_handle=file_handle, dataUrl=dataUrl, filename=filename)
+        if not content:
+            return
+        try:
+            threat = antivirus.scan(content=content, filename=filename)
+        except AntivirusUnavailable as error:
+            logger.error('Upload of %s refused: %s', filename, error)
+            raise GnrUploadException(filename=filename,
+                                     reason='!!the mandatory antivirus service is not available at the moment',
+                                     localizer=self.gnrapp.localizer)
+        if threat:
+            raise GnrUploadException(filename=filename, reason='!!virus detected: %(threat)s',
+                                     threat=threat, localizer=self.gnrapp.localizer)
+
+    def uploadFile(self,file_handle=None,dataUrl=None,filename=None,uploadPath=None):
+        content, filename = self.uploadedContent(file_handle=file_handle, dataUrl=dataUrl, filename=filename)
+        if content is None:
+            return None,None
+        if not content:
+            raise GnrUploadException(filename=filename, reason='!!the file is empty',
+                                     localizer=self.gnrapp.localizer)
         file_node = self.storageNode(uploadPath, filename,autocreate=-1)
         service = file_node.service
         storage_params = self.storage_handler.getStorageParameters(service.service_name) or {}
@@ -2189,6 +2279,9 @@ class GnrWsgiSite(object):
         file_url = file_node.internal_url()
         with file_node.open(mode='wb') as outfile:
             outfile.write(content)
+        if not file_node.exists or file_node.size != len(content):
+            raise GnrUploadException(filename=filename, reason='!!the file was not stored completely',
+                                     localizer=self.gnrapp.localizer)
         return file_path,file_url
 
     def zipFiles(self, file_list=None, zipPath=None):

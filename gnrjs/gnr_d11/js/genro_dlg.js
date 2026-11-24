@@ -220,6 +220,12 @@ dojo.declare("gnr.GnrDlgHandler", null, {
             var dlgKw = {title:kw.title,closable:kw.closable,nodeId:dialogId,
                 parentRatio:parentRatio,windowRatio:windowRatio,fullScreen:fullScreen};
             objectUpdate(dlgKw,objectExtract(kw,'dlg_*'));
+            if(dlgKw.closable===true){
+                dlgKw.closable = 'publish';
+                dlgKw.selfsubscribe_close = function(){
+                    genro.dlg.iframeDialogClose(this);
+                };
+            }
             var dlg = root._('dialog',dlgKw);
             var iframekw = {src:kw.src,border:0,height:'100%',width:'100%',nodeId:iframeId};
             objectUpdate(iframekw,objectExtract(kw,'iframe_*'));
@@ -254,6 +260,37 @@ dojo.declare("gnr.GnrDlgHandler", null, {
             }
         }
         return dlgNode;
+    },
+
+    iframeDialogClose:function(dlgNode){
+        var dialog = dlgNode.widget;
+        var iframeGenro = dlgNode._iframeNode && dlgNode._iframeNode._genro;
+        var rootForm = iframeGenro && iframeGenro._rootForm;
+        // autoSave and store-less forms never answer the pending changes dialog with onAnswer
+        if(!rootForm || !rootForm.store || rootForm.autoSave){
+            dialog.hide();
+            return;
+        }
+        var focused = rootForm.currentFocused;
+        if(focused && focused._focused){
+            // dijit writes the value of a blurred field only when its focus manager catches up
+            focused.focusNode.blur();
+            var that = this;
+            rootForm.sourceNode.watch('iframeDialogClose',function(){return !focused._focused;},
+                                      function(){that.iframeDialogClose(dlgNode);});
+            return;
+        }
+        rootForm.commitPendingEditors(function(){
+            if(!rootForm.changed){
+                dialog.hide();
+                return;
+            }
+            rootForm.load({destPkey:'*dismiss*',onAnswer:function(){
+                if(!rootForm.changed){
+                    dialog.hide();
+                }
+            }});
+        });
     },
 
     thIframeDialog:function(kw,openKw){
@@ -744,7 +781,10 @@ dojo.declare("gnr.GnrDlgHandler", null, {
                             genro.dlg.prompt_counter--;
                             if(!genro.dlg.prompt_counter){
                                 setTimeout(function(){
-                                    genro._data.popNode('gnr.promptDlg');
+                                    // a prompt opened meanwhile, e.g. from an asynchronous callback of this one, keeps its data
+                                    if(!genro.dlg.prompt_counter){
+                                        genro._data.popNode('gnr.promptDlg');
+                                    }
                                 },genro.dlg._quickDialogDestroyTimeout+1);
                             }
                         }
@@ -1039,11 +1079,14 @@ dojo.declare("gnr.GnrDlgHandler", null, {
         head._('div', {_class: 'doc_help_panel_close', innerHTML: '&times;', title: _T('!!Close'),
                        connect_onclick: () => this.closeHelpPanel()});
         if (manualUrl) {
-            // no same-origin and no top navigation: the manual can neither
-            // reach this page nor replace it; externalSite keeps the page id
-            // off its url, where it would also break the section's anchor
-            panel._('iframe', {_class: 'doc_help_panel_frame', src: manualUrl, externalSite: true,
-                               sandbox: 'allow-scripts allow-popups allow-popups-to-escape-sandbox'});
+            // never top navigation, and same-origin only for a manual in the
+            // site's own storage, trusted like the deployed code: its fonts and
+            // localStorage need it; any other manual cannot reach this page.
+            // externalSite keeps the page id off its url, where it would also
+            // break the section's anchor
+            const sandbox = 'allow-scripts allow-popups allow-popups-to-escape-sandbox' +
+                (this._isSiteStorageUrl(manualUrl) ? ' allow-same-origin' : '');
+            panel._('iframe', {_class: 'doc_help_panel_frame', src: manualUrl, externalSite: true, sandbox});
         } else {
             this._docHelpBody(panel._('div', {_class: 'doc_help_panel_body'}), address, kw, source);
         }
@@ -1059,6 +1102,11 @@ dojo.declare("gnr.GnrDlgHandler", null, {
             this.closeHelpPanel();
         };
         document.addEventListener('keydown', this._helpEscape, true);
+    },
+
+    _isSiteStorageUrl: function(url) {
+        const parsed = new URL(url, window.location.href);
+        return parsed.origin === window.location.origin && /^\/(?:[^/]+\/)?_storage\//.test(parsed.pathname);
     },
 
     _resizeHelpPanel: function(e) {
@@ -1340,9 +1388,10 @@ dojo.declare("gnr.GnrDlgHandler", null, {
     multiUploaderDialog:function(title,kw,sourceNode) {
         var uploaderKw = objectExtract(kw,'nodeId,height,width,uploadPath,onUploadedMethod,onUploadingMethod,onResult,label');
         kw.closable = true;
+        kw._class = (kw._class || 'dlg_prompt')+' multiUploaderDialog';
         var dlg = this.quickDialog(title,kw,sourceNode);
-        uploaderKw.height = uploaderKw.height || '300px';
-        uploaderKw.width =uploaderKw.width || '500px';
+        uploaderKw.height = uploaderKw.height || '420px';
+        uploaderKw.width =uploaderKw.width || '680px';
         uploaderKw.nodeId =uploaderKw.nodeId || 'multiuploader_'+genro.getCounter();
         var onResult = objectPop(uploaderKw,'onResult') || function(result){};
         uploaderKw.onResult = function(result){
@@ -1356,7 +1405,8 @@ dojo.declare("gnr.GnrDlgHandler", null, {
         var actionCb = function(){
             genro.nodeById(uploaderKw.nodeId).publish('doUpload');
         };
-        dlg.bottom._('button','confirm',{float:'right',action:actionCb,label:kw.buttonLabel || _T('Upload files')});
+        dlg.bottom._('button','confirm',{float:'right',action:actionCb,label:kw.buttonLabel || _T('Upload files'),
+                                         disabled:'^gnr.multiupload_store?=!(#v && #v.len())'});
         return dlg;
     },
 

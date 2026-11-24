@@ -8,7 +8,7 @@ function createGrid({defaultRow = {qty: 1, bought: false}, disabled = false, max
     const context = {console, File: function() {}, gnr: {}, genro: {}, setTimeout, dijit: {getEnclosingWidget: () => null}};
     context.dojo = {
         Deferred: function() {},
-        eval,
+        eval: source => vm.runInContext(source, context),
         hitch: (object, method) => (typeof method === 'string' ? object[method] : method).bind(object),
         forEach: (items, callback) => Array.prototype.forEach.call(items || [], callback),
         some: (items, callback) => Array.prototype.some.call(items || [], callback),
@@ -183,14 +183,16 @@ test('card mode: a nested field is an entry, a formula field is not', async () =
     assert.equal(s.phantom().getItem('extra_data'), null);
 });
 
-function entryGrid({missing = null, disabled = false} = {}) {
+function entryGrid({missing = null, disabled = false, fieldAttrs = {}} = {}) {
     const s = createGrid({disabled});
     const focused = [];
     let field;
     if (missing) {
         const row = new s.context.gnr.GnrDomSource();
         row._('div', 'entry', {datapath: 'ws.entry'});
-        row.getItem('entry')._('textbox', missing, {tag: 'textbox', value: '^.' + missing, validate_notnull: true});
+        row.getItem('entry')._('textbox', missing, {
+            tag: 'textbox', value: '^.' + missing, validate_notnull: true, ...fieldAttrs});
+        row.setBackRef();
         field = row.getNode('entry.' + missing);
         field.setValidations();
         field.widget = {focus: () => focused.push(missing)};
@@ -287,6 +289,73 @@ test('a missing required field or a locked form stops the entry', async () => {
     locked.controller._addEntry();
     assert.equal(locked.lines.len(), 0);
     assert.equal(locked.entry().getItem('item'), 'Milk');
+});
+
+for (const [name, fieldAttrs] of [
+    ['literal', {validate_notnull: false}],
+    ['datapath', {validate_notnull: '^record.origin_required'}],
+    ['path expression', {validate_notnull: '^record.operation?=#v=="RETURN"'}],
+    ['formula', {validate_notnull: '==operation=="RETURN"', operation: '^record.operation'}]
+]) {
+    test(`an optional ${name} field does not block adding an entry`, async () => {
+        const s = entryGrid({missing: 'origin', fieldAttrs: {...fieldAttrs, hidden: true}});
+        s.data.setItem('record.origin_required', false);
+        s.data.setItem('record.operation', 'SHIP');
+        let validations = 0;
+        const validate = s.controller._validateEntryField.bind(s.controller);
+        s.controller._validateEntryField = node => { validations++; return validate(node); };
+        await tick();
+        assert.equal(validations, 0, 'optional fields are not initially validated as required');
+        s.entry().setItem('item', 'Book');
+        assert.equal(s.controller._addEntry(), true);
+        assert.equal(s.lines.getItem('r_k1.item'), 'Book');
+        assert.equal(s.lines.getItem('r_k1.origin'), null);
+        assert.deepEqual(s.focused, []);
+        assert.deepEqual(s.published, []);
+    });
+}
+
+test('a dynamic required condition is re-evaluated when the operation changes', async () => {
+    const s = entryGrid({missing: 'origin', fieldAttrs: {
+        validate_notnull: '^record.operation?=#v=="RETURN"'
+    }});
+    s.data.setItem('record.operation', 'SHIP');
+    await tick();
+    assert.equal(s.controller._entryMissingField(), undefined);
+    s.data.setItem('record.operation', 'RETURN');
+    s.controller._validateEntryRequired();
+    await tick();
+    assert.equal(s.field.getValidationError(), 'notnull');
+    s.entry().setItem('item', 'Book');
+    assert.equal(s.controller._addEntry(), false);
+    assert.equal(s.lines.len(), 0);
+    assert.deepEqual(s.focused, ['origin']);
+    s.entry().setItem('origin', 'depot');
+    s.controller._validateEntryField(s.field);
+    assert.equal(s.controller._addEntry(), true);
+    assert.equal(s.lines.getItem('r_k1.origin'), 'depot');
+});
+
+test('a field flagged while required stops blocking once its condition turns false', async () => {
+    const s = entryGrid({missing: 'origin', fieldAttrs: {
+        validate_notnull: '^record.operation?=#v=="RETURN"'
+    }});
+    s.data.setItem('record.operation', 'RETURN');
+    await tick();
+    assert.equal(s.field.getValidationError(), 'notnull');
+    s.data.setItem('record.operation', 'SHIP');
+    s.entry().setItem('item', 'Book');
+    assert.equal(s.controller._addEntry(), true);
+    assert.equal(s.lines.getItem('r_k1.item'), 'Book');
+    assert.deepEqual(s.published, []);
+});
+
+test('a false validate_notnull_if makes the field optional', async () => {
+    const s = entryGrid({missing: 'origin', fieldAttrs: {validate_notnull_if: 'false'}});
+    await tick();
+    s.entry().setItem('item', 'Book');
+    assert.equal(s.controller._addEntry(), true);
+    assert.equal(s.lines.getItem('r_k1.item'), 'Book');
 });
 
 test('template mode: a clicked row is edited in the entry row and saved in place', () => {
@@ -941,7 +1010,7 @@ test('a row\'s card profile: its resource\'s card, then the caller\'s, the title
     assert.ok(!('delitem' in plain), 'the grid\'s delitem then applies');
 });
 
-test('cards use the band unless chromeSide is off; line rows, tabs and blank rows never do', () => {
+test('cards use the band unless chromeSide is off; line rows, tabs and the entry row never do; the blank card keeps its band', () => {
     const s = clipboardGrid();
     const c = s.c;
     const tile = Object.create(s.context.gnr.GroupletGridTile.prototype);
@@ -963,7 +1032,10 @@ test('cards use the band unless chromeSide is off; line rows, tabs and blank row
     c.rowTemplate = null;
     const blank = Object.create(s.context.gnr.GroupletGridPhantomTile.prototype);
     blank.controller = c;
-    assert.equal(blank._usesBand(), false);
+    assert.equal(blank._usesBand(), true, 'filling it must not add the band and push it down');
+    const entry = Object.create(s.context.gnr.GroupletGridEntryTile.prototype);
+    entry.controller = c;
+    assert.equal(entry._usesBand(), false);
 });
 
 test('the row kebab says and does what it acts on: its row, or the whole selection the row is in', () => {
