@@ -5,6 +5,7 @@ The instance configuration holds the GenroApp data of the site::
 
     <genroapp name="My site"
               signing_url="https://host/signing/genroapp/connectors/sign"
+              signing_issuer="https://auth.example.org/realms/signer"
               signing_client_id="my-site"
               signing_client_secret="..."
               capabilities="signature,printers"
@@ -17,8 +18,9 @@ signing service with a Bearer token, taken in this order:
 
 - ``signing_token``: a token written in the tag;
 - ``signing_client_id`` and ``signing_client_secret``: the Keycloak client of the site in
-  the realm ``signing_issuer`` (default ``SIGNING_ISSUER``); the site asks the token with
-  the client credentials and asks it again before it expires;
+  the realm ``signing_issuer``, mandatory with them (the URL of the realm, for example
+  ``https://auth.example.org/realms/signer``); the site asks the token with the client
+  credentials and asks it again before it expires, or when the signing service refuses it;
 - the package ``keycloak`` of the instance, when the instance loads it.
 
 Without ``max_users`` the number of users is not limited. A site without the tag gives no
@@ -40,7 +42,6 @@ import requests
 CONFIG_TAG = 'genroapp'
 MANDATORY_ATTRIBUTES = ('name', 'signing_url', 'duration_days')
 KEYCLOAK_PACKAGE = 'keycloak'
-SIGNING_ISSUER = 'https://auth.gpkube.genro.dev/realms/genroapp-signer'
 TOKEN_PATH = '/protocol/openid-connect/token'
 TOKEN_RENEW_MARGIN = 30
 SIGNING_TIMEOUT = 20
@@ -67,6 +68,10 @@ class ConnectorSigningError(ConnectorError):
     status = 502
 
 
+class ConnectorTokenRefused(ConnectorSigningError):
+    """The signing service refused the token of the site (401): a kept token is dropped."""
+
+
 def site_user(db, user_id):
     """True when ``user_id`` is a row of ``adm.user``. GenroApp is only for these users: a
     user of ``xml_auth`` has its username as ``user_id`` and no row, so connectors, devices
@@ -88,11 +93,13 @@ def connector_config(application):
                   signing_token=attributes.get('signing_token'),
                   signing_client_id=attributes.get('signing_client_id'),
                   signing_client_secret=attributes.get('signing_client_secret'),
-                  signing_issuer=(attributes.get('signing_issuer') or SIGNING_ISSUER).rstrip('/'),
+                  signing_issuer=(attributes.get('signing_issuer') or '').rstrip('/') or None,
                   duration_days=int(attributes['duration_days']),
                   capabilities=[c.strip() for c in (attributes.get('capabilities') or '').split(',') if c.strip()],
                   lock_minutes_max=None,
                   max_users=None)
+    if config['signing_client_id'] and not config['signing_issuer']:
+        raise ValueError(f'<{CONFIG_TAG}> in instanceconfig has signing_client_id and no signing_issuer')
     for name in ('lock_minutes_max', 'max_users'):
         if attributes.get(name):
             config[name] = int(attributes[name])
@@ -132,10 +139,21 @@ def client_token(application, config):
             raise ConnectorSigningError(f'The token service is not reachable: {type(e).__name__}')
         if response.status_code != 200:
             raise ConnectorSigningError(f'The token service answered {response.status_code}')
-        answer = response.json()
-        token, expiry = answer['access_token'], time.time() + answer['expires_in']
+        try:
+            answer = response.json()
+            token, expiry = answer['access_token'], time.time() + float(answer['expires_in'])
+            if not isinstance(token, str) or not token:
+                raise ValueError('empty access token')
+        except (ValueError, KeyError, TypeError):
+            raise ConnectorSigningError('The token service did not answer an access token')
         tokens[key] = (token, expiry)
     return token
+
+
+def forget_client_token(application, config):
+    """Drop the kept token of the Keycloak client of ``config``: the next request asks a new one."""
+    tokens = application.__dict__.get('genroapp_signing_tokens') or {}
+    tokens.pop((config['signing_issuer'], config['signing_client_id']), None)
 
 
 def signing_request(config, url, user):
@@ -158,6 +176,8 @@ def sign_connector(config, token, url, user):
                                  headers={'Authorization': f'Bearer {token}'}, timeout=SIGNING_TIMEOUT)
     except requests.RequestException as e:
         raise ConnectorSigningError(f'The signing service is not reachable: {type(e).__name__}')
+    if response.status_code == 401:
+        raise ConnectorTokenRefused('The signing service refused the token of the site')
     if response.status_code != 200:
         raise ConnectorSigningError(f'The signing service answered {response.status_code}')
     try:
