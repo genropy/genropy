@@ -720,6 +720,10 @@
     outline-offset: 1px;
 }
 
+.grouplet_grid_row.grouplet_grid_row--promoted {
+    animation: none;
+}
+
 @keyframes ggRowFadeIn {
     from { opacity: 0; transform: translateY(-4px); }
     to   { opacity: 1; transform: none; }

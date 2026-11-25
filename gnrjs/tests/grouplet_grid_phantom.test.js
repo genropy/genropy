@@ -111,6 +111,28 @@ test('the first value entered turns the blank row into a stored row', async () =
     assert.equal(s.lines.getItem('r_k2.item'), 'Bread');
 });
 
+test('the promoted row appears in place, without flash; only the new blank row fades in', async () => {
+    const s = createGrid();
+    const fakeDom = () => {
+        const dom = {classes: new Set(), animations: []};
+        dom.classList = {add: c => dom.classes.add(c), remove: c => dom.classes.delete(c)};
+        dom.animate = (frames, opts) => dom.animations.push([frames, opts]);
+        return dom;
+    };
+    s.phantom().setItem('item', 'Milk');
+    await tick();
+    assert.equal(s.controller._pendingPromoted, 'r_k1');
+    assert.equal((s.controller._pendingFlash || {}).r_k1, undefined);
+    const blank = fakeDom();
+    s.controller.phantomTile = {domNode: () => blank};
+    const row = fakeDom();
+    s.controller._settlePromoted({domNode: () => row});
+    assert.ok(row.classes.has('grouplet_grid_row--promoted'));
+    assert.equal(row.animations.length, 0);
+    assert.equal(blank.animations.length, 1);
+    assert.deepEqual(JSON.parse(JSON.stringify(blank.animations[0][0])), [{opacity: 0}, {opacity: 1}]);
+});
+
 test('an emptied cell is not an entry, a changed default is', async () => {
     const s = createGrid({defaultRow: {qty: 1, bought: true}});
     s.phantom().setItem('qty', null);

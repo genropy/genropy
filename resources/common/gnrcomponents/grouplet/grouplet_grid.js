@@ -2712,6 +2712,10 @@ gnr.GroupletGridController = class GroupletGridController {
                 this._setActiveTabClasses(this.activePkey);
             }
         }
+        if (this._pendingPromoted === pkey) {
+            this._pendingPromoted = null;
+            this._settlePromoted(tile);
+        }
         // _pendingFlash is set by _doMoveTile* before the Bag mutation
         // so the just-landed tile can flash on first paint.
         if (this._pendingFlash && this._pendingFlash[pkey]) {
@@ -3150,10 +3154,22 @@ gnr.GroupletGridController = class GroupletGridController {
             this._pendingFocusEditor = editorIndex;
         }
         this._freshRows[newKey] = objectUpdate({}, (this._blankDefaults || {})[this.phantomPath] || {});
-        this._pendingFlash = this._pendingFlash || {};
-        this._pendingFlash[newKey] = true;
+        this._pendingPromoted = newKey;
         this._resetPhantom();
         this.dataStore.addRow(newKey, values);
+    }
+
+    _settlePromoted(tile) {
+        // The row the user is typing in takes the blank row's place under
+        // the caret: it appears as it is, and only the new blank row below
+        // fades in.
+        const dom = tile.domNode();
+        if (dom) dom.classList.add('grouplet_grid_row--promoted');
+        const blank = this.phantomTile && this.phantomTile.domNode();
+        if (blank && gnr.GroupletCard.animates(blank)) {
+            blank.animate([{opacity: 0}, {opacity: 1}],
+                          {duration: gnr.GroupletGridDnD.SLIDE_MS, easing: 'ease-out'});
+        }
     }
 
     _dropIfEmpty(pkey) {
