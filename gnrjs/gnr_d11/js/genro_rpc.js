@@ -658,6 +658,9 @@ dojo.declare("gnr.GnrRpcHandler", null, {
         }
         var runningBatch = envelope.getItem('runningBatch');
         genro.dom.setClass(dojo.body(),'runningBatch',runningBatch);
+        if(ioArgs.args.isPing && !genro.root_page_id){
+            genro.dlg.shutdownNotice(envelope.getItem('shutdown'));
+        }
         var error = envelope.getItem('error');
         if (!error) {
             var locStatus = envelope.getItem('_localizerStatus');
@@ -828,6 +831,7 @@ dojo.declare("gnr.GnrRpcHandler", null, {
         var kw = kw || {reason:null};
         genro.rpc.setPollingStatus(true);
         var xhrKwargs = {'handleAs':'xml',
+            'isPing':true,
             'url' :document.location.protocol+ '//' + document.location.host + genro.baseUrl + '_ping',
             'timeout': 10000,
             'load': dojo.hitch(this, function(response, ioArgs) {

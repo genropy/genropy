@@ -24,20 +24,40 @@ from test_login_device import ORIGIN, _Key, _page
 SIGNING_URL = 'https://signing.test/signing/genroapp/connectors/sign'
 SITE_URL = ORIGIN + '/'
 BODY = dict(name='Test site', url=SITE_URL, user='cn_alice', duration_days=30)
+ISSUER = 'https://auth.test/realms/signer'
+TOKEN_URL = ISSUER + gnrgenroapp.TOKEN_PATH
+CLIENT = dict(signing_token=None, signing_issuer=ISSUER, signing_client_id='site-test',
+              signing_client_secret='site-secret')
 TAG = dict(name='Test site', signing_url=SIGNING_URL, signing_token='tag-token', duration_days='30')
 
 
 class FakeSigner(object):
     """``requests.post`` of the signing service: it adds ``connector_id`` and ``expires``
-    to the fields it receives and answers ``{payload, signature}``."""
+    to the fields it receives and answers ``{payload, signature}``. A post to TOKEN_URL is
+    the Keycloak token endpoint (any realm): it is recorded in ``token_calls`` and
+    ``token_urls`` and answers a new token."""
 
     def __init__(self):
         self.calls = []
+        self.token_calls = []
+        self.token_urls = []
+        self.token_status = 200
+        self.token_seconds = 300
+        self.token_error = None
+        self.token_answer = None
         self.status_code = 200
         self.error = None
         self.answer = None
 
-    def post(self, url, json=None, headers=None, timeout=None):
+    def post(self, url, json=None, headers=None, timeout=None, data=None):
+        if url.endswith(gnrgenroapp.TOKEN_PATH):
+            self.token_urls.append(url)
+            self.token_calls.append(data)
+            if self.token_error:
+                raise self.token_error
+            token = f'client-token-{len(self.token_calls)}'
+            answer = self.token_answer or dict(access_token=token, expires_in=self.token_seconds)
+            return types.SimpleNamespace(status_code=self.token_status, json=lambda: answer)
         self.calls.append(dict(url=url, body=json, headers=headers))
         if self.error:
             raise self.error
@@ -158,6 +178,8 @@ def test_an_instance_without_the_tag_has_no_connector_data(application):
 def test_the_tag_exposes_its_values(tag):
     config = tag(capabilities='signature, printers', lock_minutes_max='30', max_users='10')
     assert config == dict(name='Test site', signing_url=SIGNING_URL, signing_token='tag-token',
+                          signing_client_id=None, signing_client_secret=None,
+                          signing_issuer=None,
                           duration_days=30, capabilities=['signature', 'printers'],
                           lock_minutes_max=30, max_users=10)
 
@@ -217,6 +239,85 @@ def test_the_token_of_the_tag_wins_over_the_keycloak_package(application, tag, s
         _connector(application, tag(), 'cn_alice')
     finally:
         application.packages.popNode('keycloak')
+    assert signer.calls[0]['headers'] == {'Authorization': 'Bearer tag-token'}
+
+
+@pytest.fixture
+def no_client_tokens(application):
+    application.__dict__.pop('genroapp_signing_tokens', None)
+    yield
+    application.__dict__.pop('genroapp_signing_tokens', None)
+
+
+def test_the_client_of_the_site_asks_the_token_with_its_credentials(application, tag, signer, no_client_tokens):
+    _connector(application, tag(**CLIENT), 'cn_alice')
+    assert signer.token_urls == [TOKEN_URL]
+    assert signer.token_calls == [dict(grant_type='client_credentials', client_id='site-test',
+                                       client_secret='site-secret')]
+    assert signer.calls[0]['headers'] == {'Authorization': 'Bearer client-token-1'}
+
+
+def test_the_client_token_is_kept_until_it_is_about_to_expire(application, tag, signer, no_client_tokens):
+    config = tag(**CLIENT)
+    _connector(application, config, 'cn_alice')
+    _connector(application, config, 'cn_bob')
+    assert len(signer.token_calls) == 1
+    signer.token_seconds = gnrgenroapp.TOKEN_RENEW_MARGIN
+    application.__dict__.pop('genroapp_signing_tokens')
+    _connector(application, config, 'cn_alice')
+    _connector(application, config, 'cn_bob')
+    assert len(signer.token_calls) == 3
+    assert signer.calls[-1]['headers'] == {'Authorization': 'Bearer client-token-3'}
+
+
+def test_the_issuer_of_the_tag_names_the_token_endpoint(application, tag, signer, no_client_tokens):
+    config = tag(**dict(CLIENT, signing_issuer='https://auth.test/realms/other/'))
+    _connector(application, config, 'cn_alice')
+    assert signer.token_urls == ['https://auth.test/realms/other/protocol/openid-connect/token']
+
+
+def test_a_client_without_an_issuer_is_an_error(tag):
+    with pytest.raises(ValueError, match='signing_issuer'):
+        tag(**dict(CLIENT, signing_issuer=None))
+
+
+def test_an_unreachable_token_service_gives_no_connector(application, tag, signer, no_client_tokens):
+    signer.token_error = requests.ConnectionError('down')
+    with pytest.raises(gnrgenroapp.ConnectorSigningError, match='token service is not reachable'):
+        _connector(application, tag(**CLIENT), 'cn_alice')
+    assert not signer.calls
+
+
+@pytest.mark.parametrize('answer', ['not json', dict(expires_in=300), dict(access_token='', expires_in=300),
+                                    dict(access_token='t')])
+def test_a_token_answer_that_is_not_a_token_gives_no_connector(application, tag, signer, no_client_tokens, answer):
+    signer.token_answer = answer
+    with pytest.raises(gnrgenroapp.ConnectorSigningError, match='did not answer an access token'):
+        _connector(application, tag(**CLIENT), 'cn_alice')
+    assert not signer.calls
+
+
+def test_a_token_the_signing_service_refuses_is_asked_again(application, tag, signer, no_client_tokens):
+    config = tag(**CLIENT)
+    signer.status_code = 401
+    with pytest.raises(gnrgenroapp.ConnectorTokenRefused):
+        _connector(application, config, 'cn_alice')
+    signer.status_code = 200
+    _connector(application, config, 'cn_alice')
+    assert len(signer.token_calls) == 2
+    assert signer.calls[-1]['headers'] == {'Authorization': 'Bearer client-token-2'}
+
+
+def test_a_refused_client_gives_no_connector(application, tag, signer, no_client_tokens):
+    signer.token_status = 401
+    with pytest.raises(gnrgenroapp.ConnectorSigningError, match='token service answered 401'):
+        _connector(application, tag(**CLIENT), 'cn_alice')
+    assert not signer.calls
+
+
+def test_the_token_of_the_tag_wins_over_the_client(application, tag, signer, no_client_tokens):
+    _connector(application, tag(**dict(CLIENT, signing_token='tag-token')), 'cn_alice')
+    assert not signer.token_calls
     assert signer.calls[0]['headers'] == {'Authorization': 'Bearer tag-token'}
 
 
