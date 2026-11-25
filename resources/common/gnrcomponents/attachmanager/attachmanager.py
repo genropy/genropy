@@ -153,7 +153,10 @@ class AttachGalleryView(AttachManagerViewBase):
 class Form(BaseComponent):
     
     def th_form(self, form):
-        bc = form.center.borderContainer(datapath='.record')
+        if form.attributes.pop('atcZoomBar',None):
+            bc = self._atc_zoomStage(form.center)
+        else:
+            bc = form.center.borderContainer(datapath='.record')
         metahandler = self.atc_metadata if hasattr(self,'atc_metadata') else self._th_hook('atc_metadata',mangler=form) 
         if metahandler:
             metahandler(bc)
@@ -198,6 +201,19 @@ class Form(BaseComponent):
         parent.dataController("sc.switchPage(newrecord?1:0)",
                             newrecord='^#FORM.controller.is_newrecord',
                             sc=sc.js_widget)
+
+    def _atc_zoomStage(self,pane):
+        stage = pane.borderContainer().contentPane(region='center',overflow='hidden',
+                                                   _class='atc_form_stage')
+        viewer = stage.borderContainer(position='absolute',top=0,left=0,right=0,bottom=0,
+                                       datapath='.record')
+        zoombar = stage.div(_class='atc_form_zoombar',hidden='^#FORM.viewerMode?=#v!="image"')
+        zoombar.div('−',_class='atc_form_zoomstep',connect_onclick='AttachManager.zoomStep(this,-1);')
+        zoombar.div('^#FORM.chips.zoomLabel',_class='atc_form_zoomlabel',
+                    connect_onclick='AttachManager.zoomStep(this,0);')
+        zoombar.div('+',_class='atc_form_zoomstep',connect_onclick='AttachManager.zoomStep(this,1);')
+        stage.dataController("AttachManager.zoomStep(this,0);",_fired='^#FORM.controller.loaded')
+        return viewer
         
     def th_options(self):
         return dict(showtoolbar=False,showfooter=False,autoSave=True)
@@ -250,19 +266,10 @@ class FormChips(Form):
                                  tip='!!External url').tooltipPane().div(
                     padding='10px').formbuilder(cols=1,border_spacing='3px',datapath='#FORM.record')
         fb.textbox(value='^.external_url',lbl='!!External url')
-        bc = form.center.borderContainer()
-        stage = bc.contentPane(region='center',overflow='hidden',_class='atc_form_stage')
-        viewer = stage.borderContainer(position='absolute',top=0,left=0,right=0,bottom=0,
-                                       datapath='.record')
-        self._atc_viewerStack(viewer,region='center',attachment_table=form.attributes['table'],
+        self._atc_viewerStack(self._atc_zoomStage(form.center),region='center',
+                              attachment_table=form.attributes['table'],
                               frameCode=form.attributes['frameCode'],
                               imageOnClick='AttachManager.zoomStep(this,this.getRelativeData("#FORM.currentPreviewZoom")?0:1);')
-        zoombar = stage.div(_class='atc_form_zoombar',hidden='^#FORM.viewerMode?=#v!="image"')
-        zoombar.div('−',_class='atc_form_zoomstep',connect_onclick='AttachManager.zoomStep(this,-1);')
-        zoombar.div('^#FORM.chips.zoomLabel',_class='atc_form_zoomlabel',
-                    connect_onclick='AttachManager.zoomStep(this,0);')
-        zoombar.div('+',_class='atc_form_zoomstep',connect_onclick='AttachManager.zoomStep(this,1);')
-        form.dataController("AttachManager.zoomStep(this,0);",_fired='^#FORM.controller.loaded')
 
     def th_options(self):
         return dict(modal='navigation',modal_dismissTitle='!![en]Back',autoSave='onLeave',showfooter=False,
@@ -625,9 +632,9 @@ class AttachManager(BaseComponent):
             else:
                 store_kwargs['default_maintable_id'] = '=#FORM/parent/#FORM.pkey'
         frame = pane.multiButtonForm(frameCode='attachmentPane_#',datapath=datapath,
-                            caption='description',parentForm=parentForm,
+                            caption='description',parentForm=parentForm,multibutton_minimal=True,
                             multibutton_itemsMaxWidth=itemsMaxWidth,
-                            form_askMetadata=ask,
+                            form_askMetadata=ask,form_atcZoomBar=True,
                             formResource= formResource or 'gnrcomponents/attachmanager/attachmanager:Form',
                             multibutton_deleteAction="""
                                 if(this.form && this.form.isDisabled()){
@@ -649,21 +656,19 @@ class AttachManager(BaseComponent):
                 _flock='^#FORM.controller.locked')
         table = frame.multiButtonView.itemsStore.attributes['table']
         frame.form.store.handler("load", virtual_columns='$full_external_url')
-        bar = getattr(frame,toolbarPosition).bar.replaceSlots('#','2,mbslot,15,changeName,15,copyUrl,*,previewZoom,externalUrl,2')
-        bar.previewZoom.horizontalSlider(value='^.form.currentPreviewZoom', minimum=0, maximum=1,
-                                        hidden='^.form.viewerMode?=#v!="image"',
-                                        intermediateChanges=True, width='15em',default_value=0)
-        fb = bar.changeName.div(_class='iconbox tag',hidden='^.form.controller.is_newrecord',tip='!!Change description').tooltipPane(
+        bar = getattr(frame,toolbarPosition).bar.replaceSlots('#','2,mbslot,10,changeName,6,copyUrl,6,externalUrl,*')
+        fb = bar.changeName.div(_class='atc_bar_btn atc_bar_edit',hidden='^.form.controller.is_newrecord',
+                                tip='!!Change description').tooltipPane(
                 connect_onClose='FIRE .saveDescription;',
-            ).div(padding='10px').formbuilder(cols=1,border_spacing='3px',datapath='.form.record')
+            ).formlet(cols=1,width='22em',datapath='.form.record')
         fb.textbox(value='^.description',lbl='!!Description')
-        bar.copyUrl.lightbutton(_class='iconbox copy', hidden='^.form.controller.is_newrecord',tip='!!Copy attachment url',
-                    action="""console.log(full_external_url);genro.textToClipboard(full_external_url,_T('!![en]Copy and paste attachment url'));""",
+        bar.copyUrl.lightbutton(_class='atc_bar_btn atc_bar_copy', hidden='^.form.controller.is_newrecord',tip='!!Copy attachment url',
+                    action="""genro.textToClipboard(full_external_url,_T('!![en]Copy and paste attachment url'));""",
                     full_external_url='^.form.record.full_external_url')
         frame.parametersForm = fb
-        fb = bar.externalUrl.div(_class='iconbox globe',hidden='^.form.controller.filepath',tip='!!External url').tooltipPane(
+        fb = bar.externalUrl.div(_class='atc_bar_btn atc_bar_url',hidden='^.form.controller.filepath',tip='!!External url').tooltipPane(
                 connect_onClose='FIRE .saveDescription;',
-            ).div(padding='10px').formbuilder(cols=1,border_spacing='3px')
+            ).formlet(cols=1,width='30em')
         fb.textbox(value='^.form.record.external_url',lbl='!!External url')
         # FIXME: the delay has a an arbitrary value
         frame.dataController("""

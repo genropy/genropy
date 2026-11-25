@@ -190,7 +190,7 @@
     text-overflow: ellipsis;
     max-width: 50vw;
 }
-.atc_form_btn{
+.atc_form_btn,.atc_bar_btn{
     width: 1.3em;
     height: 1.3em;
     margin: 0 .35em;
@@ -199,8 +199,25 @@
     -webkit-mask: no-repeat center / contain;
     mask: no-repeat center / contain;
 }
-.atc_form_btn:hover{
+.atc_form_btn:hover,.atc_bar_btn:hover{
     background-color: var(--text-color, #333);
+}
+.atc_bar_btn{
+    width: 1em;
+    height: 1em;
+    margin: 0;
+}
+.atc_bar_edit{
+    -webkit-mask-image: var(--icon-edit);
+    mask-image: var(--icon-edit);
+}
+.atc_bar_copy{
+    -webkit-mask-image: var(--icon-link);
+    mask-image: var(--icon-link);
+}
+.atc_bar_url{
+    -webkit-mask-image: url('/_rsrc/common/css_icons/google_icons/language.svg');
+    mask-image: url('/_rsrc/common/css_icons/google_icons/language.svg');
 }
 .atc_form_download{
     -webkit-mask-image: var(--icon-download-file);
@@ -209,8 +226,10 @@
 .atc_form_stage{
     background: var(--surface-light, #f6f6f6);
 }
+/* a fixed track: an auto row grows to the image and max-height:100% would never fit it */
 .atc_form_stage :has(> img){
     display: grid;
+    grid-template: 100% / 100%;
     place-items: safe center;
 }
 .atc_form_zoombar{
