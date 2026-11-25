@@ -3,6 +3,7 @@ import threading
 import logging
 import traceback
 import time
+from datetime import datetime
 
 import pytest
 
@@ -271,3 +272,39 @@ def test_cached_db_service_keeps_freshness_check(service_type):
     assert service_type('one') is service
     # db-configured service: the register is read on every call
     assert service_type.site.register.global_store.getitem_calls == 2
+
+
+def test_unresolved_db_service_keeps_freshness_check(service_type):
+    service_type.site.register = FakeRegister()
+    service_type.getServiceConfigurationFromDb = lambda service_name: {'implementation': 'misspelled'}
+    service = service_type('one')
+    assert isinstance(service, GnrUnresolvedService)
+    assert service._config_from_db is True
+    assert service_type('one') is service
+    # a placeholder built from sys.service: the register is read on every call
+    assert service_type.site.register.global_store.getitem_calls == 2
+
+
+def test_unresolved_non_db_service_skips_register(service_type):
+    service_type.site.register = FakeRegister()
+    service = service_type('one', implementation='misspelled')
+    assert isinstance(service, GnrUnresolvedService)
+    assert service._config_from_db is False
+    assert service_type('one') is service
+    assert service_type.site.register.global_store.getitem_calls == 1
+
+
+def test_fixed_db_record_replaces_unresolved_service(service_type):
+    service_type.site.register = FakeRegister()
+    db_conf = {'implementation': 'misspelled'}
+    service_type.getServiceConfigurationFromDb = lambda service_name: dict(db_conf)
+    placeholder = service_type('one')
+    assert isinstance(placeholder, GnrUnresolvedService)
+    # the sys.service record is fixed: its trigger writes a newer timestamp
+    db_conf['implementation'] = 'alpha'
+    changed_ts = datetime.now()
+    service_type.site.register.global_store.getItem = lambda key: changed_ts
+    service = service_type('one')
+    assert not isinstance(service, GnrUnresolvedService)
+    assert service.service_implementation == 'alpha'
+    assert service._config_from_db is True

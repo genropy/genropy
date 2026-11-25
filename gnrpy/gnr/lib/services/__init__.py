@@ -103,7 +103,8 @@ class BaseServiceType(object):
         implementation = service_conf.pop('implementation',None) or service_conf.pop('resource',None) #resource is the oldname for implementation
         service_factory = self.getServiceFactory(implementation)
         if service_factory is None:
-            return self._addUnresolvedService(implementation, service_name)
+            return self._addUnresolvedService(implementation, service_name,
+                                              config_from_db=db_conf is not None)
         service_conf = self.filterServiceConf(service_factory, service_conf or {},
                                               service_name=service_name, implementation=implementation)
         service = service_factory(self.site, **service_conf)
