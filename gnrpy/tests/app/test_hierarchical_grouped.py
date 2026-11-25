@@ -9,6 +9,12 @@ no caption_field, so its group label falls back to the region pkey.
 import os
 import shutil
 import sqlite3
+from types import SimpleNamespace
+
+import pytest
+
+from gnr.core.gnrbag import Bag
+from gnr.sql.gnrsqltable import GnrSqlStandardException
 
 from core.common import BaseGnrTest
 
@@ -147,3 +153,94 @@ class TestDbstore:
                                                                 dbstore='hgrouped_b'))}
         assert dropped in main_regions
         assert store_regions == main_regions - {dropped}
+
+
+RESTRICTED = 'hg_restricted'
+NO_REGION = 'hg_no_region'
+ALLOWED = 'hg_allowed'
+
+
+def _forbid(db, user_group, table, *columns):
+    data = Bag()
+    for colname in columns:
+        data.setItem('cols_permission.%s' % colname, None, forbidden=True)
+    db.table('adm.user_config').insert(dict(user_group=user_group, username=None, pkgid=None,
+                                            tblid=table, data=data))
+
+
+@pytest.fixture(scope='module')
+def perm_db(db_sqlite):
+    db = db_sqlite
+    for code in (RESTRICTED, NO_REGION, ALLOWED):
+        db.table('adm.group').insert(dict(code=code, description=code))
+    _forbid(db, RESTRICTED, 'invc.state', 'name')
+    _forbid(db, RESTRICTED, 'invc.region', 'name')
+    _forbid(db, NO_REGION, 'invc.state', 'region_code')
+    db.commit()
+    return db
+
+
+def _as_group(db, monkeypatch, user_group, **kwargs):
+    page = SimpleNamespace(db=db, permissionPars=dict(user=None, user_group=user_group))
+    monkeypatch.setattr(db.application, 'site', SimpleNamespace(currentPage=page), raising=False)
+    return db.table('invc.state').getHierarchicalData(**kwargs)
+
+
+def _values(bag):
+    found = set()
+
+    def collect(node):
+        found.update(v for v in node.attr.values() if isinstance(v, str))
+    bag.walk(collect)
+    return found
+
+
+def _names(db):
+    rows = db.table('invc.state').query(columns='$code,$name,$region_code,@region_code.name AS region_name').fetch()
+    names = {r['name'] for r in rows} | {r['region_name'] for r in rows}
+    return names - {r['code'] for r in rows} - {r['region_code'] for r in rows}
+
+
+class TestPermittedProjection:
+
+    def test_restricted_user_gets_no_forbidden_value(self, perm_db, monkeypatch):
+        result = _as_group(perm_db, monkeypatch, RESTRICTED, hierarchical='$region_code',
+                           columns='$name,@region_code.name AS region_name')
+        for leaf in _leaves(_root(result)).values():
+            assert set(leaf.attr) == LEAF_ATTRS
+        assert not _values(_root(result)) & _names(perm_db)
+
+    def test_allowed_user_gets_the_requested_columns(self, perm_db, monkeypatch):
+        result = _as_group(perm_db, monkeypatch, ALLOWED, hierarchical='$region_code',
+                           columns='$name,@region_code.name AS region_name')
+        for leaf in _leaves(_root(result)).values():
+            assert set(leaf.attr) == LEAF_ATTRS | {'name', 'region_name'}
+
+    @pytest.mark.parametrize('kwargs', [
+        dict(hierarchical='$region_code', caption_field='name'),
+        dict(hierarchical='$region_code', caption_field='@region_code.name'),
+        dict(hierarchical='@region_code.name'),
+    ])
+    def test_forbidden_caption_or_group_is_refused(self, perm_db, monkeypatch, kwargs):
+        with pytest.raises(GnrSqlStandardException):
+            _as_group(perm_db, monkeypatch, RESTRICTED, **kwargs)
+        result = _as_group(perm_db, monkeypatch, ALLOWED, **kwargs)
+        assert _values(_root(result)) & _names(perm_db)
+
+    def test_a_forbidden_relation_hides_what_lies_beyond_it(self, perm_db, monkeypatch):
+        result = _as_group(perm_db, monkeypatch, NO_REGION, hierarchical='$code',
+                           columns='@region_code.name AS region_name')
+        for leaf in _leaves(_root(result)).values():
+            assert set(leaf.attr) == LEAF_ATTRS
+        with pytest.raises(GnrSqlStandardException):
+            _as_group(perm_db, monkeypatch, NO_REGION, hierarchical='@region_code.name')
+
+    @pytest.mark.parametrize('kwargs', [
+        dict(hierarchical='$region_code', columns='*'),
+        dict(hierarchical='$region_code', columns="$code || $name AS label"),
+        dict(hierarchical='$region_code', caption_field="upper($name)"),
+        dict(hierarchical="coalesce($region_code,'')"),
+    ])
+    def test_expressions_are_refused(self, perm_db, monkeypatch, kwargs):
+        with pytest.raises(GnrSqlStandardException):
+            _as_group(perm_db, monkeypatch, ALLOWED, **kwargs)

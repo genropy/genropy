@@ -5899,7 +5899,7 @@ dojo.declare("gnr.widgets.HierarchicalSelect", gnr.widgets.gnrwdg, {
         var select;
         if(table){
             pars.rpc_kw = this.rpcKwargs(kw,hierarchical,caption_field,selected_kw);
-            if(kw._storename){
+            if('_storename' in kw){
                 pars.rpc_kw.dbstore = kw._storename;
             }
             if(!hierarchical && !folderSelectable){

@@ -23,6 +23,9 @@ from gnr.app.gnrsqltable_proxy.selection import SelectionProxy
 
 mimetypes.init() # Required for python 2.6 (fixes a multithread bug)
 
+HDATA_FIELD = re.compile(r'^\$?(@\w+\.)*\w+$')
+HDATA_COLUMN = re.compile(r'^(\$?(?:@\w+\.)*\w+)(?:\s+AS\s+\w+)?$',re.IGNORECASE)
+
 
 def _add_localized_prefix(label, prefix):
     """Add a prefix to a localized label preserving the localization markers.
@@ -836,14 +839,21 @@ class TableBase(object):
 
     def _hdata_grouped(self,hierarchical,caption_field=None,condition=None,caption=None,
                        dbstore=None,columns=None,**kwargs):
+        permissionPars = getattr(self.db.currentPage,'permissionPars',None)
         caption_field = caption_field or self.attributes.get('caption_field') or self.pkey
-        caption_expr = caption_field if caption_field[0] in '$@' else '$%s' %caption_field
-        querycols = [columns] if columns else []
+        caption_expr = self._hdata_allowed_field(caption_field,permissionPars)
+        querycols = []
+        for col in splitAndStrip(columns,',') if columns else []:
+            match = HDATA_COLUMN.match(col)
+            if not match:
+                raise self.exception('standard',msg='Not a field: %s' %col)
+            if self._hdata_permitted(match.group(1),permissionPars):
+                querycols.append(col)
         querycols.append('%s AS _h_caption' %caption_expr)
         order_by = []
         levels = hierarchical.split(',')
         for i,field in enumerate(levels):
-            field = field.strip()
+            field = self._hdata_allowed_field(field,permissionPars)
             querycols.append('%s AS _h_%i' %(field,i))
             label_field = field
             related_tbl = self.column(field.lstrip('$')).relatedTable()
@@ -851,7 +861,7 @@ class TableBase(object):
                 parts = field.lstrip('$').split('.')
                 parts[-1] = '@%s' %parts[-1]
                 related_caption = related_tbl.attributes.get('caption_field') or related_tbl.pkey
-                label_field = '.'.join(parts+[related_caption])
+                label_field = self._hdata_allowed_field('.'.join(parts+[related_caption]),permissionPars)
             querycols.append('%s AS _h_label_%i' %(label_field,i))
             order_by.append(label_field)
         order_by.append(caption_expr)
@@ -886,6 +896,24 @@ class TableBase(object):
         result.setItem('root',root,caption=caption or self.name_plural,child_count=1,pkey='',
                        treeIdentifier='_root_')
         return result
+
+    def _hdata_permitted(self,field,permissionPars):
+        parts = field.lstrip('$').split('.')
+        for i in range(len(parts)):
+            col = self.column('.'.join(parts[:i]+[parts[i].lstrip('@')]))
+            if col is None:
+                return False
+            if permissionPars and col.getPermissions(**permissionPars).get('user_forbidden'):
+                return False
+        return True
+
+    def _hdata_allowed_field(self,field,permissionPars):
+        field = field.strip()
+        if not HDATA_FIELD.match(field):
+            raise self.exception('standard',msg='Not a field: %s' %field)
+        if not self._hdata_permitted(field,permissionPars):
+            raise self.exception('standard',msg='Field not allowed: %s' %field)
+        return field if field[0] in '$@' else '$%s' %field
 
     @public_method
     def hierarchicalSearch(self,seed=None,related_table=None,**kwargs):

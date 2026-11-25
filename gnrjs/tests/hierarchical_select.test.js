@@ -91,6 +91,14 @@ test('the tree reads the store of the inner dbSelect and reloads when it changes
     assert.deepEqual(calls.map(c => c.params.dbstore), ['store_a', 'store_b']);
 });
 
+test('an explicit false store reaches the tree as the root store', () => {
+    const {calls, built, open} = buildOnTable({table: 'adm.user', hierarchical: '$group_code',
+                                               _storename: false}, {});
+    assert.equal(built.dbSelect._storename, false);
+    open();
+    assert.equal(calls[0].params.dbstore, false);
+});
+
 test('values whose names differ only by a dot or an underscore stay apart', () => {
     const {context, handler} = createContext();
     const values = new context.gnr.GnrBag();
