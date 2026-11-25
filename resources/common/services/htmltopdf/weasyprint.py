@@ -6,7 +6,8 @@ import os
 import subprocess
 import tempfile
 import threading
-from weasyprint import CSS, HTML
+from urllib.parse import urlsplit
+from weasyprint import CSS, HTML, default_url_fetcher
 
 from gnr.lib.services.htmltopdf import HtmlToPdfService
 
@@ -46,6 +47,15 @@ def warn_narrow_font_fallback():
 
 
 class Service(HtmlToPdfService):
+    def urlFetcher(self, url, **kwargs):
+        """Reads the resources the site serves itself from their storage instead of
+           requesting them to its public host"""
+        node = self.parent.storageNodeFromUrl(url) if urlsplit(url).scheme in ('http', 'https') else None
+        if node is None or not node.exists:
+            return default_url_fetcher(url, **kwargs)
+        with node.open('rb') as f:
+            return dict(string=f.read(), mime_type=node.mimetype, redirected_url=url)
+
     def writePdf(self,srcPath, destPath,pageSize=None,pageMargin=None,stylesheets=None,
                 pdf_kwargs=None, **kwargs):
 
@@ -57,7 +67,7 @@ class Service(HtmlToPdfService):
         if destPath is None:
             tmp = tempfile.NamedTemporaryFile(prefix='temp', suffix='.pdf',delete=False)
             with srcPath.local_path() as in_path:
-                html_doc = HTML(in_path,base_url='.')
+                html_doc = HTML(in_path,base_url='.',url_fetcher=self.urlFetcher)
                 html_doc.write_pdf(target=tmp,stylesheets=stylesheets,presentational_hints=True)
             tmp.seek(0)
             return tmp
@@ -66,6 +76,6 @@ class Service(HtmlToPdfService):
             baseName = os.path.splitext(srcPath.basename)[0]
             destPath = destPath.child(f'{baseName}.pdf')
         with srcPath.local_path() as in_path, destPath.local_path() as out_path:
-            html_doc = HTML(in_path,base_url='.')
+            html_doc = HTML(in_path,base_url='.',url_fetcher=self.urlFetcher)
             html_doc.write_pdf(target=out_path,stylesheets=stylesheets,presentational_hints=True)
         return destPath.fullpath.replace('_raw_:', '')

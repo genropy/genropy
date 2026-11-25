@@ -873,6 +873,23 @@ class GnrWsgiSite(object):
             return None
         return node
 
+    def storageNodeFromUrl(self, url):
+        """Returns the storageNode this site serves at url, None for urls of other hosts,
+           of private storages or not served from a storage"""
+        external_host = self.external_host
+        if not url.startswith(f'{external_host}/'):
+            return None
+        path_list = self.pathListFromUrl(url[len(external_host):])
+        if path_list and not self.storageType(path_list):
+            # the dbstore or domain segment
+            path_list = path_list[1:]
+        if not path_list or not self.storageType(path_list):
+            return None
+        node = self.storageNodeFromPathList(path_list)
+        if node is None or self.storage_handler.isPrivateStorage(node.service.service_name):
+            return None
+        return node
+
     def storageDispatcher(self,path_list,environ,start_response,storageType=None,**kwargs):
         storageNode = self.storageNodeFromPathList(path_list, storageType)
         if storageNode is None or self.storage_handler.isPrivateStorage(storageNode.service.service_name):

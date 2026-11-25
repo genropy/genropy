@@ -226,12 +226,12 @@ def test_page_margins_defined_reset_on_rerun_without_letterhead():
 
 # --- weasyprint integration --------------------------------------------------
 
-def marker_origin(tmp_path, html, **write_kwargs):
+def marker_origin(tmp_path, html, site=None, **write_kwargs):
     """Render html through the real weasyprint service and return the
     (x0, y0) position in points of the MARKER text on the first page."""
     pytest.importorskip('weasyprint')
     fitz = pytest.importorskip('fitz')
-    site = make_pdf_site(tmp_path)
+    site = site or make_pdf_site(tmp_path)
     factory = BaseServiceType(site=site, service_type='htmltopdf').getServiceFactory('weasyprint')
     service = factory(site)
     (tmp_path / 'src.html').write_text(html)
@@ -328,6 +328,57 @@ def test_weasyprint_zero_margins_beat_document_margins(tmp_path):
                                 margin_left=0, margin_right=0))
     assert x0 < 5 * MM_TO_PT
     assert y0 < 5 * MM_TO_PT
+
+
+# --- resources served by the site itself (#1968) -----------------------------
+
+#.test never resolves: a request to it could only fail
+SITE_HOST = 'https://print.test/store'
+
+
+def linked_css_doc(href):
+    return HTML_TEMPLATE.replace('<style>', '<link rel="stylesheet" href="%s"><style>' % href, 1) \
+        % '@page { size: A4; margin: 0; }'
+
+
+def site_serving(tmp_path):
+    """A pdf site whose storageNodeFromUrl maps SITE_HOST urls on its storage,
+    recording every url it is asked for."""
+    site = make_pdf_site(tmp_path)
+    site.requested_urls = []
+
+    def storageNodeFromUrl(url):
+        site.requested_urls.append(url)
+        if url.startswith(SITE_HOST + '/'):
+            return site.storageNode(url[len(SITE_HOST) + 1:])
+    site.storageNodeFromUrl = storageNodeFromUrl
+    return site
+
+
+def test_weasyprint_reads_site_resources_from_storage(tmp_path):
+    """A stylesheet linked by the site's public url is read from the site storage,
+    and so is the one it imports by a relative url: the host is never requested."""
+    css_folder = tmp_path / '_rsrc' / 'common'
+    css_folder.mkdir(parents=True)
+    (css_folder / 'print.css').write_text('@import url(more.css); body div { margin-left: 40mm; }')
+    (css_folder / 'more.css').write_text('body div { margin-top: 30mm; }')
+    site = site_serving(tmp_path)
+    x0, y0 = marker_origin(tmp_path, linked_css_doc(SITE_HOST + '/_rsrc/common/print.css'),
+                           site=site, pdf_kwargs={})
+    assert x0 >= 40 * MM_TO_PT - 1
+    assert y0 >= 30 * MM_TO_PT - 1
+    assert site.requested_urls == [SITE_HOST + '/_rsrc/common/print.css',
+                                   SITE_HOST + '/_rsrc/common/more.css']
+
+
+def test_weasyprint_fetches_urls_not_served_by_the_site(tmp_path):
+    """Urls the site does not serve keep going through weasyprint's own fetcher."""
+    other = tmp_path / 'other.css'
+    other.write_text('body div { margin-left: 40mm; }')
+    site = site_serving(tmp_path)
+    x0, _ = marker_origin(tmp_path, linked_css_doc(other.as_uri()), site=site, pdf_kwargs={})
+    assert x0 >= 40 * MM_TO_PT - 1
+    assert site.requested_urls == []
 
 
 # --- Arial Narrow falling back to a wide font (#1825) ------------------------

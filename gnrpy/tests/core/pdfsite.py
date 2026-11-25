@@ -37,4 +37,5 @@ def make_pdf_site(tmp_path):
     storage.service_name = 'temp'
     site.storageNode = lambda path, **kwargs: path if isinstance(path, StorageNode) \
         else StorageNode(parent=site, path=str(path).split(':', 1)[-1], service=storage)
+    site.storageNodeFromUrl = lambda url: None
     return site
