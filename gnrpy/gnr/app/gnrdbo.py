@@ -19,7 +19,7 @@ from gnr.core.gnrdict import dictExtract
 from gnr.lib.gnrheif import HEIF_EXTENSIONS, heif_storage_path, is_heif_path
 from gnr.app import logger
 from gnr.sql.gnrsql_exceptions import NotMatchingModelError
-from gnr.sql.gnrsqltable_proxy.hierarchical import treeNodeRecords
+from gnr.sql.gnrsqltable_proxy.hierarchical import forbiddenColumns, treeNodeRecords
 from gnr.app.gnrsqltable_proxy.selection import SelectionProxy
 
 mimetypes.init() # Required for python 2.6 (fixes a multithread bug)
@@ -854,23 +854,26 @@ class TableBase(object):
         related_caption_field = related_kwargs.get('caption_field') or related_tblobj.attributes.get('caption_field')
         currentPage = self.db.currentPage
         permissionPars = getattr(currentPage, 'permissionPars', None)
-        for r, node_record in zip(f, treeNodeRecords(self, f, permissionPars)):
+        forbidden = forbiddenColumns(self, permissionPars)
+        related_forbidden = forbiddenColumns(related_tblobj, permissionPars)
+        for r, node_record in zip(f, treeNodeRecords(f, forbidden)):
             pkey = r['pkey']
             value = Bag()
             relchidren = self._hdata_getRelatedChildren(fkey=pkey,related_tblobj=related_tblobj,
                                                               related_caption_field=related_caption_field,
                                                               related_kwargs = related_kwargs)
-            for related_row, related_record in zip(relchidren,
-                                                   treeNodeRecords(related_tblobj, relchidren, permissionPars)):
+            for related_row, related_record in zip(relchidren, treeNodeRecords(relchidren, related_forbidden)):
                 relpkey = related_record.pop('pkey',None)
                 value.setItem(relpkey, None,
                                 child_count=0,
-                                caption=related_row[related_caption_field],
+                                caption=relpkey if related_caption_field in related_forbidden
+                                        else related_row[related_caption_field],
                                 pkey=relpkey, treeIdentifier='%s_%s'%(pkey, relpkey),
                                 node_class='tree_related',**related_record)
             b.setItem(pkey.replace('.','_'),value,
                         pkey=pkey or '_all_',
-                        caption=r[caption_field],child_count=len(value),
+                        caption=pkey if caption_field in forbidden else r[caption_field],
+                        child_count=len(value),
                         treeIdentifier = pkey,
                         parent_id=None,
                         hierarchical_pkey=pkey,

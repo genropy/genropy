@@ -26,13 +26,16 @@ from gnr.core.gnrdict import dictExtract
 from gnr.core.gnrdecorator import extract_kwargs
 
 
-def treeNodeRecords(tblobj, rows, permissionPars=None):
-    """Rows as dicts holding only what a tree node may carry to the browser:
-    no system columns, no columns forbidden to the user of permissionPars."""
-    forbidden = set()
+def forbiddenColumns(tblobj, permissionPars=None):
     user_conf = tblobj.getUserConfiguration(**permissionPars) if permissionPars else None
-    if user_conf:
-        forbidden = {n.label for n in user_conf['cols_permission'] or [] if n.attr.get('forbidden')}
+    if not user_conf:
+        return set()
+    return {n.label for n in user_conf['cols_permission'] or [] if n.attr.get('forbidden')}
+
+
+def treeNodeRecords(rows, forbidden):
+    """Rows as dicts holding only what a tree node may carry to the browser:
+    no system columns, no forbidden columns."""
     return [{k: v for k, v in dict(r).items() if not k.startswith('__') and k not in forbidden}
             for r in rows]
 
@@ -74,11 +77,10 @@ class TableHandlerTreeResolver(BagResolver):
         result = Bag()
         if self.related_kwargs:
             related_rows = self.getRelatedChildren(self.parent_id)
-            related_records = treeNodeRecords(self.db.table(self.related_kwargs['table']),
-                                              related_rows, self.permissionPars)
-            for related_row, r in zip(related_rows, related_records):
+            forbidden = forbiddenColumns(self.db.table(self.related_kwargs['table']), self.permissionPars)
+            for related_row, r in zip(related_rows, treeNodeRecords(related_rows, forbidden)):
                 pkey = r.pop('pkey',None)
-                caption = related_row[self.relatedCaptionField]
+                caption = pkey if self.relatedCaptionField in forbidden else related_row[self.relatedCaptionField]
                 if self.relatedCaptionField == 'caption':
                     r.pop('caption', None)
                 result.setItem(pkey, None,
@@ -154,10 +156,11 @@ class TableHandlerTreeResolver(BagResolver):
     def setChildren(self,result,children):
         tblobj = self.db.table(self.table)
         pkeyfield = tblobj.pkey
-        for r, node_record in zip(children, treeNodeRecords(tblobj, children, self.permissionPars)):
+        forbidden = forbiddenColumns(tblobj, self.permissionPars)
+        for r, node_record in zip(children, treeNodeRecords(children, forbidden)):
             record = dict(r)
-            caption = r[self.caption_field]
             pkey = record[pkeyfield]
+            caption = pkey if self.caption_field in forbidden else r[self.caption_field]
             child_count=record['child_count']
             value = None
             if child_count:

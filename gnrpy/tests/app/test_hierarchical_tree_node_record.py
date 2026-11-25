@@ -25,6 +25,7 @@ from core.common import BaseGnrTest
 
 RESTRICTED = 'restricted'
 OTHER = 'other'
+NO_CAPTION = 'no_caption'
 
 
 def setup_module(module):
@@ -35,11 +36,11 @@ def teardown_module(module):
     BaseGnrTest.teardown_class()
 
 
-def _forbid(db, table, *columns):
+def _forbid(db, table, *columns, user_group=RESTRICTED):
     data = Bag()
     for colname in columns:
         data.setItem('cols_permission.%s' % colname, None, forbidden=True)
-    db.table('adm.user_config').insert(dict(user_group=RESTRICTED, username=None, pkgid=None,
+    db.table('adm.user_config').insert(dict(user_group=user_group, username=None, pkgid=None,
                                             tblid=table, data=data))
 
 
@@ -47,11 +48,15 @@ def _forbid(db, table, *columns):
 def tree_db(db_sqlite):
     db = db_sqlite
     groups = db.table('adm.group')
-    for code in (RESTRICTED, OTHER):
+    for code in (RESTRICTED, OTHER, NO_CAPTION):
         groups.insert(dict(code=code, description=code))
     _forbid(db, 'invc.product_group', 'description')
     _forbid(db, 'invc.product', 'unit_price')
     _forbid(db, 'invc.vat_type', 'vat_rate')
+    _forbid(db, 'invc.product_group', 'code', 'hierarchical_code', '_parent_h_code',
+            user_group=NO_CAPTION)
+    _forbid(db, 'invc.product', 'description', user_group=NO_CAPTION)
+    _forbid(db, 'invc.vat_type', 'description', user_group=NO_CAPTION)
     pg = db.table('invc.product_group')
     root = pg.insert(pg.newrecord(code='A', description='secret root'))
     pg.insert(pg.newrecord(code='B', description='secret child', parent_id=root['id']))
@@ -152,3 +157,34 @@ class TestHierarchicalDataBagRecord:
                      related_table='invc.product', related_path='vat_type_code')
         for node in tree['root'].nodes:
             assert set(node.attr['_record']) == {'code', 'description', 'vat_rate', 'pkey'}
+
+
+class TestForbiddenCaption:
+
+    def _assert_hidden(self, db, tree, nodes, table, field):
+        xml = tree.toXml(unresolved=True, omitUnknownTypes=True)
+        values = [r[field] for r in db.table(table).query(columns='$%s' % field).fetch()]
+        assert values
+        for value in values:
+            assert '"%s"' % value not in xml
+        assert nodes
+        for node in nodes:
+            assert node.attr['caption'] == node.attr['pkey']
+
+    def test_resolver_nodes(self, tree_db, monkeypatch):
+        tree = _tree(tree_db, monkeypatch, NO_CAPTION, 'invc.product_group')
+        nodes = [n for n in _nodes(tree['root']) if n.attr.get('treeIdentifier')]
+        self._assert_hidden(tree_db, tree, nodes, 'invc.product_group', 'code')
+
+    def test_resolver_related_nodes(self, tree_db, monkeypatch):
+        tree = _tree(tree_db, monkeypatch, NO_CAPTION, 'invc.product_type',
+                     related_table='invc.product', related_path='$product_type_id')
+        nodes = [n for n in _nodes(tree) if n.attr.get('node_class') == 'tree_related']
+        self._assert_hidden(tree_db, tree, nodes, 'invc.product', 'description')
+
+    def test_hierarchical_data_bag(self, tree_db, monkeypatch):
+        tree = _tree(tree_db, monkeypatch, NO_CAPTION, 'invc.vat_type',
+                     related_table='invc.product', related_path='vat_type_code')
+        self._assert_hidden(tree_db, tree, tree['root'].nodes, 'invc.vat_type', 'description')
+        related = [n for n in _nodes(tree['root']) if n.attr.get('node_class') == 'tree_related']
+        self._assert_hidden(tree_db, tree, related, 'invc.product', 'description')
