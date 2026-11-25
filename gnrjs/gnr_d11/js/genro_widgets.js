@@ -1153,7 +1153,7 @@ dojo.declare("gnr.widgets.iframe", gnr.widgets.baseHtml, {
                         domnode.removeAttribute('src');
                         // the whole image fits the frame: a portrait one must not overflow its height
                         domnode.setAttribute('srcdoc', `<html style="height:100%;"><body style="height:100%;margin:0;padding:0;display:flex;align-items:center;justify-content:center;background:#f9f9f9;">
-                            <img src="${v}" style="max-width:100%;max-height:100%;object-fit:contain;display:block;cursor:zoom-in;" onclick="genro.openBrowserTab(this.src, {target:'_blank'})" />
+                            <img src="${v}" style="max-width:100%;max-height:100%;object-fit:contain;display:block;cursor:zoom-in;" onclick="window.parent.genro.openBrowserTab(this.src)" />
                         </body></html>`);
                         return;
                     }

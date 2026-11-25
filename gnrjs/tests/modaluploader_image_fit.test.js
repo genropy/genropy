@@ -137,3 +137,18 @@ test('the modalUploader preview is a document iframe, so an image fits its box',
     assert.equal(preview.attrs._class, 'modalUploader_preview');
     assert.equal(preview.attrs.documentClasses, true);
 });
+
+// The srcdoc page is a window of its own, without the genro of the page that holds the iframe:
+// clicking the zoom-in image threw "genro is not defined" and opened nothing.
+test('clicking an image preview opens it in a browser tab through the parent page', () => {
+    const {attributes} = loadInDocumentIframe('/site/portrait.png');
+    const imgTag = attributes.srcdoc.match(/<img\b[^>]*>/)[0];
+    const onclick = (imgTag.match(/onclick="([^"]*)"/) || [])[1];
+    assert.ok(onclick, 'the image has a click handler');
+    const opened = [];
+    const srcdocWindow = vm.createContext({parent: {genro: {openBrowserTab: (...args) => opened.push(args)}}});
+    srcdocWindow.window = srcdocWindow;
+    const handler = vm.runInContext(`(function(){${onclick}})`, srcdocWindow);
+    handler.call({src: 'http://localhost/site/portrait.png'});
+    assert.deepEqual(opened, [['http://localhost/site/portrait.png']]);
+});
