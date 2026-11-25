@@ -40,6 +40,7 @@ from gnr.app.pathresolver import PathResolver
 from gnr.app.gnrapp import GnrPackage
 from gnr.web import logger
 from gnr.web.gnrmanual import ManualCache
+from gnr.web.gnrshutdown import SHUTDOWN_KEY, shutdown_notice
 from gnr.web.gnrwebapp import GnrWsgiWebApp
 from gnr.web.gnrwebpage import GnrUnsupportedBrowserException
 from gnr.web.gnrwebreqresp import GnrWebRequest
@@ -441,6 +442,9 @@ class DbStoreRouter(object):
 
 class GnrWsgiSite(object):
     """TODO"""
+
+    SHUTDOWN_CACHE_SECONDS = 5
+    _shutdown_entry = (None, 0)
 
     def __init__(self, script_path, site_name=None, _config=None,
                  _gnrconfig=None,
@@ -2149,8 +2153,22 @@ class GnrWsgiSite(object):
         result = self.register.handle_ping(page_id=page_id,reason=reason,**kwargs)
         if result is False:
             return self.failed_exception('no longer existing page %s' % page_id, environ, start_response)
-        else:
-            return result.toXml(unresolved=True, omitUnknownTypes=True)
+        notice = self.shutdownNotice()
+        if notice:
+            result.setItem('shutdown', Bag(notice))
+        return result.toXml(unresolved=True, omitUnknownTypes=True)
+
+    def shutdownNotice(self):
+        """The announced shutdown as the pings of every domain carry it, or None.
+
+        The entry is read from the rootDomain register at most once every
+        SHUTDOWN_CACHE_SECONDS per process, not at every ping."""
+        entry, read_ts = self._shutdown_entry
+        now = time()
+        if now - read_ts > self.SHUTDOWN_CACHE_SECONDS:
+            entry = self.main_register.globalStore().getItem(SHUTDOWN_KEY)
+            self._shutdown_entry = (entry, now)
+        return shutdown_notice(entry)
 
     def serve_manifest(self, response, environ, start_response, page_id=None, reason=None, **kwargs):
         response.content_type = "application/json"

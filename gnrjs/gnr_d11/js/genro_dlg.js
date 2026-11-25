@@ -504,6 +504,53 @@ dojo.declare("gnr.GnrDlgHandler", null, {
         genro.setData('_thermo.monitor', true);
     },
 
+    shutdownNotice: function(notice) {
+        var state = this._shutdown;
+        if(notice){
+            var reason = notice.getItem('reason');
+            var deadline = Date.now() + notice.getItem('seconds_left') * 1000;
+            if(!state || state.reason != reason){
+                if(state){
+                    this._shutdownClose(state);
+                }
+                state = this._shutdown = {reason: reason};
+                var that = this;
+                state.toast = genro.toast.show({title: ' ', level: 'warning', duration: 0,
+                                                onClose: function(){ state.toast = null; }});
+                state.toast.querySelector('.gnr-toast-message').textContent = reason;
+                state.timer = setInterval(function(){ that._shutdownCountdown(state); }, 1000);
+            }
+            state.deadline = deadline;
+            this._shutdownCountdown(state);
+        }else if(state){
+            this._shutdown = null;
+            this._shutdownClose(state);
+            if(state.deadline > Date.now()){
+                genro.toast.show({message: _T('The announced shutdown has been cancelled'), level: 'success'});
+            }
+        }
+    },
+
+    _shutdownCountdown: function(state) {
+        if(!state.toast){
+            return;
+        }
+        var seconds = Math.max(0, Math.ceil((state.deadline - Date.now()) / 1000));
+        var hh = Math.floor(seconds / 3600);
+        var mm = Math.floor(seconds % 3600 / 60);
+        var ss = seconds % 60;
+        var pad = function(n){ return n < 10 ? '0' + n : '' + n; };
+        var left = hh ? hh + ':' + pad(mm) + ':' + pad(ss) : mm + ':' + pad(ss);
+        state.toast.querySelector('.gnr-toast-title').textContent = _T('Shutdown in') + ' ' + left;
+    },
+
+    _shutdownClose: function(state) {
+        clearInterval(state.timer);
+        if(state.toast){
+            genro.toast.dismiss(state.toast);
+        }
+    },
+
     message: function(msg, position, level, duration) {
         var level = level || 'message';
         var duration = duration || 4000;
