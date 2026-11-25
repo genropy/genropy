@@ -28,6 +28,7 @@ import pytest
 from core.common import BaseGnrTest
 
 from gnr.app.gnrapp import GnrApp
+from gnr.core.gnrbag import Bag
 from gnr.web import gnrbaseclasses
 from gnr.web.gnrbaseclasses import TableScriptToHtml, TableTemplateToHtml
 from gnr.web.gnrdummysite import GnrDummySite
@@ -341,3 +342,39 @@ class TestTemplatePrinting(BaseGnrTest):
 
         assert page.loaded == ['adm.user:homepage']
         assert USERNAME in html
+
+
+def _headline_layer(center_left=0, center_right=0):
+    layer = Bag()
+    layer['main.design'] = 'headline'
+    layer.setItem('layout.center.left', None, width=center_left)
+    layer.setItem('layout.center.right', None, width=center_right)
+    return layer
+
+
+def _analyzed_struct(mm_widths, **attrs):
+    script = TableScriptToHtml.__new__(TableScriptToHtml)
+    for k, v in dict(page_width=210, page_margin_left=10, page_margin_right=10,
+                     page_leftbar_width=30, page_rightbar_width=30, **attrs).items():
+        setattr(script, k, v)
+    struct = Bag()
+    for i, mm_width in enumerate(mm_widths):
+        struct.setItem('view_0.rows_0.c_%i' % i, None, field='f%i' % i, name='f%i' % i,
+                       mm_width=mm_width)
+    script.structAnalyze(struct)
+    return script, struct
+
+
+def test_structAnalyze_headline_letterhead_measures_content_area():
+    # A4 portrait: the 30mm layout.left/right widths shape only the sidebar design,
+    # so a 150mm grid fits the 190mm headline band on one sheet
+    script, struct = _analyzed_struct([30] * 5, _letterhead_top_layer=_headline_layer())
+    assert script.sheets_counter == 1
+    assert struct['view_0.rows_0'].digest('#a.sheet') == [None] * 5
+
+
+def test_structAnalyze_sidebar_letterhead_still_splits():
+    layer = Bag()
+    layer['main.design'] = 'sidebar'
+    script, struct = _analyzed_struct([30] * 5, _letterhead_top_layer=layer)
+    assert script.sheets_counter == 2
