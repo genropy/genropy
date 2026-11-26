@@ -100,7 +100,7 @@ var genro_plugin_groupth = {
                     segments = value.split('/');
                 }
                 segments.forEach(function(segment,idx){
-                    kl.push(flattenString(segment,['.','?','#']));
+                    kl.push(flattenString(segment,['.','?','#','|','~']));
                     treepath = kl.join('.');
                     if(!treedata.getNode(treepath)){
                         treedata.setItem(treepath,null,{description:segment,_cell:cell,
