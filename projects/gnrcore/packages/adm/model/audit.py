@@ -11,7 +11,7 @@ class Table(object):
         tbl.column('username',name_long='!!User')
         tbl.column('record_pkey',name_long='!!Record Pkey')
         tbl.column('version','L',name_long='!!Version')
-        tbl.column('data','X',name_long='!!Data')
+        tbl.column('data','X',name_long='!!Data', variant='masked', variant_masked_mode='text')
         tbl.column('transaction_id',name_long='!!Transaction id')
 
     def getXmlRecord(self,record=None):

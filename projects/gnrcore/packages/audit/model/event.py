@@ -27,7 +27,7 @@ class Table(object):
         tbl.column('username', name_long='!!User')
         tbl.column('caller', name_long='!!Caller')
         tbl.column('sqlcommand', name_long='!!Sql command')
-        tbl.column('data', dtype='X', name_long='!!Data')
+        tbl.column('data', dtype='X', name_long='!!Data', variant='masked', variant_masked_mode='text')
         tbl.index('tbl,record_pkey')
         tbl.sqlCode(text='ALTER TABLE {sqlfullname} ALTER COLUMN data SET COMPRESSION lz4;')
 

@@ -261,6 +261,26 @@ class ColumnsMixin(SqlTableBaseMixin):
         return self.model.virtual_columns
 
     @property
+    def privacy_columns(self):  # wf:phase-1:new
+        """Physical columns marked as holding personal data.
+
+        A column is marked by ``variant='masked'`` (alone or in a variant
+        list) or by the ``encrypted`` attribute.
+
+        :returns: ``{column_name: kind}``, where kind is the column's
+            ``variant_masked_mode``, or ``None`` for a mark without a mode
+            and for an encrypted column that is not masked
+        """
+        result = {}
+        for colname, colobj in self.model.columns.items():
+            colattr = colobj.attributes
+            if 'masked' in (colattr.get('variant') or '').split(','):
+                result[colname] = colattr.get('variant_masked_mode')
+            elif colobj.encrypted:
+                result[colname] = None
+        return result
+
+    @property
     def relations(self):
         """All relations (columns + relations) Bag."""
         return self.model.relations
@@ -345,9 +365,24 @@ class ColumnsMixin(SqlTableBaseMixin):
                              **kwargs):
         """Create a masked version of a field for secure display.
 
+        The field is cast to text first, so any column (dates included)
+        can be masked.
+
         :param field: field name to mask
-        :param mode: masking mode — ``'email'``, ``'creditcard'``,
-            ``'phone'``, or ``'N-M'`` format (visible chars at start/end)
+        :param mode: masking mode, also the kind of personal data the column
+            holds (see :attr:`privacy_columns`):
+
+            - ``'email'``: first 2 chars of the local part, domain visible
+            - ``'creditcard'``: last 4 chars visible
+            - ``'phone'``: first 3 and last 3 chars visible
+            - ``'cf'``: first 3 and last 1 chars visible (``RSS************U``)
+            - ``'piva'``: first 2 and last 3 chars visible
+            - ``'iban'``: first 4 and last 4 chars visible
+            - ``'name'``: initial only, length hidden (``M***``)
+            - ``'address'``: first 3 chars only (``Via***``)
+            - ``'birthdate'``: year only (``1980-**-**``)
+            - ``'text'``: a constant ``***``, NULL stays NULL
+            - ``'N-M'``: N chars visible at the start, M at the end
         :param placeholder: masking character (default ``'*'``)
         """
         field_ref = f'${field}'

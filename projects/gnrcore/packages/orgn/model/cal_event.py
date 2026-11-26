@@ -8,7 +8,8 @@ class Table(object):
         self.sysFields(tbl)
         tbl.column('description', size=':50', 
                     name_long='!![en]Description',
-                    icalendar='DESCRIPTION')
+                    icalendar='DESCRIPTION',
+                    variant='masked', variant_masked_mode='text')
         tbl.column('dtstart', 'DHZ', 
                     name_long='!![en]Begin',
                     icalendar='DTSTART')

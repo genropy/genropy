@@ -14,4 +14,4 @@ class Table(object):
         tbl.column('domain', name_long='Domain')
         tbl.column('key', name_long='Key')
         tbl.column('expiration','D', name_long='Expiration')
-        tbl.column('traking', dtype='X', name_long='Traking')
+        tbl.column('traking', dtype='X', name_long='Traking', variant='masked', variant_masked_mode='text')

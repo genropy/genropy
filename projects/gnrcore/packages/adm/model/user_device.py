@@ -48,7 +48,7 @@ class Table(object):
         tbl.column('key_id', size=':64', unique=True, indexed=True, name_long='!![en]Key id')
         tbl.column('alg', size=':10', name_long='!![en]Algorithm')
         tbl.column('public_key', dtype='T', name_long='!![en]Public key')
-        tbl.column('device_name', name_long='!![en]Device name')
+        tbl.column('device_name', name_long='!![en]Device name', variant='masked', variant_masked_mode='text')
         tbl.column('platform', size=':10', name_long='!![en]Platform')
         tbl.column('verification', size=':15', name_long='!![en]Declared verification',
                    values='biometry:[!![en]Biometry],user_presence:[!![en]User presence]')

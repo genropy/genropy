@@ -15,6 +15,6 @@ class Table(object):
         tbl.column('username', name_long='!!User')
         tbl.column('caller', name_long='!!Caller')
         tbl.column('sqlcommand', name_long='!!Sql command')
-        tbl.column('data', dtype='jsonb', name_long='!!Data')
-        tbl.column('old_full', dtype='jsonb', name_long='!!Record before the first change')
+        tbl.column('data', dtype='jsonb', name_long='!!Data', variant='masked', variant_masked_mode='text')
+        tbl.column('old_full', dtype='jsonb', name_long='!!Record before the first change', variant='masked', variant_masked_mode='text')
         tbl.index('tbl,record_pkey')

@@ -27,7 +27,7 @@ class Table(object):
         tbl.column('sourcebag',dtype='X',name_long='Python Source',_sendback=True)
         tbl.column('docbag',dtype='X',name_long='Rst data',_sendback=True)
         tbl.column('revision',size=':3', name_long='!!Revision',values='001:Draft,050:Work in progress,080:Pre-release,100:Final')
-        tbl.column('author', name_long='Author')
+        tbl.column('author', name_long='Author', variant='masked', variant_masked_mode='name')
         tbl.column('base_language',size=':2',name_long='Base language').relation('adm.language.code')
         tbl.column('old_html')
         tbl.column('sphinx_toc', dtype='B', name_long='Sphinx toc')
