@@ -19,6 +19,8 @@ class AuditHistory(BaseComponent):
     @struct_method
     def audit_historyPalette(self, pane, paletteCode=None, **kwargs):
         """The history of the form record: the events of ``audit.event`` in a grid, the selected one in detail."""
+        if not self.audit_historyAllowed():
+            return
         palette = pane.palettePane(paletteCode=paletteCode, title='!!Record History',
                                    dockButton_iconClass='iconbox audit_history',
                                    width='820px', height='560px', **kwargs)
@@ -39,6 +41,8 @@ class AuditHistory(BaseComponent):
     @struct_method
     def audit_tableHistoryPalette(self, pane, paletteCode=None, table=None, **kwargs):
         """The history of a whole table: a TH on its events of ``audit.event``, the selected one in detail."""
+        if not self.audit_historyAllowed():
+            return
         palette = pane.palettePane(paletteCode=paletteCode, title='!![en]Table History',
                                    dockButton_iconClass='iconbox audit_history',
                                    width='1000px', height='600px', **kwargs)
@@ -96,8 +100,11 @@ class AuditHistory(BaseComponent):
                 return self.audit_eventRow(item, previous_state, self.db.table('audit.event').displayHiddenColumns(event['tbl']))
             previous_state = item['state']
 
+    def audit_historyAllowed(self):
+        return self.application.packages['audit'].historyAllowed(self.userTags)
+
     def audit_checkHistoryAllowed(self, method):
-        if not self.application.packages['audit'].historyAllowed(self.userTags):
+        if not self.audit_historyAllowed():
             raise self.exception('user_not_allowed', method=method)
 
     def audit_eventRow(self, event, previous_state, hidden):
