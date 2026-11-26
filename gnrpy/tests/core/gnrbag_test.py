@@ -601,6 +601,56 @@ class TestBagDiff(object):
             ('added', '#2', None, None, 'seconda'),
         ]
 
+    def test_dotted_label_added(self):
+        new = Bag()
+        new.setItem(['a.b'], 7)
+        records = Bag().diff(new)
+        assert compact(records) == [('added', '#0', None, None, 7)]
+        assert records[0]['label'] == 'a.b'
+        assert new[records[0]['path']] == 7
+
+    def test_dotted_label_changed(self):
+        old = Bag()
+        old['nome'] = 'A'
+        old.setItem(['a.b'], 1)
+        new = Bag()
+        new['nome'] = 'A'
+        new.setItem(['a.b'], 2)
+        records = old.diff(new)
+        assert compact(records) == [('changed', '#1', None, 1, 2)]
+        assert old[records[0]['path']] == 1
+        assert new[records[0]['path']] == 2
+
+    def test_dotted_label_nested(self):
+        old = Bag()
+        old['x'] = Bag()
+        old['x'].setItem(['a.b'], 1)
+        old['x'].setItem(['c.d'], 3)
+        new = Bag()
+        new['x'] = Bag()
+        new['x'].setItem(['a.b'], 2)
+        records = old.diff(new)
+        assert compact(records) == [
+            ('changed', 'x.#0', None, 1, 2),
+            ('removed', 'x.#1', None, 3, None),
+        ]
+        assert new['x.#0'] == 2
+        assert old['x.#1'] == 3
+
+    def test_label_with_question_mark(self):
+        old = Bag()
+        old.setItem(['ok?'], False)
+        new = Bag()
+        new.setItem(['ok?'], True)
+        new.setItem(['why?'], 'no')
+        records = old.diff(new)
+        assert compact(records) == [
+            ('changed', '#0', None, False, True),
+            ('added', '#1', None, None, 'no'),
+        ]
+        for record in records:
+            assert new[record['path']] == record['newvalue']
+
     def test_paths_follow_each_side(self):
         old = Bag()
         old.addItem('x', 1)
@@ -680,6 +730,20 @@ class TestBagDiff(object):
                                                        oldvalue='controllo', newvalue='ricovero')
         assert tree.getAttr('visite.#1') == dict(path='visite.#2', event='added')
 
+    def test_diff_bag_dotted_labels(self):
+        old = Bag()
+        old['x'] = Bag()
+        old['x'].setItem(['a.b'], 1)
+        new = Bag()
+        new['x'] = Bag()
+        new['x'].setItem(['a.b'], 2)
+        new.setItem(['c?d'], 3)
+        tree = old.getDiffBag(new)
+        assert tree.keys() == ['x', 'c?d']
+        assert tree['x'].keys() == ['a.b']
+        assert tree.getAttr('x.#0') == dict(path='x.#0', event='changed', oldvalue=1, newvalue=2)
+        assert tree.getAttr('#1') == dict(path='#1', event='added', newvalue=3)
+
     def test_diff_html_clinical_record(self):
         old = clinicalRecord()
         new = clinicalRecord(rischio='3', parto='cesareo', peso=None, unit='mm')
@@ -730,3 +794,15 @@ class TestBagDiff(object):
             '<ul><li>visite<ul><li>visita #1<ul>'
             '<li>esito: <del>controllo</del> &rarr; <ins>ricovero</ins></li></ul></li></ul></li>'
             '<li>+ ecografia: <ul><li>settimana: 12</li></ul></li></ul>')
+
+    def test_diff_html_dotted_labels(self):
+        old = Bag()
+        old['x'] = Bag()
+        old['x'].setItem(['a.b'], 1)
+        new = Bag()
+        new['x'] = Bag()
+        new['x'].setItem(['a.b'], 2)
+        new.setItem(['c?d'], 3)
+        assert unstyled(old.diffHtml(new)) == (
+            '<ul><li>x<ul><li>a.b #0: <del>1</del> &rarr; <ins>2</ins></li></ul></li>'
+            '<li>+ c?d #1: 3</li></ul>')

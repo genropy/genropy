@@ -150,7 +150,9 @@ def _diffPairs(oldnodes, newnodes):
 
 
 def _diffJoin(prefix, node, idx, duplicated):
-    segment = '#%i' % idx if node.label in duplicated else node.label
+    label = node.label
+    literal = label not in duplicated and '.' not in label and '?' not in label
+    segment = label if literal else '#%i' % idx
     return '%s.%s' % (prefix, segment) if prefix else segment
 
 
@@ -1332,8 +1334,9 @@ class Bag(GnrObject):
 
         Nodes with the same label at the same level are matched by order of appearance.
         In a path, a label that appears more than once among its siblings, on either side,
-        is written as the node position ``#n``: the path resolves with ``bag[path]`` on
-        ``other`` for added and changed records, on this Bag for removed ones.
+        or that contains '.' or '?', is written as the node position ``#n``: the path
+        resolves with ``bag[path]`` on ``other`` for added and changed records, on this
+        Bag for removed ones.
 
         :param other: the Bag to compare with; None counts as an empty Bag
         :returns: a list of dicts with keys ``event`` ('added', 'removed' or 'changed'),
@@ -1395,7 +1398,7 @@ class Bag(GnrObject):
                 if not isinstance(value, Bag):
                     treeattr[side] = value
                     value = None
-                tree.addItem(node.label, value, _attributes=treeattr)
+                tree.addItem([node.label], value, _attributes=treeattr)
                 continue
             oldnode = oldnodes[oldidx]
             newnode = newnodes[newidx]
@@ -1404,7 +1407,7 @@ class Bag(GnrObject):
                 otherpath=_diffJoin(otherpath, newnode, newidx, duplicated))
             if treenode:
                 records.extend(noderecords)
-                tree.addItem(newnode.label, treenode[0], _attributes=treenode[1])
+                tree.addItem([newnode.label], treenode[0], _attributes=treenode[1])
         return records, tree
 
     def __getstate__(self):
