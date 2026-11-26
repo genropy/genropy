@@ -134,7 +134,9 @@ class DbModel:
                             insert=lambda node=None, **kwargs: _on_ins_column(node, pkg_id),
                         )
                         config_from_pkg(pkgsrc)
-                        pkgsrc.unsubscribe('customize_%s' % pkg_id)
+                        # without insert=True Bag.unsubscribe removes nothing, and
+                        # every later column would be stamped with the last pkg_id
+                        pkgsrc.unsubscribe('customize_%s' % pkg_id, insert=True)
 
             if hasattr(objmix, 'config_db_custom'):
                 objmix.config_db_custom(pkgsrc)
