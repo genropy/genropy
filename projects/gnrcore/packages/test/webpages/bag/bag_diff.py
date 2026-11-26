@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-"""Bag.diff and Bag.getDiffBag between two versions of a Bag"""
+"""Bag.diff, Bag.getDiffBag and Bag.diffHtml between two versions of a Bag"""
 
 import datetime
 from decimal import Decimal
@@ -72,9 +72,11 @@ class GnrCustomWebPage(object):
         grid.column('changed_attribute', name='Attribute', width='7em')
         grid.column('oldvalue', name='Old value', width='12em')
         grid.column('newvalue', name='New value', width='12em')
-        center.contentPane(region='right', width='40%', splitter=True, overflow='auto',
-                           padding='4px').tree(storepath='.result.tree', hideValues=True,
-                                               labelAttribute='caption', font_size='.85em')
+        tc = center.tabContainer(region='right', width='40%', splitter=True)
+        tc.contentPane(title='Html', overflow='auto', padding='4px').div(
+            innerHTML='^.result.html', font_size='.85em')
+        tc.contentPane(title='Tree', overflow='auto', padding='4px').tree(
+            storepath='.result.tree', hideValues=True, labelAttribute='caption', font_size='.85em')
 
     @public_method
     def bagDiff(self, old=None, new=None, **kwargs):
@@ -91,7 +93,7 @@ class GnrCustomWebPage(object):
                             newvalue=self._shownValue(record['newvalue']))
         tree = old.getDiffBag(new)
         tree.walk(self._setCaption)
-        return Bag(dict(records=records, tree=tree))
+        return Bag(dict(records=records, tree=tree, html=old.diffHtml(new, locale=self.locale)))
 
     def _setCaption(self, node, **kwargs):
         attr = node.attr

@@ -1,6 +1,7 @@
 import pytest
 
 import datetime
+import re
 import socket, os
 from decimal import Decimal
 import gnr.core.gnrbag as bm
@@ -457,6 +458,10 @@ def compact(records):
             for r in records]
 
 
+def unstyled(html):
+    return re.sub(r' style="[^"]*"', '', html)
+
+
 class TestBagDiff(object):
     def test_clinical_record(self):
         old = clinicalRecord()
@@ -674,3 +679,54 @@ class TestBagDiff(object):
         assert tree.getAttr('visite.#0.esito') == dict(path='visite.#1.esito', event='changed',
                                                        oldvalue='controllo', newvalue='ricovero')
         assert tree.getAttr('visite.#1') == dict(path='visite.#2', event='added')
+
+    def test_diff_html_clinical_record(self):
+        old = clinicalRecord()
+        new = clinicalRecord(rischio='3', parto='cesareo', peso=None, unit='mm')
+        assert unstyled(old.diffHtml(new)) == (
+            '<ul><li>gravidanza<ul>'
+            '<li>LivelloRischio: <del>2</del> &rarr; <ins>3</ins></li>'
+            '<li>+ ModalitaParto: cesareo</li></ul></li>'
+            '<li>misure<ul>'
+            '<li>Altezza <span>[unit: <del>cm</del> &rarr; <ins>mm</ins>]</span></li>'
+            '<li>&minus; Peso: 62.5</li></ul></li></ul>')
+
+    def test_diff_html_styles(self):
+        html = clinicalRecord().diffHtml(clinicalRecord(parto='cesareo', peso=None))
+        assert '<li style="color:#1a7f37;text-decoration:none">+ ModalitaParto' in html
+        assert '<li style="color:#cf222e;text-decoration:line-through">&minus; Peso' in html
+
+    def test_diff_html_nothing_changed(self):
+        assert clinicalRecord().diffHtml(clinicalRecord()) == ''
+
+    def test_diff_html_escapes_labels_and_values(self):
+        old = Bag()
+        old['nota'] = 'a < b'
+        new = Bag()
+        new['nota'] = 'a & b'
+        assert unstyled(old.diffHtml(new)) == (
+            '<ul><li>nota: <del>a &lt; b</del> &rarr; <ins>a &amp; b</ins></li></ul>')
+
+    def test_diff_html_locale(self):
+        old = clinicalRecord()
+        new = clinicalRecord()
+        new['gravidanza.UM'] = datetime.date(2026, 3, 8)
+        assert '<del>01/03/26</del> &rarr; <ins>08/03/26</ins>' in unstyled(
+            old.diffHtml(new, locale='it'))
+
+    def test_diff_html_same_text_shows_types(self):
+        old = Bag(dict(codice='2'))
+        new = Bag(dict(codice=2))
+        assert unstyled(old.diffHtml(new)) == (
+            '<ul><li>codice: <del>2 (str)</del> &rarr; <ins>2 (int)</ins></li></ul>')
+
+    def test_diff_html_subbags_and_duplicated_labels(self):
+        old = Bag()
+        old['visite'] = visits('ok', 'controllo')
+        new = Bag()
+        new['visite'] = visits('ok', 'ricovero')
+        new['ecografia'] = Bag(dict(settimana=12))
+        assert unstyled(old.diffHtml(new)) == (
+            '<ul><li>visite<ul><li>visita #1<ul>'
+            '<li>esito: <del>controllo</del> &rarr; <ins>ricovero</ins></li></ul></li></ul></li>'
+            '<li>+ ecografia: <ul><li>settimana: 12</li></ul></li></ul>')

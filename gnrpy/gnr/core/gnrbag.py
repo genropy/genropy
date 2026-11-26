@@ -153,6 +153,69 @@ def _diffJoin(prefix, node, idx, duplicated):
     segment = '#%i' % idx if node.label in duplicated else node.label
     return '%s.%s' % (prefix, segment) if prefix else segment
 
+
+_DIFFHTML_STYLES = dict(
+    list='list-style:none;margin:0;padding-left:1.2em',
+    added='color:#1a7f37;text-decoration:none',
+    removed='color:#cf222e;text-decoration:line-through',
+    empty='color:#8c959f',
+    attributes='color:#57606a;font-size:.9em')
+
+
+def _diffHtmlValue(value, locale):
+    if isinstance(value, Bag):
+        items = ''.join('<li>%s: %s</li>' % (xml_escape(node.label),
+                                             _diffHtmlValue(node.getValue('static'), locale))
+                        for node in value)
+        return '<ul style="%s">%s</ul>' % (_DIFFHTML_STYLES['list'], items)
+    text = gnrstring.toText(value, locale=locale)
+    if not text:
+        return '<span style="%s">&mdash;</span>' % _DIFFHTML_STYLES['empty']
+    return xml_escape(text)
+
+
+def _diffHtmlChange(oldvalue, newvalue, locale):
+    oldtext = _diffHtmlValue(oldvalue, locale)
+    newtext = _diffHtmlValue(newvalue, locale)
+    if oldtext == newtext:
+        oldtext = '%s (%s)' % (oldtext, type(oldvalue).__name__)
+        newtext = '%s (%s)' % (newtext, type(newvalue).__name__)
+    return '<del style="%s">%s</del> &rarr; <ins style="%s">%s</ins>' % (
+        _DIFFHTML_STYLES['removed'], oldtext, _DIFFHTML_STYLES['added'], newtext)
+
+
+def _diffHtmlTree(tree, locale):
+    items = []
+    for node in tree:
+        attr = node.attr
+        event = attr.get('event')
+        value = node.getValue('static')
+        label = xml_escape(node.label)
+        segment = attr['path'].rsplit('.', 1)[-1]
+        if segment.startswith('#'):
+            label = '%s %s' % (label, segment)
+        if event in ('added', 'removed'):
+            content = value if isinstance(value, Bag) else attr.get(
+                'newvalue' if event == 'added' else 'oldvalue')
+            items.append('<li style="%s">%s %s: %s</li>' % (
+                _DIFFHTML_STYLES[event], '+' if event == 'added' else '&minus;', label,
+                _diffHtmlValue(content, locale)))
+            continue
+        line = label
+        if 'oldvalue' in attr or 'newvalue' in attr:
+            line += ': %s' % _diffHtmlChange(attr.get('oldvalue'), attr.get('newvalue'), locale)
+        names = attr.get('changed_attributes')
+        if names:
+            line += ' <span style="%s">[%s]</span>' % (_DIFFHTML_STYLES['attributes'], '; '.join(
+                '%s: %s' % (xml_escape(name), _diffHtmlChange(attr.get('old_%s' % name),
+                                                              attr.get('new_%s' % name), locale))
+                for name in names.split(',')))
+        if isinstance(value, Bag):
+            line += _diffHtmlTree(value, locale)
+        items.append('<li>%s</li>' % line)
+    return '<ul style="%s">%s</ul>' % (_DIFFHTML_STYLES['list'], ''.join(items))
+
+
 class BagNodeException(GnrException):
     pass
     
@@ -1293,6 +1356,20 @@ class Bag(GnrObject):
 
         :param other: the Bag to compare with; None counts as an empty Bag"""
         return self._diff(other)[1]
+
+    def diffHtml(self, other, locale=None):
+        """The changes from this Bag to ``other`` as an html fragment for a human reader.
+
+        A nested list following the tree of :meth:`getDiffBag`: added nodes in green,
+        removed nodes in red struck through, changed values and attributes as old → new;
+        when old and new read the same, their types are shown. Styles are inline, so the
+        fragment reads the same in a page, a print or an email.
+
+        :param other: the Bag to compare with; None counts as an empty Bag
+        :param locale: formats dates and numbers for this locale, as ``gnrstring.toText``
+        :returns: the html string, empty when nothing changed"""
+        tree = self.getDiffBag(other)
+        return _diffHtmlTree(tree, locale) if len(tree) else ''
 
     def _diff(self, other, path=None, otherpath=None):
         if other is None:
