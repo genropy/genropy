@@ -491,8 +491,24 @@ def test_a_revoked_key_does_not_confirm(application):
     assert _confirm(application, key, 'dv_alice') is False
 
 
-@pytest.mark.parametrize('text', [None, '', ' Approve', 'Approve ', 'Approve\nall', 'a' * 121])
+@pytest.mark.parametrize('text', [None, '', ' Approve', 'Approve ', 'Approve\nall', 'a' * 121,
+                                  'Approve \u202e4321', 'Approve\u2028all', 'Approve\u2029all', 'Appro\u200bve'])
 def test_a_text_genroapp_refuses_gets_no_challenge(application, text):
     _page(application)
     with application.db.tempEnv(user='dv_alice'):
         assert application.db.table('adm.user_device').confirmChallenge(text=text) is None
+
+
+def test_switch_off_stops_the_confirmations_too(application, switch_off):
+    """A challenge asked before the switch off is not verified after it."""
+    application.config.setAttr('experimental.login', genroapp_device='true')
+    key = _register(application, 'dv_alice')
+    _page(application)
+    tbl = application.db.table('adm.user_device')
+    with application.db.tempEnv(user='dv_alice'):
+        challenge = tbl.confirmChallenge(text=TEXT)
+        application.config.setAttr('experimental.login', genroapp_device=None)
+        assert tbl.confirmSigned(key_id=key.key_id, signature=key.confirm('dv_alice', challenge, TEXT)) is False
+        assert tbl.confirmChallenge(text=TEXT) is None
+        assert tbl.popConfirmed(TEXT) is False
+

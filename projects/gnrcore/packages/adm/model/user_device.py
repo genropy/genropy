@@ -33,6 +33,9 @@ SIGNED_HEADER = 'genroapp-device-v1'
 # another first line: a confirmation never logs in and a login never confirms
 CONFIRM_HEADER = 'genroapp-confirm-v1'
 CONFIRM_TEXT_MAX = 120
+# never in the text of a confirmation: control and format characters (a right-to-left override shows another
+# text) and the line and paragraph separators
+CONFIRM_TEXT_REFUSED = ('Cc', 'Cf', 'Zl', 'Zp')
 CONFIRM_CHALLENGE = 'genroapp_confirm_challenge'
 CONFIRMED = 'genroapp_confirmed'
 ALGORITHM = 'ES256'
@@ -82,10 +85,11 @@ class Table(object):
 
     def confirmText(self, text):
         """``text`` when GenroApp signs it as the text of a confirmation: one line of at most
-        CONFIRM_TEXT_MAX characters, without spaces at its ends. None otherwise."""
+        CONFIRM_TEXT_MAX characters, without spaces at its ends and without characters that
+        show it differently from what is compared (CONFIRM_TEXT_REFUSED). None otherwise."""
         if not text or text != text.strip() or len(text) > CONFIRM_TEXT_MAX:
             return None
-        if any(unicodedata.category(c) == 'Cc' for c in text):
+        if any(unicodedata.category(c) in CONFIRM_TEXT_REFUSED for c in text):
             return None
         return text
 
@@ -187,6 +191,11 @@ class Table(object):
             tags.append(DEVICE_TAG)
         return ','.join(tags)
 
+    def deviceEnabled(self):
+        """The GenroApp device features are on: ``<experimental><login genroapp_device="true"/></experimental>``.
+        Switched off, a key registered earlier neither logs in nor confirms."""
+        return self.db.application.experimentalFlag('login', 'genroapp_device')
+
     def genroappPreference(self):
         return Bag(self.db.application.getPreference('general.genroapp', pkg='adm'))
 
@@ -236,8 +245,9 @@ class Table(object):
     @public_method
     def confirmChallenge(self, text=None):
         """A single use challenge for GenroApp to sign with ``text``, the action the logged
-        user confirms on this page; kept in the page store. None for a text GenroApp refuses."""
-        if not self.confirmText(text):
+        user confirms on this page; kept in the page store. None for a text GenroApp refuses
+        and when the device features are switched off."""
+        if not self.deviceEnabled() or not self.confirmText(text):
             return None
         challenge = self.newChallenge()
         challenge['text'] = text
@@ -257,7 +267,7 @@ class Table(object):
             ps.setItem(CONFIRMED, None)
         challenge = self.validChallenge(asked)
         user = self.db.currentEnv.get('user')
-        if not challenge or not user:
+        if not self.deviceEnabled() or not challenge or not user:
             return False
         device = self.verifyConfirm(origin=page.request.host_url.rstrip('/'), user=user, challenge=challenge,
                                     text=asked['text'], key_id=key_id, signature=signature,
