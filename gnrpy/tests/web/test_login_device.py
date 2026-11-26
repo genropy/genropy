@@ -42,6 +42,11 @@ class _Key(object):
         data = '\n'.join(('genroapp-device-v1', origin, user, challenge)).encode()
         return base64.b64encode(self.private.sign(data, ec.ECDSA(hashes.SHA256()))).decode()
 
+    def confirm(self, user, challenge, text, origin=ORIGIN):
+        digest = base64.urlsafe_b64encode(hashlib.sha256(text.encode()).digest()).rstrip(b'=').decode()
+        data = '\n'.join(('genroapp-confirm-v1', origin, user, challenge, digest)).encode()
+        return base64.b64encode(self.private.sign(data, ec.ECDSA(hashes.SHA256()))).decode()
+
 
 class _DevicePage(_AppPage):
     """A page whose login goes through: the onAuthenticating hook of ``hook_tags``
@@ -389,3 +394,121 @@ def test_an_xml_user_cannot_register_a_computer(application, xml_user):
     assert page.login_deviceRegister(key_id=key.key_id, public_key=key.public_key, alg='ES256',
                                      verification='biometry', signature=key.sign(xml_user, challenge)) is None
     assert not application.db.table('adm.user_device').query(where='$key_id=:k', k=key.key_id).count()
+
+
+TEXT = 'Approve payment 1234'
+
+
+def _confirm(application, key, user, text=TEXT, signed_text=None, signer=None):
+    """A page of the logged ``user`` asks to confirm ``text``; ``key`` signs ``signed_text``."""
+    _page(application)
+    tbl = application.db.table('adm.user_device')
+    with application.db.tempEnv(user=user):
+        challenge = tbl.confirmChallenge(text=text)
+        signature = key.confirm(signer or user, challenge, signed_text or text)
+        return tbl.confirmSigned(key_id=key.key_id, signature=signature)
+
+
+def test_a_confirmation_is_verified_and_answers_once(application):
+    key = _register(application, 'dv_alice')
+    tbl = application.db.table('adm.user_device')
+    assert _confirm(application, key, 'dv_alice') is True
+    with application.db.tempEnv(user='dv_alice'):
+        assert tbl.popConfirmed(TEXT) is True
+        assert tbl.popConfirmed(TEXT) is False
+
+
+def test_a_confirmation_is_only_for_its_text_and_its_user(application):
+    key = _register(application, 'dv_alice')
+    tbl = application.db.table('adm.user_device')
+    assert _confirm(application, key, 'dv_alice') is True
+    with application.db.tempEnv(user='dv_alice'):
+        assert tbl.popConfirmed('Approve payment 9999') is False
+        assert tbl.popConfirmed(TEXT) is False
+    assert _confirm(application, key, 'dv_alice') is True
+    with application.db.tempEnv(user='dv_bob'):
+        assert tbl.popConfirmed(TEXT) is False
+
+
+def test_a_confirmation_of_another_text_is_refused(application):
+    key = _register(application, 'dv_alice')
+    assert _confirm(application, key, 'dv_alice', signed_text='Approve payment 9999') is False
+    with application.db.tempEnv(user='dv_alice'):
+        assert application.db.table('adm.user_device').popConfirmed(TEXT) is False
+
+
+def test_the_key_of_another_user_does_not_confirm(application):
+    key = _register(application, 'dv_bob')
+    assert _confirm(application, key, 'dv_alice') is False
+    assert _confirm(application, key, 'dv_alice', signer='dv_bob') is False
+
+
+def test_a_login_signature_does_not_confirm_and_a_confirmation_does_not_log_in(application, genroapp):
+    key = _register(application, 'dv_alice')
+    _page(application)
+    tbl = application.db.table('adm.user_device')
+    with application.db.tempEnv(user='dv_alice'):
+        challenge = tbl.confirmChallenge(text=TEXT)
+        assert tbl.confirmSigned(key_id=key.key_id, signature=key.sign('dv_alice', challenge)) is False
+    page = _page(application)
+    challenge = page.login_deviceChallenge()
+    assert page.login_deviceLogin(key_id=key.key_id, user='dv_alice',
+                                  signature=key.confirm('dv_alice', challenge, TEXT)) is None
+
+
+def test_a_confirmation_challenge_is_single_use_and_expires(application):
+    key = _register(application, 'dv_alice')
+    page = _page(application)
+    tbl = application.db.table('adm.user_device')
+    with application.db.tempEnv(user='dv_alice'):
+        challenge = tbl.confirmChallenge(text=TEXT)
+        signature = key.confirm('dv_alice', challenge, TEXT)
+        assert tbl.confirmSigned(key_id=key.key_id, signature=signature) is True
+        assert tbl.confirmSigned(key_id=key.key_id, signature=signature) is False
+        assert tbl.popConfirmed(TEXT) is False
+        challenge = tbl.confirmChallenge(text=TEXT)
+        with page.pageStore() as ps:
+            ps.setItem('genroapp_confirm_challenge.expires', 0)
+        assert tbl.confirmSigned(key_id=key.key_id, signature=key.confirm('dv_alice', challenge, TEXT)) is False
+
+
+def test_a_confirmation_expires(application):
+    key = _register(application, 'dv_alice')
+    assert _confirm(application, key, 'dv_alice') is True
+    page = application.site.currentPage
+    with page.pageStore() as ps:
+        ps.setItem('genroapp_confirmed.expires', 0)
+    with application.db.tempEnv(user='dv_alice'):
+        assert application.db.table('adm.user_device').popConfirmed(TEXT) is False
+
+
+def test_a_revoked_key_does_not_confirm(application):
+    key = _register(application, 'dv_alice')
+    tbl = application.db.table('adm.user_device')
+    with tbl.recordToUpdate(key_id=key.key_id) as record:
+        record['revoked'] = True
+    application.db.commit()
+    assert _confirm(application, key, 'dv_alice') is False
+
+
+@pytest.mark.parametrize('text', [None, '', ' Approve', 'Approve ', 'Approve\nall', 'a' * 121,
+                                  'Approve \u202e4321', 'Approve\u2028all', 'Approve\u2029all', 'Appro\u200bve'])
+def test_a_text_genroapp_refuses_gets_no_challenge(application, text):
+    _page(application)
+    with application.db.tempEnv(user='dv_alice'):
+        assert application.db.table('adm.user_device').confirmChallenge(text=text) is None
+
+
+def test_switch_off_stops_the_confirmations_too(application, switch_off):
+    """A challenge asked before the switch off is not verified after it."""
+    application.config.setAttr('experimental.login', genroapp_device='true')
+    key = _register(application, 'dv_alice')
+    _page(application)
+    tbl = application.db.table('adm.user_device')
+    with application.db.tempEnv(user='dv_alice'):
+        challenge = tbl.confirmChallenge(text=TEXT)
+        application.config.setAttr('experimental.login', genroapp_device=None)
+        assert tbl.confirmSigned(key_id=key.key_id, signature=key.confirm('dv_alice', challenge, TEXT)) is False
+        assert tbl.confirmChallenge(text=TEXT) is None
+        assert tbl.popConfirmed(TEXT) is False
+

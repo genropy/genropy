@@ -223,6 +223,7 @@ dojo.declare('gnr.GenroClient', null, {
         this.dlg = new gnr.GnrDlgHandler(this); //da implementare
         this.toast = new gnr.GnrToast();
         this.speech = new gnr.GnrSpeech();
+        this.genroapp = new gnr.GnrGenroAppHandler(this);
 
         this.dom = new gnr.GnrDomHandler(this);
         this.vld = new gnr.GnrValidator(this);
@@ -725,11 +726,7 @@ dojo.declare('gnr.GenroClient', null, {
         }
         // GenroApp gives the page window.__TAURI__ (or to its top window): the class lets the
         // stylesheets hide what makes no sense inside the app
-        var genroapp = window.__TAURI__;
-        if(!genroapp){
-            try{ genroapp = window.top.__TAURI__; }catch(e){}
-        }
-        if(genroapp){
+        if(genro.genroapp.tauri()){
             genro.dom.addClass(dojo.body(),'genroapp');
         }
         var _this = this;

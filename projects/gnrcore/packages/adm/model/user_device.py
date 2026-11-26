@@ -3,12 +3,17 @@
 
 GenroApp creates the key pair, sends the public key at registration and signs, at
 each login, a single use challenge together with the site origin and the user.
+
+The same key confirms an action of the logged user: a page calls
+``genro.genroapp.confirm(text)``, GenroApp shows ``text`` in the identity check of the
+computer and signs it, and the server method that acts calls ``popConfirmed(text)`` first.
 """
 
 import base64
 import hashlib
 import secrets
 import time
+import unicodedata
 from datetime import datetime, timezone
 
 from cryptography.exceptions import InvalidSignature, UnsupportedAlgorithm
@@ -25,6 +30,14 @@ DEVICE_TAG = '_DEVICE_'
 BIOMETRIC_TAG = '_BIOMETRIC_'
 SERVER_TAGS = (DEVICE_TAG, BIOMETRIC_TAG)
 SIGNED_HEADER = 'genroapp-device-v1'
+# another first line: a confirmation never logs in and a login never confirms
+CONFIRM_HEADER = 'genroapp-confirm-v1'
+CONFIRM_TEXT_MAX = 120
+# never in the text of a confirmation: control and format characters (a right-to-left override shows another
+# text) and the line and paragraph separators
+CONFIRM_TEXT_REFUSED = ('Cc', 'Cf', 'Zl', 'Zp')
+CONFIRM_CHALLENGE = 'genroapp_confirm_challenge'
+CONFIRMED = 'genroapp_confirmed'
 ALGORITHM = 'ES256'
 VERIFICATIONS = ('biometry', 'user_presence')
 CHALLENGE_SECONDS = 120
@@ -69,6 +82,20 @@ class Table(object):
 
     def signedBytes(self, origin, user, challenge):
         return '\n'.join((SIGNED_HEADER, origin, user, challenge)).encode('utf-8')
+
+    def confirmText(self, text):
+        """``text`` when GenroApp signs it as the text of a confirmation: one line of at most
+        CONFIRM_TEXT_MAX characters, without spaces at its ends and without characters that
+        show it differently from what is compared (CONFIRM_TEXT_REFUSED). None otherwise."""
+        if not text or text != text.strip() or len(text) > CONFIRM_TEXT_MAX:
+            return None
+        if any(unicodedata.category(c) in CONFIRM_TEXT_REFUSED for c in text):
+            return None
+        return text
+
+    def confirmBytes(self, origin, user, challenge, text):
+        digest = b64url(hashlib.sha256(text.encode('utf-8')).digest())
+        return '\n'.join((CONFIRM_HEADER, origin, user, challenge, digest)).encode('utf-8')
 
     def keyId(self, public_key):
         return b64url(hashlib.sha256(base64.b64decode(public_key, validate=True)).digest())
@@ -115,6 +142,18 @@ class Table(object):
     def verifyLogin(self, origin=None, user=None, challenge=None, key_id=None, signature=None,
                     connector_id=None):
         """The device row (id) of the key ``key_id`` of ``user`` when it signed ``challenge``;
+        None for an unknown or revoked key, a wrong signature or a refused connector."""
+        return self.verifySigned(self.signedBytes(origin, user, challenge), user=user, key_id=key_id,
+                                 signature=signature, connector_id=connector_id)
+
+    def verifyConfirm(self, origin=None, user=None, challenge=None, text=None, key_id=None,
+                      signature=None, connector_id=None):
+        """As ``verifyLogin``, for the confirmation of ``text``."""
+        return self.verifySigned(self.confirmBytes(origin, user, challenge, text), user=user, key_id=key_id,
+                                 signature=signature, connector_id=connector_id)
+
+    def verifySigned(self, data, user=None, key_id=None, signature=None, connector_id=None):
+        """The device row (id) of the key ``key_id`` of ``user`` when it signed ``data``;
         None for an unknown or revoked key, a wrong signature or a refused connector.
         The connector is ``connector_id``, which is then stored on the device, or without
         it the one already stored: a revoked connector stays refused when GenroApp
@@ -125,7 +164,7 @@ class Table(object):
         if not rows:
             return None
         row = rows[0]
-        if not self.verifySignature(row['public_key'], signature, self.signedBytes(origin, user, challenge)):
+        if not self.verifySignature(row['public_key'], signature, data):
             return None
         if not self.connectorAccepted(connector_id or row['connector_id'], user):
             return None
@@ -151,6 +190,11 @@ class Table(object):
         if DEVICE_TAG in (connection_tags or '').split(','):
             tags.append(DEVICE_TAG)
         return ','.join(tags)
+
+    def deviceEnabled(self):
+        """The GenroApp device features are on: ``<experimental><login genroapp_device="true"/></experimental>``.
+        Switched off, a key registered earlier neither logs in nor confirms."""
+        return self.db.application.experimentalFlag('login', 'genroapp_device')
 
     def genroappPreference(self):
         return Bag(self.db.application.getPreference('general.genroapp', pkg='adm'))
@@ -197,3 +241,52 @@ class Table(object):
                 raise self.exception('business_logic', msg='!![en]This device belongs to another user')
             record['revoked'] = True
         self.db.commit()
+
+    @public_method
+    def confirmChallenge(self, text=None):
+        """A single use challenge for GenroApp to sign with ``text``, the action the logged
+        user confirms on this page; kept in the page store. None for a text GenroApp refuses
+        and when the device features are switched off."""
+        if not self.deviceEnabled() or not self.confirmText(text):
+            return None
+        challenge = self.newChallenge()
+        challenge['text'] = text
+        with self.db.application.site.currentPage.pageStore() as ps:
+            ps.setItem(CONFIRM_CHALLENGE, challenge)
+            ps.setItem(CONFIRMED, None)
+        return challenge['challenge']
+
+    @public_method
+    def confirmSigned(self, key_id=None, signature=None, connector_id=None):
+        """Check the confirmation signed by GenroApp for the challenge of this page: True when
+        a registered key of the logged user signed it. ``popConfirmed`` then answers once."""
+        page = self.db.application.site.currentPage
+        with page.pageStore() as ps:
+            asked = ps.getItem(CONFIRM_CHALLENGE)
+            ps.setItem(CONFIRM_CHALLENGE, None)
+            ps.setItem(CONFIRMED, None)
+        challenge = self.validChallenge(asked)
+        user = self.db.currentEnv.get('user')
+        if not self.deviceEnabled() or not challenge or not user:
+            return False
+        device = self.verifyConfirm(origin=page.request.host_url.rstrip('/'), user=user, challenge=challenge,
+                                    text=asked['text'], key_id=key_id, signature=signature,
+                                    connector_id=connector_id)
+        if not device:
+            return False
+        self.db.commit()
+        with page.pageStore() as ps:
+            ps.setItem(CONFIRMED, Bag(dict(text=asked['text'], user=user,
+                                           expires=time.time() + CHALLENGE_SECONDS)))
+        return True
+
+    def popConfirmed(self, text):
+        """True, once, when the logged user confirmed ``text`` on this page with the identity
+        check of the computer in the last CHALLENGE_SECONDS. The server method that acts on
+        ``text`` calls it before acting: the answer of the page alone proves nothing."""
+        with self.db.application.site.currentPage.pageStore() as ps:
+            confirmed = ps.getItem(CONFIRMED)
+            ps.setItem(CONFIRMED, None)
+        if not confirmed or confirmed['expires'] < time.time():
+            return False
+        return confirmed['text'] == text and confirmed['user'] == self.db.currentEnv.get('user')
