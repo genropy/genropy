@@ -392,8 +392,6 @@ class FrameIndex(BaseComponent):
             return
         platform = self.connection.user_device.split(':')[0]
         download_url = self.site.get_genroapp_download_url(platform)
-        # GenroApp exposes window.__TAURI__ to the top window: inside the app the button is useless
-        slot.dataFormula('gnr.genroapp.inside','!!(window.top.__TAURI__)',_onBuilt=True)
         # the ticket carries the login of this page into GenroApp (adm.genroapp_ticket); it is asked
         # synchronously, so the link still opens inside the click of the user
         site_url = self.request.host_url.rstrip('/') + self.site.home_uri
@@ -437,8 +435,9 @@ class FrameIndex(BaseComponent):
         footer.div('!![en]GenroApp installed? Open this site in it: you stay logged in.',margin_bottom='8px')
         footer.button('!![en]Open GenroApp',font_size='14px',padding='4px 14px',ticket_rpc=self.genroapp_newTicket,site_url=site_url,
                       action=open_js + " genro.wdgById('genroapp_dialog').hide();")
-        slot.lightButton(_class='iconbox laptop',tip='!![en]Open with GenroApp',
-                         hidden='^gnr.genroapp.inside',dlg=dlg.js_widget,
+        # inside GenroApp the button is useless: frameindex.css hides it under body.genroapp
+        slot.lightButton(_class='iconbox laptop genroapp_open_button',tip='!![en]Open with GenroApp',
+                         dlg=dlg.js_widget,
                          ticket_rpc=self.genroapp_newTicket,site_url=site_url,
                          action="""
             var installed = false;
