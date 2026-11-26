@@ -19,8 +19,10 @@ import threading
 import time
 from contextlib import contextmanager
 from datetime import datetime
+from types import SimpleNamespace
 
 import gnr.web.gnrwsgisite as gws
+from gnr.core.gnrlang import ThreadedDict
 from gnr.web.daemon.siteregister import SiteRegister
 
 
@@ -506,24 +508,76 @@ def test_connection_log_preference_is_read_once_for_each_domain():
                                      dict(storename='acme', currentDomain='acme')]
 
 
-def test_recovery_runs_as_the_domain_of_the_register_being_created():
-    """main_register can be reached from a request of a workspace: the
-    leftovers of the root domain are closed in the root store."""
-    site = _PreferenceSite({None: 'A', 'acme': 'A'}, currentDomain='acme')
+class _DomainSite(_PreferenceSite):
+    """A site whose currentDomain is the real one, bound to the thread."""
+    currentDomain = gws.GnrWsgiSite.currentDomain
 
-    site.checkPendingConnection('_main_')
+    def __init__(self, preferences, **kwargs):
+        self._currentDomains = ThreadedDict()
+        super().__init__(preferences, **kwargs)
 
+
+def _root_proxy(monkeypatch, site, client=None):
+    """The proxy of the root domain, with a client that records the domain
+    its constructor sees."""
+    built = []
+
+    def build(site):
+        built.append(site.currentDomain)
+        return client() if client else 'client'
+
+    monkeypatch.setattr(gws, 'SiteRegisterClient', build)
+    return gws.GnrDomainProxy(SimpleNamespace(site=site), '_main_'), built
+
+
+def test_register_reached_first_from_a_workspace_is_built_as_its_own_domain(monkeypatch):
+    """main_register can be reached first from a request of a workspace:
+    neither the client nor the recovery of the root domain may see it."""
+    site = _DomainSite({None: 'A', 'acme': 'A'}, currentDomain='acme')
+    proxy, built = _root_proxy(monkeypatch, site)
+
+    assert proxy.register == 'client'
+
+    assert built == ['_main_']
     assert site.logged == [('recover', '_main_', dict(storename=None, currentDomain='_main_'))]
+    assert site.currentDomain == 'acme'
+    assert proxy.register == 'client'
+    assert built == ['_main_']
+
+
+def test_register_creation_leaves_a_thread_without_domain_as_it_was(monkeypatch):
+    site = _DomainSite({None: 'A'})
+    proxy, built = _root_proxy(monkeypatch, site)
+
+    proxy.register
+
+    assert built == ['_main_']
+    assert site._currentDomains.get() is None
+
+
+def test_register_creation_gives_the_domain_back_on_failure(monkeypatch):
+    def failing_client():
+        raise RuntimeError('daemon down')
+
+    site = _DomainSite({None: 'A', 'acme': 'A'}, currentDomain='acme')
+    proxy, built = _root_proxy(monkeypatch, site, client=failing_client)
+
+    try:
+        proxy.register
+    except RuntimeError:
+        pass
+
+    assert built == ['_main_']
+    assert site.logged == []
     assert site.currentDomain == 'acme'
 
 
 def test_recovery_is_skipped_where_the_log_is_off():
-    site = _PreferenceSite({None: 'A', 'acme': None}, currentDomain='_main_')
+    site = _PreferenceSite({None: 'A', 'acme': None}, currentDomain='acme')
 
-    site.checkPendingConnection('acme')
+    site.checkPendingConnection()
 
     assert site.logged == []
-    assert site.currentDomain == '_main_'
 
 
 def test_cleanup_thread_closes_its_db_connections():

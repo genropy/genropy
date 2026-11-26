@@ -38,11 +38,13 @@ class Table(object):
                                  end_reason='expired' if event == 'expire' else 'unload')
 
     def closePendingPages(self, connection_id=None, end_ts=None, end_reason=None):
-        closable = self.db.table('adm.connection').closableWhere(end_reason)
-        pages = self.query(where='$connection_id=:connection_id AND %s' % closable,
-                           connection_id=connection_id).fetch()
-        for page in pages:
-            self.closeServedPage(page['page_id'], end_ts=end_ts, end_reason=end_reason)
+        """Close the pages of a connection being closed, in its transaction:
+        a commit here would release the lock on the connection before its
+        own end is written."""
+        connection_tbl = self.db.table('adm.connection')
+        self.batchUpdate(connection_tbl.endUpdater(end_ts, end_reason),
+                         where='$connection_id=:connection_id AND %s' % connection_tbl.closableWhere(end_reason),
+                         connection_id=connection_id)
 
     def openServedPage(self):
         page = self.db.application.site.currentPage

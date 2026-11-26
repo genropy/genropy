@@ -207,8 +207,17 @@ class GnrDomainProxy(object):
     @property
     def register(self):
         if self._register is None:
-            self._register = SiteRegisterClient(self.parent.site)
-            self.parent.site.checkPendingConnection(self.domain)
+            # the client picks its register, and the recovery its store, from
+            # the domain of the thread: main_register is reached from requests
+            # of any workspace
+            site = self.parent.site
+            thread_domain = site._currentDomains.get()
+            site.currentDomain = self.domain
+            try:
+                self._register = SiteRegisterClient(site)
+                site.checkPendingConnection()
+            finally:
+                site.currentDomain = thread_domain
         return self._register
 
     @property
@@ -1805,18 +1814,12 @@ class GnrWsgiSite(object):
         :param avatar: the avatar (user that logs in)"""
         self.gnrapp.pkgBroadcast('onAuthenticated',avatar)
 
-    def checkPendingConnection(self, domain=None):
-        """Close the log rows a previous run left open for `domain`: its
-        register may be reached from a thread working on another domain."""
-        previous_domain = self.currentDomain
-        self.currentDomain = domain or self.currentDomain
-        try:
-            if self.connectionLogEnabled:
-                # FIXME: evaluate methods to remove this dependency from a package
-                with self._sessionLogEnv():
-                    self.db.table('adm.connection').dropExpiredConnections()
-        finally:
-            self.currentDomain = previous_domain
+    def checkPendingConnection(self):
+        """Close the log rows a previous run left open for the current domain."""
+        if self.connectionLogEnabled:
+            # FIXME: evaluate methods to remove this dependency from a package
+            with self._sessionLogEnv():
+                self.db.table('adm.connection').dropExpiredConnections()
 
     def pageLog(self, event, page_id=None, end_ts=None):
         """Record a page event in adm.served_page
