@@ -723,6 +723,15 @@ dojo.declare('gnr.GenroClient', null, {
         if(this.startArgs.workInProgress){
             genro.dom.addClass(dojo.body(),'workInProgress');
         }
+        // GenroApp gives the page window.__TAURI__ (or to its top window): the class lets the
+        // stylesheets hide what makes no sense inside the app
+        var genroapp = window.__TAURI__;
+        if(!genroapp){
+            try{ genroapp = window.top.__TAURI__; }catch(e){}
+        }
+        if(genroapp){
+            genro.dom.addClass(dojo.body(),'genroapp');
+        }
         var _this = this;
 
         this._dataroot.subscribe('dataTriggers', {'any':dojo.hitch(this, "dataTrigger")});
