@@ -159,3 +159,22 @@ test('averages rolled into an empty accumulator stay weighted', () => {
     assert.equal(totals.price_avg, (10 + 9) / 10);
     assert.equal(totals._grp_count_sum, 10);
 });
+
+test('a group value with Bag path operators stays one level, also when it is not the last one', () => {
+    const tree = groupth.groupTreeData(store([
+        row('[NP]', 2, 5, 1, [1, 1], 'p1,p2', {[STATE_KEY]: 'Hotel X | Dinner'}),
+    ]), struct([{field: STATE, dtype: 'T'}, {field: TYPE, dtype: 'T'}]));
+    assert.equal(tree.len(), 1);
+    const hotel = tree.getNode('#0');
+    assert.equal(hotel.attr.description, 'Hotel X | Dinner');
+    assert.equal(hotel.attr._grp_count_sum, 2);
+    assert.equal(hotel.getValue().getNode('#0').attr._pkeylist, 'p1,p2');
+});
+
+test('a group value with a tilde is not read as a Bag path operator', () => {
+    const tree = groupth.groupTreeData(store([
+        row('B', 1, 1, 1, [1, 1], 'p1', {[STATE_KEY]: 'A ~ C'}),
+    ]), struct([{field: STATE, dtype: 'T'}, {field: TYPE, dtype: 'T'}]));
+    assert.equal(tree.getNode('#0').attr.description, 'A ~ C');
+    assert.equal(tree.getNode('#0').getValue().getNode('#0').attr._grp_count_sum, 1);
+});
