@@ -8,7 +8,7 @@ from gnr.sql.gnrsqlprivacy import privacy_report, privacy_report_text, privacy_r
 description = "list the columns marked as personal data and the unmarked suspects (model only)"
 
 
-def main():  # wf:phase-1:new
+def main():
     parser = GnrCliArgParse(description=description)
     parser.add_argument("instance_name", nargs=1)
     parser.add_argument("--format", dest="output_format", choices=("text", "tsv"),

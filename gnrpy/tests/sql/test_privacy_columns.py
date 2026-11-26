@@ -29,11 +29,11 @@ def teardown_module(module):
 
 
 @pytest.fixture(scope='module', params=['sqlite', 'pg'])
-def any_db(request):  # wf:phase-1:new
+def any_db(request):
     return request.getfixturevalue('db_%s' % request.param)
 
 
-def masked_literal(db, value, mode):  # wf:phase-1:new
+def masked_literal(db, value, mode):
     """Mask a SQL literal with the adapter's expression and return the result."""
     expr = db.adapter.mask_field_sql(value, mode=mode)
     return db.execute('SELECT %s' % expr).fetchall()[0][0]
@@ -55,12 +55,12 @@ class TestMaskModes:
         ("'1980-05-17'", 'birthdate', '1980-**-**'),
         ("'any free text'", 'text', '***'),
     ])
-    def test_new_modes(self, any_db, value, mode, expected):  # wf:phase-1:new
+    def test_new_modes(self, any_db, value, mode, expected):
         assert masked_literal(any_db, value, mode) == expected
 
     @pytest.mark.parametrize('mode', ['cf', 'piva', 'iban', 'name', 'address',
                                       'birthdate', 'text'])
-    def test_null_stays_null(self, any_db, mode):  # wf:phase-1:new
+    def test_null_stays_null(self, any_db, mode):
         assert masked_literal(any_db, 'NULL', mode) is None
 
     @pytest.mark.parametrize('value,mode,expected', [
@@ -69,7 +69,7 @@ class TestMaskModes:
         ("'+393331234567'", 'phone', '+39*******567'),
         ("'ABCDEFGHIJ'", '2-4', 'AB****GHIJ'),
     ])
-    def test_existing_modes_unchanged(self, any_db, value, mode, expected):  # wf:phase-1:new
+    def test_existing_modes_unchanged(self, any_db, value, mode, expected):
         assert masked_literal(any_db, value, mode) == expected
 
 
@@ -79,7 +79,7 @@ class TestMaskModes:
 
 class TestMaskedVariantColumns:
 
-    def test_user_columns_masked(self, any_db):  # wf:phase-1:new
+    def test_user_columns_masked(self, any_db):
         row = any_db.table('adm.user').query(
             columns='$firstname_masked, $lastname_masked, $email_masked',
             where='$username = :u', u='james.wilson',
@@ -88,7 +88,7 @@ class TestMaskedVariantColumns:
         assert row['lastname_masked'] == 'W***'
         assert row['email_masked'] == 'ja' + '*' * 10 + '@testinvoice.com'
 
-    def test_date_column_masked(self, any_db):  # wf:phase-1:new
+    def test_date_column_masked(self, any_db):
         tbl = any_db.table('invc.invoice')
         expr = any_db.adapter.mask_field_sql('$date', mode='birthdate')
         rows = tbl.query(columns='$date, %s AS date_masked' % expr, limit=5).fetch()
@@ -96,7 +96,7 @@ class TestMaskedVariantColumns:
         for row in rows:
             assert row['date_masked'] == '%s-**-**' % row['date'].year
 
-    def test_date_column_generic_mode(self, any_db):  # wf:phase-1:new
+    def test_date_column_generic_mode(self, any_db):
         tbl = any_db.table('invc.invoice')
         expr = any_db.adapter.mask_field_sql('$date', mode='4-2')
         row = tbl.query(columns='$date, %s AS date_masked' % expr, limit=1).fetch()[0]
@@ -109,30 +109,30 @@ class TestMaskedVariantColumns:
 
 class TestPrivacyColumns:
 
-    def test_kinds(self, db_sqlite):  # wf:phase-1:new
+    def test_kinds(self, db_sqlite):
         marked = db_sqlite.table('adm.user').privacy_columns
         assert marked['email'] == 'email'
         assert marked['firstname'] == 'name'
         assert marked['mobile'] == 'phone'
         assert 'username' not in marked
 
-    def test_encrypted_alone_has_no_kind(self, db_sqlite):  # wf:phase-1:new
+    def test_encrypted_alone_has_no_kind(self, db_sqlite):
         assert db_sqlite.table('invc.customer').privacy_columns == {
             'access_token': None, 'bank_account': None, 'registration_id': None,
         }
 
-    def test_mark_without_mode(self, db_sqlite, monkeypatch):  # wf:phase-1:new
+    def test_mark_without_mode(self, db_sqlite, monkeypatch):
         colobj = db_sqlite.model.column('invc.customer.notes')
         monkeypatch.setitem(colobj.attributes, 'variant', 'masked')
         assert db_sqlite.table('invc.customer').privacy_columns['notes'] is None
 
-    def test_masked_in_variant_list(self, db_sqlite, monkeypatch):  # wf:phase-1:new
+    def test_masked_in_variant_list(self, db_sqlite, monkeypatch):
         colobj = db_sqlite.model.column('invc.customer.street_address')
         monkeypatch.setitem(colobj.attributes, 'variant', 'unaccent,masked')
         monkeypatch.setitem(colobj.attributes, 'variant_masked_mode', 'address')
         assert db_sqlite.table('invc.customer').privacy_columns['street_address'] == 'address'
 
-    def test_encrypted_and_masked_keeps_kind(self, db_sqlite, monkeypatch):  # wf:phase-1:new
+    def test_encrypted_and_masked_keeps_kind(self, db_sqlite, monkeypatch):
         colobj = db_sqlite.model.column('invc.customer.bank_account')
         monkeypatch.setitem(colobj.attributes, 'variant', 'masked')
         monkeypatch.setitem(colobj.attributes, 'variant_masked_mode', 'iban')
@@ -149,20 +149,20 @@ class TestSuspectColumns:
         'codice_fiscale', 'cliente_cf', 'email_pec', 'tel', 'home_address',
         'data_nascita', 'name', 'notes', 'Partita_IVA', 'vat_number',
     ])
-    def test_suspect(self, colname):  # wf:phase-1:new
+    def test_suspect(self, colname):
         assert is_suspect_column(colname)
 
     @pytest.mark.parametrize('colname', [
         'cfg', 'nomenclature', 'username', 'telemetry', 'viaggio', 'notebook',
         'customer_type_code', 'total',
     ])
-    def test_not_suspect(self, colname):  # wf:phase-1:new
+    def test_not_suspect(self, colname):
         assert not is_suspect_column(colname)
 
 
 class TestPrivacyReport:
 
-    def test_tsv(self, db_sqlite):  # wf:phase-1:new
+    def test_tsv(self, db_sqlite):
         lines = privacy_report_tsv(privacy_report(db_sqlite)).splitlines()
         assert lines[0] == 'package\ttable\tcolumn\tstatus\tkind'
         rows = {tuple(line.split('\t')) for line in lines[1:]}
@@ -173,22 +173,22 @@ class TestPrivacyReport:
         assert not any(row[2] == 'username' for row in rows)
         assert all(len(row) == 5 for row in rows)
 
-    def test_physical_columns_only(self, db_sqlite):  # wf:phase-1:new
+    def test_physical_columns_only(self, db_sqlite):
         rows = privacy_report(db_sqlite)
         assert not any(column.endswith('_masked') for _, _, column, _, _ in rows)
 
-    def test_declaring_package(self, db_sqlite, monkeypatch):  # wf:phase-1:new
+    def test_declaring_package(self, db_sqlite, monkeypatch):
         colobj = db_sqlite.model.column('adm.user.email')
         monkeypatch.setitem(colobj.attributes, '_owner_package', 'invc')
         rows = privacy_report(db_sqlite)
         assert ('invc', 'adm.user', 'email', 'marked', 'email') in rows
 
-    def test_text(self, db_sqlite):  # wf:phase-1:new
+    def test_text(self, db_sqlite):
         text = privacy_report_text(privacy_report(db_sqlite))
         assert 'invc.customer' in text
         assert 'suspect' in text
 
-    def test_reads_no_table_data(self, sqlite_temp_dir, monkeypatch):  # wf:phase-1:new
+    def test_reads_no_table_data(self, sqlite_temp_dir, monkeypatch):
         """Loading the instance and running the report query no table."""
         statements = []
         original_execute = GnrSqliteCursor.execute
@@ -219,19 +219,19 @@ class TestOwnerPackage:
     """The declaring package of a column added through model/_packages/."""
 
     @pytest.fixture(scope='class')
-    def xtd_db(self, sqlite_temp_dir):  # wf:phase-1:new
+    def xtd_db(self, sqlite_temp_dir):
         # xtd_test adds invc.customer.xtd_reference from model/_packages/invc/
         return GnrApp('test_invoice_xtd', db_attrs=dict(
             implementation='sqlite',
             dbname=os.path.join(sqlite_temp_dir, 'privacy_owner'),
         )).db
 
-    def test_plugged_column_owner(self, xtd_db):  # wf:phase-1:new
+    def test_plugged_column_owner(self, xtd_db):
         customer = xtd_db.model.table('invc.customer')
         assert customer.column('xtd_reference').attributes['_owner_package'] == 'xtd_test'
         assert customer.pluggedColumns() == ['xtd_reference']
 
-    def test_later_columns_keep_their_package(self, xtd_db):  # wf:phase-1:new
+    def test_later_columns_keep_their_package(self, xtd_db):
         """Tables built after the customization are not stamped with its package."""
         for tblname in ('invc.customer_type', 'invc.invoice', 'invc.staff'):
             assert xtd_db.model.table(tblname).pluggedColumns() == []

@@ -261,7 +261,7 @@ class ColumnsMixin(SqlTableBaseMixin):
         return self.model.virtual_columns
 
     @property
-    def privacy_columns(self):  # wf:phase-1:new
+    def privacy_columns(self):
         """Physical columns marked as holding personal data.
 
         A column is marked by ``variant='masked'`` (alone or in a variant

@@ -37,7 +37,7 @@ SUSPECT_TOKENS = frozenset((
 ))
 
 
-def is_suspect_column(colname):  # wf:phase-1:new
+def is_suspect_column(colname):
     """Return ``True`` when the column name suggests personal data."""
     colname = colname.lower()
     if any(pattern in colname for pattern in SUSPECT_SUBSTRINGS):
@@ -45,7 +45,7 @@ def is_suspect_column(colname):  # wf:phase-1:new
     return not SUSPECT_TOKENS.isdisjoint(colname.split('_'))
 
 
-def privacy_report(db):  # wf:phase-1:new
+def privacy_report(db):
     """Classify the physical columns of every table of ``db``.
 
     :returns: a list of ``(package, table, column, status, kind)`` tuples,
@@ -73,12 +73,12 @@ def privacy_report(db):  # wf:phase-1:new
     return rows
 
 
-def privacy_report_tsv(rows):  # wf:phase-1:new
+def privacy_report_tsv(rows):
     """Return the report rows as TSV text, header line first."""
     return '\n'.join('\t'.join(row) for row in [TSV_HEADER] + rows) + '\n'
 
 
-def privacy_report_text(rows):  # wf:phase-1:new
+def privacy_report_text(rows):
     """Return the report rows grouped by table, for reading on a terminal."""
     lines = []
     current_table = None
