@@ -366,13 +366,16 @@
 		</adm_notification>
 		<login_js path="resources/login.js" ext="js">
 			<en_session_closed base="Session closed" en="Session closed" it="Sessione chiusa"/>
-			<en_unlock_with_biometry_ base="Unlock with {biometry}" en="Unlock with {biometry}" it="Sblocca con {biometry}"/>
+			<en_unlock_with_identity_check base="Unlock with identity check" en="Unlock with identity check" it="Sblocca con la verifica dell'identità"/>
+			<en_touch_id_or_the_password_of_the_mac base="Touch ID or the password of the Mac" en="Touch ID or the password of the Mac" it="Touch ID o la password del Mac"/>
+			<en_windows_hello_fingerprint_face_or_pin base="Windows Hello: fingerprint, face or PIN" en="Windows Hello: fingerprint, face or PIN" it="Windows Hello: impronta, volto o PIN"/>
+			<en_password_fingerprint_or_security_key base="Password, fingerprint or security key" en="Password, fingerprint or security key" it="Password, impronta o chiave di sicurezza"/>
 			<en_log_in_with_password base="Log in with password" en="Log in with password" it="Accedi con password"/>
 			<en_this_user_must_log_in_with_genroapp base="This user must log in with GenroApp" en="This user must log in with GenroApp" it="Questo utente deve accedere con GenroApp"/>
 			<en_this_device_is_not_recognized_log_in_with_password base="This device is not recognized: log in with password" en="This device is not recognized: log in with password" it="Questo dispositivo non è riconosciuto: accedi con la password"/>
 			<en_register_this_device base="Register this device" en="Register this device" it="Registra questo dispositivo"/>
-			<en_next_time_unlock_with_biometry_ base="Next time, unlock with {biometry}." en="Next time, unlock with {biometry}." it="La prossima volta sblocca con {biometry}."/>
-			<en_register_with_biometry_ base="Register with {biometry}" en="Register with {biometry}" it="Registra con {biometry}"/>
+			<en_next_time_unlock_with_the_identity_check_of_this_computer_ base="Next time, unlock with the identity check of this computer." en="Next time, unlock with the identity check of this computer." it="La prossima volta sblocca con la verifica dell'identità di questo computer."/>
+			<en_register_this_computer base="Register this computer" en="Register this computer" it="Registra questo computer"/>
 		</login_js>
 		<frameindex path="resources/frameindex.py" ext="py">
 			<en_invalid_access fr="Accès non valide" de="Ungültige Zugang" en="Invalid Access" it="Accesso non valido" base="Invalid Access"/>

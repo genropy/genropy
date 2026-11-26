@@ -152,6 +152,11 @@
     background: var(--primary-dark);
 }
 
+.genroapp_lockscreen_hint{
+    font-size: .85em;
+    color: var(--text-secondary);
+}
+
 .genroapp_lockscreen_password{
     font-size: .85em;
     color: var(--text-secondary);
