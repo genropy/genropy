@@ -34,15 +34,15 @@ def _age(reg, register_name, item_id, hours):
 def test_a_connection_idle_for_a_day_and_a_bit_is_expired():
     reg = _register()
     _age(reg, 'connection', 'c1', hours=24.2)
-    assert reg.expire_connection('c1') is True
+    assert reg.expire_connection('c1') is not None
 
 
 def test_a_page_idle_for_a_day_and_a_bit_is_expired():
     reg = _register()
     _age(reg, 'page', 'p1', hours=24.05)
-    assert reg.expire_pages('c1') == ['p1']
+    assert list(reg.expire_pages('c1')) == ['p1']
 
 
 def test_a_fresh_connection_survives():
     reg = _register()
-    assert reg.expire_connection('c1') is False
+    assert reg.expire_connection('c1') is None

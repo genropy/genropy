@@ -208,7 +208,7 @@ class GnrDomainProxy(object):
     def register(self):
         if self._register is None:
             self._register = SiteRegisterClient(self.parent.site)
-            self.parent.site.checkPendingConnection()
+            self.parent.site.checkPendingConnection(self.domain)
         return self._register
 
     @property
@@ -461,6 +461,7 @@ class GnrWsgiSite(object):
         self._currentPages = ThreadedDict()
         self._currentRequests = ThreadedDict()
         self._currentDomains = ThreadedDict()
+        self._connectionLogEnabled = {}
         self.domains = GnrDomainHandler(self)
         self.rootDomain = '_main_'
         self.domains.add(self.rootDomain)
@@ -765,12 +766,17 @@ class GnrWsgiSite(object):
 
     @property
     def connectionLogEnabled(self):
-        if not hasattr(self,'_connectionLogEnabled'):
-            if not self.db.package('adm'):
-                self._connectionLogEnabled = False
-            else:
-                self._connectionLogEnabled = self.getPreference('dev.connection_log_enabled',pkg='adm')
-        return self._connectionLogEnabled
+        """The adm preference of the current domain, read once per process:
+        switching it while connections are open would log pages without
+        their connection, or leave rows that nothing closes."""
+        domain = self.currentDomain
+        if domain not in self._connectionLogEnabled:
+            enabled = False
+            if self.db.package('adm'):
+                with self._sessionLogEnv():
+                    enabled = self.getPreference('dev.connection_log_enabled',pkg='adm')
+            self._connectionLogEnabled[domain] = enabled
+        return self._connectionLogEnabled[domain]
 
 
     @property
@@ -1799,26 +1805,36 @@ class GnrWsgiSite(object):
         :param avatar: the avatar (user that logs in)"""
         self.gnrapp.pkgBroadcast('onAuthenticated',avatar)
 
-    def checkPendingConnection(self):
-        if self.connectionLogEnabled:
-            # FIXME: evaluate methods to remove this dependency from a package
-            self.db.table('adm.connection').dropExpiredConnections()
+    def checkPendingConnection(self, domain=None):
+        """Close the log rows a previous run left open for `domain`: its
+        register may be reached from a thread working on another domain."""
+        previous_domain = self.currentDomain
+        self.currentDomain = domain or self.currentDomain
+        try:
+            if self.connectionLogEnabled:
+                # FIXME: evaluate methods to remove this dependency from a package
+                with self._sessionLogEnv():
+                    self.db.table('adm.connection').dropExpiredConnections()
+        finally:
+            self.currentDomain = previous_domain
 
-    def pageLog(self, event, page_id=None):
-        """TODO
+    def pageLog(self, event, page_id=None, end_ts=None):
+        """Record a page event in adm.served_page
 
-        :param event: TODO
-        :param page_id: the 22 characters page id"""
+        :param event: 'open', 'close' or 'expire'
+        :param page_id: the 22 characters page id
+        :param end_ts: when the page ended, if not now"""
         if self.connectionLogEnabled == 'A':
-            self.db.table('adm.served_page').pageLog(event, page_id=page_id)
+            self.db.table('adm.served_page').pageLog(event, page_id=page_id, end_ts=end_ts)
 
-    def connectionLog(self, event, connection_id=None):
-        """TODO
+    def connectionLog(self, event, connection_id=None, end_ts=None):
+        """Record a connection event in adm.connection
 
-        :param event: TODO
-        :param connection_id: TODO"""
+        :param event: 'open', 'close' or 'expire'
+        :param connection_id: the 22 characters connection id
+        :param end_ts: when the connection ended, if not now"""
         if self.connectionLogEnabled:
-            self.db.table('adm.connection').connectionLog(event, connection_id=connection_id)
+            self.db.table('adm.connection').connectionLog(event, connection_id=connection_id, end_ts=end_ts)
 
     def setPreference(self, path, data, pkg=''):
         """TODO
@@ -1953,8 +1969,14 @@ class GnrWsgiSite(object):
             return
         if not won:
             return
-        Thread(target=self._runCleanup, kwargs=dict(domain=self.currentDomain),
+        Thread(target=self._runCleanupThread, kwargs=dict(domain=self.currentDomain),
                daemon=True).start()
+
+    def _runCleanupThread(self, domain=None):
+        try:
+            self._runCleanup(domain=domain)
+        finally:
+            self.db.closeConnection()
 
     def _runCleanup(self, domain=None):
         """Clean the folders of one domain, in whatever thread.
@@ -2015,22 +2037,41 @@ class GnrWsgiSite(object):
                 stale_pages = self.register.expire_pages(entry)
             except Exception:
                 logger.exception("expire_pages failed for %s", entry)
-                stale_pages = []
+                stale_pages = {}
             for page_id in stale_pages:
                 shutil.rmtree(os.path.join(path, page_id), ignore_errors=True)
                 dropped_pages += 1
             try:
-                connection_dropped = self.register.expire_connection(entry)
+                connection_end_ts = self.register.expire_connection(entry)
             except Exception:
                 logger.exception("expire_connection failed for %s", entry)
-                connection_dropped = False
-            if connection_dropped:
+                connection_end_ts = None
+            if connection_end_ts:
                 shutil.rmtree(path, ignore_errors=True)
                 dropped_connections += 1
+            if stale_pages or connection_end_ts:
+                try:
+                    self._logExpired(entry, stale_pages, connection_end_ts)
+                except Exception:
+                    logger.exception("Session log update failed for %s", entry)
         if dropped_pages or dropped_connections or removed_folders:
             logger.info("Cleanup: dropped %d pages, %d connections, "
                         "removed %d orphan folders",
                         dropped_pages, dropped_connections, removed_folders)
+
+    def _sessionLogEnv(self):
+        """The db environment of the current domain: outside a page nothing
+        else points the db at the store the domain logs its sessions in."""
+        domain = self.currentDomain
+        storename = domain if self.multidomain and domain != self.rootDomain else None
+        return self.db.tempEnv(storename=storename, currentDomain=domain)
+
+    def _logExpired(self, connection_id, stale_pages, connection_end_ts):
+        with self._sessionLogEnv():
+            for page_id, end_ts in stale_pages.items():
+                self.pageLog('expire', page_id=page_id, end_ts=end_ts)
+            if connection_end_ts:
+                self.connectionLog('expire', connection_id=connection_id, end_ts=connection_end_ts)
 
     def sqlDebugger(self,**kwargs):
         page = self.currentPage

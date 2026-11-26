@@ -6,9 +6,13 @@ class Table(object):
     def config_db(self, pkg):
         tbl = pkg.table('served_page', pkey='page_id', name_long='!!Served page',
                         name_plural='!!Served pages',
-                        checkpref='adm.dev.connection_log_enabled')
+                        checkpref='adm.dev.connection_log_enabled',
+                        retention_policy=('start_ts', 365))
         tbl.column('page_id', size='22', name_long='!!Page id')
         tbl.column('pagename', name_long='!!Page name')
+        tbl.column('page_url', name_long='!!Page url')
+        tbl.column('parent_page_id', size='22', group='_', name_long='!!Parent page id')
+        tbl.column('root_page_id', size='22', group='_', name_long='!!Root page id')
         tbl.column('connection_id', size='22', group='_').relation('connection.id', mode='foreignkey',relation_name='pages',
                                                                    onDelete='cascade')
         tbl.column('start_ts', 'DH', name_long='!!Start ts')
@@ -26,37 +30,37 @@ class Table(object):
                           current_page_id=current_page_id).fetch()
 
 
-    def pageLog(self, event, page_id=None):
+    def pageLog(self, event, page_id=None, end_ts=None):
         if event == 'open':
             self.openServedPage()
         else:
-            self.closeServedPage(page_id=page_id, end_ts=datetime.now(), end_reason='unload')
+            self.closeServedPage(page_id=page_id, end_ts=end_ts,
+                                 end_reason='expired' if event == 'expire' else 'unload')
 
     def closePendingPages(self, connection_id=None, end_ts=None, end_reason=None):
-        for page in self.getLivePages(connection_id=connection_id):
+        closable = self.db.table('adm.connection').closableWhere(end_reason)
+        pages = self.query(where='$connection_id=:connection_id AND %s' % closable,
+                           connection_id=connection_id).fetch()
+        for page in pages:
             self.closeServedPage(page['page_id'], end_ts=end_ts, end_reason=end_reason)
 
     def openServedPage(self):
         page = self.db.application.site.currentPage
         record_served_page = dict(page_id=page.page_id, end_reason=None, end_ts=None,
                                   connection_id=page.connection_id,
-                                  start_ts=datetime.now(), pagename=page.basename)
+                                  start_ts=datetime.now(), pagename=page.basename,
+                                  page_url=page.request.path_info,
+                                  parent_page_id=page.parent_page_id,
+                                  root_page_id=page.root_page_id)
         with self.db.tempEnv(connectionName='system'):
             self.insertOrUpdate(record_served_page)
             self.db.commit()
 
     def closeServedPage(self, page_id=None, end_ts=None, end_reason=None):
-        page = self.db.application.site.currentPage
-        page_id = page_id or page.page_id
+        page_id = page_id or self.db.application.site.currentPage.page_id
+        connection_tbl = self.db.table('adm.connection')
         with self.db.tempEnv(connectionName='system'):
-            self.batchUpdate(dict(end_ts=end_ts or datetime.now(), end_reason=end_reason),
-                             where='$page_id=:page_id', page_id=page_id)
+            self.batchUpdate(connection_tbl.endUpdater(end_ts, end_reason),
+                             where='$page_id=:page_id AND %s' % connection_tbl.closableWhere(end_reason),
+                             page_id=page_id)
             self.db.commit()
-
-    def closeOrphans(self):
-        with self.db.tempEnv(connectionName='system'):
-            self.batchUpdate(dict(end_reason='expired', end_ts=datetime.now()),
-                             where='@connection_id.end_ts IS NOT NULL')
-            self.db.commit()
-
-            

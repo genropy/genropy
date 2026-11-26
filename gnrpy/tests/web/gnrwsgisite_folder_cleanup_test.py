@@ -17,6 +17,8 @@ import logging
 import os
 import threading
 import time
+from contextlib import contextmanager
+from datetime import datetime
 
 import gnr.web.gnrwsgisite as gws
 from gnr.web.daemon.siteregister import SiteRegister
@@ -25,6 +27,10 @@ from gnr.web.daemon.siteregister import SiteRegister
 # ---------------------------------------------------------------------------
 # Fakes
 # ---------------------------------------------------------------------------
+
+
+PAGE_END_TS = datetime(2026, 10, 3, 11, 30)
+CONNECTION_END_TS = datetime(2026, 10, 3, 11, 45)
 
 
 class _FakeDaemon:
@@ -51,13 +57,14 @@ class _FakeRegister:
                  claim_returns=True,
                  live_connections=None,
                  expire_pages_result=None,
-                 expire_connection_result=False,
+                 expire_connection_result=None,
                  raises=None):
         self.claim_returns = claim_returns
         self.live_connections = live_connections or {}
-        # expire_pages_result is either a list (returned for any conn)
-        # or a dict {conn_id: [page_ids]}.
-        self.expire_pages_result = expire_pages_result or []
+        # expire_pages_result is {conn_id: {page_id: last_activity_ts}};
+        # expire_connection_result is the last activity ts of the dropped
+        # connection (or {conn_id: ts}), None when nothing is dropped.
+        self.expire_pages_result = expire_pages_result or {}
         self.expire_connection_result = expire_connection_result
         self.raises = raises or {}
         self.claim_called_with = None
@@ -80,16 +87,14 @@ class _FakeRegister:
         self.expire_pages_called.append(connection_id)
         if 'expire_pages' in self.raises:
             raise self.raises['expire_pages']
-        if isinstance(self.expire_pages_result, dict):
-            return list(self.expire_pages_result.get(connection_id, []))
-        return list(self.expire_pages_result)
+        return dict(self.expire_pages_result.get(connection_id, {}))
 
     def expire_connection(self, connection_id):
         self.expire_connection_called.append(connection_id)
         if 'expire_connection' in self.raises:
             raise self.raises['expire_connection']
         if isinstance(self.expire_connection_result, dict):
-            return self.expire_connection_result.get(connection_id, False)
+            return self.expire_connection_result.get(connection_id)
         return self.expire_connection_result
 
 
@@ -98,12 +103,47 @@ class _FakeSite:
     invoked unbound: ``GnrWsgiSite._method(self_=_FakeSite(...))``."""
 
     currentDomain = None
+    rootDomain = '_main_'
+    multidomain = False
     # the real walk, so the tests below exercise it through _runCleanup
     _cleanupConnectionFolders = gws.GnrWsgiSite._cleanupConnectionFolders
+    _runCleanupThread = gws.GnrWsgiSite._runCleanupThread
+    _logExpired = gws.GnrWsgiSite._logExpired
+    _sessionLogEnv = gws.GnrWsgiSite._sessionLogEnv
 
     def __init__(self, **kwargs):
+        self.logged = []
+        self.db = _FakeDb()
         for k, v in kwargs.items():
             setattr(self, k, v)
+
+    def pageLog(self, event, page_id=None, end_ts=None):
+        self.logged.append(('page', event, page_id, end_ts, self.db.env))
+
+    def connectionLog(self, event, connection_id=None, end_ts=None):
+        self.logged.append(('connection', event, connection_id, end_ts, self.db.env))
+
+
+
+class _FakeDb:
+    """Records the environment the session log is written in, and the
+    closing of the connections of the thread."""
+    closed = 0
+    env = None
+
+    def closeConnection(self):
+        self.closed += 1
+
+    @contextmanager
+    def tempEnv(self, **kwargs):
+        self.env = kwargs
+        try:
+            yield
+        finally:
+            self.env = None
+
+
+ROOT_ENV = dict(storename=None, currentDomain=None)
 
 
 class _UnusedThread:
@@ -205,9 +245,9 @@ def test_maybe_both_win_spawns_thread(monkeypatch):
     monkeypatch.setattr(gws, 'Thread', fake_thread)
     gws.GnrWsgiSite._maybeRunCleanup(site)
     assert len(spawned) == 1
-    # Thread is configured as a daemon and targets the site's _runCleanup
+    # Thread is configured as a daemon and targets the site's cleanup thread body
     assert spawned[0]['daemon'] is True
-    assert spawned[0]['target'] is site._runCleanup
+    assert spawned[0]['target'] == site._runCleanupThread
     # the thread has no currentDomain of its own: the claimed one travels with it
     assert spawned[0]['kwargs'] == {'domain': 'acme'}
 
@@ -322,8 +362,7 @@ def test_runcleanup_drops_stale_pages_in_live_connection(tmp_path):
         connection_max_age=600,
         register=_FakeRegister(
             live_connections={'live1': {}},
-            expire_pages_result={'live1': ['p_stale']},
-            expire_connection_result=False,
+            expire_pages_result={'live1': {'p_stale': PAGE_END_TS}},
         ),
     )
     conn_dir = tmp_path / 'live1'
@@ -336,6 +375,7 @@ def test_runcleanup_drops_stale_pages_in_live_connection(tmp_path):
     assert conn_dir.exists()
     assert (conn_dir / 'p_fresh').exists()
     assert not (conn_dir / 'p_stale').exists()
+    assert site.logged == [('page', 'expire', 'p_stale', PAGE_END_TS, ROOT_ENV)]
 
 
 def test_runcleanup_drops_stale_connection_and_folder(tmp_path):
@@ -345,8 +385,7 @@ def test_runcleanup_drops_stale_connection_and_folder(tmp_path):
         connection_max_age=600,
         register=_FakeRegister(
             live_connections={'live1': {}},
-            expire_pages_result=[],
-            expire_connection_result=True,
+            expire_connection_result=CONNECTION_END_TS,
         ),
     )
     conn_dir = tmp_path / 'live1'
@@ -356,6 +395,155 @@ def test_runcleanup_drops_stale_connection_and_folder(tmp_path):
     gws.GnrWsgiSite._runCleanup(site)
 
     assert not conn_dir.exists()
+    assert site.logged == [('connection', 'expire', 'live1', CONNECTION_END_TS, ROOT_ENV)]
+
+
+def test_runcleanup_survives_a_failing_session_log(tmp_path, caplog):
+    """The log write fails for one connection: the error is logged and
+    the walk goes on to the next one."""
+    logged = []
+
+    def failing_log(connection_id, stale_pages, connection_end_ts):
+        if connection_id == 'live1':
+            raise RuntimeError('db_boom')
+        logged.append(connection_id)
+
+    site = _FakeSite(
+        allConnectionsFolder=str(tmp_path),
+        connection_max_age=600,
+        register=_FakeRegister(
+            live_connections={'live1': {}, 'live2': {}},
+            expire_connection_result=CONNECTION_END_TS,
+        ),
+        _logExpired=failing_log,
+    )
+    (tmp_path / 'live1').mkdir()
+    (tmp_path / 'live2').mkdir()
+
+    with caplog.at_level(logging.ERROR, logger='gnr.web'):
+        gws.GnrWsgiSite._runCleanup(site)
+
+    assert logged == ['live2']
+    assert not (tmp_path / 'live1').exists()
+    assert not (tmp_path / 'live2').exists()
+    assert any('Session log update failed for live1' in r.getMessage()
+               for r in caplog.records)
+
+
+def test_runcleanup_writes_the_session_log_in_the_store_of_the_domain(tmp_path):
+    """The cleanup thread has no page: the db is pointed at the store of
+    the workspace whose register is being walked."""
+    site = _FakeSite(
+        allConnectionsFolder=str(tmp_path),
+        connection_max_age=600,
+        multidomain=True,
+        register=_FakeRegister(
+            live_connections={'live1': {}},
+            expire_pages_result={'live1': {'p1': PAGE_END_TS}},
+            expire_connection_result=CONNECTION_END_TS,
+        ),
+    )
+    (tmp_path / 'live1').mkdir()
+
+    gws.GnrWsgiSite._runCleanup(site, domain='acme')
+
+    acme_env = dict(storename='acme', currentDomain='acme')
+    assert site.logged == [('page', 'expire', 'p1', PAGE_END_TS, acme_env),
+                           ('connection', 'expire', 'live1', CONNECTION_END_TS, acme_env)]
+
+
+def test_runcleanup_writes_the_root_domain_log_in_the_root_store(tmp_path):
+    site = _FakeSite(
+        allConnectionsFolder=str(tmp_path),
+        connection_max_age=600,
+        multidomain=True,
+        register=_FakeRegister(
+            live_connections={'live1': {}},
+            expire_connection_result=CONNECTION_END_TS,
+        ),
+    )
+    (tmp_path / 'live1').mkdir()
+
+    gws.GnrWsgiSite._runCleanup(site, domain='_main_')
+
+    assert site.logged == [('connection', 'expire', 'live1', CONNECTION_END_TS,
+                            dict(storename=None, currentDomain='_main_'))]
+
+
+class _PreferenceSite(_FakeSite):
+    """A site whose adm preference differs by domain, read through the
+    real property and the real recovery entry point."""
+    multidomain = True
+    connectionLogEnabled = gws.GnrWsgiSite.connectionLogEnabled
+    checkPendingConnection = gws.GnrWsgiSite.checkPendingConnection
+
+    def __init__(self, preferences, **kwargs):
+        super().__init__(**kwargs)
+        self.preferences = preferences
+        self.preference_reads = []
+        self._connectionLogEnabled = {}
+        self.db.package = lambda pkg: True
+        self.db.table = lambda name: self
+
+    def getPreference(self, path, pkg=None):
+        self.preference_reads.append(self.db.env)
+        return self.preferences.get(self.db.env['storename'])
+
+    def dropExpiredConnections(self):
+        self.logged.append(('recover', self.currentDomain, self.db.env))
+
+
+def test_connection_log_preference_is_read_once_for_each_domain():
+    site = _PreferenceSite({None: 'A', 'acme': None}, currentDomain='_main_')
+    assert site.connectionLogEnabled == 'A'
+    site.currentDomain = 'acme'
+    assert site.connectionLogEnabled is None
+    site.preferences['acme'] = 'C'
+    assert site.connectionLogEnabled is None
+    site.currentDomain = '_main_'
+    assert site.connectionLogEnabled == 'A'
+    assert site.preference_reads == [dict(storename=None, currentDomain='_main_'),
+                                     dict(storename='acme', currentDomain='acme')]
+
+
+def test_recovery_runs_as_the_domain_of_the_register_being_created():
+    """main_register can be reached from a request of a workspace: the
+    leftovers of the root domain are closed in the root store."""
+    site = _PreferenceSite({None: 'A', 'acme': 'A'}, currentDomain='acme')
+
+    site.checkPendingConnection('_main_')
+
+    assert site.logged == [('recover', '_main_', dict(storename=None, currentDomain='_main_'))]
+    assert site.currentDomain == 'acme'
+
+
+def test_recovery_is_skipped_where_the_log_is_off():
+    site = _PreferenceSite({None: 'A', 'acme': None}, currentDomain='_main_')
+
+    site.checkPendingConnection('acme')
+
+    assert site.logged == []
+    assert site.currentDomain == '_main_'
+
+
+def test_cleanup_thread_closes_its_db_connections():
+    runs = []
+    site = _FakeSite(_runCleanup=lambda **kw: runs.append(kw))
+    gws.GnrWsgiSite._runCleanupThread(site, domain='acme')
+    assert runs == [{'domain': 'acme'}]
+    assert site.db.closed == 1
+
+
+def test_cleanup_thread_closes_its_db_connections_on_failure():
+    def boom(**kw):
+        raise RuntimeError('cleanup failed')
+
+    site = _FakeSite(_runCleanup=boom)
+    try:
+        gws.GnrWsgiSite._runCleanupThread(site, domain='acme')
+    except RuntimeError:
+        pass
+    assert site.db.closed == 1
 
 
 def test_runcleanup_logs_summary(tmp_path, caplog):
@@ -365,8 +553,7 @@ def test_runcleanup_logs_summary(tmp_path, caplog):
         connection_max_age=120,
         register=_FakeRegister(
             live_connections={'live1': {}},
-            expire_pages_result={'live1': ['p1']},
-            expire_connection_result=False,
+            expire_pages_result={'live1': {'p1': PAGE_END_TS}},
         ),
     )
     conn_dir = tmp_path / 'live1'
@@ -428,7 +615,7 @@ def test_runcleanup_swallows_expire_pages_errors(tmp_path, caplog):
         register=_FakeRegister(
             live_connections={'live1': {}},
             raises={'expire_pages': RuntimeError('pages_boom')},
-            expire_connection_result=True,
+            expire_connection_result=CONNECTION_END_TS,
         ),
     )
     conn_dir = tmp_path / 'live1'
