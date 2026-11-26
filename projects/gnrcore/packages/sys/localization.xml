@@ -405,6 +405,8 @@
 		</dbadmin>
 		<ep_table path="webpages/ep_table.py" ext="py">
 			<en_latest base="Latest" en=""/>
+			<en_you_are_not_logged_in_or_your_session_has_expired_log_in_then_open_the_link_again_ base="You are not logged in, or your session has expired. Log in, then open the link again." en="You are not logged in, or your session has expired. Log in, then open the link again." it="Non hai effettuato l'accesso, oppure la sessione è scaduta. Accedi, poi apri di nuovo il link."/>
+			<en_log_in base="Log in" en="Log in" it="Accedi"/>
 		</ep_table>
 		<external_token path="webpages/external_token.py" ext="py">
 			<en_tokens fr="Jetons" de="Tokens" en="Tokens" it="Token" base="Tokens"/>

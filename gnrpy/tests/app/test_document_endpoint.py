@@ -80,6 +80,7 @@ def document(db_sqlite, tmp_path):
     page.site = SimpleNamespace(
         storageNode=lambda path, version=None: StorageNode(service=storage, path=path, version=version),
         register=SimpleNamespace(page=lambda *args, **kwargs: None))
+    page.connection = SimpleNamespace(loggedUser=None)
     page.getPublicMethod = lambda *args: generate
     page.toText = lambda value, **kwargs: value.date().isoformat()
     page._ = lambda value: value

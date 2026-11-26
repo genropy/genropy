@@ -17,11 +17,10 @@ from gnr.web.gnrdummysite import GnrDummySite
 
 ROOT = Path(__file__).resolve().parents[3]
 endpoint = gnrImport(str(ROOT / 'projects/gnrcore/packages/sys/webpages/ep_table.py'), avoidDup=True)
-externalcall = gnrImport(str(ROOT / 'resources/common/gnrcomponents/externalcall.py'), avoidDup=True)
 
 
-class EndpointPage(endpoint.GnrCustomWebPage, externalcall.EndpointPermission):
-    pass
+class EndpointPage(endpoint.GnrCustomWebPage):
+    userTags = ''
 
 
 class TestHeifAttachments(BaseGnrTest):
@@ -49,11 +48,14 @@ class TestHeifAttachments(BaseGnrTest):
         self.page = EndpointPage()
         self.page.db = self.db
         self.page.site = self.site
-        self.page.response = SimpleNamespace()
+        self.page.application = self.site.gnrapp
+        self.page.connection = SimpleNamespace(loggedUser=None)
+        self.page.response = self.page._response = SimpleNamespace(status_code=200)
         self.page.getPublicMethod = lambda *args: None
         self.page.setInClientRecord = lambda *args, **kwargs: None
-        template = ROOT / 'projects/gnrcore/packages/sys/resources/ep_table/download_file_tpl.html'
-        self.page.getResourceContent = lambda **kwargs: template.read_text()
+        resources = ROOT / 'projects/gnrcore/packages/sys/resources'
+        self.page.getResourceContent = lambda resource, ext: (resources / f'{resource}.{ext}').read_text()
+        self.page._ = lambda value: value
 
     def attach(self, name, data):
         node = self.site.storageNode('home:', self.parent['id'], name)
@@ -63,7 +65,7 @@ class TestHeifAttachments(BaseGnrTest):
                                         copyFile=False)
 
     @pytest.mark.parametrize('extension,legacy', [('HEIC', False), ('heif', True)])
-    def test_preview_download_and_pdf(self, extension, legacy, monkeypatch):
+    def test_preview_download_and_pdf(self, extension, legacy):
         pillow_heif = pytest.importorskip('pillow_heif')
         buf = BytesIO()
         pillow_heif.from_pillow(Image.new('RGB', (96, 64), 'red')).save(buf)
@@ -76,10 +78,9 @@ class TestHeifAttachments(BaseGnrTest):
         params = {k: v[0] for k, v in parse_qs(urlsplit(url).query).items()}
         assert 'heif_preview' in params
         args = ('adm', 'htmltemplate_atc', rec['id'], 'get', 'filepath')
-        monkeypatch.setattr(self.site.register, 'page', lambda *a, **kw: None, raising=False)
-        assert self.page.rootPage(*args, **params) == endpoint.AUTH_FORBIDDEN
-        monkeypatch.setattr(self.site.register, 'page',
-                            lambda *a, **kw: dict(user='tester', register_item_id='test'))
+        assert 'Log in' in self.page.rootPage(*args, **params)
+        assert self.page._response.status_code == 403
+        self.page.connection.loggedUser = 'tester'
         preview = self.page.rootPage(*args, **params)
         assert self.page.response.content_type == 'image/jpeg'
         with Image.open(BytesIO(preview)) as decoded:
@@ -133,10 +134,9 @@ class TestHeifAttachments(BaseGnrTest):
             assert notifications == [('floating_message', dict(message='Gli allegati HEIC/HEIF sono stati esclusi dal PDF. Puoi scaricare gli originali separatamente.',
                                                                messageType='warning'))]
 
-    def test_invalid_heif_offers_original(self, monkeypatch):
+    def test_invalid_heif_offers_original(self):
         rec = self.attach('broken.heic', b'unsupported content')
-        monkeypatch.setattr(self.site.register, 'page',
-                            lambda *a, **kw: dict(user='tester', register_item_id='test'), raising=False)
+        self.page.connection.loggedUser = 'tester'
         args = ('adm', 'htmltemplate_atc', rec['id'], 'get', 'filepath')
         assert 'force_download=True' in self.page.rootPage(*args, heif_preview=True)
         assert self.page.rootPage(*args, force_download=True) == b'unsupported content'

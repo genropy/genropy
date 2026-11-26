@@ -4,11 +4,9 @@ from gnr.sql.gnrsql_exceptions import GnrSqlMissingTable
 from gnr.core.gnrstring import templateReplace
 from gnr.core.gnrbag import Bag
 from gnr.web.gnrwebpage import GnrUserNotAllowed
-AUTH_FORBIDDEN = -1
 
 
 class GnrCustomWebPage(object):
-    py_requires='gnrcomponents/externalcall:EndpointPermission'
     convert_result = False
     skip_connection = False
 
@@ -31,8 +29,10 @@ class GnrCustomWebPage(object):
         try:
             documentNode = self._get_documentNode(tblobj,pkey=pkey,source=source,version=version,**kwargs)
         except GnrUserNotAllowed:
-            return AUTH_FORBIDDEN
+            self._response.status_code = 403
+            return '' if self.connection.loggedUser else self._notLoggedPage()
         if not documentNode:
+            self._response.status_code = 404
             return ''
         if heif_preview and not force_download and documentNode.ext.lower() in HEIF_EXTENSIONS:
             try:
@@ -59,6 +59,24 @@ class GnrCustomWebPage(object):
                 tpl,{'download_url':download_url}
             )
 
+
+    def _notLoggedPage(self):
+        # a saved link opened without a live session: say why and point to the login
+        tpl = self.getResourceContent(resource='ep_table/not_logged_tpl', ext='html')
+        return templateReplace(tpl,{
+            'message':self._('!![en]You are not logged in, or your session has expired. Log in, then open the link again.'),
+            'login_label':self._('!![en]Log in'),
+            'login_url':self.site.home_uri})
+
+    def _checkUserPermission(self,tags,_current_page_id=None,_calling_page_id=None,**kwargs):
+        # authorised by the user of the request's own connection, never by the page id in the url
+        user = self.connection.loggedUser
+        if not user or not self.application.checkResourcePermission(tags,self.userTags):
+            raise GnrUserNotAllowed
+        page_id = _current_page_id or _calling_page_id
+        page_item = self.site.register.page(page_id) if page_id else None
+        if page_item and page_item['user'] == user:
+            return page_item
 
     def _get_documentNode(self,tblobj,pkey=None,source=None,version=None,**kwargs):
         if version=='_latest_':
@@ -88,7 +106,7 @@ class GnrCustomWebPage(object):
                 documentPath = documentPathHandler(record,**kwargs)
         if readTags is not False:
             #do with permissions
-            related_page_item = self.checkEndpointPermission(readTags,**kwargs)
+            related_page_item = self._checkUserPermission(readTags,**kwargs)
         documentNode = None
         clientRecordUpdater = Bag()
         storage_path = (heif_storage_path(documentPath) if source == 'filepath' and hasattr(tblobj, '_atcStorageNode')
