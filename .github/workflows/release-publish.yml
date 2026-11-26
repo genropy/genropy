@@ -8,6 +8,8 @@ on:
 jobs:
   python-tests:
     uses: ./.github/workflows/tests.yml
+    with:
+      full_suite: true
 
   javascript-tests:
     uses: ./.github/workflows/javascript-tests.yml

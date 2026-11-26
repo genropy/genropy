@@ -83,7 +83,7 @@ genro_storage = [
 ]
 
 developer = [
-  "pytest", "pytest-cov", "graphviz",
+  "pytest", "pytest-cov", "pytest-testmon", "graphviz",
   "pytest-aiohttp", "pytest-asyncio",
   "flake8",
   "debugpy",

@@ -25,6 +25,8 @@ jobs:
   python-tests:
     needs: check-branch
     uses: ./.github/workflows/tests.yml
+    with:
+      full_suite: true
 
   javascript-tests:
     needs: check-branch
