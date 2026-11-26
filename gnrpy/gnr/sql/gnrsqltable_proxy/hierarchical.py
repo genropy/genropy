@@ -26,11 +26,11 @@ from gnr.core.gnrdict import dictExtract
 from gnr.core.gnrdecorator import extract_kwargs
 
 
-def forbiddenColumns(tblobj, permissionPars=None):
-    user_conf = tblobj.getUserConfiguration(**permissionPars) if permissionPars else None
-    if not user_conf:
-        return set()
-    return {n.label for n in user_conf['cols_permission'] or [] if n.attr.get('forbidden')}
+def treeSelection(query):
+    """Rows of a tree query and its output fields whose source column is
+    forbidden to the user the query checks permissions for."""
+    selection = query.selection()
+    return selection.data, {k for k, attr in selection.colAttrs.items() if attr.get('user_forbidden')}
 
 
 def treeNodeRecords(rows, forbidden):
@@ -76,8 +76,7 @@ class TableHandlerTreeResolver(BagResolver):
     def load(self):
         result = Bag()
         if self.related_kwargs:
-            related_rows = self.getRelatedChildren(self.parent_id)
-            forbidden = forbiddenColumns(self.db.table(self.related_kwargs['table']), self.permissionPars)
+            related_rows, forbidden = self.getRelatedChildren(self.parent_id)
             for related_row, r in zip(related_rows, treeNodeRecords(related_rows, forbidden)):
                 pkey = r.pop('pkey',None)
                 caption = pkey if self.relatedCaptionField in forbidden else related_row[self.relatedCaptionField]
@@ -89,14 +88,14 @@ class TableHandlerTreeResolver(BagResolver):
                                  pkey=pkey, treeIdentifier='%s_%s'%(self.parent_id, pkey),
                                  node_class='tree_related',**r)
         if not self._isleaf:
-            children = self.getChildren(self.parent_id)
+            children, forbidden = self.getChildren(self.parent_id)
             if len(children):
-                self.setChildren(result,children)
+                self.setChildren(result,children,forbidden)
         return result
 
     def getRelatedChildren(self,parent_id=None):
         related_tblobj = self.db.table(self.related_kwargs['table'])
-        result = []
+        result = [], set()
         if parent_id:
             related_kwargs = dict(self.related_kwargs)
             includeAlias = related_kwargs.pop('includeAlias', None)
@@ -117,8 +116,9 @@ class TableHandlerTreeResolver(BagResolver):
             
             if condition:
                 where = '(%s) AND %s'%(where,condition)
-            result = related_tblobj.query(where=where,columns=columns, _storename=self.dbstore,
-                                            pkey=parent_id,**condition_kwargs).fetch()
+            result = treeSelection(related_tblobj.query(where=where,columns=columns, _storename=self.dbstore,
+                                                        checkPermissions=self.permissionPars,
+                                                        pkey=parent_id,**condition_kwargs))
         return result
 
     def getChildren(self,parent_id):
@@ -150,13 +150,12 @@ class TableHandlerTreeResolver(BagResolver):
         q = tblobj.query(where=where,p_id=parent_id,r_id=self.root_id,columns='%s,$child_count,$%s' %(columns,caption_field),
                          condition_pkeys=condition_pkeys,
                          subtable=self.subtable,
-                         order_by=order_by,_storename=self.dbstore,**condition_kwargs)
-        return q.fetch()
+                         order_by=order_by,_storename=self.dbstore,
+                         checkPermissions=self.permissionPars,**condition_kwargs)
+        return treeSelection(q)
 
-    def setChildren(self,result,children):
-        tblobj = self.db.table(self.table)
-        pkeyfield = tblobj.pkey
-        forbidden = forbiddenColumns(tblobj, self.permissionPars)
+    def setChildren(self,result,children,forbidden):
+        pkeyfield = self.db.table(self.table).pkey
         for r, node_record in zip(children, treeNodeRecords(children, forbidden)):
             record = dict(r)
             pkey = record[pkeyfield]
@@ -173,7 +172,7 @@ class TableHandlerTreeResolver(BagResolver):
                                             subtable=self.subtable,
                                             _condition_id=self._condition_id,columns=self.columns)
             elif self.related_kwargs:
-                related_children = self.getRelatedChildren(pkey)
+                related_children = self.getRelatedChildren(pkey)[0]
                 if related_children:
                     value = TableHandlerTreeResolver(_page=self._page,table=self.table,parent_id=pkey,caption_field=self.caption_field,
                                             dbstore=self.dbstore,condition=self.condition,related_kwargs=self.related_kwargs,

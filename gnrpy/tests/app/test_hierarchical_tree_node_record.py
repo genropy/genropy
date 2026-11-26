@@ -188,3 +188,51 @@ class TestForbiddenCaption:
         self._assert_hidden(tree_db, tree, tree['root'].nodes, 'invc.vat_type', 'description')
         related = [n for n in _nodes(tree['root']) if n.attr.get('node_class') == 'tree_related']
         self._assert_hidden(tree_db, tree, related, 'invc.product', 'description')
+
+
+class TestRenamedForbiddenColumn:
+    """A forbidden column selected under another name stays forbidden."""
+
+    def _xml(self, tree):
+        return tree.toXml(unresolved=True, omitUnknownTypes=True)
+
+    def test_resolver_record(self, tree_db, monkeypatch):
+        tree = _tree(tree_db, monkeypatch, RESTRICTED, 'invc.product_group',
+                     columns='$id,$hierarchical_pkey,$code,$description AS label')
+        record = tree.getNode('root.#0').attr['_record']
+        assert 'label' not in record
+        assert 'secret root' not in self._xml(tree)
+
+    def test_resolver_record_allowed(self, tree_db, monkeypatch):
+        tree = _tree(tree_db, monkeypatch, OTHER, 'invc.product_group',
+                     columns='$id,$hierarchical_pkey,$code,$description AS label')
+        assert tree.getNode('root.#0').attr['_record']['label'] == 'secret root'
+        assert 'secret root' in self._xml(tree)
+
+    def _related_tree(self, db, monkeypatch, user_group, table, path):
+        tree = _tree(db, monkeypatch, user_group, table,
+                     related_table='invc.product', related_path=path,
+                     related_columns='$code,$description,$unit_price AS price')
+        related = [n for n in _nodes(tree) if n.attr.get('node_class') == 'tree_related']
+        assert related
+        prices = {r['pkey']: r['unit_price'] for r in
+                  db.table('invc.product').query(columns='$unit_price').fetch()}
+        return tree, related, prices
+
+    @pytest.mark.parametrize('table,path', [('invc.product_type', '$product_type_id'),
+                                            ('invc.vat_type', 'vat_type_code')])
+    def test_related_nodes(self, tree_db, monkeypatch, table, path):
+        tree, related, prices = self._related_tree(tree_db, monkeypatch, RESTRICTED, table, path)
+        xml = self._xml(tree)
+        for node in related:
+            assert 'price' not in node.attr
+            assert 'price="%s' % prices[node.attr['pkey']] not in xml
+
+    @pytest.mark.parametrize('table,path', [('invc.product_type', '$product_type_id'),
+                                            ('invc.vat_type', 'vat_type_code')])
+    def test_related_nodes_allowed(self, tree_db, monkeypatch, table, path):
+        tree, related, prices = self._related_tree(tree_db, monkeypatch, OTHER, table, path)
+        xml = self._xml(tree)
+        for node in related:
+            assert node.attr['price'] == prices[node.attr['pkey']]
+            assert 'price="%s' % prices[node.attr['pkey']] in xml

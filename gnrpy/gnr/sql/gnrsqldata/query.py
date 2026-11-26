@@ -485,7 +485,7 @@ class SqlQuery(object):
             if k == 'pkey':
                 fld = self.dbtable.pkey
             else:
-                f = self.compiled.aliasDict.get(k, k)
+                f = self.compiled.aliasDict.get(self.db.adapter.asTranslator(k), self.compiled.aliasDict.get(k, k))
                 f = f.strip()
                 f = f.strip('$')
                 fld = self.compiled.relationDict.get(f, f)

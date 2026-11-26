@@ -19,7 +19,7 @@ from gnr.core.gnrdict import dictExtract
 from gnr.lib.gnrheif import HEIF_EXTENSIONS, heif_storage_path, is_heif_path
 from gnr.app import logger
 from gnr.sql.gnrsql_exceptions import NotMatchingModelError
-from gnr.sql.gnrsqltable_proxy.hierarchical import forbiddenColumns, treeNodeRecords
+from gnr.sql.gnrsqltable_proxy.hierarchical import treeSelection, treeNodeRecords
 from gnr.app.gnrsqltable_proxy.selection import SelectionProxy
 
 mimetypes.init() # Required for python 2.6 (fixes a multithread bug)
@@ -849,19 +849,18 @@ class TableBase(object):
         condition_kwargs.update(dictExtract(kwargs,'condition_'))
         caption_field = caption_field or self.attributes.get('caption_field') or self.pkey
         columns = columns or '*'
-        f = self.query(where=condition,columns='%s,$%s' %(columns,caption_field),**condition_kwargs).fetch()
+        permissionPars = getattr(self.db.currentPage, 'permissionPars', None)
+        f, forbidden = treeSelection(self.query(where=condition,columns='%s,$%s' %(columns,caption_field),
+                                                checkPermissions=permissionPars,**condition_kwargs))
         related_tblobj = self.db.table(related_kwargs['table'])
         related_caption_field = related_kwargs.get('caption_field') or related_tblobj.attributes.get('caption_field')
-        currentPage = self.db.currentPage
-        permissionPars = getattr(currentPage, 'permissionPars', None)
-        forbidden = forbiddenColumns(self, permissionPars)
-        related_forbidden = forbiddenColumns(related_tblobj, permissionPars)
         for r, node_record in zip(f, treeNodeRecords(f, forbidden)):
             pkey = r['pkey']
             value = Bag()
-            relchidren = self._hdata_getRelatedChildren(fkey=pkey,related_tblobj=related_tblobj,
+            relchidren, related_forbidden = self._hdata_getRelatedChildren(fkey=pkey,related_tblobj=related_tblobj,
                                                               related_caption_field=related_caption_field,
-                                                              related_kwargs = related_kwargs)
+                                                              related_kwargs = related_kwargs,
+                                                              permissionPars=permissionPars)
             for related_row, related_record in zip(relchidren, treeNodeRecords(relchidren, related_forbidden)):
                 relpkey = related_record.pop('pkey',None)
                 value.setItem(relpkey, None,
@@ -882,7 +881,8 @@ class TableBase(object):
         result.setItem('root',b,caption=caption,child_count=1,pkey='',treeIdentifier='_root_')
         return result
 
-    def _hdata_getRelatedChildren(self,fkey=None,related_tblobj=None,related_caption_field=None,related_kwargs=None):
+    def _hdata_getRelatedChildren(self,fkey=None,related_tblobj=None,related_caption_field=None,related_kwargs=None,
+                                  permissionPars=None):
         related_kwargs = dict(related_kwargs)
         columns = related_kwargs.get('columns') or '*,$%s' %related_caption_field
         relation_path = related_kwargs['path']
@@ -891,9 +891,9 @@ class TableBase(object):
         wherelist = [' ($%s=:fkey) ' % relation_path]
         if condition:
             wherelist.append(condition)
-        result = related_tblobj.query(where=' AND '.join(wherelist),columns=columns,
-                                        fkey=fkey,**condition_kwargs).fetch()
-        return result
+        return treeSelection(related_tblobj.query(where=' AND '.join(wherelist),columns=columns,
+                                                  checkPermissions=permissionPars,
+                                                  fkey=fkey,**condition_kwargs))
 
     def onDbUpgrade_createSysRecords(self):
         self.createSysRecords()
