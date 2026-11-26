@@ -27,13 +27,15 @@ SUSPECT_SUBSTRINGS = (
     'codice_fiscale', 'partita_iva', 'email', 'telefono', 'cellulare',
     'indirizzo', 'iban', 'cognome', 'nominativo', 'ragione_sociale',
     'nascita', 'firstname', 'lastname', 'surname', 'phone', 'mobile',
-    'address', 'street', 'birth', 'fiscal',
+    'address', 'street', 'birth', 'fiscal', 'civico', 'frazione',
+    'residenza', 'localita', 'docid', 'allergi', 'regime_alimentare',
 )
 
 # Matched only as a whole '_'-separated token of the column name
+# ('comune' as a substring would hit 'comunicazione')
 SUSPECT_TOKENS = frozenset((
     'cf', 'piva', 'vat', 'pec', 'tel', 'cell', 'fax', 'via', 'nome', 'name',
-    'note', 'notes',
+    'note', 'notes', 'cap', 'comune',
 ))
 
 

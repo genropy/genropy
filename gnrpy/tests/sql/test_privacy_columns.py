@@ -148,13 +148,17 @@ class TestSuspectColumns:
     @pytest.mark.parametrize('colname', [
         'codice_fiscale', 'cliente_cf', 'email_pec', 'tel', 'home_address',
         'data_nascita', 'name', 'notes', 'Partita_IVA', 'vat_number',
+        'cap', 'comune_nascita', 'sede_comune', 'numero_civico', 'frazione',
+        'comune_residenza', 'localita', 'docid_number', 'allergie',
+        'regime_alimentare',
     ])
     def test_suspect(self, colname):
         assert is_suspect_column(colname)
 
     @pytest.mark.parametrize('colname', [
         'cfg', 'nomenclature', 'username', 'telemetry', 'viaggio', 'notebook',
-        'customer_type_code', 'total',
+        'customer_type_code', 'total', 'comunicazione', 'tipo_comunicazione',
+        'capacity', 'capitale',
     ])
     def test_not_suspect(self, colname):
         assert not is_suspect_column(colname)
