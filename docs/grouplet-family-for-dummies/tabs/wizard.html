@@ -1,0 +1,160 @@
+<h2>groupletWizard</h2>
+<p class="lede">A step&#8209;by&#8209;step wizard where each step is a grouplet from a topic folder, with a numbered stepper bar and forward/backward navigation.</p>
+
+<h3>When to use</h3>
+<p>The form is long enough that dropping it on the user as a single page would be cruel. Onboarding flows, booking funnels, multi&#8209;section data entry, regulatory questionnaires &mdash; anything that naturally splits into stages where each stage has its own focus and its own validation cycle. The user fills in one chunk, the wizard validates and saves it, then the next chunk appears.</p>
+<p>It is the close sibling of <code>groupletPanel</code>, but with the opposite intent. The panel hands the user a menu and lets them roam between grouplets in whatever order they like. The wizard locks the order: step 2 is unreachable until step 1 validates, the stepper bar reports progress, and a single forward button drives the whole sequence. Reach for the wizard when the order of input matters &mdash; either because later steps depend on earlier values, or because you want a clear sense of completion at the end.</p>
+
+<h3>How it looks</h3>
+<p>A frame with three regions. The top is a numbered stepper bar: a row of circles connected by short lines, one per grouplet in the topic folder. The center is a <code>GroupletForm</code> showing the current step's grouplet, bound to the same <code>value</code> Bag throughout. The bottom is a single forward button whose label changes to <code>completeLabel</code> when the user reaches the last step.</p>
+<div class="diagram">
+<svg viewBox="0 0 640 320" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="wzArrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#6c9eff"/>
+    </marker>
+  </defs>
+  <rect x="10" y="10" width="620" height="300" rx="8" fill="#0f1117" stroke="#2e3340"/>
+
+  <rect x="20" y="22" width="600" height="60" rx="6" fill="#1a1d27" stroke="#2e3340"/>
+  <line x1="98" y1="52" x2="178" y2="52" stroke="#7dd3a8" stroke-width="2"/>
+  <line x1="218" y1="52" x2="298" y2="52" stroke="#6c9eff" stroke-width="2"/>
+  <line x1="338" y1="52" x2="418" y2="52" stroke="#2e3340" stroke-width="2"/>
+  <line x1="458" y1="52" x2="538" y2="52" stroke="#2e3340" stroke-width="2"/>
+  <circle cx="80" cy="52" r="16" fill="#7dd3a8" stroke="#2e3340"/>
+  <text x="80" y="57" text-anchor="middle" font-family="sans-serif" font-size="14" fill="#0f1117">&#10003;</text>
+  <text x="80" y="78" text-anchor="middle" font-family="sans-serif" font-size="10" fill="#9aa0b0">guest</text>
+  <circle cx="198" cy="52" r="16" fill="#7dd3a8" stroke="#2e3340"/>
+  <text x="198" y="57" text-anchor="middle" font-family="sans-serif" font-size="14" fill="#0f1117">&#10003;</text>
+  <text x="198" y="78" text-anchor="middle" font-family="sans-serif" font-size="10" fill="#9aa0b0">stay</text>
+  <circle cx="318" cy="52" r="18" fill="#6c9eff" stroke="#a78bfa" stroke-width="2"/>
+  <text x="318" y="57" text-anchor="middle" font-family="sans-serif" font-size="14" fill="#0f1117">3</text>
+  <text x="318" y="80" text-anchor="middle" font-family="sans-serif" font-size="10" fill="#d8dae5">services</text>
+  <circle cx="438" cy="52" r="16" fill="#1a1d27" stroke="#2e3340"/>
+  <text x="438" y="57" text-anchor="middle" font-family="sans-serif" font-size="14" fill="#9aa0b0">4</text>
+  <text x="438" y="78" text-anchor="middle" font-family="sans-serif" font-size="10" fill="#9aa0b0">payment</text>
+  <circle cx="558" cy="52" r="16" fill="#1a1d27" stroke="#2e3340"/>
+  <text x="558" y="57" text-anchor="middle" font-family="sans-serif" font-size="14" fill="#9aa0b0">5</text>
+  <text x="558" y="78" text-anchor="middle" font-family="sans-serif" font-size="10" fill="#9aa0b0">review</text>
+
+  <rect x="20" y="100" width="600" height="160" rx="6" fill="#1a1d27" stroke="#2e3340"/>
+  <text x="36" y="122" font-family="sans-serif" font-size="12" fill="#9aa0b0">GroupletForm &mdash; current step: services</text>
+  <rect x="36" y="138" width="240" height="22" rx="3" fill="#0f1117" stroke="#2e3340"/>
+  <text x="44" y="153" font-family="sans-serif" font-size="11" fill="#d8dae5">breakfast_included</text>
+  <rect x="290" y="138" width="240" height="22" rx="3" fill="#0f1117" stroke="#2e3340"/>
+  <text x="298" y="153" font-family="sans-serif" font-size="11" fill="#d8dae5">parking</text>
+  <rect x="36" y="170" width="494" height="22" rx="3" fill="#0f1117" stroke="#2e3340"/>
+  <text x="44" y="185" font-family="sans-serif" font-size="11" fill="#d8dae5">extra_notes</text>
+  <rect x="36" y="202" width="494" height="40" rx="3" fill="#0f1117" stroke="#2e3340"/>
+  <text x="44" y="225" font-family="sans-serif" font-size="11" fill="#9aa0b0">value bound to ^.data &mdash; same Bag across all steps</text>
+
+  <rect x="20" y="270" width="600" height="32" rx="6" fill="#1a1d27" stroke="#2e3340"/>
+  <rect x="480" y="276" width="130" height="20" rx="4" fill="#6c9eff" stroke="#2e3340"/>
+  <text x="545" y="290" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#0f1117">payment &rarr;</text>
+  <text x="36" y="290" font-family="sans-serif" font-size="11" fill="#9aa0b0">Step 3 of 5</text>
+
+  <path d="M318 70 L318 100" stroke="#6c9eff" stroke-width="1.5" fill="none" marker-end="url(#wzArrow)"/>
+</svg>
+</div>
+<p>Completed steps show a checkmark and a green connector behind them. The active step is enlarged with the accent color. Pending steps are dimmed. The label of the forward button is the caption of the next step, or <code>completeLabel</code> when there is no next step.</p>
+
+<h3>Quick example</h3>
+<p>Straight from <code>07_grouplet_nested_topics.py</code>, test 3. A wizard pointed at the <code>submethodtesting</code> topic folder: every grouplet in that folder becomes a step.</p>
+
+<pre><code>pane.<span class="fn">borderContainer</span>(height=<span class="str">'500px'</span>, border=<span class="str">'1px solid silver'</span>,
+                     datapath=<span class="str">'.nested_wizard'</span>).<span class="fn">groupletWizard</span>(
+    topic=<span class="str">'submethodtesting'</span>,
+    value=<span class="str">'^.data'</span>,
+    frameCode=<span class="str">'nested_wizard'</span>,
+    region=<span class="str">'center'</span>)
+</code></pre>
+
+<p>The wizard reads the topic folder via <code>gr_getGroupletMenu</code>, builds one step per grouplet, and binds every step's <code>GroupletForm</code> to <code>^.data</code>. The user sees a single Bag accumulating values as they step through.</p>
+
+<h3>Inside a Table Handler form</h3>
+<p>This is where the wizard earns its keep. Drop it inside <code>th_form</code> and you get a multi&#8209;step form for a real database record, with the parent TH form auto&#8209;saving when the user reaches the end. The booking demo in <code>test/resources/tables/booking/th_booking.py</code> is the canonical example: four grouplets &mdash; <code>guest</code>, <code>stay</code>, <code>services</code>, <code>payment</code> &mdash; one per stage of the reservation.</p>
+
+<pre><code><span class="kw">from</span> gnr.web.gnrbaseclasses <span class="kw">import</span> BaseComponent
+
+
+<span class="kw">class</span> <span class="cls">Form</span>(<span class="cls">BaseComponent</span>):
+    py_requires = <span class="str">'gnrcomponents/grouplet/grouplet:GroupletHandler'</span>
+
+    <span class="kw">def</span> <span class="fn">th_form</span>(<span class="self">self</span>, form):
+        form.center.<span class="fn">contentPane</span>().<span class="fn">groupletWizard</span>(
+            table=<span class="str">'test.booking'</span>,
+            value=<span class="str">'^#FORM.record'</span>,
+            frameCode=<span class="str">'booking_wizard'</span>,
+            completeLabel=<span class="str">'Confirm Booking'</span>,
+            saveMainFormOnComplete=<span class="kw">True</span>,
+            grouplet_remote_num_guests=<span class="str">"=#FORM.record.num_guests"</span>)
+
+    <span class="kw">def</span> <span class="fn">th_options</span>(<span class="self">self</span>):
+        <span class="kw">return</span> <span class="fn">dict</span>(dialog_height=<span class="str">'300px'</span>, dialog_width=<span class="str">'500px'</span>,
+                    showtoolbar=<span class="kw">False</span>)
+</code></pre>
+
+<p>Three things are happening here. First, <code>value='^#FORM.record'</code> binds every step's <code>GroupletForm</code> to the parent TH record &mdash; each step writes into the same Bag the outer form will save. Second, <code>saveMainFormOnComplete=True</code> wires the wizard's completion event to <code>form.save({destPkey:'*dismiss*'})</code>: when the user clicks the last&#8209;step button labelled <code>Confirm Booking</code>, the TH form persists the record and dismisses the dialog. Third, anything you pass with the <code>grouplet_</code> prefix &mdash; here <code>grouplet_remote_num_guests</code> &mdash; is forwarded as a regular kwarg into the inner <code>GroupletForm</code>, useful for propagating context variables that individual step grouplets read.</p>
+
+<h3>Nested topics</h3>
+<p>A topic folder can contain sub&#8209;folders, and the wizard flattens that hierarchy into a sensible step sequence. Top&#8209;level items become individual steps. A sub&#8209;topic becomes a single step that renders <em>all</em> of its child grouplets at once, laid out as a CSS grid via <code>gr_loadGrouplet</code>. The <code>submethodtesting</code> topic from <code>07_grouplet_nested_topics.py</code> illustrates: <code>alfa</code> and <code>beta</code> are individual steps, then the third step is the <code>inner</code> sub&#8209;topic showing <code>gamma</code> and <code>delta</code> side by side.</p>
+
+<pre><code><span class="cmt"># test/resources/tables/.../grouplets/submethodtesting/</span>
+<span class="cmt">#   __info__.py</span>
+<span class="cmt">#   alfa.py        &larr; step 1</span>
+<span class="cmt">#   beta.py        &larr; step 2</span>
+<span class="cmt">#   inner/         &larr; step 3 (renders gamma + delta in a grid)</span>
+<span class="cmt">#     gamma.py</span>
+<span class="cmt">#     delta.py</span>
+</code></pre>
+
+<p>This is the trick for keeping the stepper bar readable when you have a dozen grouplets: cluster the closely related ones in a sub&#8209;topic and they collapse into a single &ldquo;mixed&rdquo; step.</p>
+
+<h3>Step validation</h3>
+<p>Before advancing, the wizard calls <code>form.isValid()</code> on the current step's <code>GroupletForm</code>. If validation fails, a <code>floating_message</code> publishes &mdash; <em>Please complete required fields</em> &mdash; and the step index does not advance; the form stays where it is with its errors. If validation passes the form saves, the <code>frameCode_step_complete</code> event publishes with the step code, and the stepper moves forward by one. On the last step the same path publishes <code>frameCode_complete</code>, which is what <code>saveMainFormOnComplete</code> listens to. Three JS bridge entry points are available for programmatic navigation: <code>gnr_grouplet.wizardNext(node, frameCode)</code>, <code>gnr_grouplet.wizardGoTo(node, targetIdx, frameCode)</code>, <code>gnr_grouplet.wizardUpdateStep(node, idx, completeLabel, frameCode)</code>.</p>
+
+<h3>Parameters</h3>
+<table>
+  <thead>
+    <tr><th>Param</th><th>Type</th><th>Default</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>value</code></td><td>str</td><td>required</td><td>Datapath the wizard's <code>GroupletForm</code> is bound to. Same Bag is used across all steps.</td></tr>
+    <tr><td><code>topic</code></td><td>str</td><td>required</td><td>Topic name. Every grouplet found in <code>grouplets/&lt;topic&gt;/</code> becomes a step, in <code>__info__.priority</code> order.</td></tr>
+    <tr><td><code>table</code></td><td>str</td><td>None</td><td>Optional table reference. When set the grouplets are looked up under <code>tables/&lt;tbl&gt;/grouplets/&lt;topic&gt;/</code>.</td></tr>
+    <tr><td><code>frameCode</code></td><td>str</td><td><code>'grplt_wizard'</code></td><td>Frame identifier. Drives the published events (<code>&lt;frameCode&gt;_complete</code>, <code>&lt;frameCode&gt;_step_complete</code>) and the inner step form id.</td></tr>
+    <tr><td><code>completeLabel</code></td><td>str</td><td><code>'Confirm'</code></td><td>Label shown on the forward button when the last step is reached.</td></tr>
+    <tr><td><code>closeLabel</code></td><td>str</td><td><code>'Close'</code></td><td>Label of the dismiss button on the summary page (only when a summary template is defined in <code>__info__</code>).</td></tr>
+    <tr><td><code>saveMainFormOnComplete</code></td><td>bool</td><td>False</td><td>When <code>True</code>, the parent <code>th_form</code> is saved (and dismissed) on wizard completion.</td></tr>
+    <tr><td><code>grouplets_root</code></td><td>str</td><td><code>'grouplets'</code></td><td>Override the root folder name when grouplets live somewhere other than <code>grouplets/</code>.</td></tr>
+    <tr><td><code>grouplet_*</code></td><td>any</td><td>&mdash;</td><td>Any kwarg prefixed with <code>grouplet_</code> is stripped of its prefix and forwarded to the inner <code>GroupletForm</code>.</td></tr>
+  </tbody>
+</table>
+
+<h3>Gotchas</h3>
+
+<div class="callout warn">
+  <div class="callout-title">Topic is required</div>
+  <p>Without <code>topic=</code> there is no step source &mdash; the wizard has nothing to enumerate. Unlike <code>groupletPanel</code>, which can offer the whole grouplet tree of a table when no topic is set, the wizard refuses to operate without an explicit topic folder. If you want a wizard over an entire table, make a topic folder for it and place the relevant grouplets inside.</p>
+</div>
+
+<div class="callout warn">
+  <div class="callout-title">Step order follows <code>__info__.priority</code></div>
+  <p>If your steps appear in the wrong order, the fix is in each grouplet's <code>__info__()</code>: set <code>priority=&lt;int&gt;</code>, lower numbers come first. Filenames are not a sort key &mdash; the menu builder reads priorities. Missing priorities sort after the explicit ones, by an internal tie&#8209;break that you should not rely on.</p>
+</div>
+
+<div class="callout warn">
+  <div class="callout-title">Validation blocks the forward button, not the stepper</div>
+  <p><code>wizardNext</code> calls <code>form.isValid()</code> and refuses to advance. But <code>wizardGoTo</code> &mdash; the action wired on every numbered circle in the stepper bar &mdash; saves the current form unconditionally before jumping. If you let users click backwards in the stepper, an invalid current step is silently saved on its way out. Constrain the stepper buttons if you need stricter behavior.</p>
+</div>
+
+<h3>Reference files</h3>
+<ul>
+  <li><code>resources/common/gnrcomponents/grouplet/grouplet.py</code> &mdash; <code>gr_groupletWizard</code> (around line 340).</li>
+  <li><code>resources/common/gnrcomponents/grouplet/grouplet.js</code> &mdash; <code>gnr_grouplet.wizardNext</code>, <code>wizardGoTo</code>, <code>wizardUpdateStep</code>, <code>_updateStepperUI</code>.</li>
+  <li><code>resources/common/gnrcomponents/grouplet/grouplet.css</code> &mdash; <code>.wizard_stepper</code>, <code>.wizard_step</code>, <code>.wizard_connector</code>, <code>.wizard_circle</code>, <code>.wizard_bottom_bar</code>.</li>
+  <li><code>projects/gnrcore/packages/test/webpages/gnrwdg/test_grouplets/06_grouplet_navigation.py</code> &mdash; booking wizard via <code>dialogTableHandler</code> (test 4).</li>
+  <li><code>projects/gnrcore/packages/test/webpages/gnrwdg/test_grouplets/07_grouplet_nested_topics.py</code> &mdash; wizard with nested topics (test 3).</li>
+  <li><code>projects/gnrcore/packages/test/resources/tables/booking/th_booking.py</code> &mdash; <code>th_form</code> driving a <code>groupletWizard</code> with <code>saveMainFormOnComplete=True</code>.</li>
+  <li><code>projects/gnrcore/packages/test/resources/tables/booking/grouplets/</code> &mdash; <code>guest</code>, <code>stay</code>, <code>services</code>, <code>payment</code>: one grouplet per wizard step.</li>
+</ul>
