@@ -812,6 +812,24 @@ class GenroWidgets:
         ...
 
     @element
+    def HierarchicalSelect(self, **kwargs):
+        """Select whose arrow opens a tree; typing searches as the plain select does.
+
+        With ``table`` it is a dbSelect: on a hierarchical table only the leaves are
+        selectable unless ``folderSelectable``; with ``hierarchical`` (field paths, the
+        outermost first, e.g. ``'@regione.zona,$regione'``) the tree groups the records
+        of a flat table by those fields, a foreign key showing its record caption.
+        Without ``table`` it is a callbackSelect on the rows of the ``values`` Bag,
+        grouped by the ``hierarchical`` fields.
+
+        Args:
+            **kwargs: value, table, hierarchical, folderSelectable, caption_field,
+                condition, condition_*, selected_*, values, identifier, labelAttribute,
+                tree_* (tree_max_height, tree_min_width) and the other select attrs.
+        """
+        ...
+
+    @element
     def MultiLineTextbox(self, **kwargs):
         """Multi-line textbox with auto-expanding height.
 

@@ -482,10 +482,10 @@ dojo.declare("gnr.widgets.Tree", gnr.widgets.baseDojo, {
                                         if(part.charAt(0)==='<') return part;
                                         if(!part) return part;
                                         var highlighted = part.replace(filterRegExp,"<span class='search_highlight'>$1</span>");
-                                        return '<span>' + highlighted + '</span>';
+                                        return "<span class='search_match'>" + highlighted + '</span>';
                                     }).join('');
                             }else if(search){
-                                label = '<span>' + label.replace(filterRegExp,"<span class='search_highlight'>$1</span>") + '</span>';
+                                label = "<span class='search_match'>" + label.replace(filterRegExp,"<span class='search_highlight'>$1</span>") + '</span>';
                             }
                             tn.labelNode.innerHTML = label;
                         }

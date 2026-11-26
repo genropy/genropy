@@ -23,6 +23,9 @@ from gnr.app.gnrsqltable_proxy.selection import SelectionProxy
 
 mimetypes.init() # Required for python 2.6 (fixes a multithread bug)
 
+HDATA_FIELD = re.compile(r'^\$?(@\w+\.)*\w+$')
+HDATA_COLUMN = re.compile(r'^(\$?(?:@\w+\.)*\w+)(?:\s+AS\s+\w+)?$',re.IGNORECASE)
+
 
 def _add_localized_prefix(label, prefix):
     """Add a prefix to a localized label preserving the localization markers.
@@ -820,7 +823,10 @@ class TableBase(object):
     @public_method
     def getHierarchicalData(self,caption_field=None,condition=None,caption=None,
                             dbstore=None,columns=None,related_kwargs=None,
-                            resolved=False,**kwargs):
+                            resolved=False,hierarchical=None,**kwargs):
+        if hierarchical:
+            return self._hdata_grouped(hierarchical,caption_field=caption_field,condition=condition,
+                                       caption=caption,dbstore=dbstore,columns=columns,**kwargs)
         related_kwargs = related_kwargs or dict()
         if hasattr(self,'hierarchicalHandler'):
             return self.hierarchicalHandler.getHierarchicalData(caption_field=caption_field,condition=condition,
@@ -830,6 +836,84 @@ class TableBase(object):
             return self.getHierarchicalDataBag(caption_field=caption_field,condition=condition,
                                                 caption=caption,dbstore=dbstore,columns=columns,
                                                 related_kwargs=related_kwargs,resolved=resolved,**kwargs)
+
+    def _hdata_grouped(self,hierarchical,caption_field=None,condition=None,caption=None,
+                       dbstore=None,columns=None,**kwargs):
+        permissionPars = getattr(self.db.currentPage,'permissionPars',None)
+        caption_field = caption_field or self.attributes.get('caption_field') or self.pkey
+        caption_expr = self._hdata_allowed_field(caption_field,permissionPars)
+        querycols = []
+        for col in splitAndStrip(columns,',') if columns else []:
+            match = HDATA_COLUMN.match(col)
+            if not match:
+                raise self.exception('standard',msg='Not a field: %s' %col)
+            if self._hdata_permitted(match.group(1),permissionPars):
+                querycols.append(col)
+        querycols.append('%s AS _h_caption' %caption_expr)
+        order_by = []
+        levels = hierarchical.split(',')
+        for i,field in enumerate(levels):
+            field = self._hdata_allowed_field(field,permissionPars)
+            querycols.append('%s AS _h_%i' %(field,i))
+            label_field = field
+            related_tbl = self.column(field.lstrip('$')).relatedTable()
+            if related_tbl is not None:
+                parts = field.lstrip('$').split('.')
+                parts[-1] = '@%s' %parts[-1]
+                related_caption = related_tbl.attributes.get('caption_field') or related_tbl.pkey
+                label_field = self._hdata_allowed_field('.'.join(parts+[related_caption]),permissionPars)
+            querycols.append('%s AS _h_label_%i' %(label_field,i))
+            order_by.append(label_field)
+        order_by.append(caption_expr)
+        rows = self.query(columns=','.join(querycols),where=condition,order_by=','.join(order_by),
+                          _storename=dbstore,**dictExtract(kwargs,'condition_')).fetch()
+        root = Bag()
+        groups = {}
+        for r in rows:
+            r = dict(r)
+            pkey = r.pop('pkey')
+            curr = root
+            path = ()
+            for i in range(len(levels)):
+                value = r.pop('_h_%i' %i)
+                label = r.pop('_h_label_%i' %i)
+                path += (value,)
+                if path not in groups:
+                    curr.setItem('n%i' %len(curr),Bag(),caption=label if label is not None else '',
+                                 hierarchical_value=value)
+                    groups[path] = curr.getNodes()[-1].value
+                curr = groups[path]
+            leafcaption = r.pop('_h_caption')
+            curr.setItem('n%i' %len(curr),None,**dict(r,caption=leafcaption,pkey=pkey,
+                                                     child_count=0,treeIdentifier=pkey))
+        def set_child_count(bag):
+            for n in bag:
+                if isinstance(n.value,Bag):
+                    n.attr['child_count'] = len(n.value)
+                    set_child_count(n.value)
+        set_child_count(root)
+        result = Bag()
+        result.setItem('root',root,caption=caption or self.name_plural,child_count=1,pkey='',
+                       treeIdentifier='_root_')
+        return result
+
+    def _hdata_permitted(self,field,permissionPars):
+        parts = field.lstrip('$').split('.')
+        for i in range(len(parts)):
+            col = self.column('.'.join(parts[:i]+[parts[i].lstrip('@')]))
+            if col is None:
+                return False
+            if permissionPars and col.getPermissions(**permissionPars).get('user_forbidden'):
+                return False
+        return True
+
+    def _hdata_allowed_field(self,field,permissionPars):
+        field = field.strip()
+        if not HDATA_FIELD.match(field):
+            raise self.exception('standard',msg='Not a field: %s' %field)
+        if not self._hdata_permitted(field,permissionPars):
+            raise self.exception('standard',msg='Field not allowed: %s' %field)
+        return field if field[0] in '$@' else '$%s' %field
 
     @public_method
     def hierarchicalSearch(self,seed=None,related_table=None,**kwargs):
