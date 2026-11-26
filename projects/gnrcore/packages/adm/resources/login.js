@@ -89,9 +89,15 @@ const LoginComponent = {
         return new Promise(resolve=>genro.serverCall(method,kwargs || {},resolve,null,'POST'));
     },
 
-    // the name the operating system gives to the biometric reading
-    biometryName:(platform)=>{
-        return platform=='windows'? 'Windows Hello' : 'Touch ID';
+    // what the identity check of the computer accepts, on the platform GenroApp runs on
+    identityCheckHint:(platform)=>{
+        if(platform=='windows'){
+            return _T('!![en]Windows Hello: fingerprint, face or PIN');
+        }
+        if(platform=='linux'){
+            return _T('!![en]Password, fingerprint or security key');
+        }
+        return _T('!![en]Touch ID or the password of the Mac');
     },
 
     // the login dialog stays hidden while GenroApp asks the biometric reading
@@ -104,8 +110,8 @@ const LoginComponent = {
     },
 
     // a full-window screen with the logo and the title of the login dialog: a title, an
-    // optional line, one button and an optional link
-    fullScreen:(dlg,{title,line,button,link})=>{
+    // optional line, one button, an optional hint under it and an optional link
+    fullScreen:(dlg,{title,line,button,hint,link})=>{
         const make = (tag,cls,text,parent)=>{
             const node = document.createElement(tag);
             node.className = cls;
@@ -131,6 +137,9 @@ const LoginComponent = {
             make('div','genroapp_lockscreen_line',line,box);
         }
         const button_node = make('button','genroapp_lockscreen_unlock',button,box);
+        if(hint){
+            make('div','genroapp_lockscreen_hint',hint,box);
+        }
         let link_node = null;
         if(link){
             link_node = make('a','genroapp_lockscreen_password',link,box);
@@ -146,7 +155,8 @@ const LoginComponent = {
     lockScreen:(dlg,platform,onUnlock,onPassword)=>{
         const screen = LoginComponent.fullScreen(dlg,{
             title:_T('!![en]Session closed'),
-            button:_T('!![en]Unlock with {biometry}').replace('{biometry}',LoginComponent.biometryName(platform)),
+            button:_T('!![en]Unlock with identity check'),
+            hint:LoginComponent.identityCheckHint(platform),
             link:_T('!![en]Log in with password')
         });
         screen.button.onclick = ()=>onUnlock(screen.close);
@@ -274,13 +284,13 @@ const LoginComponent = {
         if(registration=='offer' && status.registered){
             return null;
         }
-        const biometry = LoginComponent.biometryName(status.platform);
         LoginComponent.hideLoginDialog(dlg,true);
         await new Promise(resolve=>{
             const screen = LoginComponent.fullScreen(dlg,{
                 title:_T('!![en]Register this device'),
-                line:_T('!![en]Next time, unlock with {biometry}.').replace('{biometry}',biometry),
-                button:_T('!![en]Register with {biometry}').replace('{biometry}',biometry)
+                line:_T('!![en]Next time, unlock with the identity check of this computer.'),
+                button:_T('!![en]Register this computer'),
+                hint:LoginComponent.identityCheckHint(status.platform)
             });
             screen.button.onclick = async ()=>{
                 if(await LoginComponent.registerDevice(origin,user,status.platform,device_rpc)){
