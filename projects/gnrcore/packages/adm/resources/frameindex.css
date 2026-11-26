@@ -24,6 +24,11 @@
     border-left: 3px solid red;
 }
 
+/* Open with GenroApp: useless in a page that GenroApp itself shows (body.genroapp, set by genro.js) */
+.genroapp .genroapp_open_button {
+    display: none;
+}
+
 /* --- button_block icons (single group) --- */
 .button_block div {
     width: 1.5em;
