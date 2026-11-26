@@ -12,7 +12,7 @@ from venv import EnvBuilder
 import gnr as gnrbase
 from gnr.core.gnrbag import Bag, DirectoryResolver
 from gnr.core.gnrconfig import IniConfStruct
-from gnr.core.gnrconfig import getGnrConfig,gnrConfigPath
+from gnr.core.gnrconfig import getGnrConfig,gnrConfigPath,virtualEnvPrefix
 from gnr.app.pathresolver import PathResolver as _PathResolver
 from gnr.app.gnrapp import GnrApp
 from gnr.app import logger
@@ -178,8 +178,8 @@ WantedBy=multi-user.target
 def gnrdaemonServiceBuilder():
     import pwd
     service_name = 'gnrdaemon'
-    if 'VIRTUAL_ENV' in os.environ or hasattr(sys,'real_prefix'):
-        pyprefix = os.environ.get('VIRTUAL_ENV', sys.prefix)
+    pyprefix = virtualEnvPrefix()
+    if pyprefix:
         environments = "Environment=VIRTUAL_ENV=%s" %pyprefix
         service_name = '%s_%s'%(service_name, os.path.basename(pyprefix))
     else:
@@ -227,8 +227,8 @@ def gnrsiterunnerServiceBuilder():
     daemon_path = shutil.which('supervisord')
     ctl_binpath = shutil.which('supervisorctl')
     service_name = 'gnrsiterunner'
-    if 'VIRTUAL_ENV' in os.environ or hasattr(sys, 'real_prefix'):
-        pyprefix = os.environ.get('VIRTUAL_ENV', sys.prefix)
+    pyprefix = virtualEnvPrefix()
+    if pyprefix:
         environments = f"Environment=VIRTUAL_ENV={pyprefix}"
         service_name = '%s_%s' % (service_name, os.path.basename(pyprefix))
     else:
@@ -522,7 +522,8 @@ class GunicornDeployBuilder(object):
         self.supervisor_log_path = os.path.join(self.gnr_path,'supervisord.log')
         self.supervisord_socket_path = os.path.join(self.gnr_path,'supervisord.sock')
         self.supervisord_monitor_parameters = self.path_resolver.gnr_config.getAttr('gnr.environment_xml.supervisord')
-        self.bin_folder = os.path.join(os.environ.get('VIRTUAL_ENV'),'bin') if 'VIRTUAL_ENV' in  os.environ else ''
+        venv_prefix = virtualEnvPrefix()
+        self.bin_folder = os.path.join(venv_prefix,'bin') if venv_prefix else ''
         self.socket_path = os.path.join(self.site_path, 'sockets')
         if len(self.socket_path)>90:
             self.socket_path = os.path.join('/tmp', os.path.basename(self.instance_path), 'gnr_sock')
