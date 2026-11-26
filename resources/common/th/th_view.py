@@ -353,7 +353,8 @@ class TableHandlerView(BaseComponent):
             statsEnabled = True if extendedQuery else False
         statsSlot = 'stats' if statsEnabled else False
         vhelp = 'vhelp' if self.inlineDoc else False
-        tableAudit = 'tableAudit' if self.db.table(table).attributes.get('audit') == 'external' else False
+        tableAudit = 'tableAudit' if self.db.table(table).attributes.get('audit') == 'external' and \
+                     self.application.packages['audit'].historyAllowed(self.userTags) else False
         if extendedQuery:
             if 'adm' in self.db.packages and not self.isMobile:
                 templateManager = 'templateManager'

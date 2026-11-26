@@ -263,8 +263,10 @@ class TableHandlerForm(BaseComponent):
             showtoolbar = False
         if 'parentLock' in options:
             form.attributes.update(form_parentLock=options.pop('parentLock'))
+        audit_history = tblobj.attributes.get('audit') == 'external' and \
+                        self.application.packages['audit'].historyAllowed(self.userTags)
         if modal:
-            self._th_handleModalBar(form,**modal)
+            self._th_handleModalBar(form,extra_slots=['form_audit'] if audit_history else [],**modal)
         elif showtoolbar:
             default_slots = 'left_placeholder,*,right_placeholder,semaphore,5' if readOnly else 'left_placeholder,*,right_placeholder,form_archive,form_delete,form_add,form_revert,form_save,semaphore,locker'
             if annotations and not readOnly:
@@ -305,7 +307,8 @@ class TableHandlerForm(BaseComponent):
                 #default_slots = default_slots.replace('form_delete','form_print,100,form_delete')
                 extra_slots.append('form_action')
                 options['form_action'] = actionMenu
-            if options.pop('audit',False) or tblobj.attributes.get('audit') == 'external':
+            legacy_audit = options.pop('audit',False) and tblobj.attributes.get('audit') != 'external'
+            if audit_history or legacy_audit:
                 extra_slots.append('form_audit')
             if copypaste:
                 form.attributes['form_copypaste_isRemote'] = copypaste=='*'
@@ -313,9 +316,7 @@ class TableHandlerForm(BaseComponent):
             if single_record:
                 default_slots = default_slots.replace('form_delete','')
                 default_slots = default_slots.replace('form_add','')
-            if extra_slots:
-                default_slots = default_slots.replace('right_placeholder','right_placeholder,%s' %(','.join(extra_slots)))
-            slots = options.pop('slots',default_slots)
+            slots = options.pop('slots',self._th_addExtraSlots(default_slots,extra_slots))
             options.setdefault('_class','th_form_toolbar')
             form.top.slotToolbar(slots,form_add_defaults=form_add if form_add and form_add is not True else None,**options)
         if attachmentDrawer:
@@ -376,21 +377,26 @@ class TableHandlerForm(BaseComponent):
                                  onSavedHandler=self._th_hook('onSaved',mangler=mangler))
         form._current_options = options
 
-    def _th_handleModalBar(self,form,mode=None,dismissTitle=None,**kwargs):
+    def _th_addExtraSlots(self,slots,extra_slots):
+        if not extra_slots:
+            return slots
+        return slots.replace('right_placeholder','right_placeholder,%s' %','.join(extra_slots))
+
+    def _th_handleModalBar(self,form,mode=None,dismissTitle=None,extra_slots=None,**kwargs):
         if mode=='navigation':
             if form.store.attributes.get('storeType') == 'Collection':
                 slots = 'dismissTitle,left_placeholder,*,right_placeholder,prevUp,nextDown'
             else:
-                slots = 'dismissTitle'
+                slots = 'dismissTitle,left_placeholder,*,right_placeholder,5'
                 kwargs['dismissTitle_back_title'] = '!![en]Back'
             if dismissTitle:
                 kwargs['dismissTitle_back_title'] = dismissTitle
-            form.top.slotBar(slots,height=kwargs.pop('height','30px'),font_weight=kwargs.pop('font_weight','bold'),
+            form.top.slotBar(self._th_addExtraSlots(slots,extra_slots),height=kwargs.pop('height','30px'),font_weight=kwargs.pop('font_weight','bold'),
                              color=kwargs.pop('color','var(--mainWindow-color)'),border_bottom=kwargs.pop('border','1px solid var(--border-color)'),
                             **kwargs)
         else:
-            slots= '*,cancel' if mode=='confirm' else 'revertbtn,*,cancel,savebtn'
-            bar = form.bottom.slotBar(slots,margin_bottom='2px',_class='slotbar_dialog_footer')
+            slots= 'left_placeholder,*,right_placeholder,cancel' if mode=='confirm' else 'left_placeholder,revertbtn,*,right_placeholder,cancel,savebtn'
+            bar = form.bottom.slotBar(self._th_addExtraSlots(slots,extra_slots),margin_bottom='2px',_class='slotbar_dialog_footer')
             bar.cancel.button('!!Cancel' if not mode=='confirm' else '!![en]Close',action='this.form.abort();')
             if mode=='ask':
                 bar.revertbtn.button('!!Revert',action='this.form.publish("reload")',disabled='^.controller.changed?=!#v')

@@ -8,6 +8,7 @@ instance (caption field code, Bag column details); PostgreSQL only.
 
 import pytest
 
+from gnr.app.gnrapp import AuthTagStruct
 from gnr.core.gnrbag import Bag
 from gnr.sql.gnrsqlmigration import SqlMigrator
 
@@ -73,3 +74,26 @@ def test_captions_from_the_table_and_from_the_last_state(db):
     db.commit()
     captions = db.table('audit.event').recordCaptions('audit_test.audited_item', [alive, deleted, 'nohistory'])
     assert captions == {alive: 'C1', deleted: 'C2b'}
+
+
+def test_the_package_declares_the_default_history_tag(db):
+    package = db.application.packages['audit']
+    assert package.attributes['history_tags'] == 'auditHistory'
+    root = AuthTagStruct.makeRoot()
+    package.packageTags(root.branch('audit'))
+    codes = [node.attr.get('code') for path, node in root.getIndex() if node.attr.get('tag') == 'authTag']
+    assert codes == ['auditHistory']
+
+
+def test_the_history_needs_the_history_tags(db):
+    package = db.application.packages['audit']
+    assert package.historyAllowed('user,auditHistory')
+    assert not package.historyAllowed('user,admin,superadmin')
+    assert not package.historyAllowed(None)
+
+
+def test_an_instance_sets_its_own_history_tags(db, monkeypatch):
+    package = db.application.packages['audit']
+    monkeypatch.setitem(package.attributes, 'history_tags', 'auditor,superadmin')
+    assert package.historyAllowed('user,superadmin')
+    assert not package.historyAllowed('user,auditHistory')

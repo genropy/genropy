@@ -75,6 +75,7 @@ class AuditHistory(BaseComponent):
     @public_method
     def audit_recordHistory(self, tbl=None, pkey=None):
         """The events of a record as grid rows, with the detail of each one."""
+        self.audit_checkHistoryAllowed('audit_recordHistory')
         hidden = self.db.table('audit.event').displayHiddenColumns(tbl)
         result = Bag()
         previous_state = None
@@ -87,12 +88,17 @@ class AuditHistory(BaseComponent):
     @public_method
     def audit_eventDetail(self, event_id=None):
         """The detail of one event, as in the record history."""
+        self.audit_checkHistoryAllowed('audit_eventDetail')
         event = self.db.table('audit.event').record(event_id, mode='dict')
         previous_state = None
         for item in self.db.table('audit.event').recordHistory(event['tbl'], event['record_pkey']):
             if item['event_id'] == event['event_id']:
                 return self.audit_eventRow(item, previous_state, self.db.table('audit.event').displayHiddenColumns(event['tbl']))
             previous_state = item['state']
+
+    def audit_checkHistoryAllowed(self, method):
+        if not self.application.packages['audit'].historyAllowed(self.userTags):
+            raise self.exception('user_not_allowed', method=method)
 
     def audit_eventRow(self, event, previous_state, hidden):
         """One event as a grid row with its detail.
