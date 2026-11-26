@@ -302,6 +302,16 @@ class TestBasicBag(object):
         b = self.mybag.copy()
         assert b == self.mybag and b is not self.mybag
 
+    def test_deepcopy_keeps_dotted_labels(self):
+        b = Bag()
+        b.setItem(['a.b'], Bag())
+        b['#0'].setItem(['c.d'], 7)
+        c = b.deepcopy()
+        assert c.keys() == ['a.b']
+        assert c['#0'].keys() == ['c.d']
+        assert c['#0.#0'] == 7
+        assert c['#0'] is not b['#0']
+
     def test_getNode(self):
         b = self.mybag.getNode('phone')
         assert isinstance(b, BagNode)
@@ -636,6 +646,28 @@ class TestBagDiff(object):
         ]
         assert new['x.#0'] == 2
         assert old['x.#1'] == 3
+
+    def test_dotted_label_subtree_added(self):
+        new = Bag()
+        new['grp'] = Bag()
+        new['grp'].setItem(['a.b'], 7)
+        records = Bag().diff(new)
+        assert [r['event'] for r in records] == ['added']
+        assert records[0]['path'] == 'grp'
+        assert records[0]['newvalue'].keys() == ['a.b']
+        assert records[0]['newvalue']['#0'] == 7
+        assert Bag().getDiffBag(new)['grp'].keys() == ['a.b']
+
+    def test_dotted_label_subtree_removed(self):
+        old = Bag()
+        old['grp'] = Bag()
+        old['grp'].setItem(['a.b'], 7)
+        records = old.diff(Bag())
+        assert [r['event'] for r in records] == ['removed']
+        assert records[0]['path'] == 'grp'
+        assert records[0]['oldvalue'].keys() == ['a.b']
+        assert records[0]['oldvalue']['#0'] == 7
+        assert old.getDiffBag(Bag())['grp'].keys() == ['a.b']
 
     def test_label_with_question_mark(self):
         old = Bag()
