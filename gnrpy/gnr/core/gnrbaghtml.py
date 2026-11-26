@@ -599,6 +599,8 @@ class BagToHtml(object):
             self.updateRunningTotals(rowData=self.rowData)
             subtotal_rows = self.checkSubtotals(self._rowDataCustomized(nodes[lineno+1]) if not self.isLastRow else {})
             rowheight = row_kw.pop('height',None) or self.calcRowHeight()
+            if rowheight > self.grid_row_height:
+                row_kw['_class'] = ' '.join(x for x in (row_kw.get('_class'), 'grid_tall_row') if x)
             for copy in range(self.copies_per_page):
                 self.copy = copy
                 yield (lineno,rowDataNode,rowheight,row_kw,extra_row_height,subtotal_rows)
@@ -1136,13 +1138,11 @@ class BagToHtml(object):
         return body.layout(**self.gridLayoutParameters())
 
     def gridLayoutParameters(self):
-        um = 'mm'
-        return dict(name='gridLayout',um=um,border_color='#e0e0e0',
+        return dict(name='gridLayout',um='mm',border_color='#e0e0e0',
                             top=.1,bottom=.1,left=.1,right=.1,
                             font_size='9pt',
                             border_width=.3,lbl_class='caption',
-                            text_align='left',
-                            style='line-height:{}{};'.format(self.grid_row_height, um))
+                            text_align='left')
 
     def gridHeader(self, row):
         """It can be overridden
@@ -1477,7 +1477,25 @@ class BagToHtml(object):
                         .extrasmall {font-size:6pt;text-align:left;line-height:3mm;}
                         .textfield {text-indent:0mm;margin:1mm;line-height:3mm}
                         .dotted_bottom {border-bottom:1px dotted gray;}
-                        .gridLayout_layout .gnrlayout:not(.gridLayout_layout){line-height:normal;}
+                        .gridLayout_layout.layout_cell{
+                            display:-webkit-box;
+                            -webkit-box-orient:vertical;
+                            -webkit-box-pack:center;
+                            display:flex;
+                            flex-direction:column;
+                            justify-content:center;
+                        }
+                        .grid_tall_row .gridLayout_layout.layout_cell{
+                            -webkit-box-pack:start;
+                            justify-content:flex-start;
+                        }
+                        .grid_tall_row .gridLayout_layout.layout_cell::before{
+                            content:'';
+                            display:block;
+                            height:.5mm;
+                            -webkit-box-flex:0;
+                            flex:none;
+                        }
 
                         .aligned_right{
                             text-align:right;

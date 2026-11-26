@@ -702,7 +702,7 @@ class GnrHtmlBuilder(object):
             cell_class = cell_class.replace('r', '')
         else:
             attr['border_width'] = '{}mm'.format(right_border_width)
-        attr['class'] = ' '.join(x for x in [attr.get('class'), row.layout.layout_class, cell_class] if x)
+        attr['class'] = ' '.join(x for x in [attr.get('class'), row.layout.layout_class, 'layout_cell', cell_class] if x)
         row.curr_x += width + right_border_width
         self.calculate_style(attr, row.layout.um)
                      

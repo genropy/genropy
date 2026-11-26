@@ -1,8 +1,14 @@
+import os
+
 import pytest
 
+from core.pdfsite import make_pdf_site
 from gnr.core.gnrbag import Bag
 from gnr.core.gnrbaghtml import BagToHtml
 from gnr.core.gnrhtml import GnrHtmlBuilder
+from gnr.lib.services import BaseServiceType
+
+MM_TO_PT = 72 / 25.4
 
 
 LONG_TEXT = ('A reasonably long description that cannot possibly fit in a '
@@ -231,10 +237,59 @@ def _render_across_first_page_break(tmp_path, totalize_mode):
     return rendered
 
 
-def test_grid_line_height_matches_row_height(tmp_path):
-    printer = _TotalizedPrint(3, 'doc')
-    html = printer(folder=str(tmp_path))
-    assert 'line-height:{}mm'.format(printer.grid_row_height) in html
+def _rendered_words_mm(folder, printer):
+    """Render *printer* through weasyprint: {word: (top, bottom)} in mm."""
+    fitz = pytest.importorskip('fitz')
+    pytest.importorskip('weasyprint')
+    folder.mkdir()
+    (folder / 'grid.html').write_text(printer(folder=str(folder)))
+    site = make_pdf_site(folder)
+    factory = BaseServiceType(site=site, service_type='htmltopdf').getServiceFactory('weasyprint')
+    pdf_file = factory(site).writePdf('grid.html', None)
+    try:
+        with fitz.open(pdf_file.name) as document:
+            words = document[0].get_text('words')
+    finally:
+        pdf_file.close()
+        os.unlink(pdf_file.name)
+    return dict((word[4], (word[1] / MM_TO_PT, word[3] / MM_TO_PT)) for word in words)
+
+
+def _first_row_text_center_mm(tmp_path, row_height):
+    printer = _TotalizedPrint(1, 'doc')
+    printer.grid_row_height = row_height
+    top, bottom = _rendered_words_mm(tmp_path / str(row_height), printer)['row']
+    return (top + bottom) / 2
+
+
+def test_grid_text_is_centered_in_its_row(tmp_path):
+    #the grid sits at the same place for both heights, so a text centered in its
+    #row moves down by half the extra height, while a top-aligned one stays put
+    shift = _first_row_text_center_mm(tmp_path, 12) - _first_row_text_center_mm(tmp_path, 4.5)
+    assert shift == pytest.approx((12 - 4.5) / 2, abs=0.3)
+
+
+class _WrappedPrint(_TotalizedPrint):
+    grid_row_height = 6
+    grid_columns = [dict(field='descr', mm_width=0, name='Description'),
+                    dict(field='notes', mm_width=40, name='Notes', white_space='normal'),
+                    dict(field='amount', mm_width=30, name='Amount')]
+
+    def gridData(self):
+        rows = Bag()
+        rows.setItem('a', None, descr='first', notes='short', amount=10)
+        rows.setItem('b', None, descr='second', notes='wrapping ' + LONG_TEXT, amount=20)
+        return rows
+
+
+def test_grid_tall_row_text_starts_at_the_top(tmp_path):
+    #a row grown by a wrapped cell aligns every cell at the top, so the first
+    #lines stay together instead of the short cells floating mid-row
+    words = _rendered_words_mm(tmp_path / 'wrapped', _WrappedPrint(0, 'doc'))
+    assert words['second'][0] == pytest.approx(words['wrapping'][0], abs=0.1)
+    assert words['20'][0] == pytest.approx(words['wrapping'][0], abs=0.1)
+    #the next row starts one row height below: a top-aligned text is about there
+    assert words['second'][0] - words['first'][0] == pytest.approx(_WrappedPrint.grid_row_height, abs=0.7)
 
 
 def test_totalize_footer_doc_mode_only_on_last_page(tmp_path):
