@@ -4,6 +4,7 @@
 
 import datetime
 from decimal import Decimal
+from xml.sax import SAXParseException
 
 from gnr.core.gnrdecorator import public_method
 from gnr.core.gnrbag import Bag
@@ -63,6 +64,7 @@ class GnrCustomWebPage(object):
             value='^.new', height='100%', width='100%', font_family='monospace', font_size='.8em')
         bc.dataRpc('.result', self.bagDiff, old='^.old', new='^.new', _onStart=True)
         center = bc.borderContainer(region='center')
+        center.contentPane(region='top').div('^.result.error', color='#c00', padding='2px 4px')
         grid = center.contentPane(region='center').quickGrid(value='^.result.records',
                                                              height='100%', width='100%')
         grid.column('event', name='Event', width='6em')
@@ -76,8 +78,11 @@ class GnrCustomWebPage(object):
 
     @public_method
     def bagDiff(self, old=None, new=None, **kwargs):
-        old = Bag(old) if old else Bag()
-        new = Bag(new) if new else Bag()
+        try:
+            old = Bag(old) if old else Bag()
+            new = Bag(new) if new else Bag()
+        except SAXParseException as e:
+            return Bag(dict(error='Invalid XML: %s' % e))
         records = Bag()
         for k, record in enumerate(old.diff(new)):
             records.setItem('r_%i' % k, None, event=record['event'], path=record['path'],
