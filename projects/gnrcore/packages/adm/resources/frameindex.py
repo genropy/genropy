@@ -139,14 +139,15 @@ class FrameIndex(BaseComponent):
         if self.site.multidomain or not self.db.usingRootstore():
             # A tenant: GenroApp shows the name of its owner in the titles of the windows of the site and in its
             # menu of the sites, where the address has only the code of the tenant. A GenroApp without the command,
-            # or a window that is not the one of the site, refuses the call.
+            # or a window that is not the one of the site, refuses the call. The name is the one of the owner_name
+            # slot, rendered the same way.
             pane.dataController("""var tauri = window.__TAURI__;
                                 if(!tauri || !owner_name){
                                     return;
                                 }
-                                tauri.core.invoke('site_set_tenant_name',{name:owner_name}).catch(function(){});
+                                tauri.core.invoke('site_set_tenant_name',{name:dataTemplate(owner_name,envbag)}).catch(function(){});
                                 """,
-                                owner_name='^gnr.app_preference.adm.instance_data.owner_name',
+                                owner_name=self.fi_get_owner_name(),envbag='=gnr.rootenv',
                                 _onStart=True)
         bc = pane.borderContainer(nodeId='standard_index',_class='frameindexroot',
                                 #border='1px solid gray',#rounded_top=8,
