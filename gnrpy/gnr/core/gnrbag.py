@@ -103,7 +103,56 @@ def normalizeItemPath(item_path):
     if isinstance(item_path, str) or isinstance(item_path,list):
         return item_path
     return str(item_path).replace('.','_')
-    
+
+
+def _diffSameValue(oldvalue, newvalue):
+    return type(oldvalue) is type(newvalue) and oldvalue == newvalue
+
+
+def _diffCopy(value):
+    return value.deepcopy() if isinstance(value, Bag) else value
+
+
+def _diffRecord(event, path, node, changed_attribute=None, oldvalue=None, newvalue=None):
+    return dict(event=event, path=path, label=node.label, changed_attribute=changed_attribute,
+                oldvalue=oldvalue, newvalue=newvalue, attributes=dict(node.attr))
+
+
+def _diffDuplicatedLabels(oldnodes, newnodes):
+    duplicated = set()
+    for nodes in (oldnodes, newnodes):
+        seen = set()
+        for node in nodes:
+            if node.label in seen:
+                duplicated.add(node.label)
+            seen.add(node.label)
+    return duplicated
+
+
+def _diffPairs(oldnodes, newnodes):
+    """(old, new) index pairs; same labels matched by order of appearance, None if unmatched."""
+    oldbylabel = {}
+    for idx, node in enumerate(oldnodes):
+        oldbylabel.setdefault(node.label, []).append(idx)
+    occurrences = {}
+    matched = set()
+    pairs = []
+    for newidx, node in enumerate(newnodes):
+        occurrence = occurrences.get(node.label, 0)
+        occurrences[node.label] = occurrence + 1
+        candidates = oldbylabel.get(node.label, [])
+        oldidx = candidates[occurrence] if occurrence < len(candidates) else None
+        if oldidx is not None:
+            matched.add(oldidx)
+        pairs.append((oldidx, newidx))
+    pairs.extend((oldidx, None) for oldidx in range(len(oldnodes)) if oldidx not in matched)
+    return pairs
+
+
+def _diffJoin(prefix, node, idx, duplicated):
+    segment = '#%i' % idx if node.label in duplicated else node.label
+    return '%s.%s' % (prefix, segment) if prefix else segment
+
 class BagNodeException(GnrException):
     pass
     
@@ -322,18 +371,50 @@ class BagNode(object):
         self._resolver.reset()
         self.setValue(None)
 
-    def diff(self,other):
-        if self.label !=other.label:
-            return 'Other label: %s' %other.label
-        if self.attr != other.attr:
-            return 'attributes self:%s --- other:%s' %(self.attr,other.attr) 
-        if self._value != other._value:
-            if isinstance(self._value,Bag):
-                return 'value:%s' %self._value.diff(other._value)
-            else:
-                return 'value self:%s --- other:%s' %(self._value,other._value)
+    def diff(self, other, path=None, otherpath=None):
+        """The changes from this node to ``other``, as records like those of :meth:`Bag.diff`.
 
-        
+        :param other: the BagNode to compare with
+        :param path: the path of this node in the records, default its label
+        :param otherpath: the path of ``other`` in the records, default ``path``"""
+        return self._diff(other, path=path, otherpath=otherpath)[0]
+
+    def _diff(self, other, path=None, otherpath=None):
+        path = path or self.label
+        otherpath = otherpath or path
+        records = []
+        treeattr = dict(path=otherpath)
+        changed_attributes = []
+        for name in list(self.attr) + [name for name in other.attr if name not in self.attr]:
+            oldvalue = self.attr.get(name)
+            newvalue = other.attr.get(name)
+            if name in self.attr and name in other.attr and _diffSameValue(oldvalue, newvalue):
+                continue
+            records.append(_diffRecord('changed', otherpath, other, changed_attribute=name,
+                                       oldvalue=oldvalue, newvalue=newvalue))
+            changed_attributes.append(name)
+            treeattr['old_%s' % name] = oldvalue
+            treeattr['new_%s' % name] = newvalue
+        if changed_attributes:
+            treeattr['event'] = 'changed'
+            treeattr['changed_attributes'] = ','.join(changed_attributes)
+        subtree = None
+        oldvalue = self.getValue('static')
+        newvalue = other.getValue('static')
+        if isinstance(oldvalue, Bag) and isinstance(newvalue, Bag):
+            childrecords, subtree = oldvalue._diff(newvalue, path=path, otherpath=otherpath)
+            records.extend(childrecords)
+        elif not _diffSameValue(oldvalue, newvalue):
+            oldvalue = _diffCopy(oldvalue)
+            newvalue = _diffCopy(newvalue)
+            records.append(_diffRecord('changed', otherpath, other,
+                                       oldvalue=oldvalue, newvalue=newvalue))
+            treeattr.update(event='changed', oldvalue=oldvalue, newvalue=newvalue)
+        if not records:
+            return records, None
+        return records, (subtree or None, treeattr)
+
+
     def getAttr(self, label=None, default=None):
         """It returns the value of an attribute. You have to specify the attribute's label.
         If it doesn't exist then it returns a default value
@@ -1183,18 +1264,71 @@ class Bag(GnrObject):
         return not self.__eq__(other)
 
 
-    def diff(self,other):
-        if self == other:
-            return None
-        if not isinstance(other, self.__class__):
-            return 'Other class is %s, self class is %s' %(other.__class__,self.__class__)
-        if len(other)!=len(self):
-            return 'Different length'
-        result = []
-        for k,n in enumerate(self._nodes):
-            if n != other._nodes[k]:
-                result.append('Node %i label %s difference %s' %(k,n.label,n.diff(other._nodes[k])))
-        return '\n'.join(result)
+    def diff(self, other):
+        """The changes from this Bag to ``other``, matching nodes by label at every level.
+
+        Nodes with the same label at the same level are matched by order of appearance.
+        In a path, a label that appears more than once among its siblings, on either side,
+        is written as the node position ``#n``: the path resolves with ``bag[path]`` on
+        ``other`` for added and changed records, on this Bag for removed ones.
+
+        :param other: the Bag to compare with; None counts as an empty Bag
+        :returns: a list of dicts with keys ``event`` ('added', 'removed' or 'changed'),
+                  ``path``, ``label``, ``changed_attribute`` (the attribute name for an
+                  attribute change, None otherwise), ``oldvalue``, ``newvalue`` and
+                  ``attributes`` (the node attributes, taken from ``other`` except for
+                  removed nodes). An added or removed node is one record, also when its
+                  value is a Bag; values keep their type, Bag values are copied."""
+        return self._diff(other)[0]
+
+    def getDiffBag(self, other):
+        """The changes from this Bag to ``other`` as a tree, for display.
+
+        Every node touched by a change keeps its label and its place. Its attributes are
+        ``path`` (as in :meth:`diff`), ``event`` when the node itself was added, removed
+        or changed, ``oldvalue`` and ``newvalue`` for a changed value or an added or
+        removed leaf, ``changed_attributes`` (comma separated) with ``old_<name>`` and
+        ``new_<name>`` for each changed attribute. Its value is the tree of the changes
+        below it, or the whole Bag of an added or removed node.
+
+        :param other: the Bag to compare with; None counts as an empty Bag"""
+        return self._diff(other)[1]
+
+    def _diff(self, other, path=None, otherpath=None):
+        if other is None:
+            other = Bag()
+        if not isinstance(other, Bag):
+            raise TypeError('Bag.diff needs a Bag, not %s' % type(other).__name__)
+        records = []
+        tree = Bag()
+        oldnodes = self._nodes
+        newnodes = other._nodes
+        duplicated = _diffDuplicatedLabels(oldnodes, newnodes)
+        for oldidx, newidx in _diffPairs(oldnodes, newnodes):
+            if oldidx is None or newidx is None:
+                if oldidx is None:
+                    event, side, node = 'added', 'newvalue', newnodes[newidx]
+                    nodepath = _diffJoin(otherpath, node, newidx, duplicated)
+                else:
+                    event, side, node = 'removed', 'oldvalue', oldnodes[oldidx]
+                    nodepath = _diffJoin(path, node, oldidx, duplicated)
+                value = _diffCopy(node.getValue('static'))
+                records.append(_diffRecord(event, nodepath, node, **{side: value}))
+                treeattr = dict(path=nodepath, event=event)
+                if not isinstance(value, Bag):
+                    treeattr[side] = value
+                    value = None
+                tree.addItem(node.label, value, _attributes=treeattr)
+                continue
+            oldnode = oldnodes[oldidx]
+            newnode = newnodes[newidx]
+            noderecords, treenode = oldnode._diff(
+                newnode, path=_diffJoin(path, oldnode, oldidx, duplicated),
+                otherpath=_diffJoin(otherpath, newnode, newidx, duplicated))
+            if treenode:
+                records.extend(noderecords)
+                tree.addItem(newnode.label, treenode[0], _attributes=treenode[1])
+        return records, tree
 
     def __getstate__(self):
         result = dict(self.__dict__)
