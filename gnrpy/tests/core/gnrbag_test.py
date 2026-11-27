@@ -1,9 +1,11 @@
 import pytest
 
 import datetime
+import re
 import socket, os
+from decimal import Decimal
 import gnr.core.gnrbag as bm
-from gnr.core.gnrbag import Bag, BagNode, BagResolver
+from gnr.core.gnrbag import Bag, BagNode, BagResolver, BagCbResolver
 
 
 BAG_DATA = os.path.join(os.path.dirname(__file__), 'data/testbag.xml')
@@ -300,6 +302,16 @@ class TestBasicBag(object):
         b = self.mybag.copy()
         assert b == self.mybag and b is not self.mybag
 
+    def test_deepcopy_keeps_dotted_labels(self):
+        b = Bag()
+        b.setItem(['a.b'], Bag())
+        b['#0'].setItem(['c.d'], 7)
+        c = b.deepcopy()
+        assert c.keys() == ['a.b']
+        assert c['#0'].keys() == ['c.d']
+        assert c['#0.#0'] == 7
+        assert c['#0'] is not b['#0']
+
     def test_getNode(self):
         b = self.mybag.getNode('phone')
         assert isinstance(b, BagNode)
@@ -430,3 +442,399 @@ def testToTree():
     assert str(treeBag) == expectedStr
     treeBag2 = b.toTree(group_by='number,text', caption='alfa', attributes=('date', 'text'))
     assert treeBag == treeBag2
+
+
+def clinicalRecord(rischio='2', parto=None, peso=62.5, unit='cm'):
+    record = Bag()
+    record['gravidanza.UM'] = datetime.date(2026, 3, 1)
+    record['gravidanza.LivelloRischio'] = rischio
+    if parto:
+        record['gravidanza.ModalitaParto'] = parto
+    if peso is not None:
+        record['misure.Peso'] = peso
+    record.setItem('misure.Altezza', 165, unit=unit)
+    return record
+
+
+def visits(*outcomes):
+    result = Bag()
+    for k, outcome in enumerate(outcomes):
+        result.addItem('visita', Bag(dict(esito=outcome)), n=k)
+    return result
+
+
+def compact(records):
+    return [(r['event'], r['path'], r['changed_attribute'], r['oldvalue'], r['newvalue'])
+            for r in records]
+
+
+def unstyled(html):
+    return re.sub(r' style="[^"]*"', '', html)
+
+
+class TestBagDiff(object):
+    def test_clinical_record(self):
+        old = clinicalRecord()
+        new = clinicalRecord(rischio='3', parto='cesareo', peso=None, unit='mm')
+        assert compact(old.diff(new)) == [
+            ('changed', 'gravidanza.LivelloRischio', None, '2', '3'),
+            ('added', 'gravidanza.ModalitaParto', None, None, 'cesareo'),
+            ('changed', 'misure.Altezza', 'unit', 'cm', 'mm'),
+            ('removed', 'misure.Peso', None, 62.5, None),
+        ]
+
+    def test_record_fields(self):
+        records = clinicalRecord().diff(clinicalRecord(unit='mm'))
+        assert records == [dict(event='changed', path='misure.Altezza', label='Altezza',
+                                changed_attribute='unit', oldvalue='cm', newvalue='mm',
+                                attributes=dict(unit='mm'))]
+
+    def test_equal_bags(self):
+        assert clinicalRecord().diff(clinicalRecord()) == []
+        assert len(clinicalRecord().getDiffBag(clinicalRecord())) == 0
+        assert Bag().diff(Bag()) == []
+
+    def test_node_order_is_not_a_change(self):
+        old = Bag()
+        old['a'] = 1
+        old['b'] = 2
+        new = Bag()
+        new['b'] = 2
+        new['a'] = 1
+        assert old.diff(new) == []
+
+    def test_none_is_an_empty_bag(self):
+        record = clinicalRecord()
+        assert compact(Bag().diff(None)) == []
+        records = Bag().diff(record)
+        assert [(r['event'], r['path']) for r in records] == \
+            [('added', 'gravidanza'), ('added', 'misure')]
+        assert [(r['event'], r['path']) for r in record.diff(None)] == \
+            [('removed', 'gravidanza'), ('removed', 'misure')]
+
+    def test_not_a_bag(self):
+        with pytest.raises(TypeError):
+            Bag().diff({'a': 1})
+
+    def test_whole_subbag_added_is_one_record(self):
+        old = clinicalRecord()
+        new = clinicalRecord()
+        new.setItem('ecografia', Bag(dict(settimana=12, esito='regolare')), operatore='X')
+        records = old.diff(new)
+        assert len(records) == 1
+        record = records[0]
+        assert (record['event'], record['path'], record['attributes']) == \
+            ('added', 'ecografia', dict(operatore='X'))
+        assert record['newvalue'] == new['ecografia']
+        record['newvalue']['esito'] = 'changed'
+        assert new['ecografia.esito'] == 'regolare'
+
+    def test_whole_subbag_removed_is_one_record(self):
+        old = clinicalRecord()
+        new = clinicalRecord()
+        new.pop('misure')
+        records = old.diff(new)
+        assert compact(records) == [('removed', 'misure', None, old['misure'], None)]
+        assert records[0]['oldvalue'] is not old['misure']
+
+    def test_typed_values(self):
+        old = Bag(dict(a='2', b=1, c=Decimal('1.50'), d=datetime.date(2026, 1, 1), e=None))
+        new = Bag(dict(a=2, b=True, c=Decimal('1.5'), d=datetime.datetime(2026, 1, 1), e=''))
+        assert compact(old.diff(new)) == [
+            ('changed', 'a', None, '2', 2),
+            ('changed', 'b', None, 1, True),
+            ('changed', 'd', None, datetime.date(2026, 1, 1), datetime.datetime(2026, 1, 1)),
+            ('changed', 'e', None, None, ''),
+        ]
+
+    def test_bag_replaced_by_scalar(self):
+        old = clinicalRecord()
+        new = clinicalRecord()
+        new['misure'] = 'non rilevate'
+        assert compact(old.diff(new)) == \
+            [('changed', 'misure', None, old['misure'], 'non rilevate')]
+        assert compact(new.diff(old)) == \
+            [('changed', 'misure', None, 'non rilevate', old['misure'])]
+
+    def test_attribute_changes(self):
+        old = Bag()
+        old.setItem('pressione', 120, unit='mmHg', metodo='manuale')
+        new = Bag()
+        new.setItem('pressione', 125, unit='mmHg', strumento='digitale')
+        assert compact(old.diff(new)) == [
+            ('changed', 'pressione', 'metodo', 'manuale', None),
+            ('changed', 'pressione', 'strumento', None, 'digitale'),
+            ('changed', 'pressione', None, 120, 125),
+        ]
+
+    def test_attribute_change_on_a_bag_node(self):
+        old = clinicalRecord()
+        new = clinicalRecord(rischio='3')
+        new.setAttr('gravidanza', valutata=True)
+        assert compact(old.diff(new)) == [
+            ('changed', 'gravidanza', 'valutata', None, True),
+            ('changed', 'gravidanza.LivelloRischio', None, '2', '3'),
+        ]
+
+    def test_duplicated_labels(self):
+        old = Bag()
+        old['visite'] = visits('ok', 'controllo')
+        new = Bag()
+        new['visite'] = visits('ok', 'ricovero', 'ok')
+        records = old.diff(new)
+        assert compact(records) == [
+            ('changed', 'visite.#1.esito', None, 'controllo', 'ricovero'),
+            ('added', 'visite.#2', None, None, new['visite.#2']),
+        ]
+        for record in records:
+            assert new[record['path']] == record['newvalue']
+
+    def test_duplicated_labels_removed(self):
+        old = Bag()
+        old['visite'] = visits('ok', 'controllo', 'ok')
+        new = Bag()
+        new['visite'] = visits('ok', 'controllo')
+        records = old.diff(new)
+        assert compact(records) == [('removed', 'visite.#2', None, old['visite.#2'], None)]
+        assert old[records[0]['path']] == records[0]['oldvalue']
+
+    def test_duplicated_label_among_unique_siblings(self):
+        old = Bag()
+        old['nome'] = 'A'
+        old.addItem('nota', 'prima')
+        new = Bag()
+        new['nome'] = 'B'
+        new.addItem('nota', 'prima')
+        new.addItem('nota', 'seconda')
+        assert compact(old.diff(new)) == [
+            ('changed', 'nome', None, 'A', 'B'),
+            ('added', '#2', None, None, 'seconda'),
+        ]
+
+    def test_dotted_label_added(self):
+        new = Bag()
+        new.setItem(['a.b'], 7)
+        records = Bag().diff(new)
+        assert compact(records) == [('added', '#0', None, None, 7)]
+        assert records[0]['label'] == 'a.b'
+        assert new[records[0]['path']] == 7
+
+    def test_dotted_label_changed(self):
+        old = Bag()
+        old['nome'] = 'A'
+        old.setItem(['a.b'], 1)
+        new = Bag()
+        new['nome'] = 'A'
+        new.setItem(['a.b'], 2)
+        records = old.diff(new)
+        assert compact(records) == [('changed', '#1', None, 1, 2)]
+        assert old[records[0]['path']] == 1
+        assert new[records[0]['path']] == 2
+
+    def test_dotted_label_nested(self):
+        old = Bag()
+        old['x'] = Bag()
+        old['x'].setItem(['a.b'], 1)
+        old['x'].setItem(['c.d'], 3)
+        new = Bag()
+        new['x'] = Bag()
+        new['x'].setItem(['a.b'], 2)
+        records = old.diff(new)
+        assert compact(records) == [
+            ('changed', 'x.#0', None, 1, 2),
+            ('removed', 'x.#1', None, 3, None),
+        ]
+        assert new['x.#0'] == 2
+        assert old['x.#1'] == 3
+
+    def test_dotted_label_subtree_added(self):
+        new = Bag()
+        new['grp'] = Bag()
+        new['grp'].setItem(['a.b'], 7)
+        records = Bag().diff(new)
+        assert [r['event'] for r in records] == ['added']
+        assert records[0]['path'] == 'grp'
+        assert records[0]['newvalue'].keys() == ['a.b']
+        assert records[0]['newvalue']['#0'] == 7
+        assert Bag().getDiffBag(new)['grp'].keys() == ['a.b']
+
+    def test_dotted_label_subtree_removed(self):
+        old = Bag()
+        old['grp'] = Bag()
+        old['grp'].setItem(['a.b'], 7)
+        records = old.diff(Bag())
+        assert [r['event'] for r in records] == ['removed']
+        assert records[0]['path'] == 'grp'
+        assert records[0]['oldvalue'].keys() == ['a.b']
+        assert records[0]['oldvalue']['#0'] == 7
+        assert old.getDiffBag(Bag())['grp'].keys() == ['a.b']
+
+    def test_label_with_question_mark(self):
+        old = Bag()
+        old.setItem(['ok?'], False)
+        new = Bag()
+        new.setItem(['ok?'], True)
+        new.setItem(['why?'], 'no')
+        records = old.diff(new)
+        assert compact(records) == [
+            ('changed', '#0', None, False, True),
+            ('added', '#1', None, None, 'no'),
+        ]
+        for record in records:
+            assert new[record['path']] == record['newvalue']
+
+    def test_paths_follow_each_side(self):
+        old = Bag()
+        old.addItem('x', 1)
+        old.addItem('x', Bag(dict(v=1)))
+        new = Bag()
+        new.addItem('y', 0)
+        new.addItem('x', 1)
+        new.addItem('x', Bag(dict(w=2)))
+        records = old.diff(new)
+        assert compact(records) == [
+            ('added', 'y', None, None, 0),
+            ('added', '#2.w', None, None, 2),
+            ('removed', '#1.v', None, 1, None),
+        ]
+        assert new['#2.w'] == 2
+        assert old['#1.v'] == 1
+
+    def test_xml_roundtrip(self):
+        old = Bag(clinicalRecord().toXml())
+        new = Bag(clinicalRecord(rischio='3', parto='cesareo', peso=None, unit='mm').toXml())
+        assert compact(old.diff(new)) == compact(clinicalRecord().diff(
+            clinicalRecord(rischio='3', parto='cesareo', peso=None, unit='mm')))
+        assert old.diff(new)[0]['oldvalue'] == '2'
+
+    def test_resolvers_are_not_called(self):
+        calls = []
+
+        def load():
+            calls.append(1)
+            return Bag(dict(a=1))
+
+        old = Bag()
+        old.setItem('remote', BagCbResolver(load))
+        new = Bag()
+        new.setItem('remote', BagCbResolver(load))
+        new['local'] = 1
+        assert compact(old.diff(new)) == [('added', 'local', None, None, 1)]
+        assert calls == []
+
+    def test_node_diff(self):
+        old = clinicalRecord(rischio='2').getNode('gravidanza')
+        new = clinicalRecord(rischio='3', parto='cesareo').getNode('gravidanza')
+        assert [r['path'] for r in old.diff(new)] == \
+            ['gravidanza.LivelloRischio', 'gravidanza.ModalitaParto']
+        assert [r['path'] for r in old.diff(new, path='rev1', otherpath='rev2')] == \
+            ['rev2.LivelloRischio', 'rev2.ModalitaParto']
+        assert old.diff(clinicalRecord(rischio='2').getNode('gravidanza')) == []
+
+    def test_diff_bag(self):
+        old = clinicalRecord()
+        new = clinicalRecord(rischio='3', parto='cesareo', peso=None, unit='mm')
+        new['ecografia.settimana'] = 12
+        tree = old.getDiffBag(new)
+        assert tree.keys() == ['gravidanza', 'misure', 'ecografia']
+        assert tree.getAttr('gravidanza') == dict(path='gravidanza')
+        assert tree.getAttr('gravidanza.LivelloRischio') == \
+            dict(path='gravidanza.LivelloRischio', event='changed', oldvalue='2', newvalue='3')
+        assert tree.getAttr('gravidanza.ModalitaParto') == \
+            dict(path='gravidanza.ModalitaParto', event='added', newvalue='cesareo')
+        assert tree.getAttr('misure.Altezza') == \
+            dict(path='misure.Altezza', event='changed', changed_attributes='unit',
+                 old_unit='cm', new_unit='mm')
+        assert tree.getAttr('misure.Peso') == \
+            dict(path='misure.Peso', event='removed', oldvalue=62.5)
+        assert tree.getAttr('ecografia') == dict(path='ecografia', event='added')
+        assert tree['ecografia.settimana'] == 12
+        assert 'UM' not in tree['gravidanza']
+
+    def test_diff_bag_duplicated_labels(self):
+        old = Bag()
+        old['visite'] = visits('ok', 'controllo')
+        new = Bag()
+        new['visite'] = visits('ok', 'ricovero', 'ok')
+        tree = old.getDiffBag(new)
+        assert tree['visite'].keys() == ['visita', 'visita']
+        assert tree.getAttr('visite.#0.esito') == dict(path='visite.#1.esito', event='changed',
+                                                       oldvalue='controllo', newvalue='ricovero')
+        assert tree.getAttr('visite.#1') == dict(path='visite.#2', event='added')
+
+    def test_diff_bag_dotted_labels(self):
+        old = Bag()
+        old['x'] = Bag()
+        old['x'].setItem(['a.b'], 1)
+        new = Bag()
+        new['x'] = Bag()
+        new['x'].setItem(['a.b'], 2)
+        new.setItem(['c?d'], 3)
+        tree = old.getDiffBag(new)
+        assert tree.keys() == ['x', 'c?d']
+        assert tree['x'].keys() == ['a.b']
+        assert tree.getAttr('x.#0') == dict(path='x.#0', event='changed', oldvalue=1, newvalue=2)
+        assert tree.getAttr('#1') == dict(path='#1', event='added', newvalue=3)
+
+    def test_diff_html_clinical_record(self):
+        old = clinicalRecord()
+        new = clinicalRecord(rischio='3', parto='cesareo', peso=None, unit='mm')
+        assert unstyled(old.diffHtml(new)) == (
+            '<ul><li>gravidanza<ul>'
+            '<li>LivelloRischio: <del>2</del> &rarr; <ins>3</ins></li>'
+            '<li>+ ModalitaParto: cesareo</li></ul></li>'
+            '<li>misure<ul>'
+            '<li>Altezza <span>[unit: <del>cm</del> &rarr; <ins>mm</ins>]</span></li>'
+            '<li>&minus; Peso: 62.5</li></ul></li></ul>')
+
+    def test_diff_html_styles(self):
+        html = clinicalRecord().diffHtml(clinicalRecord(parto='cesareo', peso=None))
+        assert '<li style="color:#1a7f37;text-decoration:none">+ ModalitaParto' in html
+        assert '<li style="color:#cf222e;text-decoration:line-through">&minus; Peso' in html
+
+    def test_diff_html_nothing_changed(self):
+        assert clinicalRecord().diffHtml(clinicalRecord()) == ''
+
+    def test_diff_html_escapes_labels_and_values(self):
+        old = Bag()
+        old['nota'] = 'a < b'
+        new = Bag()
+        new['nota'] = 'a & b'
+        assert unstyled(old.diffHtml(new)) == (
+            '<ul><li>nota: <del>a &lt; b</del> &rarr; <ins>a &amp; b</ins></li></ul>')
+
+    def test_diff_html_locale(self):
+        old = clinicalRecord()
+        new = clinicalRecord()
+        new['gravidanza.UM'] = datetime.date(2026, 3, 8)
+        assert '<del>01/03/26</del> &rarr; <ins>08/03/26</ins>' in unstyled(
+            old.diffHtml(new, locale='it'))
+
+    def test_diff_html_same_text_shows_types(self):
+        old = Bag(dict(codice='2'))
+        new = Bag(dict(codice=2))
+        assert unstyled(old.diffHtml(new)) == (
+            '<ul><li>codice: <del>2 (str)</del> &rarr; <ins>2 (int)</ins></li></ul>')
+
+    def test_diff_html_subbags_and_duplicated_labels(self):
+        old = Bag()
+        old['visite'] = visits('ok', 'controllo')
+        new = Bag()
+        new['visite'] = visits('ok', 'ricovero')
+        new['ecografia'] = Bag(dict(settimana=12))
+        assert unstyled(old.diffHtml(new)) == (
+            '<ul><li>visite<ul><li>visita #1<ul>'
+            '<li>esito: <del>controllo</del> &rarr; <ins>ricovero</ins></li></ul></li></ul></li>'
+            '<li>+ ecografia: <ul><li>settimana: 12</li></ul></li></ul>')
+
+    def test_diff_html_dotted_labels(self):
+        old = Bag()
+        old['x'] = Bag()
+        old['x'].setItem(['a.b'], 1)
+        new = Bag()
+        new['x'] = Bag()
+        new['x'].setItem(['a.b'], 2)
+        new.setItem(['c?d'], 3)
+        assert unstyled(old.diffHtml(new)) == (
+            '<ul><li>x<ul><li>a.b #0: <del>1</del> &rarr; <ins>2</ins></li></ul></li>'
+            '<li>+ c?d #1: 3</li></ul>')
