@@ -996,10 +996,10 @@ class SiteRegister(BaseRemoteObject):
 
     def expire_pages(self, connection_id):
         """Drop pages of `connection_id` idle longer than page_max_age
-        (or guest_connection_max_age for guest users). Returns list of
-        dropped page_ids."""
+        (or guest_connection_max_age for guest users). Returns a dict
+        with the last ping received from each dropped page_id."""
         now = datetime.now()
-        dropped = []
+        dropped = {}
         for page in self.page_register.pages(connection_id=connection_id):
             max_age = (self.guest_connection_max_age
                        if page['user'].startswith('guest_')
@@ -1008,24 +1008,24 @@ class SiteRegister(BaseRemoteObject):
             if (now - last_refresh_ts).total_seconds() > max_age:
                 page_id = page['register_item_id']
                 self.drop_page(page_id)
-                dropped.append(page_id)
+                dropped[page_id] = last_refresh_ts
         return dropped
 
     def expire_connection(self, connection_id):
         """Drop the connection if idle longer than connection_max_age
-        (or guest_connection_max_age for guest users). Returns True if
-        dropped."""
+        (or guest_connection_max_age for guest users). Returns the last
+        ping received from it if dropped, None otherwise."""
         connection = self.connection_register.get_item(connection_id)
         if not connection:
-            return False
+            return None
         max_age = (self.guest_connection_max_age
                    if connection['user'].startswith('guest_')
                    else self.connection_max_age)
         last_refresh_ts = connection.get('last_refresh_ts') or connection.get('start_ts')
         if (datetime.now() - last_refresh_ts).total_seconds() > max_age:
             self.drop_connection(connection_id, cascade=True)
-            return True
-        return False
+            return last_refresh_ts
+        return None
 
     def get_register(self, register_name):
         return getattr(self, '%s_register' % register_name)

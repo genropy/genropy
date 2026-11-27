@@ -411,7 +411,7 @@ def test_expire_pages_drops_the_idle_ones_only():
     reg = _populate(_register(page_max_age=60), users=1, connections=1, pages=2)
     _age(reg.page_register.registerItems['user-0/conn-0/page-0'], 3600)
     _age(reg.page_register.registerItems['user-0/conn-0/page-1'], 5)
-    assert reg.expire_pages('user-0/conn-0') == ['user-0/conn-0/page-0']
+    assert list(reg.expire_pages('user-0/conn-0')) == ['user-0/conn-0/page-0']
     assert_authoritative(reg)
 
 
@@ -425,27 +425,28 @@ def test_expire_pages_draining_a_connection():
 
 def test_expire_pages_on_an_unknown_connection():
     reg = _populate(_register(page_max_age=60), users=1, connections=1, pages=1)
-    assert reg.expire_pages('never-existed') == []
+    assert reg.expire_pages('never-existed') == {}
     assert_authoritative(reg)
 
 
 def test_expire_connection_drops_it_with_its_pages():
     reg = _populate(_register(connection_max_age=60), users=1, connections=2, pages=2)
-    _age(reg.connection_register.registerItems['user-0/conn-0'], 3600)
-    assert reg.expire_connection('user-0/conn-0') is True
+    connection = reg.connection_register.registerItems['user-0/conn-0']
+    _age(connection, 3600)
+    assert reg.expire_connection('user-0/conn-0') == connection['last_refresh_ts']
     assert_authoritative(reg)
 
 
 def test_expire_connection_spares_a_fresh_one():
     reg = _populate(_register(connection_max_age=60), users=1, connections=1, pages=1)
     _age(reg.connection_register.registerItems['user-0/conn-0'], 5)
-    assert reg.expire_connection('user-0/conn-0') is False
+    assert reg.expire_connection('user-0/conn-0') is None
     assert_authoritative(reg)
 
 
 def test_expire_connection_on_an_unknown_connection():
     reg = _populate(_register(connection_max_age=60), users=1, connections=1, pages=1)
-    assert reg.expire_connection('never-existed') is False
+    assert reg.expire_connection('never-existed') is None
     assert_authoritative(reg)
 
 
@@ -616,3 +617,15 @@ def test_update_item_on_a_register_whose_items_have_no_parent():
     reg.user_register.update_item('user-0', dict(user_name='Zero'))
     assert reg.user_register.registerItems['user-0']['user_name'] == 'Zero'
     assert_authoritative(reg)
+
+
+def test_expire_reports_the_last_ping_whatever_the_client_says():
+    """last_user_ts comes from the clock and the timezone of the browser."""
+    reg = _populate(_register(page_max_age=60, connection_max_age=60), users=1, connections=1, pages=1)
+    page = reg.page_register.registerItems['user-0/conn-0/page-0']
+    connection = reg.connection_register.registerItems['user-0/conn-0']
+    for item in (page, connection):
+        _age(item, 3600)
+        item['last_user_ts'] = datetime.now() - timedelta(hours=9)
+    assert reg.expire_pages('user-0/conn-0') == {'user-0/conn-0/page-0': page['last_refresh_ts']}
+    assert reg.expire_connection('user-0/conn-0') == connection['last_refresh_ts']

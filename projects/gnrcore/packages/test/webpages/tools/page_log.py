@@ -10,10 +10,10 @@ be read without leaving the test page.
 
 Both tables carry `checkpref='adm.dev.connection_log_enabled'`: set the adm
 preference `Connection log` to `Connection and pages` (`Connection Only` leaves
-`adm.served_page` empty) and restart the site, which reads it once. While it is
-off the tables are neither written nor served, and each iframe shows the error
-`Table adm.connection not allowed by preference` (or `adm.served_page`) instead
-of a grid - a setup matter, not a broken page.
+`adm.served_page` empty) and restart the site: each process reads it once for
+each domain. While it is off the tables are neither written nor served, and each
+iframe shows the error `Table adm.connection not allowed by preference` (or
+`adm.served_page`) instead of a grid - a setup matter, not a broken page.
 """
 
 
