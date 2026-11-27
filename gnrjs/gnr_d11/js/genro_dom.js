@@ -1520,7 +1520,7 @@ dojo.declare("gnr.GnrDomHandler", null, {
             cols = kw.struct.getItem('#0.#0').getNodes().map(n=>n.attr);
         }else{
             columns.forEach(function(c,idx){
-                cols.push({field:c,name:headers[idx]});
+                cols.push(objectUpdate({field:c,name:headers[idx]},(kw.colinfo || [])[idx]));
             });
         }
         var tblclass = kw.tblclass;
@@ -1571,8 +1571,8 @@ dojo.declare("gnr.GnrDomHandler", null, {
                         totalizers[cell.field] = (totalizers[cell.field] || 0)+(v || 0);
                     }
                 }
-                value = isNullOrBlank(v)?'&nbsp':v;
-                r += `<td style="${style}">${_F(value,cell.format,cell.dtype)}</td>`;
+                value = isNullOrBlank(v)?'&nbsp;':_F(v,cell.format,cell.dtype);
+                r += `<td style="${style}">${value}</td>`;
             });
             tbl.push('<tr id="' + nodes[i].label + '"  '+_customClasses+ rowvalidation + '>' + r + '</tr>');
         }
@@ -1587,8 +1587,8 @@ dojo.declare("gnr.GnrDomHandler", null, {
                 if(cell.dtype && isNumericType(cell.dtype)){
                     style += 'text-align:right;';
                 }
-                value = isNullOrBlank(v)?'&nbsp':v;
-                r += `<td style="${style}">${_F(value,cell.format,cell.dtype)}</td>`;
+                value = isNullOrBlank(v)?'&nbsp;':_F(v,cell.format,cell.dtype);
+                r += `<td style="${style}">${value}</td>`;
             });
             tbl.push('<tr class="totalize_row">' + r + '</tr>');
         }
