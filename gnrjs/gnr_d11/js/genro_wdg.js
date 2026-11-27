@@ -840,7 +840,9 @@ dojo.declare("gnr.RowEditor", null, {
        //}else{
        //
        //}
-        if(rowIndex>=0){
+        // endEdit redraws the row being edited: redrawing it here detaches the cell input,
+        // and Safari fires no blur for a detached node, so endEdit would never run
+        if(rowIndex>=0 && !(this.grid.gnrediting && this.grid.currentEditedRow==rowIndex)){
             this.grid.updateRow(rowIndex);
         }
     }
