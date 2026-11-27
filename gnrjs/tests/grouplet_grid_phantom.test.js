@@ -97,6 +97,15 @@ test('the blank row holds only the defaults and stores nothing', async () => {
     assert.equal(s.lines.len(), 0);
 });
 
+test('a record load takes the blank row down with the rows, so the body rebuild never builds it twice', () => {
+    const s = createGrid();
+    let unmounted = 0;
+    s.controller.phantomTile = {unmount: () => { unmounted++; }};
+    s.controller._clearBody();
+    assert.equal(unmounted, 1);
+    assert.equal(s.controller.phantomTile, null);
+});
+
 test('the first value entered turns the blank row into a stored row', async () => {
     const s = createGrid();
     s.phantom().setItem('item', 'Milk');

@@ -1844,6 +1844,9 @@ gnr.GroupletGridController = class GroupletGridController {
         // Full teardown on record load: a different record may carry a
         // different grouplet structure, so stale tiles must not be reused.
         Object.keys(this.tiles).forEach((pkey) => this._destroyTile(pkey));
+        // the blank row too: the body rebuild of _fullSync would build its
+        // components a second time, from attributes they already consumed
+        this._unmountPhantom();
         this.activePkey = null;
     }
 

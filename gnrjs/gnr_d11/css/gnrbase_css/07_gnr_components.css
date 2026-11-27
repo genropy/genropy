@@ -44,6 +44,10 @@
 .search_highlight{
     background: yellow;
 }
+/* a click on a filtered label must reach dijitTreeLabel, where the tree selects */
+.search_match, .search_highlight{
+    pointer-events: none;
+}
 
 
 .fieldsTree .dijitTreeIcon {

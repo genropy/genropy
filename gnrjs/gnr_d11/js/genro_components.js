@@ -136,7 +136,9 @@ dojo.declare("gnr.widgets.TooltipPane", gnr.widgets.gnrwdg, {
                                     }
                                 },
                                 onOpenedPopup:function(openKw){
-                                    that.followAnchor(openKw,ddbId);
+                                    that.followAnchor(openKw,function(e){
+                                        genro.publish({topic:'close',nodeId:ddbId},{evt:e});
+                                    });
                                 }};
         if(placingId || placingNode){
             //placingId (a dom id) or placingNode (a dom node) anchor the popup to another
@@ -180,7 +182,7 @@ dojo.declare("gnr.widgets.TooltipPane", gnr.widgets.gnrwdg, {
         return tdialog;
     },
 
-    followAnchor:function(openKw,ddbId){
+    followAnchor:function(openKw,onOutOfView){
         //dijit.popup places the wrapper once, at page coordinates: ancestor scrolls
         //would leave it behind its anchor
         var popup = openKw.popup;
@@ -221,7 +223,7 @@ dojo.declare("gnr.widgets.TooltipPane", gnr.widgets.gnrwdg, {
                 return;
             }
             if(!anchor.isConnected){
-                genro.publish({topic:'close',nodeId:ddbId},{evt:e});
+                onOutOfView(e);
                 return;
             }
             var scroller = e.target;
@@ -230,7 +232,7 @@ dojo.declare("gnr.widgets.TooltipPane", gnr.widgets.gnrwdg, {
             }
             if(outOfView()){
                 //onClosing may veto the close: the pane keeps following
-                genro.publish({topic:'close',nodeId:ddbId},{evt:e});
+                onOutOfView(e);
             }
             var current = pageOrigin();
             wrapper.style.left = (left+current.x-origin.x)+'px';
@@ -5874,6 +5876,277 @@ dojo.declare("gnr.widgets.TextboxMenu", gnr.widgets.gnrwdg, {
     }
 });
 
+
+dojo.declare("gnr.widgets.HierarchicalSelect", gnr.widgets.gnrwdg, {
+    createContent:function(sourceNode,kw,childSourceNode){
+        var table = objectPop(kw,'table') || objectPop(kw,'dbtable');
+        var hierarchical = objectPop(kw,'hierarchical');
+        var folderSelectable = objectPop(kw,'folderSelectable');
+        var caption_field = objectPop(kw,'caption_field');
+        var searchMode = objectPop(kw,'searchMode');
+        var tree_kw = objectExtract(kw,'tree_*');
+        var box_kw = objectExtract(tree_kw,'max_height,min_width');
+        var selected_kw = objectExtract(kw,'selected_*',true,true);
+        var menuId = kw.connectedMenu || 'hselect_'+sourceNode.getStringId();
+        var pars = {table:table,grouped:!!hierarchical || !table,menuId:menuId,
+                    storepath:'gnr.hierarchicalSelect.'+menuId};
+        objectUpdate(kw,{hasDownArrow:true,connectedMenu:menuId});
+        var that = this;
+        if(searchMode=='tree'){
+            kw.onCreated = function(widget){
+                that.typingFiltersTree(widget,pars);
+            };
+        }
+        var select;
+        if(table){
+            pars.rpc_kw = this.rpcKwargs(kw,hierarchical,caption_field,selected_kw);
+            if('_storename' in kw){
+                pars.rpc_kw.dbstore = kw._storename;
+            }
+            if(!hierarchical && !folderSelectable){
+                kw.condition = kw.condition?'('+kw.condition+') AND $child_count=0':'$child_count=0';
+            }
+            objectUpdate(kw,{dbtable:table,_hdbselect:true});
+            select = sourceNode._('dbSelect',kw);
+        }else{
+            pars.values = objectPop(kw,'values');
+            pars.levels = hierarchical?splitStrip(hierarchical.replace(/\$/g,''),','):[];
+            pars.identifier = objectPop(kw,'identifier');
+            pars.labelAttribute = objectPop(kw,'labelAttribute') || 'caption';
+            kw.callback = this.valuesCallback(pars);
+            select = sourceNode._('CallbackSelect',kw);
+        }
+        var selectNode = select.getParentNode();
+        pars.selectNode = selectNode;
+        var openKw;
+        var menu = select._('menu',{id:menuId,modifiers:'*',_class:'menupane',connectToParent:false,
+                                     connect_onOpeningPopup:function(popupKw){
+                                         popupKw.around = selectNode.widget.domNode;
+                                         popupKw.orient = {'BL':'TL','TL':'BL'};
+                                         if(!box_kw.min_width){
+                                             popupKw.popup.domNode.style.minWidth = popupKw.around.offsetWidth+'px';
+                                         }
+                                         openKw = popupKw;
+                                         pars.menuNode = this;
+                                         that.loadStore(this,pars);
+                                     },
+                                     connect_onOpen:function(){
+                                         pars.isOpen = true;
+                                         if(!pars.typing){
+                                             that.selectCurrentValue(this,pars);
+                                         }
+                                         that.placeMenu(openKw,pars);
+                                     },
+                                     connect_onClose:function(){
+                                         pars.isOpen = false;
+                                         pars.typing = false;
+                                     }});
+        var treeattr = objectUpdate({storepath:pars.storepath+'.root',hideValues:true,autoCollapse:true,
+                                     excludeRoot:true,labelAttribute:'caption',selectedLabelClass:'selectedTreeNode',
+                                     openOnClick:pars.grouped || !folderSelectable,
+                                     selected_pkey:kw.value.replace(/^[\^=]/,''),_class:'branchtree noIcon'},selected_kw);
+        if(table && !hierarchical){
+            treeattr.table = table;
+        }
+        menu._('menuItem')._('div',{max_height:box_kw.max_height || '350px',min_width:box_kw.min_width,
+                                    overflow:'auto'})
+            ._('div',{padding_top:'4px',padding_bottom:'4px'})._('tree',objectUpdate(treeattr,tree_kw));
+        return select;
+    },
+
+    typingFiltersTree:function(widget,pars){
+        var that = this;
+        widget._startSearch = function(key){
+            that.filterTree(widget,pars,key);
+        };
+        dojo.connect(widget,'_onBlur',function(){
+            setTimeout(function(){
+                var menu = pars.menuNode && pars.menuNode.widget;
+                if(pars.typing && menu && !dojo.isDescendant(document.activeElement,menu.domNode)){
+                    dijit.popup.close(menu);
+                }
+            },1);
+        });
+    },
+
+    filterTree:function(widget,pars,key){
+        var menu = dijit.byId(pars.menuId);
+        if(!pars.isOpen){
+            if(!key){
+                return;
+            }
+            pars.typing = true;
+            //the menu takes the focus when it opens: the text being typed must keep it
+            menu.focus = function(){};
+            menu._contextMouse({target:widget.downArrowNode,button:0,shiftKey:false,ctrlKey:false,altKey:false,metaKey:false,
+                                preventDefault:function(){},stopPropagation:function(){}});
+            setTimeout(function(){
+                delete menu.focus;
+            },10);
+        }
+        var treeWdg = pars.menuNode.getValue().getNodeByAttr('tag','tree',true).widget;
+        treeWdg.stopApplyFilter();
+        if(!key){
+            treeWdg._filteringValue = null;
+            treeWdg.collapseAll();
+            treeWdg.applyFilter();
+            return;
+        }
+        treeWdg._filteringValue = key.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+        pars.selectNode.delayedCall(function(){
+            treeWdg.applyFilter();
+        },key.length==1?300:150,'hierarchicalSelect_filter');
+    },
+
+    placeMenu:function(openKw,pars){
+        //dijit.popup places the menu once, before the tree is rendered or expanded
+        var place = function(){
+            var menuNode = pars.openKw.popup.domNode;
+            if(!menuNode.offsetHeight){
+                return;
+            }
+            dijit.placeOnScreenAroundElement(menuNode.parentNode,pars.openKw.around,pars.openKw.orient);
+            genro.wdg.getHandler('TooltipPane').followAnchor(pars.openKw,function(){
+                dijit.popup.close(pars.openKw.popup);
+            });
+        };
+        pars.openKw = openKw;
+        if(!pars.resizeObserver){
+            pars.resizeObserver = new ResizeObserver(place);
+            pars.resizeObserver.observe(openKw.popup.domNode);
+        }
+        place();
+    },
+
+    rpcKwargs:function(kw,hierarchical,caption_field,selected_kw){
+        var rpc_kw = objectExtract(kw,'condition_*',true,true);
+        if(kw.condition){
+            rpc_kw.condition = kw.condition;
+        }
+        if(caption_field){
+            rpc_kw.caption_field = caption_field;
+        }
+        if(hierarchical){
+            rpc_kw.hierarchical = hierarchical;
+        }
+        var selectedColumns = Object.keys(selected_kw).map(function(k){return '$'+k.slice(9);});
+        if(selectedColumns.length){
+            rpc_kw.columns = (hierarchical?'':'*,')+selectedColumns.join(',');
+        }
+        return rpc_kw;
+    },
+
+    valuesRows:function(pars){
+        var values = pars.values;
+        if(typeof(values)=='string'){
+            values = pars.selectNode.getRelativeData(values.replace(/^[\^=]/,''));
+        }
+        var rows = [];
+        if(!values){
+            return rows;
+        }
+        values.forEach(function(n){
+            var row = objectUpdate({},n.attr);
+            var v = n.getValue('static');
+            if(v instanceof gnr.GnrBag){
+                objectUpdate(row,v.asDict());
+            }
+            row._pkey = pars.identifier?row[pars.identifier]:n.label;
+            row.caption = row[pars.labelAttribute] || row._pkey;
+            rows.push(row);
+        },'static');
+        return rows;
+    },
+
+    valuesCallback:function(pars){
+        var that = this;
+        return function(cbkw){
+            var rows = that.valuesRows(pars);
+            var querystring = cbkw._querystring;
+            if(querystring){
+                querystring = querystring.slice(0,-1).toLowerCase();
+                rows = rows.filter(function(r){return (''+r.caption).toLowerCase().indexOf(querystring)>=0;});
+            }else if(cbkw._id){
+                rows = rows.filter(function(r){return r._pkey==cbkw._id;});
+            }
+            return {headers:'caption:'+_T('Caption'),data:rows};
+        };
+    },
+
+    valuesTree:function(pars){
+        var root = new gnr.GnrBag();
+        var groups = {};
+        this.valuesRows(pars).forEach(function(row){
+            var curr = root;
+            var path = [];
+            pars.levels.forEach(function(field){
+                var v = row[field];
+                path.push(isNullOrBlank(v)?null:v);
+                var key = JSON.stringify(path);
+                if(!groups[key]){
+                    groups[key] = new gnr.GnrBag();
+                    curr.setItem('n'+curr.len(),groups[key],{caption:isNullOrBlank(v)?'':v,hierarchical_value:v});
+                }
+                curr = groups[key];
+            });
+            curr.setItem('n'+curr.len(),null,objectUpdate(objectUpdate({},row),
+                            {pkey:row._pkey,child_count:0,treeIdentifier:row._pkey}));
+        });
+        var setChildCount = function(bag){
+            bag.forEach(function(n){
+                var v = n.getValue('static');
+                if(v instanceof gnr.GnrBag){
+                    n.attr.child_count = v.len();
+                    setChildCount(v);
+                }
+            },'static');
+        };
+        setChildCount(root);
+        var result = new gnr.GnrBag();
+        result.setItem('root',root,{caption:'',child_count:1,treeIdentifier:'_root_'});
+        return result;
+    },
+
+    loadStore:function(menuNode,pars){
+        if(!pars.table){
+            genro.setData(pars.storepath,this.valuesTree(pars));
+            return;
+        }
+        var params = pars.selectNode.evaluateOnNode(pars.rpc_kw);
+        var cacheKey = JSON.stringify(params);
+        if(menuNode._hselectKey!==cacheKey){
+            genro.setData(pars.storepath,genro.serverCall('_table.'+pars.table+'.getHierarchicalData',params));
+            menuNode._hselectKey = cacheKey;
+        }
+        pars.params = params;
+    },
+
+    selectCurrentValue:function(menuNode,pars){
+        var treeWdg = menuNode.getValue().getNodeByAttr('tag','tree',true).widget;
+        treeWdg.collapseAll();
+        var currvalue = pars.selectNode.widget.getValue();
+        treeWdg.setSelectedPath(null,{value:currvalue?this.pathFromValue(treeWdg,currvalue,pars):null});
+    },
+
+    pathFromValue:function(treeWdg,value,pars){
+        var store = treeWdg.storebag();
+        var node;
+        if(pars.grouped){
+            node = store.walk(function(n){
+                if(!n.attr.child_count && n.attr.pkey==value){
+                    return n;
+                }
+            },'static');
+        }else{
+            node = store.getNodeByAttr('treeIdentifier',value);
+            if(!node){
+                var kw = objectUpdate({pkey:value},pars.params);
+                return genro.serverCall('_table.'+pars.table+'.pathFromPkey',kw) || null;
+            }
+        }
+        return node?node.getFullpath(null,treeWdg.model.store.rootData()):null;
+    }
+});
 
 dojo.declare("gnr.widgets.MultiLineTextbox", gnr.widgets.gnrwdg, {
     createContent:function(sourceNode,kw,childSourceNode){

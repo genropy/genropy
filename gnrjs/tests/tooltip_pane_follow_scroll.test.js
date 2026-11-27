@@ -155,7 +155,7 @@ test('an anchor without layout is not followed', () => {
     const env = createContext();
     const anchor = new FakeElement({});
     env.context.gnr.widgets.TooltipPane.prototype.followAnchor(
-        {around: anchor, popup: {domNode: {parentNode: new FakeElement({})}}}, 'tp_1');
+        {around: anchor, popup: {domNode: {parentNode: new FakeElement({})}}}, () => {});
     assert.equal(env.listeners.length, 0);
 });
 
