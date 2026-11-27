@@ -294,17 +294,66 @@ def test_runcleanup_resets_the_domain_on_failure():
 # ---------------------------------------------------------------------------
 
 
-def test_runcleanup_skips_when_folder_missing(tmp_path):
-    """Bail immediately when allConnectionsFolder doesn't exist."""
+def test_runcleanup_without_folder_and_connections_does_nothing(tmp_path):
     site = _FakeSite(
         allConnectionsFolder=str(tmp_path / 'does_not_exist'),
         connection_max_age=600,
         register=_FakeRegister(),
     )
-    # Should not raise and should not call register methods.
     gws.GnrWsgiSite._runCleanup(site)
     assert site.register.expire_pages_called == []
     assert site.register.expire_connection_called == []
+    assert site.logged == []
+
+
+def test_runcleanup_expires_a_live_connection_that_never_wrote_a_folder(tmp_path):
+    """A connection has a folder only once a page of it writes a file:
+    without one it expires all the same, pages and connection."""
+    site = _FakeSite(
+        allConnectionsFolder=str(tmp_path / 'does_not_exist'),
+        connection_max_age=600,
+        register=_FakeRegister(
+            live_connections={'nofolder': {}},
+            expire_pages_result={'nofolder': {'p_stale': PAGE_END_TS}},
+            expire_connection_result=CONNECTION_END_TS,
+        ),
+    )
+
+    gws.GnrWsgiSite._runCleanup(site)
+
+    assert site.logged == [('page', 'expire', 'p_stale', PAGE_END_TS, ROOT_ENV),
+                           ('connection', 'expire', 'nofolder', CONNECTION_END_TS, ROOT_ENV)]
+
+
+def test_runcleanup_walks_each_live_connection_once(tmp_path):
+    site = _FakeSite(
+        allConnectionsFolder=str(tmp_path),
+        connection_max_age=600,
+        register=_FakeRegister(live_connections={'withfolder': {}, 'nofolder': {}}),
+    )
+    (tmp_path / 'withfolder').mkdir()
+
+    gws.GnrWsgiSite._runCleanup(site)
+
+    assert site.register.expire_pages_called == ['withfolder', 'nofolder']
+    assert site.register.expire_connection_called == ['withfolder', 'nofolder']
+
+
+def test_closed_page_beacon_logs_the_end_and_offers_a_cleanup():
+    """The beacon is all a closed page sends: the page leaves the register,
+    its end is logged in the store of the domain, the cleanup gets its chance."""
+    calls = []
+    site = _FakeSite(
+        multidomain=True, currentDomain='acme',
+        register=SimpleNamespace(drop_page=lambda page_id: calls.append(('drop', page_id))),
+        resource_loader=SimpleNamespace(drop_page_class_cache=lambda page_id: calls.append(('cache', page_id))),
+        _maybeRunCleanup=lambda: calls.append(('cleanup',)),
+    )
+
+    gws.GnrWsgiSite.onClosedPage(site, page_id='p1')
+
+    assert calls == [('drop', 'p1'), ('cache', 'p1'), ('cleanup',)]
+    assert site.logged == [('page', 'close', 'p1', None, dict(storename='acme', currentDomain='acme'))]
 
 
 def test_runcleanup_skips_non_directory_entries(tmp_path):

@@ -1632,9 +1632,14 @@ class GnrWsgiSite(object):
 
     @metadata(beacon=True)
     def onClosedPage(self, page_id=None, **kwargs):
-        "Drops page when closing"
+        """Drops page when closing: the beacon is all a closed page sends,
+        so its end is logged, and the cleanup given its chance, from here."""
         self.register.drop_page(page_id)
         self.resource_loader.drop_page_class_cache(page_id)
+        if page_id:
+            with self._sessionLogEnv():
+                self.pageLog('close', page_id=page_id)
+        self._maybeRunCleanup()
 
     def cleanup(self):
         """clean up"""
@@ -2003,30 +2008,34 @@ class GnrWsgiSite(object):
         """Drops stale pages/connections from the register of the current
         domain and removes their filesystem folders under _connections/.
 
-        Walks _connections/ once. For each entry:
+        Walks _connections/ and the live connections once. For each entry:
         - if not in live connections AND old enough -> rmtree
         - if in live connections -> expire stale pages of that connection
           (drop from register + rmtree their per-page subfolders) and
           expire the connection itself if stale (drop + rmtree).
 
+        A connection has a folder only once one of its pages writes a
+        file: the live ones are walked whether they have it or not.
+
         Idempotent and safe to call concurrently: register expire methods
         and rmtree(ignore_errors=True) tolerate concurrent state changes."""
-        if not os.path.isdir(self.allConnectionsFolder):
-            return
         try:
             live_connections = self.register.connections()
         except Exception:
             logger.exception("Cleanup failed reading register")
             return
+        folders = []
+        if os.path.isdir(self.allConnectionsFolder):
+            folders = os.listdir(self.allConnectionsFolder)
         dropped_pages = 0
         dropped_connections = 0
         removed_folders = 0
         connection_max_age_seconds = self.connection_max_age
-        for entry in os.listdir(self.allConnectionsFolder):
+        for entry in folders + [c for c in live_connections if c not in folders]:
             path = os.path.join(self.allConnectionsFolder, entry)
-            if not os.path.isdir(path):
-                continue
             if entry not in live_connections:
+                if not os.path.isdir(path):
+                    continue
                 try:
                     age = time() - os.stat(path).st_mtime
                 except OSError:
