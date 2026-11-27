@@ -128,3 +128,11 @@ class TestGnrDummySite(BaseGnrTest):
         html = builder(record={}, filepath=None)
         assert html.startswith('<!DOCTYPE html')
         assert '/_rsrc/common/print_stylesheet.css' in html
+
+    def test_storage_node_from_url(self):
+        node = self.site.storageNodeFromUrl('/_rsrc/common/print_stylesheet.css')
+        assert node.fullpath == 'rsrc:common/print_stylesheet.css'
+        assert node.exists
+        assert self.site.storageNodeFromUrl('https://cdn.example.com/_rsrc/common/print_stylesheet.css') is None
+        assert self.site.storageNodeFromUrl('/_storage/inlinedoc/index.html') is None
+        assert self.site.storageNodeFromUrl('/sys/login') is None
