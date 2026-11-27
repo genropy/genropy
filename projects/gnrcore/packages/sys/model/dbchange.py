@@ -9,7 +9,7 @@ class Table(object):
         tbl.column('tbl', size=':80', name_long='!!Table')
         tbl.column('record_pkey', name_long='!!Record pkey')
         tbl.column('evt', size='1',name_long='Evt', name_short='!!Evt')
-        tbl.column('record', dtype='X', name_long='!!Record')
+        tbl.column('record', dtype='X', name_long='!!Record', variant='masked', variant_masked_mode='text')
         tbl.column('dbstore', size=':60', name_long='!!Dbstore')
         
     

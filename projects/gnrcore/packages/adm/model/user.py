@@ -16,12 +16,15 @@ class Table(object):
         tbl.column('username', size=':32', name_long='!!Username', unique='y', _sendback=True,
                     indexed='y', validate_notnull=True, validate_notnull_error='!!Mandatory field')
         tbl.column('email', name_long='Email', validate_notnull=True,
-                    validate_notnull_error='!!Mandatory field')
-        tbl.column('mobile', name_long='Mobile')
+                    validate_notnull_error='!!Mandatory field',
+                    variant='masked', variant_masked_mode='email')
+        tbl.column('mobile', name_long='Mobile', variant='masked', variant_masked_mode='phone')
         tbl.column('firstname', name_long='!!First name',
-                    validate_notnull=True, validate_case='c', validate_notnull_error='!!Mandatory field')
+                    validate_notnull=True, validate_case='c', validate_notnull_error='!!Mandatory field',
+                    variant='masked', variant_masked_mode='name')
         tbl.column('lastname', name_long='!!Last name',
-                    validate_notnull=True, validate_case='c', validate_notnull_error='!!Mandatory field')
+                    validate_notnull=True, validate_case='c', validate_notnull_error='!!Mandatory field',
+                    variant='masked', variant_masked_mode='name')
         tbl.column('registration_date', 'D', name_long='!!Registration Date')
         tbl.column('auth_tags', name_long='!!Authorization Tags')
         tbl.column('status', name_long='!!Status', size=':4',
@@ -33,14 +36,14 @@ class Table(object):
         tbl.column('menu_root_id' ,size='22')
         tbl.column('avatar_rootpage', name_long='!!Root Page')
         tbl.column('sms_login' ,dtype='B',name_long='!!Sms login')
-        tbl.column('sms_number',name_long='!!Sms Number')
-        tbl.column('photo',dtype='P', name_long='!![en]Photo')
+        tbl.column('sms_number',name_long='!!Sms Number', variant='masked', variant_masked_mode='phone')
+        tbl.column('photo',dtype='P', name_long='!![en]Photo', variant='masked', variant_masked_mode='text')
         tbl.column('group_code',size=':15',name_long='!!Group').relation('group.code',relation_name='users',mode='foreignkey')
         tbl.column('xgroup', size=':10', name_long='!!Deployment group',
                     batch_assign=dict(tags='_DEV_')).relation('adm.xgroup.code',
                     relation_name='users', mode='foreignkey', onDelete='setnull')
         tbl.column('custom_menu', dtype='X', name_long='!!Custom menu')
-        tbl.column('custom_fields', dtype='X', name_long='!!Custom fields')
+        tbl.column('custom_fields', dtype='X', name_long='!!Custom fields', variant='masked', variant_masked_mode='text')
         tbl.column('avatar_secret_2fa', dtype='T',name_long='!![en]Secret 2fa')
         tbl.column('avatar_last_2fa_otp', name_long='Last 2fa')
         tbl.pyColumn('all_tags',name_long='All tags',dtype='A')

@@ -9,4 +9,4 @@ class Table(object):
                                                                                              mode='foreignkey',
                                                                                              onDelete='cascade')
         tbl.column('datetime', 'DH', name_long='!!Date and Time')
-        tbl.column('host', name_long='!!Host')
+        tbl.column('host', name_long='!!Host', variant='masked', variant_masked_mode='text')

@@ -8,7 +8,7 @@ class Table(object):
         self.sysFields(tbl)
         tbl.column('message_id',size='22',name_long='!!Message id').relation('email.message.id', mode='foreignkey',
                                                                             relation_name='addresses',onDelete='cascade',deferred=True)
-        tbl.column('address',name_long='!!Address',indexed=True)
+        tbl.column('address',name_long='!!Address',indexed=True, variant='masked', variant_masked_mode='email')
         tbl.column('reason',name_long='!!Reason')
 
     def retention_extra_where(self):

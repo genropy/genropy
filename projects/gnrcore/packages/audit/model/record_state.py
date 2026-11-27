@@ -9,5 +9,5 @@ class Table(object):
         tbl.column('tbl', name_long='!!Table')
         tbl.column('record_pkey', name_long='!!Record pkey')
         tbl.column('version', dtype='L', name_long='!!Version')
-        tbl.column('data', dtype='jsonb', name_long='!!Data')
+        tbl.column('data', dtype='jsonb', name_long='!!Data', variant='masked', variant_masked_mode='text')
         tbl.index('tbl,record_pkey', unique=True)

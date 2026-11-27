@@ -20,18 +20,18 @@ class Table(object):
                     mode='foreignkey',
                     onDelete='raise')
 
-        tbl.column('description',name_long='!!Description')
+        tbl.column('description',name_long='!!Description', variant='masked', variant_masked_mode='text')
         tbl.column('annotation_type_id',size='22',name_long='!!Annotation type',group='_').relation('annotation_type.id',mode='foreignkey', onDelete='raise')
-        tbl.column('annotation_fields',dtype='X',name_long='!!Annotation Fields',subfields='annotation_type_id')
+        tbl.column('annotation_fields',dtype='X',name_long='!!Annotation Fields',subfields='annotation_type_id', variant='masked', variant_masked_mode='text')
         tbl.column('annotation_date',dtype='D',name_long='!!Date',indexed=True)
         tbl.column('annotation_time',dtype='H',name_long='!!Time',indexed=True)
         tbl.column('annotation_ts',dtype='DHZ',name_long='!!Annotation ts',indexed=True)
 
         #belong to actions
-        tbl.column('action_description',name_long='!!Action Description')
+        tbl.column('action_description',name_long='!!Action Description', variant='masked', variant_masked_mode='text')
         tbl.column('parent_annotation_id',size='22' ,group='_',name_long='!!Parent annotation').relation('annotation.id',relation_name='orgn_related_actions',mode='foreignkey',onDelete='cascade')
         tbl.column('action_type_id',size='22',name_long='!!Action type',group='_').relation('action_type.id',mode='foreignkey', onDelete='raise')
-        tbl.column('action_fields',dtype='X',name_long='!!Action Fields',subfields='action_type_id')
+        tbl.column('action_fields',dtype='X',name_long='!!Action Fields',subfields='action_type_id', variant='masked', variant_masked_mode='text')
         tbl.column('assigned_user_id',size='22',group='*',name_long='!!Assigned to').relation('adm.user.id',relation_name='orgn_actions',onDelete='raise')
         tbl.column('done_user_id',size='22',group='*',name_long='!!Done by').relation('adm.user.id',relation_name='orgn_actions_done',onDelete='raise')
 

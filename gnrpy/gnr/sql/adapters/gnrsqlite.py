@@ -417,7 +417,8 @@ class SqlDbAdapter(SqlDbBaseAdapter):
 
         Args:
             field: The field expression to mask (with $ prefix for gnr substitution)
-            mode: Masking mode - 'email', 'creditcard', 'phone', or 'N-M' format
+            mode: Masking mode - 'email', 'creditcard', 'phone', 'cf', 'piva',
+                'iban', 'name', 'address', 'birthdate', 'text' or 'N-M' format
             placeholder: Character to use for masking (default: '*')
 
         Returns:
@@ -432,7 +433,30 @@ class SqlDbAdapter(SqlDbBaseAdapter):
         max_mask_chars = 100  # Maximum mask length supported
         mask_base = '*' * max_mask_chars
 
-        if mode == 'email':
+        # Fiscal identifiers are fixed-width: they are N-M masks with a name
+        mode = {'cf': '3-1', 'piva': '2-3', 'iban': '4-4'}.get(mode, mode)
+        # Every mode works on the text form, so dates and numbers can be masked
+        field = f'CAST({field} AS TEXT)'
+        hidden = placeholder * 3
+
+        if mode == 'name':
+            # Initial only, the length of the name stays hidden
+            sql_formula = f"substr({field}, 1, 1) || '{hidden}'"
+
+        elif mode == 'address':
+            # Street type only (Via, Viale, ...), the rest stays hidden
+            sql_formula = f"substr({field}, 1, 3) || '{hidden}'"
+
+        elif mode == 'birthdate':
+            # Year only, from the ISO text form YYYY-MM-DD
+            masked_month_day = f'-{placeholder * 2}-{placeholder * 2}'
+            sql_formula = f"substr({field}, 1, 4) || '{masked_month_day}'"
+
+        elif mode == 'text':
+            # No character of the original survives; NULL stays NULL
+            sql_formula = f"CASE WHEN {field} IS NULL THEN NULL ELSE '{hidden}' END"
+
+        elif mode == 'email':
             # Mask local part of email, keep domain visible (default 2 chars visible at start)
             # SQLite uses instr() instead of position(), substr() instead of substring()
             # SQLite doesn't have split_part, so we use substr with instr

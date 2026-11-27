@@ -14,7 +14,7 @@ class Table(object):
         tbl.column('user_id', size='22', name_long='!!User id').relation('user.id', mode='foreignkey') #Not used DEPRECATED
         tbl.column('use_ts', 'DH', name_long='!!Used datetime')
         tbl.column('used_by', name_long='!!Used by')
-        tbl.column('note', name_long='!!Note')
+        tbl.column('note', name_long='!!Note', variant='masked', variant_masked_mode='text')
         tbl.column('usage_scope', name_long='!!Use Scope')
         tbl.column('remaining_usages', 'L', name_long='!!Remaining usages', default=1)
         tbl.column('expiry_date', 'D', name_long='!!Expire Date')

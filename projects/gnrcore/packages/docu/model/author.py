@@ -8,8 +8,10 @@ class Table(object):
         self.sysFields(tbl)
 
         tbl.column('firstname', name_long='!!First name',
-                    validate_notnull=True, validate_notnull_error='!!Mandatory field')
+                    validate_notnull=True, validate_notnull_error='!!Mandatory field',
+                    variant='masked', variant_masked_mode='name')
         tbl.column('lastname', name_long='!!Last name',
-                    validate_notnull=True, validate_notnull_error='!!Mandatory field')
+                    validate_notnull=True, validate_notnull_error='!!Mandatory field',
+                    variant='masked', variant_masked_mode='name')
         
         tbl.formulaColumn('fullname', """$firstname||' '||$lastname""", name_long=u'!!Full name',static=True)

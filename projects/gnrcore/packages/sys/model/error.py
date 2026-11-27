@@ -17,9 +17,9 @@ class Table(object):
         tbl.column('error_data',dtype='X',name_long='!!Traceback')
 
         tbl.column('username',name_long='User')
-        tbl.column('user_ip',name_long='User ip')
+        tbl.column('user_ip',name_long='User ip', variant='masked', variant_masked_mode='text')
 
-        tbl.column('user_agent',name_long='User agent')
+        tbl.column('user_agent',name_long='User agent', variant='masked', variant_masked_mode='text')
 
         tbl.column('fixed',name_long='Fixed')
         tbl.column('notes',name_long='Notes')
@@ -40,7 +40,7 @@ class Table(object):
         tbl.column('request_host',name_long='!!Request Host')
 
         tbl.column('rpc_method',name_long='!!RPC Method')
-        tbl.column('rpc_kwargs',dtype='X',name_long='!!RPC kwargs')
+        tbl.column('rpc_kwargs',dtype='X',name_long='!!RPC kwargs', variant='masked', variant_masked_mode='text')
         tbl.column('page_id',name_long='!!Page ID',size='22')
         tbl.column('current_domain',name_long='!!Current domain')
 

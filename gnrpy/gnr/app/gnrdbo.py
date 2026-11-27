@@ -1840,12 +1840,15 @@ class AttachmentTable(GnrDboTable):
                     onInserted='onInsertedAtc',
                     onInserting='checkExternalUrl')
         tbl.column('filepath_hash', name_long='MD5 hash')
-        tbl.column('filepath_original_name', name_long='!![en]Original name')
+        tbl.column('filepath_original_name', name_long='!![en]Original name',
+                   variant='masked', variant_masked_mode='text')
 
         tbl.column('external_url', name_long='!![en]External url')
-        tbl.column('description' ,name_long='!![en]Description')
+        tbl.column('description', name_long='!![en]Description',
+                   variant='masked', variant_masked_mode='text')
         tbl.column('mimetype' ,name_long='!![en]Mimetype')
-        tbl.column('text_content',name_long='!![en]Content')
+        tbl.column('text_content', name_long='!![en]Content',
+                   variant='masked', variant_masked_mode='text')
         #tbl.column('text_language',name_long='!![en]Text language')
 
         tbl.column('info' ,'X',name_long='!![en]Additional info')

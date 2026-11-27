@@ -21,7 +21,7 @@ class Table(object):
         tbl.column('is_local_handbook', dtype='B', name_long='!!Is local handbook')
         tbl.column('local_handbook_zip', name_long='!!Local handbook zip')
         tbl.column('version', name_long='!!Version')
-        tbl.column('author', name_long='!!Author')
+        tbl.column('author', name_long='!!Author', variant='masked', variant_masked_mode='name')
         tbl.column('theme', name_long='!!Theme')
         tbl.column('handbook_url', name_long='!!Handbook url')
         tbl.column('examples_site',name_long='!!Examples site')

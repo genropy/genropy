@@ -13,5 +13,5 @@ class Table(object):
         tbl.column('date_from', dtype='D', name_long='From')
         tbl.column('date_to', dtype='D', name_long='To')
 
-        tbl.column('values', dtype='X', name_long='!![en]Values')
+        tbl.column('values', dtype='X', name_long='!![en]Values', variant='masked', variant_masked_mode='text')
         tbl.column('options', dtype='X', name_long='!![en]Options')
