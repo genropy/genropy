@@ -29,6 +29,7 @@ against database tables for autocomplete/dropdown functionality.
 
 from __future__ import annotations
 
+import json
 import re
 import time
 from typing import Any, Optional
@@ -189,7 +190,8 @@ class DbSelectMixin:
             result = selection.output('selection', locale=self.page.locale, caption=rowcaption or True)
             colHeaders = [selection.colAttrs[k].get('name_short') or selection.colAttrs[k]['label'] for k in showcols]
             colHeaders = [self.page._(c) for c in colHeaders]
-            resultAttrs = {'columns': ','.join(showcols), 'headers': ','.join(colHeaders)}
+            resultAttrs = {'columns': ','.join(showcols), 'headers': ','.join(colHeaders),
+                           'colinfo': json.dumps([self._dbSelectColInfo(selection.colAttrs[k]) for k in showcols])}
             if applyresult:
                 resultAttrs.update(applyresult)
             if not notnull and not _id:
@@ -203,6 +205,12 @@ class DbSelectMixin:
         if errors:
             resultAttrs['errors'] = ','.join(errors)
         return (result, resultAttrs)
+
+    def _dbSelectColInfo(self, colattr: dict) -> dict:
+        dtype = colattr.get('dataType')
+        if dtype in ('M', 'money'):
+            dtype = 'N'
+        return {'dtype': dtype, 'format': colattr.get('format')}
 
     @public_method
     def dbSelect_selection(self, tblobj: Any, querystring: str,

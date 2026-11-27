@@ -511,30 +511,32 @@ genropatches.comboBox = function() {
             var lfa = this._lastFetchAttrs;
             var columns = lfa.columns.split(',');
             var headers = lfa.headers.split(',');
+            var colinfo = lfa.colinfo? JSON.parse(lfa.colinfo) : [];
             var tblclass = 'multiColumnSelect' + ' ' + lfa.resultClass;
             var tplRow = this.params.auxColumns_template;
             var max_height = null;
             var multiline = !tplRow && (this._multiline || this.params.auxColumns_multiline===true);
             if(tplRow || multiline){
                 results.forEach(n=>{
-                    n.attr._template_value = tplRow? dataTemplate(tplRow,n.attr) : this.multilineValue(n.attr,columns,headers);
+                    n.attr._template_value = tplRow? dataTemplate(tplRow,n.attr) : this.multilineValue(n.attr,columns,headers,colinfo);
                 });
                 if(multiline){
                     tblclass += ' multilineAuxColumns';
                 }
                 columns = ['_template_value']
                 headers = ['*']
+                colinfo = []
                 tblclass += ' templateAuxColumns'
                 max_height = '400px'
             }
-            genro.dom.scrollableTable(this.domNode, results[0].getParentBag(), {'columns':columns,'headers':headers,'tblclass':tblclass,
+            genro.dom.scrollableTable(this.domNode, results[0].getParentBag(), {'columns':columns,'headers':headers,'colinfo':colinfo,'tblclass':tblclass,
                                                                                 max_height:max_height});
             this.domNode.onmouseover = dojo.hitch(this, 'onmouseover');
             // this.nextButton.style.display='none';
             //  this.previousButton.style.display='none';
             //genro.debug("this.domNode.innerHTML=tbl.join('\n');");
         },
-        multilineValue:function(row, columns, headers) {
+        multilineValue:function(row, columns, headers, colinfo) {
             var caption = row[columns[0]];
             if(isNullOrBlank(caption)){
                 caption = row.caption;
@@ -543,7 +545,8 @@ genropatches.comboBox = function() {
             for(var i = 1; i < columns.length; i++){
                 var v = row[columns[i]];
                 if(!isNullOrBlank(v)){
-                    lines.push(`<div class="auxColumns_line">${headers[i]}: ${_F(v)}</div>`);
+                    let info = colinfo[i] || {};
+                    lines.push(`<div class="auxColumns_line">${headers[i]}: ${_F(v,info.format,info.dtype)}</div>`);
                 }
             }
             return lines.join('');

@@ -1520,7 +1520,7 @@ dojo.declare("gnr.GnrDomHandler", null, {
             cols = kw.struct.getItem('#0.#0').getNodes().map(n=>n.attr);
         }else{
             columns.forEach(function(c,idx){
-                cols.push({field:c,name:headers[idx]});
+                cols.push(objectUpdate({field:c,name:headers[idx]},(kw.colinfo || [])[idx]));
             });
         }
         var tblclass = kw.tblclass;
