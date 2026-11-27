@@ -188,11 +188,12 @@ const LoginComponent = {
         }
         sourceNode.setRelativeData('_login.device_user',result.getItem('user'));
         sourceNode.setRelativeData('_login.user',result.getItem('user'));
+        // the dialog is visible again before the login goes on: it may ask more to the user
+        // (a group, the fields of a package), and a hidden dialog hides its fields from the check
+        // that lets the login start by itself
+        LoginComponent.hideLoginDialog(dlg,false);
         if(result.getItem('mode')=='signature'){
-            // the dialog stays hidden: a failed login shows it again (failed_login_msg)
             genro.fireEvent('do_login_check');
-        }else{
-            LoginComponent.hideLoginDialog(dlg,false);
         }
         return true;
     },
@@ -219,6 +220,8 @@ const LoginComponent = {
         }
         sourceNode.setRelativeData('_login.device_user',result.getItem('user'));
         sourceNode.setRelativeData('_login.user',result.getItem('user'));
+        // as after a device signature: the dialog is visible again before the login goes on
+        LoginComponent.hideLoginDialog(dlg,false);
         genro.fireEvent('do_login_check');
     },
 
